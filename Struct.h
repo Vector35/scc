@@ -42,6 +42,7 @@ public:
 	const std::vector<StructMember>& GetMembers() const { return m_members; }
 	bool HasMember(const std::string& name) const { return m_membersByName.find(name) != m_membersByName.end(); }
 	StructMember GetMember(ParserState* state, const std::string& name) const;
+	const StructMember* GetMember(const std::string& name) const;
 
 	size_t GetWidth() const { return m_width; }
 	size_t GetAlignment() const { return m_alignment; }

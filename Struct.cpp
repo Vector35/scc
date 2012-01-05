@@ -71,6 +71,15 @@ StructMember Struct::GetMember(ParserState* state, const std::string& name) cons
 }
 
 
+const StructMember* Struct::GetMember(const string& name) const
+{
+	map<string, StructMember>::const_iterator i = m_membersByName.find(name);
+	if (i == m_membersByName.end())
+		return NULL;
+	return &i->second;
+}
+
+
 void Struct::AddMember(ParserState* state, Type* type, const string& name)
 {
 	StructMember member;

@@ -38,9 +38,9 @@ ILParameter::ILParameter(Type* t, double f)
 }
 
 
-ILParameter::ILParameter(const string& str)
+ILParameter::ILParameter(const string& str, ILParameterClass c)
 {
-	cls = ILPARAM_STRING;
+	cls = c;
 	stringValue = str;
 	type = Type::PointerType(Type::IntType(1, true), 1); // const char*
 	type->SetConst(true);
@@ -193,6 +193,7 @@ void ILParameter::Print() const
 	case ILPARAM_INT:  fprintf(stderr, "%lld", integerValue); break;
 	case ILPARAM_FLOAT:  fprintf(stderr, "%f", floatValue); break;
 	case ILPARAM_STRING:  fprintf(stderr, "\"%s\"", stringValue.c_str()); break;
+	case ILPARAM_NAME:  fprintf(stderr, "%s", stringValue.c_str()); break;
 	case ILPARAM_BOOL:  fprintf(stderr, "%s", boolValue ? "true" : "false"); break;
 	case ILPARAM_VAR:  fprintf(stderr, "var<%s>", variable->GetName().c_str()); break;
 	case ILPARAM_FUNC:  fprintf(stderr, "func<%s>", function->GetName().c_str()); break;
@@ -300,7 +301,9 @@ void ILInstruction::Print() const
 	case ILOP_ASSIGN:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
 	case ILOP_ADDRESS_OF:  params[0].Print(); fprintf(stderr, " = &"); params[1].Print(); break;
 	case ILOP_DEREF:  params[0].Print(); fprintf(stderr, " = *"); params[1].Print(); break;
+	case ILOP_DEREF_MEMBER:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "->"); params[2].Print(); break;
 	case ILOP_DEREF_ASSIGN:  fprintf(stderr, "*"); params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
+	case ILOP_DEREF_MEMBER_ASSIGN:  params[0].Print(); fprintf(stderr, "->"); params[1].Print(); fprintf(stderr, " = "); params[2].Print(); break;
 	case ILOP_ARRAY_INDEX:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "["); params[2].Print(); fprintf(stderr, "]"); break;
 	case ILOP_ARRAY_INDEX_ASSIGN:  params[0].Print(); fprintf(stderr, "["); params[1].Print(); fprintf(stderr, "] = "); params[2].Print(); break;
 	case ILOP_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " + "); params[2].Print(); break;

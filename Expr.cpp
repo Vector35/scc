@@ -1670,8 +1670,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(m_function);
 		break;
 	case EXPR_DOT:
-	case EXPR_ARROW:
 		result = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
+		result.type = m_type;
+		break;
+	case EXPR_ARROW:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_DEREF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
+			ILParameter(m_stringValue, ILPARAM_NAME));
 		break;
 	case EXPR_ADDRESS_OF:
 		result = func->CreateTempVariable(m_type);
@@ -1977,6 +1982,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
 			block->AddInstruction(ILOP_DEREF_ASSIGN, a, b);
+			result = b;
+		}
+		else if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			b = m_children[1]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(m_children[0]->m_stringValue, ILPARAM_NAME), b);
 			result = b;
 		}
 		else

@@ -9,7 +9,9 @@ typedef enum
 	ILOP_ASSIGN,
 	ILOP_ADDRESS_OF,
 	ILOP_DEREF,
+	ILOP_DEREF_MEMBER,
 	ILOP_DEREF_ASSIGN,
+	ILOP_DEREF_MEMBER_ASSIGN,
 	ILOP_ARRAY_INDEX,
 	ILOP_ARRAY_INDEX_ASSIGN,
 	ILOP_ADD,
@@ -47,6 +49,7 @@ typedef enum
 	ILPARAM_INT,
 	ILPARAM_FLOAT,
 	ILPARAM_STRING,
+	ILPARAM_NAME,
 	ILPARAM_BOOL,
 	ILPARAM_VAR,
 	ILPARAM_FUNC,
@@ -80,7 +83,7 @@ struct ILParameter
 	ILParameter(bool b);
 	ILParameter(Type* t, int64_t i);
 	ILParameter(Type* t, double f);
-	ILParameter(const std::string& str);
+	ILParameter(const std::string& str, ILParameterClass c = ILPARAM_STRING);
 	ILParameter(Variable* var);
 	ILParameter(Function* func);
 	ILParameter(ILBlock* b);

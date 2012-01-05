@@ -213,6 +213,25 @@ void OUTPUT_CLASS_NAME::ReserveRegister(OperandType reg)
 
 bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref)
 {
+	if (param.cls == ILPARAM_MEMBER)
+	{
+		OperandReference parent;
+		if (!PrepareLoad(out, *param.parent, parent))
+			return false;
+		if (parent.type != OPERANDREF_MEM)
+			return false;
+		if (!param.parent->type->GetStruct())
+			return false;
+
+		const StructMember* member = param.parent->type->GetStruct()->GetMember(param.stringValue);
+		if (!member)
+			return false;
+
+		parent.mem.offset += member->offset;
+		ref = parent.mem;
+		return true;
+	}
+
 	if (param.cls != ILPARAM_VAR)
 		return false;
 	map<Variable*, int32_t>::iterator i = m_stackFrame.find(param.variable);
@@ -788,7 +807,59 @@ bool OUTPUT_CLASS_NAME::GenerateDeref(OutputBlock* out, const ILInstruction& ins
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateDerefMember(OutputBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+
+	if (src.type != OPERANDREF_REG)
+	{
+		// Load pointer into a register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+		temp.width = 4;
+#else
+		temp.width = 8;
+#endif
+		temp.sign = false;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, src))
+			return false;
+		src = temp;
+	}
+
+	if (instr.params[1].type->GetClass() != TYPE_POINTER)
+		return false;
+	if (!instr.params[1].type->GetChildType()->GetStruct())
+		return false;
+
+	const StructMember* member = instr.params[1].type->GetChildType()->GetStruct()->GetMember(instr.params[2].stringValue);
+	if (!member)
+		return false;
+
+	OperandReference deref;
+	deref.type = OPERANDREF_MEM;
+	deref.width = dest.width;
+	deref.sign = dest.sign;
+	deref.mem.base = src.reg;
+	deref.mem.scale = 1;
+	deref.mem.index = NONE;
+	deref.mem.offset = member->offset;
+	return Move(out, dest, deref);
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateDerefAssign(OutputBlock* out, const ILInstruction& instr)
+{
+	return false;
+}
+
+
+bool OUTPUT_CLASS_NAME::GenerateDerefMemberAssign(OutputBlock* out, const ILInstruction& instr)
 {
 	return false;
 }
@@ -1975,8 +2046,16 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			if (!GenerateDeref(out, *i))
 				goto fail;
 			break;
+		case ILOP_DEREF_MEMBER:
+			if (!GenerateDerefMember(out, *i))
+				goto fail;
+			break;
 		case ILOP_DEREF_ASSIGN:
 			if (!GenerateDerefAssign(out, *i))
+				goto fail;
+			break;
+		case ILOP_DEREF_MEMBER_ASSIGN:
+			if (!GenerateDerefMemberAssign(out, *i))
 				goto fail;
 			break;
 		case ILOP_ARRAY_INDEX:

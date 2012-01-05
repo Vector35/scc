@@ -1001,120 +1001,350 @@ bool OUTPUT_CLASS_NAME::GenerateIfTrue(OutputBlock* out, const ILInstruction& in
 }
 
 
+#ifdef OUTPUT32
+#define IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
+	if (left.type == OPERANDREF_REG) \
+	{ \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG: \
+			EMIT_RR(cmp_32, left.highReg, right.highReg); \
+			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+			EMIT_RR(cmp_32, left.reg, right.reg); \
+			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_MEM: \
+			EMIT_RM(cmp_32, left.highReg, X86_MEM_REF_OFFSET(right.mem, 4)); \
+			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+			EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
+			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_IMMED: \
+			EMIT_RI(cmp_32, left.highReg, (uint32_t)(right.immed >> 32)); \
+			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+			EMIT_RI(cmp_32, left.reg, (uint32_t)right.immed); \
+			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		default:  return false; \
+		} \
+	} \
+	else \
+	{ \
+		OperandType temp; \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG: \
+			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), right.highReg); \
+			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
+			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_MEM: \
+			temp = AllocateTemporaryRegister(out, 4); \
+			EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(right.mem, 4)); \
+			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), temp); \
+			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+			EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
+			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
+			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_IMMED: \
+			EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), (uint32_t)(right.immed >> 32)); \
+			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+			EMIT_MI(cmp_32, X86_MEM_REF(left.mem), (uint32_t)right.immed); \
+			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		default:  return false; \
+		} \
+	}
+#else
+#define IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
+	if (left.type == OPERANDREF_REG) \
+	{ \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG:  EMIT_RR(cmp_64, left.reg, right.reg); break; \
+		case OPERANDREF_MEM:  EMIT_RM(cmp_64, left.reg, X86_MEM_REF(right.mem)); break; \
+		case OPERANDREF_IMMED:  EMIT_RI(cmp_64, left.reg, right.immed); break; \
+		default:  return false; \
+		} \
+		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+	} \
+	else \
+	{ \
+		OperandType temp; \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG:  EMIT_MR(cmp_64, X86_MEM_REF(left.mem), right.reg); break; \
+		case OPERANDREF_MEM: \
+			temp = AllocateTemporaryRegister(out, 8); \
+			EMIT_RM(mov_64, temp, X86_MEM_REF(right.mem)); \
+			EMIT_MR(cmp_64, X86_MEM_REF(left.mem), temp); \
+			break; \
+		case OPERANDREF_IMMED:  EMIT_MI(cmp_64, X86_MEM_REF(left.mem), right.immed); break; \
+		default:  return false; \
+		} \
+		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+	}
+#endif
+
+#ifdef OUTPUT32
+#define IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
+	if (left.type == OPERANDREF_REG) \
+	{ \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG: \
+			EMIT_RR(cmp_32, left.highReg, right.highReg); \
+			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+			EMIT_RR(cmp_32, left.reg, right.reg); \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_MEM: \
+			EMIT_RM(cmp_32, left.highReg, X86_MEM_REF_OFFSET(right.mem, 4)); \
+			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+			EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_IMMED: \
+			EMIT_RI(cmp_32, left.highReg, (uint32_t)(right.immed >> 32)); \
+			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+			EMIT_RI(cmp_32, left.reg, (uint32_t)right.immed); \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		default:  return false; \
+		} \
+	} \
+	else \
+	{ \
+		OperandType temp; \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG: \
+			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), right.highReg); \
+			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_MEM: \
+			temp = AllocateTemporaryRegister(out, 4); \
+			EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(right.mem, 4)); \
+			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), temp); \
+			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+			EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
+			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		case OPERANDREF_IMMED: \
+			EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), (uint32_t)(right.immed >> 32)); \
+			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+			EMIT_MI(cmp_32, X86_MEM_REF(left.mem), (uint32_t)right.immed); \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			break; \
+		default:  return false; \
+		} \
+	}
+#else
+#define IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
+	if (left.type == OPERANDREF_REG) \
+	{ \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG:  EMIT_RR(cmp_64, left.reg, right.reg); break; \
+		case OPERANDREF_MEM:  EMIT_RM(cmp_64, left.reg, X86_MEM_REF(right.mem)); break; \
+		case OPERANDREF_IMMED:  EMIT_RI(cmp_64, left.reg, right.immed); break; \
+		default:  return false; \
+		} \
+		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+	} \
+	else \
+	{ \
+		OperandType temp; \
+		switch (right.type) \
+		{ \
+		case OPERANDREF_REG:  EMIT_MR(cmp_64, X86_MEM_REF(left.mem), right.reg); break; \
+		case OPERANDREF_MEM: \
+			temp = AllocateTemporaryRegister(out, 8); \
+			EMIT_RM(mov_64, temp, X86_MEM_REF(right.mem)); \
+			EMIT_MR(cmp_64, X86_MEM_REF(left.mem), temp); \
+			break; \
+		case OPERANDREF_IMMED:  EMIT_MI(cmp_64, X86_MEM_REF(left.mem), right.immed); break; \
+		default:  return false; \
+		} \
+		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+	}
+#endif
+
+#define IMPLEMENT_COMPARE(pred) \
+	if (left.width == 1) \
+	{ \
+		if (left.type == OPERANDREF_REG) \
+		{ \
+			switch (right.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_RR(cmp_8, left.reg, right.reg); break; \
+			case OPERANDREF_MEM:  EMIT_RM(cmp_8, left.reg, X86_MEM_REF(right.mem)); break; \
+			case OPERANDREF_IMMED:  EMIT_RI(cmp_8, left.reg, right.immed); break; \
+			default:  return false; \
+			} \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		} \
+		else \
+		{ \
+			OperandType temp; \
+			switch (right.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_MR(cmp_8, X86_MEM_REF(left.mem), right.reg); break; \
+			case OPERANDREF_MEM: \
+				temp = AllocateTemporaryRegister(out, 1); \
+				EMIT_RM(mov_8, temp, X86_MEM_REF(right.mem)); \
+				EMIT_MR(cmp_8, X86_MEM_REF(left.mem), temp); \
+				break; \
+			case OPERANDREF_IMMED:  EMIT_MI(cmp_8, X86_MEM_REF(left.mem), right.immed); break; \
+			default:  return false; \
+			} \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		} \
+	} \
+	else if (left.width == 2) \
+	{ \
+		if (left.type == OPERANDREF_REG) \
+		{ \
+			switch (right.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_RR(cmp_16, left.reg, right.reg); break; \
+			case OPERANDREF_MEM:  EMIT_RM(cmp_16, left.reg, X86_MEM_REF(right.mem)); break; \
+			case OPERANDREF_IMMED:  EMIT_RI(cmp_16, left.reg, right.immed); break; \
+			default:  return false; \
+			} \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		} \
+		else \
+		{ \
+			OperandType temp; \
+			switch (right.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_MR(cmp_16, X86_MEM_REF(left.mem), right.reg); break; \
+			case OPERANDREF_MEM: \
+				temp = AllocateTemporaryRegister(out, 2); \
+				EMIT_RM(mov_16, temp, X86_MEM_REF(right.mem)); \
+				EMIT_MR(cmp_16, X86_MEM_REF(left.mem), temp); \
+				break; \
+			case OPERANDREF_IMMED:  EMIT_MI(cmp_16, X86_MEM_REF(left.mem), right.immed); break; \
+			default:  return false; \
+			} \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		} \
+	} \
+	else if (left.width == 4) \
+	{ \
+		if (left.type == OPERANDREF_REG) \
+		{ \
+			switch (right.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_RR(cmp_32, left.reg, right.reg); break; \
+			case OPERANDREF_MEM:  EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); break; \
+			case OPERANDREF_IMMED:  EMIT_RI(cmp_32, left.reg, right.immed); break; \
+			default:  return false; \
+			} \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		} \
+		else \
+		{ \
+			OperandType temp; \
+			switch (right.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); break; \
+			case OPERANDREF_MEM: \
+				temp = AllocateTemporaryRegister(out, 4); \
+				EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
+				EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
+				break; \
+			case OPERANDREF_IMMED:  EMIT_MI(cmp_32, X86_MEM_REF(left.mem), right.immed); break; \
+			default:  return false; \
+			} \
+			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		} \
+	} \
+	else if (left.width == 8) \
+	{
+
+#define IMPLEMENT_COMPARE_FINISH() \
+	} \
+	else \
+	{ \
+		return false; \
+	} \
+	return true;
+
+#define IMPLEMENT_ORDERED_COMPARE(pred, lowPred, highPred, highInverse) \
+	IMPLEMENT_COMPARE(pred) \
+	IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
+	IMPLEMENT_COMPARE_FINISH()
+
+#define IMPLEMENT_UNORDERED_COMPARE(pred, inverse) \
+	IMPLEMENT_COMPARE(pred) \
+	IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
+	IMPLEMENT_COMPARE_FINISH()
+
 bool OUTPUT_CLASS_NAME::GenerateIfLessThan(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!PrepareLoad(out, instr.params[0], left))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], right))
+		return false;
+	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_LESS_THAN, CONDJUMP_BELOW, CONDJUMP_LESS_THAN, CONDJUMP_GREATER_THAN);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateIfLessThanEqual(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!PrepareLoad(out, instr.params[0], left))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], right))
+		return false;
+	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_LESS_EQUAL, CONDJUMP_BELOW_EQUAL, CONDJUMP_LESS_THAN, CONDJUMP_GREATER_THAN);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateIfBelow(OutputBlock* out, const ILInstruction& instr)
 {
-	X86MemoryReference leftRef, rightRef;
-	if (!AccessVariableStorage(out, instr.params[0], leftRef))
+	OperandReference left, right;
+	if (!PrepareLoad(out, instr.params[0], left))
 		return false;
-
-	switch (instr.params[1].cls)
-	{
-	case ILPARAM_VAR:
-	case ILPARAM_MEMBER:
-		if (!AccessVariableStorage(out, instr.params[1], rightRef))
-			return false;
-		if (instr.params[0].type->GetWidth() == 1)
-		{
-			EMIT_RM(mov_8, REG_AL, X86_MEM_REF(leftRef));
-			EMIT_RM(cmp_8, REG_AL, X86_MEM_REF(rightRef));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-		}
-		else if (instr.params[0].type->GetWidth() == 2)
-		{
-			EMIT_RM(mov_16, REG_AX, X86_MEM_REF(leftRef));
-			EMIT_RM(cmp_16, REG_AX, X86_MEM_REF(rightRef));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-		}
-		else if (instr.params[0].type->GetWidth() == 4)
-		{
-			EMIT_RM(mov_32, REG_EAX, X86_MEM_REF(leftRef));
-			EMIT_RM(cmp_32, REG_EAX, X86_MEM_REF(rightRef));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-		}
-		else if (instr.params[0].type->GetWidth() == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_RM(mov_32, REG_EAX, X86_MEM_REF(leftRef));
-			EMIT_RM(mov_32, REG_EDX, X86_MEM_REF_OFFSET(leftRef, 4));
-			EMIT_RM(cmp_32, REG_EDX, X86_MEM_REF_OFFSET(rightRef, 4));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, NULL);
-			ConditionalJump(out, CONDJUMP_ABOVE, instr.params[3].block, NULL);
-			EMIT_RM(cmp_32, REG_EAX, X86_MEM_REF(rightRef));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-#else
-			EMIT_RM(mov_64, REG_RAX, X86_MEM_REF(leftRef));
-			EMIT_RM(cmp_64, REG_RAX, X86_MEM_REF(rightRef));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-#endif
-		}
-		else
-		{
-			return false;
-		}
-		break;
-	case ILPARAM_INT:
-		if (instr.params[0].type->GetWidth() == 1)
-		{
-			EMIT_MI(cmp_8, X86_MEM_REF(leftRef), (uint8_t)instr.params[1].integerValue);
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-		}
-		else if (instr.params[0].type->GetWidth() == 2)
-		{
-			EMIT_MI(cmp_16, X86_MEM_REF(leftRef), (uint16_t)instr.params[1].integerValue);
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-		}
-		else if (instr.params[0].type->GetWidth() == 4)
-		{
-			EMIT_MI(cmp_32, X86_MEM_REF(leftRef), (uint32_t)instr.params[1].integerValue);
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-		}
-		else if (instr.params[0].type->GetWidth() == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(leftRef, 4), (uint32_t)(instr.params[1].integerValue >> 32));
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, NULL);
-			ConditionalJump(out, CONDJUMP_ABOVE, instr.params[3].block, NULL);
-			EMIT_MI(cmp_32, X86_MEM_REF(leftRef), (uint32_t)instr.params[1].integerValue);
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-#else
-			EMIT_MI(cmp_64, X86_MEM_REF(leftRef), instr.params[1].integerValue);
-			ConditionalJump(out, CONDJUMP_BELOW, instr.params[2].block, instr.params[3].block);
-#endif
-		}
-		else
-		{
-			return false;
-		}
-		break;
-	default:
+	if (!PrepareLoad(out, instr.params[1], right))
 		return false;
-	}
-
-	return true;
+	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_BELOW, CONDJUMP_BELOW, CONDJUMP_BELOW, CONDJUMP_ABOVE);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateIfBelowEqual(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!PrepareLoad(out, instr.params[0], left))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], right))
+		return false;
+	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_BELOW_EQUAL, CONDJUMP_BELOW_EQUAL, CONDJUMP_BELOW, CONDJUMP_ABOVE);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateIfEqual(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!PrepareLoad(out, instr.params[0], left))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], right))
+		return false;
+	IMPLEMENT_UNORDERED_COMPARE(CONDJUMP_EQUAL, CONDJUMP_NOT_EQUAL);
 }
 
 

@@ -942,7 +942,8 @@ int main(int argc, char* argv[])
 		// Hex dump to stdout
 		for (size_t i = 0; i < finalBinary->len; i += 16)
 		{
-			char ascii[16];
+			char ascii[17];
+			ascii[16] = 0;
 			printf("%.8x   ", (uint32_t)i);
 			for (size_t j = 0; j < 16; j++)
 			{

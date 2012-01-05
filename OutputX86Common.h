@@ -71,10 +71,12 @@ class OUTPUT_CLASS_NAME: public Output
 	bool m_finalPass;
 
 	size_t m_temporaryCount;
+	bool m_reserved[4];
 
 	asmx86::OperandType GetRegisterOfSize(asmx86::OperandType base, size_t size);
 	bool IsRegisterValid(asmx86::OperandType reg);
 	asmx86::OperandType AllocateTemporaryRegister(OutputBlock* out, size_t size);
+	void ReserveRegister(asmx86::OperandType reg);
 
 	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref);
 	bool PrepareLoad(OutputBlock* out, const ILParameter& param, OperandReference& ref);
@@ -86,6 +88,9 @@ class OUTPUT_CLASS_NAME: public Output
 	bool And(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool Or(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool Xor(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftLeft(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftRightUnsigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftRightSigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
 	void ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
 	void UnconditionalJump(OutputBlock* out, ILBlock* block);
 

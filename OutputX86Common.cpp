@@ -168,6 +168,11 @@ bool OUTPUT_CLASS_NAME::IsRegisterValid(OperandType reg)
 
 OperandType OUTPUT_CLASS_NAME::AllocateTemporaryRegister(OutputBlock* out, size_t size)
 {
+	// Skip reserved registers
+	while ((m_temporaryCount < 4) && (m_reserved[m_temporaryCount]))
+		m_temporaryCount++;
+
+	// Allocate the register
 	switch (m_temporaryCount++)
 	{
 	case 0:
@@ -180,6 +185,28 @@ OperandType OUTPUT_CLASS_NAME::AllocateTemporaryRegister(OutputBlock* out, size_
 		return GetRegisterOfSize(REG_EBX, size);
 	default:
 		return NONE;
+	}
+}
+
+
+void OUTPUT_CLASS_NAME::ReserveRegister(OperandType reg)
+{
+	switch (reg)
+	{
+	case REG_EAX:
+		m_reserved[0] = true;
+		break;
+	case REG_EDX:
+		m_reserved[1] = true;
+		break;
+	case REG_ECX:
+		m_reserved[2] = true;
+		break;
+	case REG_EBX:
+		m_reserved[3] = true;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -466,6 +493,188 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 }
 
 
+#ifdef OUTPUT32
+#define IMPLEMENT_SHIFT_OP_64(operation, right) \
+	if (dest.type == OPERANDREF_REG) \
+	{ \
+		switch (src.type) \
+		{ \
+		case OPERANDREF_REG: \
+			if (right) \
+			{ \
+				EMIT_RRR(shrd_32, dest.reg, dest.highReg, src.reg); \
+				EMIT_RR(operation ## _32, dest.highReg, src.reg); \
+			} \
+			else \
+			{ \
+				EMIT_RRR(shld_32, dest.highReg, dest.reg, src.reg); \
+				EMIT_RR(operation ## _32, dest.reg, src.reg); \
+			} \
+			return true; \
+		case OPERANDREF_IMMED: \
+			if (right) \
+			{ \
+				EMIT_RRI(shrd_32, dest.reg, dest.highReg, src.immed); \
+				EMIT_RI(operation ## _32, dest.highReg, src.immed); \
+			} \
+			else \
+			{ \
+				EMIT_RRI(shld_32, dest.highReg, dest.reg, src.immed); \
+				EMIT_RI(operation ## _32, dest.reg, src.immed); \
+			} \
+			return true; \
+		default: \
+			return false; \
+		} \
+	} \
+	else if (dest.type == OPERANDREF_MEM) \
+	{ \
+		OperandType temp = AllocateTemporaryRegister(out, 4); \
+		switch (src.type) \
+		{ \
+		case OPERANDREF_REG: \
+			if (right) \
+			{ \
+				EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+				EMIT_MRR(shrd_32, X86_MEM_REF(dest.mem), temp, src.reg); \
+				EMIT_MR(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.reg); \
+			} \
+			else \
+			{ \
+				EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+				EMIT_MRR(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.reg); \
+				EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), src.reg); \
+			} \
+			return true; \
+		case OPERANDREF_IMMED: \
+			if (right) \
+			{ \
+				EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+				EMIT_MRI(shrd_32, X86_MEM_REF(dest.mem), temp, src.immed); \
+				EMIT_MI(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.immed); \
+			} \
+			else \
+			{ \
+				EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+				EMIT_MRI(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.immed); \
+				EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), src.immed); \
+			} \
+			return true; \
+		default: \
+			return false; \
+		} \
+	}
+#else
+#define IMPLEMENT_SHIFT_OP_64(operation, right) \
+	if (dest.type == OPERANDREF_REG) \
+	{ \
+		switch (src.type) \
+		{ \
+		case OPERANDREF_REG:  EMIT_RR(operation ## _64, dest.reg, src.reg); return true; \
+		case OPERANDREF_IMMED:  EMIT_RI(operation ## _64, dest.reg, src.immed); return true; \
+		default:  return false; \
+		} \
+	} \
+	else if (dest.type == OPERANDREF_MEM) \
+	{ \
+		switch (src.type) \
+		{ \
+		case OPERANDREF_REG:  EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), src.reg); return true; \
+		case OPERANDREF_IMMED: EMIT_MI(operation ## _64, X86_MEM_REF(dest.mem), src.immed); return true; \
+		default:  return false; \
+		} \
+	}
+#endif
+
+#define IMPLEMENT_SHIFT_OP(operation, right) \
+	if (dest.width == 1) \
+	{ \
+		if (dest.type == OPERANDREF_REG) \
+		{ \
+			switch (src.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_RR(operation ## _8, dest.reg, src.reg); return true; \
+			case OPERANDREF_IMMED:  EMIT_RI(operation ## _8, dest.reg, (uint8_t)src.immed); return true; \
+			default:  return false; \
+			} \
+		} \
+		else if (dest.type == OPERANDREF_MEM) \
+		{ \
+			switch (src.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_MR(operation ## _8, X86_MEM_REF(dest.mem), src.reg); return true; \
+			case OPERANDREF_IMMED:  EMIT_MI(operation ## _8, X86_MEM_REF(dest.mem), (uint8_t)src.immed); return true; \
+			default:  return false; \
+			} \
+		} \
+	} \
+	else if (dest.width == 2) \
+	{ \
+		if (dest.type == OPERANDREF_REG) \
+		{ \
+			switch (src.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_RR(operation ## _16, dest.reg, src.reg); return true; \
+			case OPERANDREF_IMMED:  EMIT_RI(operation ## _16, dest.reg, (uint8_t)src.immed); return true; \
+			default:  return false; \
+			} \
+		} \
+		else if (dest.type == OPERANDREF_MEM) \
+		{ \
+			switch (src.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_MR(operation ## _16, X86_MEM_REF(dest.mem), src.reg); return true; \
+			case OPERANDREF_IMMED:  EMIT_MI(operation ## _16, X86_MEM_REF(dest.mem), (uint16_t)src.immed); return true; \
+			default:  return false; \
+			} \
+		} \
+	} \
+	else if (dest.width == 4) \
+	{ \
+		if (dest.type == OPERANDREF_REG) \
+		{ \
+			switch (src.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_RR(operation ## _32, dest.reg, src.reg); return true; \
+			case OPERANDREF_IMMED:  EMIT_RI(operation ## _32, dest.reg, (uint8_t)src.immed); return true; \
+			default:  return false; \
+			} \
+		} \
+		else if (dest.type == OPERANDREF_MEM) \
+		{ \
+			switch (src.type) \
+			{ \
+			case OPERANDREF_REG:  EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), src.reg); return true; \
+			case OPERANDREF_IMMED:  EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); return true; \
+			default:  return false; \
+			} \
+		} \
+	} \
+	else if (dest.width == 8) \
+	{ \
+		IMPLEMENT_SHIFT_OP_64(operation, right) \
+	} \
+	return false;
+
+
+bool OUTPUT_CLASS_NAME::ShiftLeft(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
+{
+	IMPLEMENT_SHIFT_OP(shl, false);
+}
+
+
+bool OUTPUT_CLASS_NAME::ShiftRightUnsigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
+{
+	IMPLEMENT_SHIFT_OP(shr, true);
+}
+
+
+bool OUTPUT_CLASS_NAME::ShiftRightSigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
+{
+	IMPLEMENT_SHIFT_OP(sar, true);
+}
+
+
 void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock)
 {
 	// On first pass, generate large jump code, as the first pass must generate
@@ -692,19 +901,85 @@ bool OUTPUT_CLASS_NAME::GenerateXor(OutputBlock* out, const ILInstruction& instr
 
 bool OUTPUT_CLASS_NAME::GenerateShl(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b, count;
+
+	ReserveRegister(REG_ECX);
+	count.type = OPERANDREF_REG;
+	count.width = 1;
+	count.sign = false;
+	count.reg = REG_CL;
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+	if (!Move(out, dest, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+		return ShiftLeft(out, dest, b);
+
+	if (!Move(out, count, b))
+		return false;
+	return ShiftLeft(out, dest, count);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateShr(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b, count;
+
+	ReserveRegister(REG_ECX);
+	count.type = OPERANDREF_REG;
+	count.width = 1;
+	count.sign = false;
+	count.reg = REG_CL;
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+	if (!Move(out, dest, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+		return ShiftRightUnsigned(out, dest, b);
+
+	if (!Move(out, count, b))
+		return false;
+	return ShiftRightUnsigned(out, dest, count);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateSar(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b, count;
+
+	ReserveRegister(REG_ECX);
+	count.type = OPERANDREF_REG;
+	count.width = 1;
+	count.sign = false;
+	count.reg = REG_CL;
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+	if (!Move(out, dest, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+		return ShiftRightSigned(out, dest, b);
+
+	if (!Move(out, count, b))
+		return false;
+	return ShiftRightSigned(out, dest, count);
 }
 
 
@@ -1453,6 +1728,7 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 		m_instrStartLen = out->len;
 
 		m_temporaryCount = 0;
+		memset(m_reserved, 0, sizeof(m_reserved));
 
 		bool end = false;
 		switch (i->operation)
@@ -1629,10 +1905,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func, bool finalPass)
 	m_stackFrame.clear();
 	for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
 	{
+		if ((offset & ((*i)->GetType()->GetAlignment() - 1)) != 0)
+			offset += (uint32_t)((*i)->GetType()->GetAlignment() - (offset & ((*i)->GetType()->GetAlignment() - 1)));
 		m_stackFrame[*i] = offset;
 		offset += (uint32_t)((*i)->GetType()->GetWidth());
-		if ((offset & (*i)->GetType()->GetAlignment()) != 0)
-			offset += (uint32_t)((*i)->GetType()->GetAlignment() - (offset & (*i)->GetType()->GetAlignment()));
 	}
 
 	// Ensure stack is aligned to natural boundary

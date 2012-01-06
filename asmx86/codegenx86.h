@@ -1613,6 +1613,12 @@ namespace asmx86
 				return 6;
 			}
 		}
+		else if (__MEM_BASE(m) == REG_RIP)
+		{
+			__WRITE_BUF_8_ALWAYS(0, 0x05 | (reg << 3));
+			__WRITE_BUF_32_ALWAYS(1, (int32_t)__MEM_OFFSET(m));
+			return 5;
+		}
 		else if ((__MEM_OFFSET(m) == 0) && (__MEM_BASE(m) != REG_RBP) && (__MEM_BASE(m) != REG_R13))
 		{
 			__WRITE_BUF_8_ALWAYS(0, (__reg64(__MEM_BASE(m)) & 7) | ((reg & 7) << 3));

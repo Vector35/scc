@@ -79,6 +79,7 @@ class OUTPUT_CLASS_NAME: public Output
 	void ReserveRegister(asmx86::OperandType reg);
 
 	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref);
+	bool LoadCodePointer(OutputBlock* out, ILBlock* block, OperandReference& ref);
 	bool PrepareLoad(OutputBlock* out, const ILParameter& param, OperandReference& ref);
 	bool PrepareStore(OutputBlock* out, const ILParameter& param, OperandReference& ref);
 

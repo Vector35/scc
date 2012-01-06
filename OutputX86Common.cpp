@@ -257,6 +257,77 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParamete
 }
 
 
+bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, OperandReference& ref)
+{
+	ref.type = OPERANDREF_REG;
+	ref.sign = false;
+#ifdef OUTPUT32
+	ref.width = 4;
+#else
+	ref.width = 8;
+#endif
+	ref.reg = AllocateTemporaryRegister(out, ref.width);
+
+#ifdef OUTPUT32
+	// On first pass, generate large relative code, as the first pass must generate
+	// the maximum code size for this block
+	bool large = true;
+	if (m_finalPass)
+	{
+		// Final pass, so we know the maximum offset, check to see if a short reference is possible
+		uint64_t curAddr = m_instrAddress + (out->len - m_instrStartLen) + 5;
+		int64_t maxOffset = block->GetAddress() - curAddr;
+		if ((maxOffset >= -0x80) && (maxOffset <= 0x7f))
+			large = false;
+	}
+
+	if (large)
+	{
+		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+		buffer[0] = 0xe8;
+		*(uint32_t*)(&buffer[1]) = 0;
+		out->FinishWrite(5);
+		EMIT_R(pop, ref.reg);
+		EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 0x11111111));
+		*(int32_t*)((size_t)out->code + out->len - 4) = 7;
+
+		Relocation reloc;
+		reloc.type = RELOC_RELATIVE_32;
+		reloc.offset = out->len - 4;
+		reloc.target = block;
+		out->relocs.push_back(reloc);
+	}
+	else
+	{
+		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+		buffer[0] = 0xe8;
+		*(uint32_t*)(&buffer[1]) = 0;
+		out->FinishWrite(5);
+		EMIT_R(pop, ref.reg);
+		EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 0x11));
+		*(int8_t*)((size_t)out->code + out->len - 1) = 4;
+
+		Relocation reloc;
+		reloc.type = RELOC_RELATIVE_8;
+		reloc.offset = out->len - 1;
+		reloc.target = block;
+		out->relocs.push_back(reloc);
+	}
+
+	return true;
+#else
+	EMIT_RM(lea_64, ref.reg, X86_MEM(REG_RIP, 0));
+
+	Relocation reloc;
+	reloc.type = RELOC_RELATIVE_32;
+	reloc.offset = out->len - 4;
+	reloc.target = block;
+	out->relocs.push_back(reloc);
+	return true;
+#endif
+}
+
+
 bool OUTPUT_CLASS_NAME::PrepareLoad(OutputBlock* out, const ILParameter& param, OperandReference& ref)
 {
 	ref.width = param.type->GetWidth();
@@ -274,6 +345,8 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(OutputBlock* out, const ILParameter& param, 
 		ref.type = OPERANDREF_IMMED;
 		ref.immed = param.integerValue;
 		return true;
+	case ILPARAM_FUNC:
+		return LoadCodePointer(out, param.function->GetIL()[0], ref);
 	default:
 		return false;
 	}

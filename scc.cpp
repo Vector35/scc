@@ -85,6 +85,7 @@ void Usage()
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
 	fprintf(stderr, "    --seed <value>                    Specify random seed (to reproduce --polymorph runs)\n");
 	fprintf(stderr, "    --shared                          Generate shared library instead of executable\n");
+	fprintf(stderr, "    --stdin                           Read source code from stdin\n");
 	fprintf(stderr, "    --stdout                          Send generated code to stdout for pipelines\n\n");
 	fprintf(stderr, "Useful extensions:\n");
 	fprintf(stderr, "    __noreturn                        Specifies that a function cannot return\n");
@@ -391,6 +392,11 @@ int main(int argc, char* argv[])
 			sharedLibrary = true;
 			continue;
 		}
+		else if (!strcmp(argv[i], "--stdin"))
+		{
+			sourceFiles.push_back("");
+			continue;
+		}
 		else if (!strcmp(argv[i], "--stdout"))
 		{
 			outputFile = "";
@@ -476,27 +482,59 @@ int main(int argc, char* argv[])
 
 	for (vector<string>::iterator i = sourceFiles.begin(); i != sourceFiles.end(); i++)
 	{
-		FILE* fp = fopen(i->c_str(), "r");
-		if (!fp)
+		char* data;
+		long size;
+		if (i->size() == 0)
 		{
-			fprintf(stderr, "%s: error: file not found\n", i->c_str());
-			return 1;
+			// Read source over stdin
+			long max = 512;
+			size = 0;
+			data = new char[max + 1];
+			while (!feof(stdin))
+			{
+				char ch;
+				if (!fread(&ch, 1, 1, stdin))
+					break;
+
+				if (size >= max)
+				{
+					max = (size + 1) * 2;
+					char* newData = new char[max + 1];
+					memcpy(newData, data, size);
+					if (data)
+						delete[] data;
+					data = newData;
+				}
+
+				data[size++] = ch;
+			}
+
+			data[size] = 0;
 		}
+		else
+		{
+			FILE* fp = fopen(i->c_str(), "r");
+			if (!fp)
+			{
+				fprintf(stderr, "%s: error: file not found\n", i->c_str());
+				return 1;
+			}
 
-		fseek(fp, 0, SEEK_END);
-		long size = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
+			fseek(fp, 0, SEEK_END);
+			size = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
 
-		char* data = new char[size + 1];
-		fread(data, 1, size, fp);
-		data[size] = 0;
-		fclose(fp);
+			data = new char[size + 1];
+			fread(data, 1, size, fp);
+			data[size] = 0;
+			fclose(fp);
 
-		fprintf(stderr, "Parsing %s...\n", i->c_str());
+			fprintf(stderr, "Parsing %s...\n", i->c_str());
+		}
 
 		yyscan_t scanner;
 		Code_lex_init(&scanner);
-		ParserState parser(i->c_str(), scanner);
+		ParserState parser((i->size() == 0) ? "stdin" : i->c_str(), scanner);
 
 		YY_BUFFER_STATE buf = Code__scan_string(data, scanner);
 		Code__switch_to_buffer(buf, scanner);

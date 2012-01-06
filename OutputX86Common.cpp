@@ -437,14 +437,14 @@ bool OUTPUT_CLASS_NAME::PrepareStore(OutputBlock* out, const ILParameter& param,
 		case OPERANDREF_REG:  EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), src.reg); return true; \
 		case OPERANDREF_MEM: \
 			temp = AllocateTemporaryRegister(out, dest.width); \
-			EMIT_RM(operation ## _64, temp, X86_MEM_REF(src.mem)); \
+			EMIT_RM(mov_64, temp, X86_MEM_REF(src.mem)); \
 			EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), temp); \
 			return true; \
 		case OPERANDREF_IMMED: \
 			if ((src.immed < -0x80000000LL) || (src.immed >= 0x80000000LL)) \
 			{ \
 				temp = AllocateTemporaryRegister(out, dest.width); \
-				EMIT_RI(operation ## _64, temp, src.immed); \
+				EMIT_RI(mov_64, temp, src.immed); \
 				EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), temp); \
 			} \
 			else \

@@ -3098,7 +3098,7 @@ namespace asmx86
 	__DEF_INSTR_2(mov_64, mr, __MEM, __REG) { return __MODRM(mem_onebyte64) (__CONTEXT, 0x89, __reg64(b), __MEMOP(a), 0); }
 	__DEF_INSTR_2(mov_64, rr, __REG, __REG) { return __MODRM(reg_onebyte64) (__CONTEXT, 0x8b, __reg64(a), __reg64(b)); }
 	__DEF_INSTR_2(mov_64, ri, __REG, __IMM64) { return __onebyte64_opreg_imm64(__CONTEXT, 0xb8, __reg64(a), b); }
-	__DEF_INSTR_2(mov_64, mi, __MEM, __IMM32) { return __MODRM(mem_onebyte_imm32) (__CONTEXT, 0xc7, 0, __MEMOP(a), b); }
+	__DEF_INSTR_2(mov_64, mi, __MEM, __IMM32) { return __MODRM(mem_onebyte64_imm32) (__CONTEXT, 0xc7, 0, __MEMOP(a), b); }
 #endif
 
 

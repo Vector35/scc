@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "Struct.h"
 #include "ParserState.h"
 

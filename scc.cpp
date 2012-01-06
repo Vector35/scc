@@ -237,7 +237,7 @@ int main(int argc, char* argv[])
 				os = OS_MACH;
 #elif defined(WIN32)
 				os = OS_WINDOWS;
-#elif defiend(linux)
+#elif defined(linux)
 				os = OS_LINUX;
 #else
 				os = OS_FREEBSD;

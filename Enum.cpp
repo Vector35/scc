@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "Enum.h"
 
 using namespace std;

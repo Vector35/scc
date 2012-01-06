@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "Type.h"
 #include "Struct.h"
 #include "Enum.h"

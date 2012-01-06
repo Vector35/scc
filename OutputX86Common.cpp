@@ -1,5 +1,7 @@
 #ifdef OUTPUT_CLASS_NAME
 
+#include <stdio.h>
+#include <string.h>
 #include "OutputX86Common.h"
 #include "Struct.h"
 #include "Function.h"

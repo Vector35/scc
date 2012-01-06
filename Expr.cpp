@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "Expr.h"
 #include "Struct.h"
@@ -1688,23 +1690,23 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		break;
 	case EXPR_PRE_INCREMENT:
 		result = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, 1LL));
+		block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, (int64_t)1));
 		break;
 	case EXPR_PRE_DECREMENT:
 		result = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, 1LL));
+		block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, (int64_t)1));
 		break;
 	case EXPR_POST_INCREMENT:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		block->AddInstruction(ILOP_ASSIGN, result, a);
-		block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, 1LL));
+		block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, (int64_t)1));
 		break;
 	case EXPR_POST_DECREMENT:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		block->AddInstruction(ILOP_ASSIGN, result, a);
-		block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, 1LL));
+		block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, (int64_t)1));
 		break;
 	case EXPR_ARRAY_INDEX:
 		result = func->CreateTempVariable(m_type);
@@ -2645,7 +2647,7 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, "}");
 		break;
-	case EXPR_INT:  fprintf(stderr, "%lld", m_intValue); break;
+	case EXPR_INT:  fprintf(stderr, "%lld", (long long)m_intValue); break;
 	case EXPR_FLOAT:  fprintf(stderr, "%f", m_floatValue); break;
 	case EXPR_STRING:  fprintf(stderr, "\"%s\"", m_stringValue.c_str()); break;
 	case EXPR_TRUE:  fprintf(stderr, "true"); break;
@@ -2926,7 +2928,7 @@ void Expr::Print(size_t indent)
 		PrintIndent(indent + 1);
 		m_children[1]->Print(indent + 1);
 		break;
-	case EXPR_CASE:  fprintf(stderr, "case %lld:", m_intValue); break;
+	case EXPR_CASE:  fprintf(stderr, "case %lld:", (long long)m_intValue); break;
 	case EXPR_DEFAULT:  fprintf(stderr, "default:"); break;
 	case EXPR_UNDEFINED:  fprintf(stderr, "__undefined"); break;
 	default:

@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "ILBlock.h"
 #include "Variable.h"
 #include "Function.h"
@@ -190,7 +192,7 @@ void ILParameter::Print() const
 	switch (cls)
 	{
 	case ILPARAM_VOID:  fprintf(stderr, "void"); break;
-	case ILPARAM_INT:  fprintf(stderr, "%lld", integerValue); break;
+	case ILPARAM_INT:  fprintf(stderr, "%lld", (long long)integerValue); break;
 	case ILPARAM_FLOAT:  fprintf(stderr, "%f", floatValue); break;
 	case ILPARAM_STRING:  fprintf(stderr, "\"%s\"", stringValue.c_str()); break;
 	case ILPARAM_NAME:  fprintf(stderr, "%s", stringValue.c_str()); break;

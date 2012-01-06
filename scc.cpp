@@ -829,6 +829,24 @@ int main(int argc, char* argv[])
 			(*i)->Print();
 	}
 
+	// Ensure entry function is at the start
+	map< string, Ref<Function> >::iterator entryFunc = functionsByName.find("main");
+	if (entryFunc == functionsByName.end())
+	{
+		fprintf(stderr, "error: function 'main' is undefined\n");
+		return 1;
+	}
+
+	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	{
+		if ((*i) == entryFunc->second)
+		{
+			functions.erase(i);
+			functions.insert(functions.begin(), entryFunc->second);
+			break;
+		}
+	}
+
 	fprintf(stderr, "Generating code...\n");
 
 	// Create output class for the requested architecture

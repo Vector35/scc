@@ -872,7 +872,40 @@ bool OUTPUT_CLASS_NAME::GenerateAssign(OutputBlock* out, const ILInstruction& in
 
 bool OUTPUT_CLASS_NAME::GenerateAddressOf(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src, temp;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (src.type != OPERANDREF_MEM)
+		return false;
+
+	if (dest.type == OPERANDREF_REG)
+	{
+#ifdef OUTPUT32
+		EMIT_RM(lea_32, dest.reg, X86_MEM_REF(src.mem));
+#else
+		EMIT_RM(lea_64, dest.reg, X86_MEM_REF(src.mem));
+#endif
+		return true;
+	}
+
+	temp.type = OPERANDREF_REG;
+	temp.sign = false;
+#ifdef OUTPUT32
+	temp.width = 4;
+#else
+	temp.width = 8;
+#endif
+	temp.reg = AllocateTemporaryRegister(out, temp.width);
+
+#ifdef OUTPUT32
+	EMIT_RM(lea_32, temp.reg, X86_MEM_REF(src.mem));
+#else
+	EMIT_RM(lea_64, temp.reg, X86_MEM_REF(src.mem));
+#endif
+
+	return Move(out, dest, temp);
 }
 
 
@@ -1505,7 +1538,213 @@ bool OUTPUT_CLASS_NAME::GenerateGoto(OutputBlock* out, const ILInstruction& inst
 
 bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	size_t pushSize = 0;
+
+	// Push parameters from right to left
+	for (size_t i = instr.params.size() - 1; i >= 2; i--)
+	{
+		m_temporaryCount = 0;
+		memset(m_reserved, 0, sizeof(m_reserved));
+
+		OperandReference param;
+		if (!PrepareLoad(out, instr.params[i], param))
+			return false;
+
+		// Check for native size parameters
+#ifdef OUTPUT32
+		if (param.width == 4)
+		{
+			switch (param.type)
+			{
+			case OPERANDREF_REG:
+				EMIT_R(push, param.reg);
+				break;
+			case OPERANDREF_MEM:
+				EMIT_M(push, X86_MEM_REF(param.mem));
+				break;
+			case OPERANDREF_IMMED:
+				EMIT_I(push, (int32_t)param.immed);
+				break;
+			default:
+				return false;
+			}
+
+			pushSize += 4;
+			continue;
+		}
+		else if (param.width == 8)
+		{
+			switch (param.type)
+			{
+			case OPERANDREF_REG:
+				EMIT_R(push, param.highReg);
+				EMIT_R(push, param.reg);
+				break;
+			case OPERANDREF_MEM:
+				EMIT_M(push, X86_MEM_REF_OFFSET(param.mem, 4));
+				EMIT_M(push, X86_MEM_REF(param.mem));
+				break;
+			case OPERANDREF_IMMED:
+				EMIT_I(push, (int32_t)(param.immed >> 32));
+				EMIT_I(push, (int32_t)param.immed);
+				break;
+			default:
+				return false;
+			}
+
+			pushSize += 8;
+			continue;
+		}
+#else
+		if (param.width == 8)
+		{
+			switch (param.type)
+			{
+			case OPERANDREF_REG:
+				EMIT_R(push, param.reg);
+				break;
+			case OPERANDREF_MEM:
+				EMIT_M(push, X86_MEM_REF(param.mem));
+				break;
+			case OPERANDREF_IMMED:
+				if ((param.immed < -0x80000000LL) || (param.immed >= 0x80000000LL))
+				{
+					// Immediate out of range for single instruction push
+					OperandType reg = AllocateTemporaryRegister(out, 8);
+					EMIT_RI(mov_64, reg, param.immed);
+					EMIT_R(push, reg);
+				}
+				else
+				{
+					EMIT_I(push, (int32_t)param.immed);
+				}
+				break;
+			default:
+				return false;
+			}
+
+			pushSize += 8;
+			continue;
+		}
+#endif
+
+		// Not native size
+		if (param.type == OPERANDREF_REG)
+		{
+			// Push native size (upper bits are ignored)
+#ifdef OUTPUT32
+			OperandType pushReg = GetRegisterOfSize(param.reg, 4);
+#else
+			OperandType pushReg = GetRegisterOfSize(param.reg, 8);
+#endif
+			EMIT_R(push, pushReg);
+		}
+		else if (param.type == OPERANDREF_IMMED)
+		{
+			EMIT_I(push, (int32_t)param.immed);
+		}
+		else
+		{
+			// Load into register and then push native size
+			OperandReference temp;
+			temp.type = OPERANDREF_REG;
+			temp.sign = false;
+			temp.width = param.width;
+			temp.reg = AllocateTemporaryRegister(out, param.width);
+			if (!Move(out, temp, param))
+				return false;
+
+#ifdef OUTPUT32
+			OperandType pushReg = GetRegisterOfSize(temp.reg, 4);
+#else
+			OperandType pushReg = GetRegisterOfSize(temp.reg, 8);
+#endif
+			EMIT_R(push, pushReg);
+		}
+
+#ifdef OUTPUT32
+		pushSize += 4;
+#else
+		pushSize += 8;
+#endif
+	}
+
+	m_temporaryCount = 0;
+	memset(m_reserved, 0, sizeof(m_reserved));
+
+	// Perform function call
+	if (instr.params[1].cls == ILPARAM_FUNC)
+	{
+		// Direct function call
+		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+		buffer[0] = 0xe8;
+		*(uint32_t*)(&buffer[1]) = 0;
+		out->FinishWrite(5);
+
+		Relocation reloc;
+		reloc.type = RELOC_RELATIVE_32;
+		reloc.offset = out->len - 4;
+		reloc.target = instr.params[1].function->GetIL()[0];
+		out->relocs.push_back(reloc);
+	}
+	else
+	{
+		// Indirect function call
+		OperandReference func;
+		if (!PrepareLoad(out, instr.params[1], func))
+			return false;
+
+		switch (func.type)
+		{
+		case OPERANDREF_REG:
+			EMIT_R(calln, func.reg);
+			break;
+		case OPERANDREF_MEM:
+			EMIT_M(calln, X86_MEM_REF(func.mem));
+			break;
+		default:
+			return false;
+		}
+	}
+
+	// Adjust stack pointer to pop off parameters
+	if (pushSize != 0)
+	{
+#ifdef OUTPUT32
+		EMIT_RI(add_32, STACK_POINTER, pushSize);
+#else
+		EMIT_RI(add_64, STACK_POINTER, pushSize);
+#endif
+	}
+
+	// Store return value, if there is one
+	if (instr.params[0].cls != ILPARAM_VOID)
+	{
+		OperandReference dest, retVal;
+		if (!PrepareStore(out, instr.params[0], dest))
+			return false;
+
+		retVal.type = OPERANDREF_REG;
+		retVal.sign = dest.sign;
+		retVal.width = dest.width;
+#ifdef OUTPUT32
+		if (retVal.width > 4)
+		{
+			retVal.reg = REG_EAX;
+			retVal.highReg = REG_EDX;
+		}
+		else
+		{
+			retVal.reg = GetRegisterOfSize(REG_EAX, retVal.width);
+		}
+#else
+		retVal.reg = GetRegisterOfSize(REG_EAX, retVal.width);
+#endif
+		if (!Move(out, dest, retVal))
+			return false;
+	}
+
+	return true;
 }
 
 
@@ -2289,6 +2528,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func, bool finalPass)
 	m_stackFrame.clear();
 	for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
 	{
+		if ((*i)->IsParameter())
+			continue;
 		if ((offset & ((*i)->GetType()->GetAlignment() - 1)) != 0)
 			offset += (uint32_t)((*i)->GetType()->GetAlignment() - (offset & ((*i)->GetType()->GetAlignment() - 1)));
 		m_stackFrame[*i] = offset;
@@ -2318,6 +2559,51 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func, bool finalPass)
 		// Adjust variable offsets to be relative to the frame pointer (negative offsets)
 		for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
 			i->second -= m_stackFrameSize;
+	}
+
+	// Generate parameter offsets
+	offset = 0;
+	for (size_t i = 0; i < func->GetParameters().size(); i++)
+	{
+		// Find variable object for this parameter
+		vector< Ref<Variable> >::const_iterator var = func->GetVariables().end();
+		for (vector< Ref<Variable> >::const_iterator j = func->GetVariables().begin(); j != func->GetVariables().end(); j++)
+		{
+			if ((*j)->IsParameter() && ((*j)->GetParameterIndex() == i))
+			{
+				var = j;
+				break;
+			}
+		}
+
+		if (var == func->GetVariables().end())
+		{
+			fprintf(stderr, "error: parameter %d not found in variable list\n", (int)i);
+			return false;
+		}
+
+		// Allocate stack space for this parameter
+#ifdef OUTPUT32
+		if (m_framePointerEnabled)
+			m_stackFrame[*var] = offset + 8;
+		else
+			m_stackFrame[*var] = offset + m_stackFrameSize + 4;
+#else
+		if (m_framePointerEnabled)
+			m_stackFrame[*var] = offset + 16;
+		else
+			m_stackFrame[*var] = offset + m_stackFrameSize + 8;
+#endif
+
+		// Adjust offset for next parameter
+		offset += (*var)->GetType()->GetWidth();
+#ifdef OUTPUT32
+		if (offset & 3)
+			offset += 4 - (offset & 3);
+#else
+		if (offset & 7)
+			offset += 8 - (offset & 7);
+#endif
 	}
 
 	bool first = true;

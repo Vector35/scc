@@ -975,13 +975,247 @@ bool OUTPUT_CLASS_NAME::GenerateDerefMemberAssign(OutputBlock* out, const ILInst
 
 bool OUTPUT_CLASS_NAME::GenerateArrayIndex(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src, index;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], index))
+		return false;
+	if ((instr.params[1].type->GetClass() != TYPE_ARRAY) && (instr.params[1].type->GetClass() != TYPE_POINTER))
+		return false;
+
+	if (src.type != OPERANDREF_REG)
+	{
+		// Load source pointer into a register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = src.width;
+		temp.sign = src.sign;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, src))
+			return false;
+		src = temp;
+	}
+
+	OperandType reg, highReg;
+	if (dest.type == OPERANDREF_REG)
+	{
+		reg = dest.reg;
+		highReg = dest.highReg;
+	}
+	else
+	{
+#ifdef OUTPUT32
+		if (dest.width == 8)
+		{
+			reg = AllocateTemporaryRegister(out, 4);
+			highReg = AllocateTemporaryRegister(out, 4);
+		}
+		else
+		{
+			reg = AllocateTemporaryRegister(out, dest.width);
+		}
+#else
+		reg = AllocateTemporaryRegister(out, dest.width);
+#endif
+	}
+
+	if (index.type == OPERANDREF_IMMED)
+	{
+		if (dest.width == 1)
+			EMIT_RM(mov_8, reg, X86_MEM(src.reg, index.immed));
+		else if (dest.width == 2)
+			EMIT_RM(mov_16, reg, X86_MEM(src.reg, index.immed * 2));
+		else if (dest.width == 4)
+			EMIT_RM(mov_32, reg, X86_MEM(src.reg, index.immed * 4));
+		else if (dest.width == 8)
+		{
+#ifdef OUTPUT32
+			EMIT_RM(mov_32, reg, X86_MEM(src.reg, index.immed * 8));
+			EMIT_RM(mov_32, highReg, X86_MEM(src.reg, (index.immed * 8) + 4));
+#else
+			EMIT_RM(mov_32, reg, X86_MEM(src.reg, index.immed * 8));
+#endif
+		}
+	}
+	else if ((dest.width == 1) || (dest.width == 2) || (dest.width == 4) || (dest.width == 8))
+	{
+		if (index.type != OPERANDREF_REG)
+		{
+			// Load index into a register
+			OperandReference temp;
+			temp.type = OPERANDREF_REG;
+			temp.width = index.width;
+			temp.sign = index.sign;
+			temp.reg = AllocateTemporaryRegister(out, temp.width);
+			if (!Move(out, temp, index))
+				return false;
+			index = temp;
+		}
+
+		if (dest.width == 1)
+			EMIT_RM(mov_8, reg, X86_MEM_INDEX(src.reg, index.reg, 1, 0));
+		else if (dest.width == 2)
+			EMIT_RM(mov_16, reg, X86_MEM_INDEX(src.reg, index.reg, 2, 0));
+		else if (dest.width == 4)
+			EMIT_RM(mov_32, reg, X86_MEM_INDEX(src.reg, index.reg, 4, 0));
+		else if (dest.width == 8)
+		{
+#ifdef OUTPUT32
+			EMIT_RM(mov_32, reg, X86_MEM_INDEX(src.reg, index.reg, 8, 0));
+			EMIT_RM(mov_32, highReg, X86_MEM_INDEX(src.reg, index.reg, 8, 4));
+#else
+			EMIT_RM(mov_64, reg, X86_MEM_INDEX(src.reg, index.reg, 8, 0));
+#endif
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	if (dest.type == OPERANDREF_MEM)
+	{
+		if (dest.width == 1)
+			EMIT_MR(mov_8, X86_MEM_REF(dest.mem), reg);
+		else if (dest.width == 2)
+			EMIT_MR(mov_16, X86_MEM_REF(dest.mem), reg);
+		else if (dest.width == 4)
+			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), reg);
+		else if (dest.width == 8)
+		{
+#ifdef OUTPUT32
+			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), reg);
+			EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), highReg);
+#else
+			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), reg);
+#endif
+		}
+	}
+	return true;
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src, index;
+	if (!PrepareLoad(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], index))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], src))
+		return false;
+	if ((instr.params[0].type->GetClass() != TYPE_ARRAY) && (instr.params[0].type->GetClass() != TYPE_POINTER))
+		return false;
+
+	if (dest.type != OPERANDREF_REG)
+	{
+		// Load destination pointer into a register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = dest.width;
+		temp.sign = dest.sign;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, dest))
+			return false;
+		dest = temp;
+	}
+
+	OperandType reg, highReg;
+	if (src.type == OPERANDREF_REG)
+	{
+		reg = src.reg;
+		highReg = src.highReg;
+	}
+	else
+	{
+#ifdef OUTPUT32
+		if (dest.width == 8)
+		{
+			reg = AllocateTemporaryRegister(out, 4);
+			highReg = AllocateTemporaryRegister(out, 4);
+		}
+		else
+		{
+			reg = AllocateTemporaryRegister(out, dest.width);
+		}
+#else
+		reg = AllocateTemporaryRegister(out, dest.width);
+#endif
+
+		if (dest.width == 1)
+			EMIT_RM(mov_8, reg, X86_MEM_REF(dest.mem));
+		else if (dest.width == 2)
+			EMIT_RM(mov_16, reg, X86_MEM_REF(dest.mem));
+		else if (dest.width == 4)
+			EMIT_RM(mov_32, reg, X86_MEM_REF(dest.mem));
+		else if (dest.width == 8)
+		{
+#ifdef OUTPUT32
+			EMIT_RM(mov_32, reg, X86_MEM_REF(dest.mem));
+			EMIT_RM(mov_32, highReg, X86_MEM_REF_OFFSET(dest.mem, 4));
+#else
+			EMIT_RM(mov_64, reg, X86_MEM_REF(dest.mem));
+#endif
+		}
+	}
+
+	if (index.type == OPERANDREF_IMMED)
+	{
+		if (dest.width == 1)
+			EMIT_MR(mov_8, X86_MEM(src.reg, index.immed), reg);
+		else if (dest.width == 2)
+			EMIT_MR(mov_16, X86_MEM(src.reg, index.immed * 2), reg);
+		else if (dest.width == 4)
+			EMIT_MR(mov_32, X86_MEM(src.reg, index.immed * 4), reg);
+		else if (dest.width == 8)
+		{
+#ifdef OUTPUT32
+			EMIT_MR(mov_32, X86_MEM(src.reg, index.immed * 8), reg);
+			EMIT_MR(mov_32, X86_MEM(src.reg, (index.immed * 8) + 4), highReg);
+#else
+			EMIT_MR(mov_32, X86_MEM(src.reg, index.immed * 8), reg);
+#endif
+		}
+	}
+	else if ((dest.width == 1) || (dest.width == 2) || (dest.width == 4) || (dest.width == 8))
+	{
+		if (index.type != OPERANDREF_REG)
+		{
+			// Load index into a register
+			OperandReference temp;
+			temp.type = OPERANDREF_REG;
+			temp.width = index.width;
+			temp.sign = index.sign;
+			temp.reg = AllocateTemporaryRegister(out, temp.width);
+			if (!Move(out, temp, index))
+				return false;
+			index = temp;
+		}
+
+		if (dest.width == 1)
+			EMIT_MR(mov_8, X86_MEM_INDEX(src.reg, index.reg, 1, 0), reg);
+		else if (dest.width == 2)
+			EMIT_MR(mov_16, X86_MEM_INDEX(src.reg, index.reg, 2, 0), reg);
+		else if (dest.width == 4)
+			EMIT_MR(mov_32, X86_MEM_INDEX(src.reg, index.reg, 4, 0), reg);
+		else if (dest.width == 8)
+		{
+#ifdef OUTPUT32
+			EMIT_MR(mov_32, X86_MEM_INDEX(src.reg, index.reg, 8, 0), reg);
+			EMIT_MR(mov_32, X86_MEM_INDEX(src.reg, index.reg, 8, 4), highReg);
+#else
+			EMIT_MR(mov_64, X86_MEM_INDEX(src.reg, index.reg, 8, 0), reg);
+#endif
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
 }
 
 
@@ -1720,6 +1954,12 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	// Store return value, if there is one
 	if (instr.params[0].cls != ILPARAM_VOID)
 	{
+		ReserveRegister(REG_EAX);
+#ifdef OUTPUT32
+		if (instr.params[0].type->GetWidth() > 4)
+			ReserveRegister(REG_EDX);
+#endif
+
 		OperandReference dest, retVal;
 		if (!PrepareStore(out, instr.params[0], dest))
 			return false;
@@ -2314,19 +2554,252 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 
 bool OUTPUT_CLASS_NAME::GenerateAlloca(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, size;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], size))
+		return false;
+
+	OperandReference stack;
+	stack.type = OPERANDREF_REG;
+	stack.sign = false;
+#ifdef OUTPUT32
+	stack.width = 4;
+#else
+	stack.width = 8;
+#endif
+	stack.reg = STACK_POINTER;
+
+	if (!Sub(out, stack, size))
+		return false;
+
+#ifdef OUTPUT32
+	EMIT_RI(and_32, STACK_POINTER, ~3);
+#else
+	EMIT_RI(and_64, STACK_POINTER, ~7);
+#endif
+
+	return Move(out, dest, stack);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateMemcpy(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	ReserveRegister(REG_ESI);
+	ReserveRegister(REG_EDI);
+	ReserveRegister(REG_ECX);
+
+	OperandReference dest, src, size;
+	if (!PrepareLoad(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], size))
+		return false;
+
+#ifdef OUTPUT32
+	switch (src.type)
+	{
+	case OPERANDREF_REG:
+		if (src.reg != REG_ESI)
+			EMIT_RR(mov_32, REG_ESI, src.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_32, REG_ESI, X86_MEM_REF(src.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_32, REG_ESI, src.immed);
+		break;
+	default:
+		return false;
+	}
+
+	switch (dest.type)
+	{
+	case OPERANDREF_REG:
+		if (dest.reg != REG_EDI)
+			EMIT_RR(mov_32, REG_EDI, dest.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_32, REG_EDI, X86_MEM_REF(dest.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_32, REG_EDI, dest.immed);
+		break;
+	default:
+		return false;
+	}
+
+	switch (size.type)
+	{
+	case OPERANDREF_REG:
+		if (size.reg != REG_ECX)
+			EMIT_RR(mov_32, REG_ECX, size.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_32, REG_ECX, X86_MEM_REF(size.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_32, REG_ECX, size.immed);
+		break;
+	default:
+		return false;
+	}
+#else
+	switch (src.type)
+	{
+	case OPERANDREF_REG:
+		if (src.reg != REG_RDI)
+			EMIT_RR(mov_64, REG_RSI, src.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_64, REG_RSI, X86_MEM_REF(src.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_64, REG_RSI, src.immed);
+		break;
+	default:
+		return false;
+	}
+
+	switch (dest.type)
+	{
+	case OPERANDREF_REG:
+		if (dest.reg != REG_RDI)
+			EMIT_RR(mov_64, REG_RDI, dest.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_64, REG_RDI, X86_MEM_REF(dest.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_64, REG_RDI, dest.immed);
+		break;
+	default:
+		return false;
+	}
+
+	switch (size.type)
+	{
+	case OPERANDREF_REG:
+		if (size.reg != REG_RCX)
+			EMIT_RR(mov_64, REG_RCX, size.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_64, REG_RCX, X86_MEM_REF(size.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_64, REG_RCX, size.immed);
+		break;
+	default:
+		return false;
+	}
+#endif
+
+	EMIT(rep);
+	EMIT(movsb);
+	return true;
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateMemset(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDI);
+	ReserveRegister(REG_ECX);
+
+	OperandReference dest, src, size;
+	if (!PrepareLoad(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], size))
+		return false;
+
+	switch (src.type)
+	{
+	case OPERANDREF_REG:
+		if (src.reg != REG_AL)
+			EMIT_RR(mov_8, REG_AL, src.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_8, REG_AL, X86_MEM_REF(src.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_8, REG_AL, src.immed);
+		break;
+	default:
+		return false;
+	}
+
+#ifdef OUTPUT32
+	switch (dest.type)
+	{
+	case OPERANDREF_REG:
+		if (dest.reg != REG_EDI)
+			EMIT_RR(mov_32, REG_EDI, dest.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_32, REG_EDI, X86_MEM_REF(dest.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_32, REG_EDI, dest.immed);
+		break;
+	default:
+		return false;
+	}
+
+	switch (size.type)
+	{
+	case OPERANDREF_REG:
+		if (size.reg != REG_ECX)
+			EMIT_RR(mov_32, REG_ECX, size.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_32, REG_ECX, X86_MEM_REF(size.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_32, REG_ECX, size.immed);
+		break;
+	default:
+		return false;
+	}
+#else
+	switch (dest.type)
+	{
+	case OPERANDREF_REG:
+		if (dest.reg != REG_RDI)
+			EMIT_RR(mov_64, REG_RDI, dest.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_64, REG_RDI, X86_MEM_REF(dest.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_64, REG_RDI, dest.immed);
+		break;
+	default:
+		return false;
+	}
+
+	switch (size.type)
+	{
+	case OPERANDREF_REG:
+		if (size.reg != REG_RCX)
+			EMIT_RR(mov_64, REG_RCX, size.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_64, REG_RCX, X86_MEM_REF(size.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_64, REG_RCX, size.immed);
+		break;
+	default:
+		return false;
+	}
+#endif
+
+	EMIT(rep);
+	EMIT(stosb);
+	return true;
 }
 
 

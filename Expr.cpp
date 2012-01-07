@@ -881,6 +881,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			fprintf(stderr, "%s:%d: error: expected integer in function 'alloca'\n",
 				m_location.fileName.c_str(), m_location.lineNumber);
 		}
+		m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_MEMCPY:
 		m_type = Type::PointerType(Type::VoidType(), 1);
@@ -902,6 +903,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			fprintf(stderr, "%s:%d: error: expected integer for length in 'memcpy'\n",
 				m_location.fileName.c_str(), m_location.lineNumber);
 		}
+		m_children[2] = m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_MEMSET:
 		m_type = Type::PointerType(Type::VoidType(), 1);
@@ -923,6 +925,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			fprintf(stderr, "%s:%d: error: expected integer for length in 'memset'\n",
 				m_location.fileName.c_str(), m_location.lineNumber);
 		}
+		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(1, false));
+		m_children[2] = m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_CAST:
 		if (m_type->GetClass() == TYPE_INT)
@@ -2215,7 +2219,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		func->PopContinueBlock();
 		break;
 	case EXPR_CALL:
-		result = func->CreateTempVariable(m_type);
+		if (m_type->GetClass() != TYPE_VOID)
+			result = func->CreateTempVariable(m_type);
 		params.push_back(result);
 		params.push_back(m_children[0]->GenerateIL(state, func, block));
 		for (size_t i = 1; i < m_children.size(); i++)

@@ -97,3 +97,8 @@ void RsaCipherBlock(RsaContext* rsa, void* output, void* message, size_t len)
 	}
 }
 
+
+void main()
+{
+}
+

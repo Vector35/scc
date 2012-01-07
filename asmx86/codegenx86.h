@@ -3415,6 +3415,35 @@ namespace asmx86
 #endif
 
 
+	// String instructions
+	__ONEBYTE_INSTR(rep, 0xf3)
+	__ONEBYTE_INSTR(repe, 0xf3)
+	__ONEBYTE_INSTR(repz, 0xf3)
+	__ONEBYTE_INSTR(repne, 0xf2)
+	__ONEBYTE_INSTR(repnz, 0xf2)
+	__ONEBYTE_INSTR(movsb, 0xa4)
+	__ONEBYTE_OPSZ_INSTR(movsw, 0xa5)
+	__ONEBYTE_INSTR(movsd, 0xa5)
+	__ONEBYTE_INSTR(cmpsb, 0xa6)
+	__ONEBYTE_OPSZ_INSTR(cmpsw, 0xa7)
+	__ONEBYTE_INSTR(cmpsd, 0xa7)
+	__ONEBYTE_INSTR(stosb, 0xaa)
+	__ONEBYTE_OPSZ_INSTR(stosw, 0xab)
+	__ONEBYTE_INSTR(stosd, 0xab)
+	__ONEBYTE_INSTR(lodsb, 0xac)
+	__ONEBYTE_OPSZ_INSTR(lodsw, 0xad)
+	__ONEBYTE_INSTR(lodsd, 0xad)
+	__ONEBYTE_INSTR(scasb, 0xae)
+	__ONEBYTE_OPSZ_INSTR(scasw, 0xaf)
+	__ONEBYTE_INSTR(scasd, 0xaf)
+#ifdef __CODEGENX86_64BIT
+	__ONEBYTE_INSTR_64(movsq, 0xa5)
+	__ONEBYTE_INSTR_64(cmpsq, 0xa7)
+	__ONEBYTE_INSTR_64(stosq, 0xab)
+	__ONEBYTE_INSTR_64(lodsq, 0xad)
+	__ONEBYTE_INSTR_64(scasq, 0xaf)
+#endif
+
 	// Misc instructions
 #ifdef __CODEGENX86_32BIT
 	__ONEBYTE_INSTR(daa, 0x27)

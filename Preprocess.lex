@@ -39,21 +39,31 @@
 		}
 "//".*$
 
-\n		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->AppendLocation(); TOK(NEWLINE); }
-\r		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->AppendLocation(); TOK(NEWLINE); }
-\r\n		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->AppendLocation(); TOK(NEWLINE); }
-\n\r		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->AppendLocation(); TOK(NEWLINE); }
+\n		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->RequestLocation(); TOK(NEWLINE); }
+\r		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->RequestLocation(); TOK(NEWLINE); }
+\r\n		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->RequestLocation(); TOK(NEWLINE); }
+\n\r		{ yylineno++; PARSERSTATE->Append("\n"); PARSERSTATE->RequestLocation(); TOK(NEWLINE); }
 
 \\\n		yylineno++;
 \\\r		yylineno++;
 \\\r\n		yylineno++;
 \\\n\r		yylineno++;
 
-#\ *include	TOK(INCLUDE_TOK)
-#\ *define	TOK(DEFINE_TOK)
-#\ *ifdef	TOK(IFDEF_TOK)
-#\ *ifndef	TOK(IFNDEF_TOK)
-#\ *endif	TOK(ENDIF_TOK)
+#[\ \t]*include[\ \t]*<[^<>\n]*>	{
+						char* name = strchr(yytext, '<') + 1;
+						PARSERSTATE->IncludeFile(std::string(name, strlen(name) - 1));
+					}
+#[\ \t]*include[\ \t]*\"[^\"\n]*\"	{
+						char* name = strchr(yytext, '\"') + 1;
+						PARSERSTATE->IncludeFile(std::string(name, strlen(name) - 1));
+					}
+
+#[ \t]*define	TOK(DEFINE_TOK)
+#[ \t]*undef	TOK(UNDEF_TOK)
+#[ \t]*ifdef	TOK(IFDEF_TOK)
+#[ \t]*ifndef	TOK(IFNDEF_TOK)
+#[ \t]*else	TOK(ELSE_TOK)
+#[ \t]*endif	TOK(ENDIF_TOK)
 
 "-"		TOKSTR(TOKEN, yytext)
 "+"		TOKSTR(TOKEN, yytext)
@@ -82,12 +92,12 @@
 "["		TOKSTR(TOKEN, yytext)
 "]"		TOKSTR(TOKEN, yytext)
 "="		TOKSTR(TOKEN, yytext)
-"<"		TOK(LESS_TOK)
+"<"		TOKSTR(TOKEN, yytext)
 "<="		TOKSTR(TOKEN, yytext)
 "=="		TOKSTR(TOKEN, yytext)
 "!="		TOKSTR(TOKEN, yytext)
 ">="		TOKSTR(TOKEN, yytext)
-">"		TOK(GREATER_TOK)
+">"		TOKSTR(TOKEN, yytext)
 "~"		TOKSTR(TOKEN, yytext)
 "."		TOKSTR(TOKEN, yytext)
 "->"		TOKSTR(TOKEN, yytext)
@@ -113,7 +123,12 @@
 
 \"([^\"\r\n]*(\\\")?)*\"			TOKSTR(TOKEN, yytext)
 \'([^\"\r\n]*(\\\")?)*\'			TOKSTR(TOKEN, yytext)
-[[:alpha:]_][[:alnum:]_]*			TOKSTR(ID, yytext)
+[[:alpha:]_][[:alnum:]_]*	{
+					if (PARSERSTATE->IsDefined(yytext))
+						TOKSTR(MACRO, yytext)
+					else
+						TOKSTR(ID, yytext);
+				}
 
 .		TOK(_ERROR)
 <<EOF>>		TOK(END)

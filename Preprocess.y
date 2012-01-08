@@ -6,6 +6,9 @@
 %union
 {
 	char* str;
+	Token* token;
+	std::vector< Ref<Token> >* tokens;
+	std::vector<std::string>* params;
 }
 
 %{
@@ -44,19 +47,25 @@ void Preprocess_error(PreprocessState* state, const char* msg)
 %token _ERROR
 
 %token LPAREN RPAREN COMMA
-%token LESS_TOK GREATER_TOK
 %token NEWLINE PASTE
 
-%token INCLUDE_TOK
-%token DEFINE_TOK IFDEF_TOK IFNDEF_TOK ENDIF_TOK
+%token DEFINE_TOK UNDEF_TOK IFDEF_TOK IFNDEF_TOK ELSE_TOK ENDIF_TOK
 
-%token <str> ID TOKEN
+%token <str> ID TOKEN MACRO
 
-%destructor { free($$); } ID TOKEN
+%destructor { free($$); } ID TOKEN MACRO id_or_macro
+%destructor { delete $$; } token_list
+%destructor { delete $$; } param_list
+%destructor { $$->Release(); } token non_lparen
+
+%type <tokens> token_list
+%type <token> token non_lparen
+%type <params> param_list
+%type <str> id_or_macro
 
 %%
 
-input:	toplevel_stmt_list END
+input:	toplevel_stmt_list END  { state->Finalize(); }
 |
 ;
 
@@ -64,48 +73,94 @@ toplevel_stmt_list:	toplevel_stmt_list toplevel_stmt
 		|	toplevel_stmt
 		;
 
-toplevel_stmt:	literal_token_list NEWLINE
+toplevel_stmt:	output_token_list NEWLINE
 	|	NEWLINE
-	|	INCLUDE_TOK TOKEN NEWLINE
-	|	IFDEF_TOK ID NEWLINE
-	|	IFNDEF_TOK ID NEWLINE
-	|	ENDIF_TOK NEWLINE
-	|	DEFINE_TOK ID token_list NEWLINE
-	|	DEFINE_TOK ID NEWLINE
-	|	DEFINE_TOK LPAREN RPAREN token_list NEWLINE
-	|	DEFINE_TOK LPAREN RPAREN NEWLINE
-	|	DEFINE_TOK LPAREN param_list RPAREN token_list NEWLINE
-	|	DEFINE_TOK LPAREN param_list RPAREN NEWLINE
+	|	IFDEF_TOK id_or_macro NEWLINE  { state->BeginIf(state->IsDefined($2)); free($2); }
+	|	IFNDEF_TOK id_or_macro NEWLINE  { state->BeginIf(!state->IsDefined($2)); free($2); }
+	|	ELSE_TOK NEWLINE  { state->Else(); }
+	|	ENDIF_TOK NEWLINE  { state->EndIf(); }
+	|	DEFINE_TOK id_or_macro non_lparen NEWLINE
+		{
+			std::vector< Ref<Token> > tokens;
+			tokens.push_back($3);
+			state->Define($2, std::vector<std::string>(), tokens);
+			free($2);
+			$3->Release();
+		}
+	|	DEFINE_TOK id_or_macro non_lparen token_list NEWLINE
+		{
+			std::vector< Ref<Token> > tokens;
+			tokens.push_back($3);
+			tokens.insert(tokens.end(), $4->begin(), $4->end());
+			state->Define($2, std::vector<std::string>(), tokens);
+			free($2);
+			delete $3;
+		}
+	|	DEFINE_TOK id_or_macro NEWLINE
+		{
+			state->Define($2, std::vector<std::string>(), std::vector< Ref<Token> >());
+			free($2);
+		}
+	|	DEFINE_TOK id_or_macro LPAREN RPAREN token_list NEWLINE
+		{
+			state->Define($2, std::vector<std::string>(), *$5);
+			free($2);
+			delete $5;
+		}
+	|	DEFINE_TOK id_or_macro LPAREN RPAREN NEWLINE
+		{
+			state->Define($2, std::vector<std::string>(), std::vector< Ref<Token> >());
+			free($2);
+		}
+	|	DEFINE_TOK id_or_macro LPAREN param_list RPAREN token_list NEWLINE
+		{
+			state->Define($2, *$4, *$6);
+			free($2);
+			delete $4;
+			delete $6;
+		}
+	|	DEFINE_TOK id_or_macro LPAREN param_list RPAREN NEWLINE
+		{
+			state->Define($2, *$4, std::vector< Ref<Token> >());
+			free($2);
+			delete $4;
+		}
+	|	UNDEF_TOK id_or_macro NEWLINE  { state->Undefine($2); free($2); }
 	;
 
-token_list:	token_list token
-	|	token
+id_or_macro:	ID  { $$ = $1; }
+	|	MACRO  { $$ = $1; }
 	;
 
-token:	TOKEN
-|	ID
-|	LPAREN
-|	RPAREN
-|	LESS_TOK
-|	GREATER_TOK
-|	COMMA
+token_list:	token_list token  { $$ = $1; $$->push_back($2); $2->Release(); }
+	|	token  { $$ = new std::vector< Ref<Token> >(); $$->push_back($1); $1->Release(); }
+	;
+
+token:	non_lparen  { $$ = $1; }
+|	LPAREN  { $$ = new Token(TOKEN_LPAREN); $$->AddRef(); }
 ;
 
-literal_token_list:	literal_token_list literal_token
-		|	literal_token
-		;
-
-literal_token:	TOKEN  { state->Append($1); state->Append(" "); free($1); }
-	|	ID  { state->Append($1); state->Append(" "); free($1); }
-	|	LPAREN  { state->Append("("); }
-	|	RPAREN  { state->Append(")"); }
-	|	LESS_TOK  { state->Append("< "); }
-	|	GREATER_TOK  { state->Append("> "); }
-	|	COMMA  { state->Append(","); }
+non_lparen:	TOKEN  { $$ = new Token(TOKEN_BASIC, $1); $$->AddRef(); free($1); }
+	|	ID  { $$ = new Token(TOKEN_ID, $1); $$->AddRef(); free($1); }
+	|	MACRO  { $$ = new Token(TOKEN_ID, $1); $$->AddRef(); free($1); }
+	|	RPAREN  { $$ = new Token(TOKEN_RPAREN); $$->AddRef(); }
+	|	COMMA  { $$ = new Token(TOKEN_COMMA); $$->AddRef(); }
 	;
 
-param_list:	param_list COMMA ID
-	|	ID
+param_list:	param_list COMMA ID  { $$ = $1; $$->push_back($3); free($3); }
+	|	ID  { $$ = new std::vector<std::string>(); $$->push_back($1); free($1); }
+	;
+
+output_token_list:	output_token_list output_token
+		|	output_token
+		;
+
+output_token:	TOKEN  { Ref<Token> token = new Token(TOKEN_BASIC, $1); state->Append(token); free($1); }
+	|	ID  { Ref<Token> token = new Token(TOKEN_ID, $1); state->Append(token); free($1); }
+	|	LPAREN  { Ref<Token> token = new Token(TOKEN_LPAREN); state->Append(token); }
+	|	RPAREN  { Ref<Token> token = new Token(TOKEN_RPAREN); state->Append(token); }
+	|	COMMA  { Ref<Token> token = new Token(TOKEN_COMMA); state->Append(token); }
+	|	MACRO  { state->BeginMacroExpansion($1); free($1); }
 	;
 
 %%

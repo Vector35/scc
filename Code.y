@@ -106,6 +106,8 @@ void Code_error(ParserState* state, const char* msg)
 
 %token CDECL_TOK STDCALL_TOK FASTCALL_TOK
 
+%token SYSCALL_TOK
+
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
 %destructor { $$->Release(); } var_type primitive_type
@@ -1205,6 +1207,7 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$3->Release();
 			delete $9;
 		}
+	|	SYSCALL_TOK LPAREN arg_list RPAREN  { $$ = state->BuiltinCallExpr(EXPR_SYSCALL, *$3); $$->AddRef(); delete $3; }
 	;
 
 expression_with_comma:	expression_with_comma COMMA expression  { $$ = $1; $$->AddChild($3); $3->Release(); }

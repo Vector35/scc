@@ -40,7 +40,8 @@ typedef enum
 	ILOP_RETURN_VOID,
 	ILOP_ALLOCA,
 	ILOP_MEMCPY,
-	ILOP_MEMSET
+	ILOP_MEMSET,
+	ILOP_SYSCALL
 } ILOperation;
 
 typedef enum

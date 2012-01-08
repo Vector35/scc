@@ -57,7 +57,7 @@ bool OUTPUT_CLASS_NAME::OperandReference::operator!=(const OperandReference& ref
 }
 
 
-OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME()
+OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings): Output(settings)
 {
 }
 
@@ -2803,6 +2803,75 @@ bool OUTPUT_CLASS_NAME::GenerateMemset(OutputBlock* out, const ILInstruction& in
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& instr)
+{
+	if (m_settings.os == OS_LINUX)
+	{
+#ifdef OUTPUT32
+		static const OperandType linuxRegs[] = {REG_EAX, REG_EBX, REG_ECX, REG_EDX, REG_ESI, REG_EDI, REG_EBP, NONE};
+#else
+		static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
+#endif
+
+		size_t regIndex = 0;
+		for (size_t i = 1; i < instr.params.size(); i++)
+		{
+			if (linuxRegs[regIndex] == NONE)
+				return false;
+			ReserveRegister(linuxRegs[regIndex]);
+#ifdef OUTPUT32
+			if (instr.params[i].type->GetWidth() == 8)
+			{
+				if (linuxRegs[regIndex + 1] == NONE)
+					return false;
+				ReserveRegister(linuxRegs[regIndex + 1]);
+			}
+#endif
+
+			OperandReference cur;
+			if (!PrepareLoad(out, instr.params[i], cur))
+				return false;
+
+#ifdef OUTPUT32
+			OperandType reg, highReg;
+			if (instr.params[i].type->GetWidth() == 8)
+			{
+				reg = GetRegisterOfSize(linuxRegs[regIndex++], 4);
+				highReg = GetRegisterOfSize(linuxRegs[regIndex++], 4);
+			}
+			else
+			{
+				reg = GetRegisterOfSize(linuxRegs[regIndex++], cur.width);
+			}
+#else
+			OperandType reg = GetRegisterOfSize(linuxRegs[regIndex++], cur.width);
+#endif
+
+			OperandReference dest;
+			dest.type = OPERANDREF_REG;
+			dest.sign = false;
+			dest.width = cur.width;
+			dest.reg = reg;
+#ifdef OUTPUT32
+			dest.highReg = highReg;
+#endif
+
+			if (!Move(out, dest, cur))
+				return false;
+		}
+
+#ifdef OUTPUT32
+		EMIT_I(int, 0x80);
+#else
+		EMIT(syscall);
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 {
 	m_blockAddress = block->GetAddress();
@@ -2968,6 +3037,10 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			break;
 		case ILOP_MEMSET:
 			if (!GenerateMemset(out, *i))
+				goto fail;
+			break;
+		case ILOP_SYSCALL:
+			if (!GenerateSyscall(out, *i))
 				goto fail;
 			break;
 		default:

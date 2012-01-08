@@ -82,7 +82,8 @@ enum ExprClass
 	EXPR_SWITCH,
 	EXPR_CASE,
 	EXPR_DEFAULT,
-	EXPR_UNDEFINED
+	EXPR_UNDEFINED,
+	EXPR_SYSCALL
 };
 
 struct Location

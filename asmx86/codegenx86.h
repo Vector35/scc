@@ -3481,6 +3481,8 @@ namespace asmx86
 	__ONEBYTE_INSTR(std, 0xfd)
 	__TWOBYTE_INSTR(ud2, 0x0b);
 	__TWOBYTE_INSTR(cpuid, 0xa2);
+	__TWOBYTE_INSTR(syscall, 0x05);
+	__TWOBYTE_INSTR(sysenter, 0x34);
 
 
 #ifdef __cplusplus

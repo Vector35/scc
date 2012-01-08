@@ -130,11 +130,12 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateAlloca(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateMemcpy(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateMemset(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateSyscall(OutputBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(OutputBlock* out, ILBlock* block);
 
 public:
-	OUTPUT_CLASS_NAME();
+	OUTPUT_CLASS_NAME(const Settings& settings);
 
 	virtual bool GenerateCode(Function* func, bool finalPass);
 };

@@ -12,35 +12,6 @@
 using namespace std;
 
 
-enum Architecture
-{
-	ARCH_X86
-};
-
-enum OperatingSystem
-{
-	OS_NONE,
-	OS_LINUX,
-	OS_FREEBSD,
-	OS_MACH,
-	OS_WINDOWS
-};
-
-enum OutputFormat
-{
-	FORMAT_BIN,
-	FORMAT_ELF,
-	FORMAT_PE
-};
-
-enum OptimizationLevel
-{
-	OPTIMIZE_DISABLE,
-	OPTIMIZE_SIZE,
-	OPTIMIZE_NORMAL
-};
-
-
 extern int Code_parse(ParserState* state);
 extern void Code_set_lineno(int line, void* yyscanner);
 
@@ -102,30 +73,30 @@ int main(int argc, char* argv[])
 {
 	vector<string> sourceFiles;
 	vector<string> libraries;
-	vector<uint8_t> blacklist;
-	vector<string> preservedRegs;
 	string outputFile = "";
 	bool hexOutput = true;
-	Architecture architecture = ARCH_X86;
-	OperatingSystem os = OS_LINUX;
-	OutputFormat format = FORMAT_BIN;
-	OptimizationLevel optimization = OPTIMIZE_NORMAL;
-	uint32_t preferredBits = 32;
 	bool architectureIsExplicit = false;
 	bool osIsExplicit = false;
-	bool allowReturn = false;
-	bool assumeSafeStack = false;
-	bool concat = false;
 	string decoder, encoder;
-	bool encodePointers = false;
 	bool execute = false;
 	bool internalDebug = false;
 	uint32_t maxLength = 0;
 	bool pad = false;
-	bool polymorph = false;
 	bool useSpecificSeed = false;
-	uint32_t seed = 0;
-	bool sharedLibrary = false;
+	Settings settings;
+
+	settings.architecture = ARCH_X86;
+	settings.os = OS_LINUX;
+	settings.format = FORMAT_BIN;
+	settings.optimization = OPTIMIZE_NORMAL;
+	settings.preferredBits = 32;
+	settings.allowReturn = false;
+	settings.assumeSafeStack = false;
+	settings.concat = false;
+	settings.encodePointers = false;
+	settings.sharedLibrary = false;
+	settings.polymorph = false;
+	settings.seed = 0;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -140,13 +111,13 @@ int main(int argc, char* argv[])
 			i++;
 			if ((!strcmp(argv[i], "x86")) || (!strcmp(argv[i], "i386")))
 			{
-				architecture = ARCH_X86;
-				preferredBits = 32;
+				settings.architecture = ARCH_X86;
+				settings.preferredBits = 32;
 			}
 			else if ((!strcmp(argv[i], "x64")) || (!strcmp(argv[i], "x86_64")) || (!strcmp(argv[i], "amd64")))
 			{
-				architecture = ARCH_X86;
-				preferredBits = 64;
+				settings.architecture = ARCH_X86;
+				settings.preferredBits = 64;
 			}
 			else
 			{
@@ -158,29 +129,29 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "-m32"))
 		{
-			preferredBits = 32;
+			settings.preferredBits = 32;
 			architectureIsExplicit = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "-m64"))
 		{
-			preferredBits = 64;
+			settings.preferredBits = 64;
 			architectureIsExplicit = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--allow-return"))
 		{
-			allowReturn = true;
+			settings.allowReturn = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--assume-safe-stack"))
 		{
-			assumeSafeStack = true;
+			settings.assumeSafeStack = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--concat"))
 		{
-			concat = true;
+			settings.concat = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--blacklist"))
@@ -192,7 +163,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			blacklist.push_back((uint8_t)strtoul(argv[i], NULL, 0));
+			settings.blacklist.push_back((uint8_t)strtoul(argv[i], NULL, 0));
 			continue;
 		}
 		else if (!strcmp(argv[i], "--decoder"))
@@ -221,27 +192,27 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "--encode-pointers"))
 		{
-			encodePointers = true;
+			settings.encodePointers = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--exec"))
 		{
 #ifdef __x86_64
 			if (!architectureIsExplicit)
-				preferredBits = 64;
+				settings.preferredBits = 64;
 #endif
 
 			if (!osIsExplicit)
 			{
 				// Use current OS
 #ifdef __APPLE__
-				os = OS_MACH;
+				settings.os = OS_MACH;
 #elif defined(WIN32)
-				os = OS_WINDOWS;
+				settings.os = OS_WINDOWS;
 #elif defined(linux)
-				os = OS_LINUX;
+				settings.os = OS_LINUX;
 #else
-				os = OS_FREEBSD;
+				settings.os = OS_FREEBSD;
 #endif
 			}
 
@@ -258,11 +229,11 @@ int main(int argc, char* argv[])
 
 			i++;
 			if (!strcmp(argv[i], "bin"))
-				format = FORMAT_BIN;
+				settings.format = FORMAT_BIN;
 			else if (!strcmp(argv[i], "elf"))
-				format = FORMAT_ELF;
+				settings.format = FORMAT_ELF;
 			else if (!strcmp(argv[i], "pe"))
-				format = FORMAT_PE;
+				settings.format = FORMAT_PE;
 			else
 			{
 				fprintf(stderr, "error: unsupported format '%s'\n", argv[i]);
@@ -324,12 +295,12 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "-O0"))
 		{
-			optimization = OPTIMIZE_DISABLE;
+			settings.optimization = OPTIMIZE_DISABLE;
 			continue;
 		}
 		else if (!strcmp(argv[i], "-Os"))
 		{
-			optimization = OPTIMIZE_SIZE;
+			settings.optimization = OPTIMIZE_SIZE;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--platform"))
@@ -342,13 +313,13 @@ int main(int argc, char* argv[])
 
 			i++;
 			if (!strcmp(argv[i], "linux"))
-				os = OS_LINUX;
+				settings.os = OS_LINUX;
 			else if (!strcmp(argv[i], "freebsd"))
-				os = OS_FREEBSD;
+				settings.os = OS_FREEBSD;
 			else if ((!strcmp(argv[i], "mach")) || (!strcmp(argv[i], "macos")) || (!strcmp(argv[i], "macosx")))
-				os = OS_MACH;
+				settings.os = OS_MACH;
 			else if ((!strcmp(argv[i], "win32")) || (!strcmp(argv[i], "windows")))
-				os = OS_WINDOWS;
+				settings.os = OS_WINDOWS;
 			else
 			{
 				fprintf(stderr, "error: unsupported platform '%s'\n", argv[i]);
@@ -359,7 +330,7 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "--polymorph"))
 		{
-			polymorph = true;
+			settings.polymorph = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--preserve"))
@@ -371,7 +342,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			preservedRegs.push_back(argv[i]);
+			settings.preservedRegs.push_back(argv[i]);
 			continue;
 		}
 		else if (!strcmp(argv[i], "--seed"))
@@ -384,12 +355,12 @@ int main(int argc, char* argv[])
 
 			i++;
 			useSpecificSeed = true;
-			seed = (uint32_t)strtoul(argv[i], NULL, 0);
+			settings.seed = (uint32_t)strtoul(argv[i], NULL, 0);
 			continue;
 		}
 		else if (!strcmp(argv[i], "--shared"))
 		{
-			sharedLibrary = true;
+			settings.sharedLibrary = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--stdin"))
@@ -419,56 +390,50 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize random seed if one is needed
-	if (polymorph || pad)
+	if (settings.polymorph || pad)
 	{
 		if (!useSpecificSeed)
 		{
 			FILE* fp = fopen("/dev/urandom", "rb");
-			fread(&seed, sizeof(seed), 1, fp);
+			fread(&settings.seed, sizeof(settings.seed), 1, fp);
 			fclose(fp);
-			printf("Seed is %u\n", seed);
+			printf("Seed is %u\n", settings.seed);
 		}
 
-		srand(seed);
+		srand(settings.seed);
 	}
 
 	// Warn about incompatible options
-	if ((optimization == OPTIMIZE_SIZE) && polymorph)
+	if ((settings.optimization == OPTIMIZE_SIZE) && settings.polymorph)
 	{
 		fprintf(stderr, "warning: polymorphic code generation not compatible with size optimization\n");
-		polymorph = false;
+		settings.polymorph = false;
 	}
 
-	if (sharedLibrary && (format == FORMAT_BIN))
+	if (settings.sharedLibrary && (settings.format == FORMAT_BIN))
 	{
 		fprintf(stderr, "warning: trying to generate shared library in raw binary output mode\n");
-		sharedLibrary = false;
+		settings.sharedLibrary = false;
 	}
 
-	if ((maxLength != 0) && (format != FORMAT_BIN))
+	if ((maxLength != 0) && (settings.format != FORMAT_BIN))
 	{
 		fprintf(stderr, "warning: maximum size only supported in raw binary output mode\n");
 		maxLength = 0;
 	}
 
-	if ((blacklist.size() > 0) && (format != FORMAT_BIN))
+	if ((settings.blacklist.size() > 0) && (settings.format != FORMAT_BIN))
 	{
 		fprintf(stderr, "warning: blacklist only supported in raw binary output mode\n");
-		blacklist.clear();
-	}
-
-	if ((encoder.size() > 0) && (decoder.size() == 0))
-	{
-		fprintf(stderr, "error: decoder must be specified if an encoder is provided\n");
-		return 1;
+		settings.blacklist.clear();
 	}
 
 	// Normal executables always have a normal stack
-	if (format != FORMAT_BIN)
-		assumeSafeStack = true;
+	if (settings.format != FORMAT_BIN)
+		settings.assumeSafeStack = true;
 
 	// Set pointer size
-	if (preferredBits == 32)
+	if (settings.preferredBits == 32)
 		SetTargetPointerSize(4);
 	else
 		SetTargetPointerSize(8);
@@ -851,12 +816,12 @@ int main(int argc, char* argv[])
 
 	// Create output class for the requested architecture
 	Output* out;
-	if (architecture == ARCH_X86)
+	if (settings.architecture == ARCH_X86)
 	{
-		if (preferredBits == 32)
-			out = new OutputX86();
+		if (settings.preferredBits == 32)
+			out = new OutputX86(settings);
 		else
-			out = new OutputX64();
+			out = new OutputX64(settings);
 	}
 	else
 	{
@@ -934,7 +899,7 @@ int main(int argc, char* argv[])
 	finalBinary->len = 0;
 	finalBinary->maxLen = 0;
 
-	switch (format)
+	switch (settings.format)
 	{
 	case FORMAT_BIN:
 		memcpy(finalBinary->PrepareWrite(codeSection->len), codeSection->code, codeSection->len);
@@ -960,7 +925,7 @@ int main(int argc, char* argv[])
 		for (size_t i = 0; i < 256; i++)
 		{
 			bool ok = true;
-			for (vector<uint8_t>::iterator j = blacklist.begin(); j != blacklist.end(); j++)
+			for (vector<uint8_t>::iterator j = settings.blacklist.begin(); j != settings.blacklist.end(); j++)
 			{
 				if (i == *j)
 				{

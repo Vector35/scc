@@ -155,6 +155,8 @@ __cdecl		TOK(CDECL_TOK)
 __stdcall	TOK(STDCALL_TOK)
 __fastcall	TOK(FASTCALL_TOK)
 
+__syscall	TOK(SYSCALL_TOK)
+
 [0-9]+						TOKINT(INT_VAL, strtoull(yytext, NULL, 10))
 0x[0-9a-fA-F]+					TOKINT(INT_VAL, strtoull(yytext + 2, NULL, 16))
 0b[0-1]+					TOKINT(INT_VAL, strtoull(yytext + 2, NULL, 2))

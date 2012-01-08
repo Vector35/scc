@@ -347,6 +347,18 @@ void ILInstruction::Print() const
 		}
 		fprintf(stderr, ")");
 		break;
+	case ILOP_SYSCALL:
+		params[0].Print();
+		fprintf(stderr, " = __syscall");
+		fprintf(stderr, "(");
+		for (size_t i = 1; i < params.size(); i++)
+		{
+			if (i > 1)
+				fprintf(stderr, ", ");
+			params[i].Print();
+		}
+		fprintf(stderr, ")");
+		break;
 	default:
 		fprintf(stderr, "<invalid>");
 		break;

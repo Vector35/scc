@@ -24,7 +24,7 @@ void OutputBlock::FinishWrite(size_t written)
 }
 
 
-Output::Output()
+Output::Output(const Settings& settings): m_settings(settings)
 {
 }
 

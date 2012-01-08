@@ -2,6 +2,7 @@
 #define __OUTPUT_H__
 
 #include "ILBlock.h"
+#include "Settings.h"
 
 
 enum RelocationType
@@ -30,8 +31,11 @@ struct OutputBlock
 
 class Output
 {
+protected:
+	Settings m_settings;
+
 public:
-	Output();
+	Output(const Settings& settings);
 	virtual ~Output();
 
 	virtual bool GenerateCode(Function* func, bool finalPass) = 0;

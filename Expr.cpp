@@ -1044,6 +1044,29 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_UNDEFINED:
 		m_type = Type::IntType(GetTargetPointerSize(), true);
 		break;
+	case EXPR_SYSCALL:
+		if (m_children[0]->GetType()->GetClass() != TYPE_INT)
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: expected syscall number\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+		}
+		for (size_t i = 1; i < m_children.size(); i++)
+		{
+			if ((m_children[i]->GetType()->GetClass() == TYPE_VOID) ||
+				(m_children[i]->GetType()->GetClass() == TYPE_FLOAT) ||
+				(m_children[i]->GetType()->GetClass() == TYPE_STRUCT))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: syscall parameter %d invalid\n", m_location.fileName.c_str(),
+					m_location.lineNumber, (int)i);
+			}
+			if (m_children[i]->GetType()->GetWidth() == 0)
+				m_children[i] = m_children[i]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		}
+		m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_type = Type::IntType(GetTargetPointerSize(), false);
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n", m_location.fileName.c_str(),
@@ -2417,6 +2440,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter();
 		result.cls = ILPARAM_UNDEFINED;
 		break;
+	case EXPR_SYSCALL:
+		result = func->CreateTempVariable(m_type);
+		params.push_back(result);
+		params.push_back(m_children[0]->GenerateIL(state, func, block));
+		for (size_t i = 1; i < m_children.size(); i++)
+			params.push_back(m_children[i]->GenerateIL(state, func, block));
+		block->AddInstruction(ILOP_SYSCALL, params);
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in IL generation\n", m_location.fileName.c_str(),
@@ -2936,6 +2967,16 @@ void Expr::Print(size_t indent)
 	case EXPR_CASE:  fprintf(stderr, "case %lld:", (long long)m_intValue); break;
 	case EXPR_DEFAULT:  fprintf(stderr, "default:"); break;
 	case EXPR_UNDEFINED:  fprintf(stderr, "__undefined"); break;
+	case EXPR_SYSCALL:
+		fprintf(stderr, "__syscall(");
+		for (size_t i = 0; i < m_children.size(); i++)
+		{
+			if (i > 0)
+				fprintf(stderr, ", ");
+			m_children[i]->Print(indent);
+		}
+		fprintf(stderr, ")");
+		break;
 	default:
 		fprintf(stderr, "<invalid_expr>");
 		break;

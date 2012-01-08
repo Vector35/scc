@@ -8,6 +8,7 @@
 #include "CodeLexer.h"
 #include "OutputX86.h"
 #include "OutputX64.h"
+#include "ElfOutput.h"
 
 using namespace std;
 
@@ -97,6 +98,7 @@ int main(int argc, char* argv[])
 	settings.sharedLibrary = false;
 	settings.polymorph = false;
 	settings.seed = 0;
+	settings.staticBase = false;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -431,6 +433,18 @@ int main(int argc, char* argv[])
 	// Normal executables always have a normal stack
 	if (settings.format != FORMAT_BIN)
 		settings.assumeSafeStack = true;
+
+	// Set base address of executable if not provided
+	if ((!settings.staticBase) && (settings.format == FORMAT_ELF) && (!settings.sharedLibrary))
+	{
+		settings.staticBase = true;
+		settings.base = AdjustBaseForElfFile(0x8040000, settings);
+	}
+	if ((!settings.staticBase) && (settings.format == FORMAT_PE) && (!settings.sharedLibrary))
+	{
+		settings.staticBase = true;
+		settings.base = 0x1001000;
+	}
 
 	// Set pointer size
 	if (settings.preferredBits == 32)
@@ -877,6 +891,12 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	// Generate data section
+	OutputBlock* dataSection = new OutputBlock;
+	dataSection->code = NULL;
+	dataSection->len = 0;
+	dataSection->maxLen = 0;
+
 	// Generate code section
 	OutputBlock* codeSection = new OutputBlock;
 	codeSection->code = NULL;
@@ -904,6 +924,13 @@ int main(int argc, char* argv[])
 	case FORMAT_BIN:
 		memcpy(finalBinary->PrepareWrite(codeSection->len), codeSection->code, codeSection->len);
 		finalBinary->FinishWrite(codeSection->len);
+		break;
+	case FORMAT_ELF:
+		if (!GenerateElfFile(finalBinary, settings, codeSection, dataSection))
+		{
+			fprintf(stderr, "error: failed to output ELF format\n");
+			return 1;
+		}
 		break;
 	default:
 		fprintf(stderr, "error: unimplemented output format\n");

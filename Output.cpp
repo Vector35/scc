@@ -24,6 +24,14 @@ void OutputBlock::FinishWrite(size_t written)
 }
 
 
+void OutputBlock::Write(const void* data, size_t len)
+{
+	void* out = PrepareWrite(len);
+	memcpy(out, data, len);
+	FinishWrite(len);
+}
+
+
 Output::Output(const Settings& settings): m_settings(settings)
 {
 }

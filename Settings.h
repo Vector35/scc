@@ -52,6 +52,9 @@ struct Settings
 
 	bool polymorph;
 	uint32_t seed;
+
+	bool staticBase;
+	uint64_t base;
 };
 
 #endif

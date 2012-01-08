@@ -26,6 +26,7 @@ struct OutputBlock
 
 	void* PrepareWrite(size_t desiredLen);
 	void FinishWrite(size_t written);
+	void Write(const void* data, size_t len);
 };
 
 

@@ -19,6 +19,17 @@ PreprocessState::PreprocessState(const string& name, void* scanner): m_fileName(
 }
 
 
+PreprocessState::PreprocessState(PreprocessState& parent, const string& name, void* scanner): m_fileName(name), m_scanner(scanner)
+{
+	m_errors = 0;
+	m_expansionInProgress = false;
+	m_ifFailCount = 0;
+	m_locationRequest = true;
+
+	m_macros = parent.m_macros;
+}
+
+
 PreprocessState::~PreprocessState()
 {
 }
@@ -162,8 +173,15 @@ void PreprocessState::IncludeFile(const string& name)
 	FILE* fp = fopen(name.c_str(), "r");
 	if (!fp)
 	{
-		fprintf(stderr, "%s:%d: error: include file '%s' not found\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		if (m_scanner)
+		{
+			fprintf(stderr, "%s:%d: error: include file '%s' not found\n", GetFileName().c_str(),
+				GetLineNumber(), name.c_str());
+		}
+		else
+		{
+			fprintf(stderr, "%s: error: include file '%s' not found\n", GetFileName().c_str(), name.c_str());
+		}
 		m_errors++;
 		return;
 	}
@@ -397,26 +415,31 @@ void PreprocessState::EndIf()
 }
 
 
-bool PreprocessState::PreprocessSource(const string& source, const string& fileName, string& output)
+bool PreprocessState::PreprocessSource(const string& source, const string& fileName, string& output, PreprocessState* parent)
 {
 	yyscan_t scanner;
 	Preprocess_lex_init(&scanner);
-	PreprocessState parser(fileName.c_str(), scanner);
+	PreprocessState* parser;
+	if (parent)
+		parser = new PreprocessState(*parent, fileName.c_str(), scanner);
+	else
+		parser = new PreprocessState(fileName.c_str(), scanner);
 
 	YY_BUFFER_STATE buf = Preprocess__scan_string(source.c_str(), scanner);
 	Preprocess__switch_to_buffer(buf, scanner);
 	Preprocess_set_lineno(1, scanner);
 
-	parser.AppendLocation();
+	parser->AppendLocation();
 
 	bool ok = true;
-	if (Preprocess_parse(&parser) != 0)
+	if (Preprocess_parse(parser) != 0)
 		ok = false;
-	if (parser.HasErrors())
+	if (parser->HasErrors())
 		ok = false;
 
 	Preprocess_lex_destroy(scanner);
-	output = parser.GetOutput();
+	output = parser->GetOutput();
+	delete parser;
 	return ok;
 }
 

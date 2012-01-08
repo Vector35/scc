@@ -467,6 +467,15 @@ int main(int argc, char* argv[])
 	else
 		SetTargetPointerSize(8);
 
+	// Process the precompiling headers
+	PreprocessState precompiledPreprocess("precompiled headers", NULL);
+	for (vector<string>::iterator i = precompiledHeaders.begin(); i != precompiledHeaders.end(); i++)
+	{
+		precompiledPreprocess.IncludeFile(*i);
+		if (precompiledPreprocess.HasErrors())
+			return 1;
+	}
+
 	// Start parsing source files
 	vector< Ref<Function> > functions;
 	map< string, Ref<Function> > functionsByName;
@@ -527,7 +536,8 @@ int main(int argc, char* argv[])
 		}
 
 		string preprocessed;
-		if (!PreprocessState::PreprocessSource(data, (i->size() == 0) ? string("stdin") : *i, preprocessed))
+		if (!PreprocessState::PreprocessSource(data, (i->size() == 0) ? string("stdin") : *i,
+			preprocessed, &precompiledPreprocess))
 			return 1;
 
 		yyscan_t scanner;

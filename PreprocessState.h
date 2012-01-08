@@ -46,6 +46,7 @@ class PreprocessState
 
 public:
 	PreprocessState(const std::string& name, void* scanner);
+	PreprocessState(PreprocessState& parent, const std::string& name, void* scanner);
 	~PreprocessState();
 
 	const std::string& GetFileName() { return m_fileName; }
@@ -79,7 +80,8 @@ public:
 	void Else();
 	void EndIf();
 
-	static bool PreprocessSource(const std::string& source, const std::string& fileName, std::string& output);
+	static bool PreprocessSource(const std::string& source, const std::string& fileName, std::string& output,
+		PreprocessState* parent = NULL);
 };
 
 

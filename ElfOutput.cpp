@@ -148,7 +148,48 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 	// Write out rest of header
 	if (settings.preferredBits == 64)
 	{
-		return false;
+		Elf64Header header;
+		header.headerSize = sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf64Header);
+		header.sectionHeaderOffset = 0;
+		header.sectionHeaderSize = sizeof(Elf64SectionHeader);
+		header.sectionHeaderCount = 0;
+		header.stringTable = 0;
+		header.programHeaderOffset = header.headerSize;
+		header.programHeaderSize = sizeof(Elf64ProgramHeader);
+		header.programHeaderCount = 2;
+		header.flags = 0;
+
+		header.entry = 0;
+		if (settings.staticBase)
+			header.entry = settings.base;
+
+		output->Write(&header, sizeof(header));
+
+		Elf64ProgramHeader code;
+		code.type = 1; // Loadable segment
+		code.flags = 5; // Read execute
+		code.offset = 0;
+		code.virtualAddress = header.entry & (~0xfff);
+		code.physicalAddress = code.virtualAddress;
+		code.fileSize = (header.entry & 0xfff) + codeSection->len;
+		code.memorySize = code.fileSize;
+		code.align = 0x1000;
+		output->Write(&code, sizeof(code));
+
+		uint64_t dataStart = code.virtualAddress + code.fileSize;
+		if (dataStart & 0xfff)
+			dataStart += 0x1000;
+
+		Elf64ProgramHeader data;
+		data.type = 1; // Loadable segment
+		data.flags = 6; // Read write
+		data.offset = header.headerSize + (sizeof(Elf64ProgramHeader) * 2) + codeSection->len;
+		data.virtualAddress = dataStart;
+		data.physicalAddress = data.virtualAddress;
+		data.fileSize = dataSection->len;
+		data.memorySize = data.fileSize;
+		data.align = 0x1000;
+		output->Write(&data, sizeof(data));
 	}
 	else
 	{

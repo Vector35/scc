@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include "ParserState.h"
+#include "PreprocessState.h"
 #include "CodeParser.h"
 #include "CodeLexer.h"
 #include "OutputX86.h"
@@ -43,6 +44,7 @@ void Usage()
 	fprintf(stderr, "                                      output to a file)\n");
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe\n");
+	fprintf(stderr, "    --header <file>                   When creating a library, include as precompiled header\n");
 	fprintf(stderr, "    --internal-debug                  Enable internal debugging output\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
@@ -74,6 +76,7 @@ int main(int argc, char* argv[])
 {
 	vector<string> sourceFiles;
 	vector<string> libraries;
+	vector<string> precompiledHeaders;
 	string outputFile = "";
 	bool hexOutput = true;
 	bool architectureIsExplicit = false;
@@ -241,6 +244,18 @@ int main(int argc, char* argv[])
 				fprintf(stderr, "error: unsupported format '%s'\n", argv[i]);
 			}
 
+			continue;
+		}
+		else if (!strcmp(argv[i], "--header"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			precompiledHeaders.push_back(argv[i]);
 			continue;
 		}
 		else if (!strcmp(argv[i], "--help"))
@@ -511,11 +526,15 @@ int main(int argc, char* argv[])
 			fprintf(stderr, "Parsing %s...\n", i->c_str());
 		}
 
+		string preprocessed;
+		if (!PreprocessState::PreprocessSource(data, (i->size() == 0) ? string("stdin") : *i, preprocessed))
+			return 1;
+
 		yyscan_t scanner;
 		Code_lex_init(&scanner);
 		ParserState parser((i->size() == 0) ? "stdin" : i->c_str(), scanner);
 
-		YY_BUFFER_STATE buf = Code__scan_string(data, scanner);
+		YY_BUFFER_STATE buf = Code__scan_string(preprocessed.c_str(), scanner);
 		Code__switch_to_buffer(buf, scanner);
 		Code_set_lineno(1, scanner);
 

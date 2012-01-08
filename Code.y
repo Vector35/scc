@@ -24,7 +24,6 @@ using namespace std;
 
 extern int Code_lex(void* yyscanner);
 extern void Code_set_extra(void* user_defined, void* yyscanner);
-extern int Code_get_lineno(void* yyscanner);
 
 static int Code_lex_wrapper(void* yyscanner)
 {
@@ -43,10 +42,10 @@ static int Code_lex_final(YYSTYPE* lval, ParserState* state)
 void Code_error(ParserState* state, const char* msg)
 {
 	state->Error();
-	fprintf(stderr, "%s:%d: error: %s\n", state->GetFileName().c_str(), Code_get_lineno(state->GetScanner()), msg);
+	fprintf(stderr, "%s:%d: error: %s\n", state->GetFileName().c_str(), state->GetLineNumber(), msg);
 }
 
-#define YYLOC state->GetFileName(), Code_get_lineno(state->GetScanner())
+#define YYLOC state->GetFileName(), state->GetLineNumber()
 #define YYSTMT(t) new Statement(YYLOC, t)
 #define YYFUNC(n) new Function(YYLOC, n)
 %}

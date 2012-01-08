@@ -49,6 +49,27 @@
 		}
 "//".*$
 
+#\ *line[^\r\n]*	{
+				char* line = strchr(yytext, ' ');
+				if (line)
+				{
+					char* name;
+					long lineNumber = strtol(line, &name, 10);
+					name = strchr(name, '\"');
+					if (name)
+					{
+						name++;
+						char* end = strrchr(name, '\"');
+						size_t len;
+						if (end)
+							len = end - name;
+						else
+							len = strlen(name);
+						PARSERSTATE->SetLocation(std::string(name, len), lineNumber);
+					}
+				}
+			}
+
 \n		yylineno++;
 \r		yylineno++;
 \r\n		yylineno++;

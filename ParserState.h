@@ -26,6 +26,7 @@ struct VarInitInfo
 class ParserState
 {
 	std::string m_fileName;
+	int m_line;
 	void* m_scanner;
 	void* m_lvalue;
 	int m_errors;
@@ -46,9 +47,10 @@ public:
 	ParserState(const std::string& name, void* scanner);
 	~ParserState();
 
-	const std::string& GetFileName() { return m_fileName; }
-	int GetLineNumber();
+	const std::string& GetFileName() const { return m_fileName; }
+	int GetLineNumber() const { return m_line; }
 	Location GetLocation();
+	void SetLocation(const std::string& name, int line) { m_fileName = name; m_line = line; }
 
 	void* GetScanner() { return m_scanner; }
 	void* GetLValue() const { return m_lvalue; }

@@ -4,26 +4,18 @@
 using namespace std;
 
 
-extern int Code_get_lineno(void* yyscanner);
-
-
 ParserState::ParserState(const string& name, void* scanner): m_fileName(name), m_scanner(scanner)
 {
 	m_initExpression = BasicExpr(EXPR_SEQUENCE);
 	m_globalScope = new Scope(NULL, true);
 	m_currentScope = m_globalScope;
 	m_errors = 0;
+	m_line = 1;
 }
 
 
 ParserState::~ParserState()
 {
-}
-
-
-int ParserState::GetLineNumber()
-{
-	return Code_get_lineno(GetScanner());
 }
 
 

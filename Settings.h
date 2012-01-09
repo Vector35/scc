@@ -23,7 +23,8 @@ enum OutputFormat
 {
 	FORMAT_BIN,
 	FORMAT_ELF,
-	FORMAT_PE
+	FORMAT_PE,
+	FORMAT_LIB
 };
 
 enum OptimizationLevel

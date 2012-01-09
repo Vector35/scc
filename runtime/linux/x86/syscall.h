@@ -1,5 +1,5 @@
-#ifndef __SYSCALL_H__
-#define __SYSCALL_H__
+#ifndef __LIBC__SYSCALL_H__
+#define __LIBC__SYSCALL_H__
 
 #define SYS_restart_syscall		  0
 #define SYS_exit			  1

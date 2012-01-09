@@ -3,6 +3,8 @@
 #include "Output.h"
 #include "Struct.h"
 
+using namespace std;
+
 
 void* OutputBlock::PrepareWrite(size_t desiredLen)
 {
@@ -29,6 +31,192 @@ void OutputBlock::Write(const void* data, size_t len)
 	void* out = PrepareWrite(len);
 	memcpy(out, data, len);
 	FinishWrite(len);
+}
+
+
+void OutputBlock::WriteInteger(int64_t i)
+{
+	// Integers are written in a packed form where the high bit
+	// of each byte is a continuation indicator, and bit 6
+	// of the first byte is a sign bit.  Integer is stored in
+	// little endian byte order.
+	uint8_t byte;
+	bool neg = false;
+
+	if (i < 0)
+	{
+		neg = true;
+		i = -i;
+	}
+
+	byte = i & 0x3f;
+	if (neg)
+		byte |= 0x40;
+	if (i >= 0x40)
+		byte |= 0x80;
+	Write(&byte, 1);
+	i >>= 6;
+
+	while (i != 0)
+	{
+		byte = i & 0x7f;
+		if (i >= 0x80)
+			byte |= 0x80;
+		Write(&byte, 1);
+		i >>= 7;
+	}
+}
+
+
+void OutputBlock::WriteString(const string& str)
+{
+	WriteInteger(str.size());
+	Write(str.c_str(), str.size());
+}
+
+
+bool InputBlock::Read(void* data, size_t readLen)
+{
+	if ((offset + readLen) > len)
+		return false;
+	memcpy(data, (void*)((size_t)code + offset), readLen);
+	offset += readLen;
+	return true;
+}
+
+
+bool InputBlock::ReadInt8(int8_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (int8_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadInt16(int16_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (int16_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadInt32(int32_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (int32_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadInt64(int64_t& value)
+{
+	uint8_t byte;
+	bool neg;
+
+	if (!Read(&byte, 1))
+		return false;
+	neg = (byte & 0x40) != 0;
+	value = byte & 0x3f;
+
+	size_t shift = 6;
+	while (byte & 0x80)
+	{
+		if (!Read(&byte, 1))
+			return false;
+
+		value |= ((int64_t)(byte & 0x7f)) << shift;
+		shift += 7;
+	}
+
+	if (neg)
+		value = -value;
+	return true;
+}
+
+
+bool InputBlock::ReadUInt8(uint8_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (uint8_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadUInt16(uint16_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (uint16_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadUInt32(uint32_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (uint32_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadUInt64(uint64_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (uint64_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadNativeInteger(size_t& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = (size_t)i;
+	return true;
+}
+
+
+bool InputBlock::ReadString(std::string& str)
+{
+	size_t size;
+	if (!ReadNativeInteger(size))
+		return false;
+
+	char* data = new char[size];
+	if (!Read(data, size))
+	{
+		delete[] data;
+		return false;
+	}
+
+	str = string(data, size);
+	delete[] data;
+	return true;
+}
+
+
+bool InputBlock::ReadBool(bool& value)
+{
+	int64_t i;
+	if (!ReadInt64(i))
+		return false;
+	value = i != 0;
+	return true;
 }
 
 

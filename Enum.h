@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <stdint.h>
 #include "RefCountObject.h"
 
@@ -15,12 +16,20 @@ struct EnumMember
 };
 
 
+class OutputBlock;
+class InputBlock;
+
 class Enum: public RefCountObject
 {
 	std::string m_name;
 	std::vector<EnumMember> m_members;
 	uint32_t m_nextValue;
 	bool m_fullyDefined;
+
+	size_t m_serializationIndex;
+	bool m_serializationIndexValid;
+	static size_t m_nextSerializationIndex;
+	static std::map< size_t, Ref<Enum> > m_serializationMap;
 
 public:
 	Enum();
@@ -37,6 +46,9 @@ public:
 	uint32_t GetNextValue() const { return m_nextValue; }
 
 	void AddMember(const std::string& name, uint32_t value);
+
+	void Serialize(OutputBlock* output);
+	static Enum* Deserialize(InputBlock* input);
 };
 
 

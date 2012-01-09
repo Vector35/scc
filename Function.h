@@ -51,7 +51,11 @@ class Function: public RefCountObject
 	bool m_localScope;
 	bool m_variableSizedStackFrame;
 
+	size_t m_serializationIndex;
+	static std::map< size_t, Ref<Function> > m_serializationMapping;
+
 public:
+	Function();
 	Function(const FunctionInfo& info, bool isLocalScope);
 	Function(const FunctionInfo& info, const std::vector< Ref<Variable> >& vars, Expr* body, bool isLocalScope);
 	virtual ~Function();
@@ -107,6 +111,13 @@ public:
 	void ReplaceVariable(Variable* from, Variable* to);
 
 	void CheckForUndefinedReferences(size_t& errors);
+
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
+	size_t GetSerializationIndex() const { return m_serializationIndex; }
+	void SetSerializationIndex(size_t i) { m_serializationIndex = i; }
+	static Function* GetSerializationMapping(size_t i);
+	static void SetSerializationMapping(size_t i, Function* func);
 
 	void Print();
 };

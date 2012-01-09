@@ -31,6 +31,7 @@ enum CallingConvention
 
 
 class Struct;
+class OutputBlock;
 
 class Type: public RefCountObject
 {
@@ -43,6 +44,8 @@ class Type: public RefCountObject
 	Ref<Struct> m_struct;
 	Ref<Enum> m_enum;
 	size_t m_elements;
+
+	bool DeserializeInternal(InputBlock* input);
 
 public:
 	Type();
@@ -88,6 +91,8 @@ public:
 
 	static Type* StructMemberType(Type* type, const std::string& name);
 
+	void Serialize(OutputBlock* output);
+	static Type* Deserialize(InputBlock* input);
 	void Print();
 };
 

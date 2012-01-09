@@ -3,6 +3,7 @@
 
 #include <string>
 #include "RefCountObject.h"
+#include "Output.h"
 
 
 enum TokenType
@@ -26,6 +27,9 @@ public:
 
 	TokenType GetType() const { return m_type; }
 	const std::string& GetString() const { return m_string; }
+
+	void Serialize(OutputBlock* output);
+	static Token* Deserialize(InputBlock* input);
 };
 
 

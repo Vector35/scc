@@ -110,6 +110,8 @@ class Expr: public RefCountObject
 
 	Ref<Type> m_type;
 
+	bool DeserializeInternal(InputBlock* input);
+
 public:
 	Expr(ExprClass cls);
 	Expr(const Location& loc, ExprClass cls);
@@ -167,6 +169,8 @@ public:
 	static Expr* LabelExpr(const Location& loc, const std::string& value);
 	static Expr* GotoLabelExpr(const Location& loc, const std::string& value);
 
+	void Serialize(OutputBlock* output);
+	static Expr* Deserialize(InputBlock* input);
 	void Print(size_t indent);
 };
 

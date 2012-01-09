@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include "Struct.h"
 #include "ParserState.h"
+#include "Output.h"
 
 using namespace std;
+
+
+size_t Struct::m_nextSerializationIndex = 0;
+map< size_t, Ref<Struct> > Struct::m_serializationMap;
 
 
 Struct::Struct()
@@ -15,6 +20,7 @@ Struct::Struct()
 	m_alignment = 1;
 	m_union = false;
 	m_fullyDefined = false;
+	m_serializationIndexValid = false;
 }
 
 
@@ -28,6 +34,7 @@ Struct::Struct(bool isUnion)
 	m_alignment = 1;
 	m_union = isUnion;
 	m_fullyDefined = false;
+	m_serializationIndexValid = false;
 }
 
 
@@ -174,5 +181,83 @@ void Struct::CopyMembers(ParserState* state, Struct* s)
 	// of the individual elements
 	if (s->GetAlignment() > m_alignment)
 		m_alignment = s->GetAlignment();
+}
+
+
+void Struct::Serialize(OutputBlock* output)
+{
+	if (m_serializationIndexValid)
+	{
+		output->WriteInteger(1);
+		output->WriteInteger(m_serializationIndex);
+		return;
+	}
+
+	m_serializationIndexValid = true;
+	m_serializationIndex = m_nextSerializationIndex++;
+	output->WriteInteger(0);
+	output->WriteInteger(m_serializationIndex);
+
+	output->WriteString(m_name);
+
+	output->WriteInteger(m_members.size());
+	for (vector<StructMember>::iterator i = m_members.begin(); i != m_members.end(); i++)
+	{
+		i->type->Serialize(output);
+		output->WriteString(i->name);
+		output->WriteInteger(i->offset);
+	}
+
+	output->WriteInteger(m_width);
+	output->WriteInteger(m_alignment);
+	output->WriteInteger(m_union ? 1 : 0);
+	output->WriteInteger(m_fullyDefined ? 1 : 0);
+}
+
+
+Struct* Struct::Deserialize(InputBlock* input)
+{
+	bool existingStruct;
+	size_t i;
+	if (!input->ReadBool(existingStruct))
+		return NULL;
+	if (!input->ReadNativeInteger(i))
+		return NULL;
+
+	if (existingStruct)
+		return m_serializationMap[i];
+
+	Struct* result = new Struct();
+	m_serializationMap[i] = result;
+
+	if (!input->ReadString(result->m_name))
+		return NULL;
+
+	size_t memberCount;
+	if (!input->ReadNativeInteger(memberCount))
+		return NULL;
+	for (size_t j = 0; j < memberCount; j++)
+	{
+		StructMember member;
+		member.type = Type::Deserialize(input);
+		if (!member.type)
+			return NULL;
+		if (!input->ReadString(member.name))
+			return NULL;
+		if (!input->ReadNativeInteger(member.offset))
+			return NULL;
+		result->m_members.push_back(member);
+	}
+
+	if (!input->ReadNativeInteger(result->m_width))
+		return NULL;
+	if (!input->ReadNativeInteger(result->m_alignment))
+		return NULL;
+	if (!input->ReadBool(result->m_union))
+		return NULL;
+	if (!input->ReadBool(result->m_fullyDefined))
+		return NULL;
+
+	return result;
 }
 

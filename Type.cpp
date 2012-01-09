@@ -2,6 +2,7 @@
 #include "Type.h"
 #include "Struct.h"
 #include "Enum.h"
+#include "Output.h"
 
 using namespace std;
 
@@ -208,6 +209,119 @@ Type* Type::StructMemberType(Type* type, const string& name)
 	Struct* s = new Struct();
 	s->AddMember(NULL, type, name);
 	return Type::StructType(s);
+}
+
+
+void Type::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(m_class);
+	output->WriteInteger(m_width);
+	output->WriteInteger(m_alignment);
+	output->WriteInteger(m_const ? 1 : 0);
+
+	switch (m_class)
+	{
+	case TYPE_INT:
+		output->WriteInteger(m_signed ? 1 : 0);
+		break;
+	case TYPE_STRUCT:
+		m_struct->Serialize(output);
+		break;
+	case TYPE_ENUM:
+		m_enum->Serialize(output);
+		break;
+	case TYPE_POINTER:
+		m_childType->Serialize(output);
+		break;
+	case TYPE_ARRAY:
+		m_childType->Serialize(output);
+		output->WriteInteger(m_elements);
+		break;
+	case TYPE_FUNCTION:
+		output->WriteInteger(m_callingConvention);
+		output->WriteInteger(m_params.size());
+		for (vector< Ref<Type> >::iterator i = m_params.begin(); i != m_params.end(); i++)
+			(*i)->Serialize(output);
+		break;
+	default:
+		break;
+	}
+}
+
+
+bool Type::DeserializeInternal(InputBlock* input)
+{
+	uint32_t cls;
+	if (!input->ReadUInt32(cls))
+		return false;
+	m_class = (TypeClass)cls;
+
+	if (!input->ReadNativeInteger(m_width))
+		return false;
+	if (!input->ReadNativeInteger(m_alignment))
+		return false;
+	if (!input->ReadBool(m_const))
+		return false;
+
+	uint32_t convention;
+	size_t paramCount;
+	switch (m_class)
+	{
+	case TYPE_INT:
+		if (!input->ReadBool(m_signed))
+			return false;
+		break;
+	case TYPE_STRUCT:
+		m_struct = Struct::Deserialize(input);
+		if (!m_struct)
+			return false;
+		break;
+	case TYPE_ENUM:
+		m_enum = Enum::Deserialize(input);
+		if (!m_enum)
+			return false;
+		break;
+	case TYPE_POINTER:
+		m_childType = Type::Deserialize(input);
+		if (!m_childType)
+			return false;
+		break;
+	case TYPE_ARRAY:
+		m_childType = Type::Deserialize(input);
+		if (!m_childType)
+			return false;
+		if (!input->ReadNativeInteger(m_elements))
+			return false;
+		break;
+	case TYPE_FUNCTION:
+		if (!input->ReadUInt32(convention))
+			return false;
+		m_callingConvention = (CallingConvention)convention;
+		if (!input->ReadNativeInteger(paramCount))
+			return false;
+		for (size_t i = 0; i < paramCount; i++)
+		{
+			Type* type = Type::Deserialize(input);
+			if (!type)
+				return false;
+			m_params.push_back(type);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+
+Type* Type::Deserialize(InputBlock* input)
+{
+	Type* type = new Type();
+	if (type->DeserializeInternal(input))
+		return type;
+	delete type;
+	return NULL;
 }
 
 

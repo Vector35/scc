@@ -32,7 +32,7 @@ class PreprocessState
 	void* m_lvalue;
 	int m_errors;
 
-	std::map< std::string, Macro > m_macros;
+	std::map<std::string, Macro> m_macros;
 
 	bool m_expansionInProgress;
 	MacroExpansion m_expansion;
@@ -79,6 +79,9 @@ public:
 	void BeginIf(bool result);
 	void Else();
 	void EndIf();
+
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
 
 	static bool PreprocessSource(const std::string& source, const std::string& fileName, std::string& output,
 		PreprocessState* parent = NULL);

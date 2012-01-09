@@ -6,6 +6,7 @@
 #include "ParserState.h"
 #include "Variable.h"
 #include "Function.h"
+#include "Output.h"
 
 using namespace std;
 
@@ -2637,6 +2638,129 @@ Expr* Expr::GotoLabelExpr(const Location& loc, const string& value)
 	Expr* expr = new Expr(loc, EXPR_GOTO_LABEL);
 	expr->m_stringValue = value;
 	return expr;
+}
+
+
+void Expr::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(m_class);
+	output->WriteInteger((m_type != NULL) ? 1 : 0);
+	if (m_type)
+		m_type->Serialize(output);
+
+	output->WriteInteger(m_children.size());
+	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+		(*i)->Serialize(output);
+
+	switch (m_class)
+	{
+	case EXPR_INT:
+	case EXPR_CASE:
+		output->WriteInteger(m_intValue);
+		break;
+	case EXPR_FLOAT:
+		output->Write(&m_floatValue, sizeof(m_floatValue));
+		break;
+	case EXPR_STRING:
+	case EXPR_DOT:
+	case EXPR_ARROW:
+	case EXPR_LABEL:
+	case EXPR_GOTO_LABEL:
+		output->WriteString(m_stringValue);
+		break;
+	case EXPR_VARIABLE:
+		output->WriteInteger(m_variable->GetSerializationIndex());
+		break;
+	case EXPR_FUNCTION:
+		output->WriteInteger(m_function->GetSerializationIndex());
+		break;
+	default:
+		break;
+	}
+}
+
+
+bool Expr::DeserializeInternal(InputBlock* input)
+{
+	uint32_t cls;
+	if (!input->ReadUInt32(cls))
+		return false;
+	m_class = (ExprClass)cls;
+
+	bool hasType;
+	if (!input->ReadBool(hasType))
+		return false;
+	if (hasType)
+	{
+		m_type = Type::Deserialize(input);
+		if (!m_type)
+			return false;
+	}
+	else
+	{
+		m_type = NULL;
+	}
+
+	size_t childCount;
+	if (!input->ReadNativeInteger(childCount))
+		return false;
+	for (size_t i = 0; i < childCount; i++)
+	{
+		Expr* child = Expr::Deserialize(input);
+		if (!child)
+			return false;
+		m_children.push_back(child);
+	}
+
+	int64_t objectIndex;
+	switch (m_class)
+	{
+	case EXPR_INT:
+	case EXPR_CASE:
+		if (!input->ReadInt64(m_intValue))
+			return false;
+		break;
+	case EXPR_FLOAT:
+		if (!input->Read(&m_floatValue, sizeof(m_floatValue)))
+			return false;
+		break;
+	case EXPR_STRING:
+	case EXPR_DOT:
+	case EXPR_ARROW:
+	case EXPR_LABEL:
+	case EXPR_GOTO_LABEL:
+		if (!input->ReadString(m_stringValue))
+			return false;
+		break;
+	case EXPR_VARIABLE:
+		if (!input->ReadInt64(objectIndex))
+			return false;
+		m_variable = Variable::GetSerializationMapping(objectIndex);
+		if (!m_variable)
+			return false;
+		break;
+	case EXPR_FUNCTION:
+		if (!input->ReadInt64(objectIndex))
+			return false;
+		m_function = Function::GetSerializationMapping((size_t)objectIndex);
+		if (!m_function)
+			return false;
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+
+Expr* Expr::Deserialize(InputBlock* input)
+{
+	Expr* expr = new Expr(EXPR_SEQUENCE);
+	if (expr->DeserializeInternal(input))
+		return expr;
+	delete expr;
+	return NULL;
 }
 
 

@@ -27,6 +27,11 @@ class Struct: public RefCountObject
 	bool m_union;
 	bool m_fullyDefined;
 
+	size_t m_serializationIndex;
+	bool m_serializationIndexValid;
+	static size_t m_nextSerializationIndex;
+	static std::map< size_t, Ref<Struct> > m_serializationMap;
+
 public:
 	Struct();
 	Struct(bool isUnion);
@@ -50,6 +55,9 @@ public:
 
 	void AddMember(ParserState* state, Type* type, const std::string& name);
 	void CopyMembers(ParserState* state, Struct* s);
+
+	void Serialize(OutputBlock* output);
+	static Struct* Deserialize(InputBlock* input);
 };
 
 

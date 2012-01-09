@@ -44,7 +44,7 @@ void Usage()
 	fprintf(stderr, "                                      output to a file)\n");
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe\n");
-	fprintf(stderr, "    --header <file>                   When creating a library, include as precompiled header\n");
+	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
 	fprintf(stderr, "    --internal-debug                  Enable internal debugging output\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
@@ -55,7 +55,7 @@ void Usage()
 	fprintf(stderr, "    --pad                             Pad output to be exactly the maximum length\n");
 	fprintf(stderr, "    --platform <value>                Specify operating system\n");
 	fprintf(stderr, "                                      Can be: linux (default), freebsd, mach, windows, none\n");
-	fprintf(stderr, "    --polymorph                       Generate different code on each run (disabled with -Os)\n");
+	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
 	fprintf(stderr, "    --seed <value>                    Specify random seed (to reproduce --polymorph runs)\n");
 	fprintf(stderr, "    --shared                          Generate shared library instead of executable\n");
@@ -75,7 +75,7 @@ void Usage()
 int main(int argc, char* argv[])
 {
 	vector<string> sourceFiles;
-	vector<string> libraries;
+	string library;
 	vector<string> precompiledHeaders;
 	string outputFile = "";
 	bool hexOutput = true;
@@ -239,6 +239,8 @@ int main(int argc, char* argv[])
 				settings.format = FORMAT_ELF;
 			else if (!strcmp(argv[i], "pe"))
 				settings.format = FORMAT_PE;
+			else if (!strcmp(argv[i], "lib"))
+				settings.format = FORMAT_LIB;
 			else
 			{
 				fprintf(stderr, "error: unsupported format '%s'\n", argv[i]);
@@ -276,8 +278,14 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 
+			if (library.size() != 0)
+			{
+				fprintf(stderr, "error: only one precompiled library is allowed\n");
+				return 1;
+			}
+
 			i++;
-			libraries.push_back(argv[i]);
+			library = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--max-length"))
@@ -421,12 +429,6 @@ int main(int argc, char* argv[])
 	}
 
 	// Warn about incompatible options
-	if ((settings.optimization == OPTIMIZE_SIZE) && settings.polymorph)
-	{
-		fprintf(stderr, "warning: polymorphic code generation not compatible with size optimization\n");
-		settings.polymorph = false;
-	}
-
 	if (settings.sharedLibrary && (settings.format == FORMAT_BIN))
 	{
 		fprintf(stderr, "warning: trying to generate shared library in raw binary output mode\n");
@@ -443,6 +445,12 @@ int main(int argc, char* argv[])
 	{
 		fprintf(stderr, "warning: blacklist only supported in raw binary output mode\n");
 		settings.blacklist.clear();
+	}
+
+	if ((settings.format == FORMAT_LIB) && hexOutput)
+	{
+		fprintf(stderr, "error: output filename expected for library output\n");
+		return 1;
 	}
 
 	// Normal executables always have a normal stack
@@ -467,8 +475,153 @@ int main(int argc, char* argv[])
 	else
 		SetTargetPointerSize(8);
 
-	// Process the precompiling headers
+	// Set up precompiled state
 	PreprocessState precompiledPreprocess("precompiled headers", NULL);
+	vector< Ref<Function> > functions;
+	map< string, Ref<Function> > functionsByName;
+	vector< Ref<Variable> > variables;
+	map< string, Ref<Variable> > variablesByName;
+	Ref<Expr> initExpression = new Expr(EXPR_SEQUENCE);
+
+	// If there is a precompiled library, import it now
+	if (library.size() != 0)
+	{
+		// Read library data into memory
+		FILE* fp = fopen(library.c_str(), "rb");
+		if (!fp)
+		{
+			fprintf(stderr, "%s: error: file not found\n", library.c_str());
+			return 1;
+		}
+
+		fseek(fp, 0, SEEK_END);
+		long size = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		uint8_t* data = new uint8_t[size];
+		fread(data, 1, size, fp);
+		fclose(fp);
+
+		InputBlock input;
+		input.code = data;
+		input.len = size;
+		input.offset = 0;
+
+		// Deserialize precompiled header state
+		if (!precompiledPreprocess.Deserialize(&input))
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+
+		// Initialize function and variable objects
+		size_t functionCount, variableCount;
+		if (!input.ReadNativeInteger(functionCount))
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+		if (!input.ReadNativeInteger(variableCount))
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+
+		for (size_t i = 0; i < functionCount; i++)
+		{
+			functions.push_back(new Function());
+			functions[i]->SetSerializationIndex(i);
+			Function::SetSerializationMapping(i, functions[i]);
+		}
+		for (size_t i = 0; i < variableCount; i++)
+		{
+			variables.push_back(new Variable());
+			variables[i]->SetSerializationIndex(i);
+			Variable::SetSerializationMapping(i, variables[i]);
+		}
+
+		// Deserialize functions
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		{
+			if (!(*i)->Deserialize(&input))
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+		}
+
+		// Deserialize variables
+		for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
+		{
+			if (!(*i)->Deserialize(&input))
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+		}
+
+		// Deserialize function name map
+		size_t functionMapCount;
+		if (!input.ReadNativeInteger(functionMapCount))
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+		for (size_t i = 0; i < functionMapCount; i++)
+		{
+			string name;
+			size_t objectIndex;
+
+			if (!input.ReadString(name))
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+			if (!input.ReadNativeInteger(objectIndex))
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+
+			functionsByName[name] = functions[objectIndex];
+		}
+
+		// Deserialize variable name map
+		size_t variableMapCount;
+		if (!input.ReadNativeInteger(variableMapCount))
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+		for (size_t i = 0; i < variableMapCount; i++)
+		{
+			string name;
+			size_t objectIndex;
+
+			if (!input.ReadString(name))
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+			if (!input.ReadNativeInteger(objectIndex))
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+
+			variablesByName[name] = variables[objectIndex];
+		}
+
+		// Deserialize initialization expression
+		initExpression = Expr::Deserialize(&input);
+		if (!initExpression)
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+	}
+
+	// Process the precompiled headers
 	for (vector<string>::iterator i = precompiledHeaders.begin(); i != precompiledHeaders.end(); i++)
 	{
 		precompiledPreprocess.IncludeFile(*i);
@@ -477,12 +630,6 @@ int main(int argc, char* argv[])
 	}
 
 	// Start parsing source files
-	vector< Ref<Function> > functions;
-	map< string, Ref<Function> > functionsByName;
-	vector< Ref<Variable> > variables;
-	map< string, Ref<Variable> > variablesByName;
-	Ref<Expr> initExpression = new Expr(EXPR_SEQUENCE);
-
 	for (vector<string>::iterator i = sourceFiles.begin(); i != sourceFiles.end(); i++)
 	{
 		char* data;
@@ -801,6 +948,77 @@ int main(int argc, char* argv[])
 
 		if (parser.HasErrors())
 			return 1;
+	}
+
+	// If producing a library, serialize state
+	if (settings.format == FORMAT_LIB)
+	{
+		OutputBlock output;
+		output.code = NULL;
+		output.len = 0;
+		output.maxLen = 0;
+
+		// Serialize precompiled header state
+		precompiledPreprocess.Serialize(&output);
+
+		// Initialize serialization indexes
+		output.WriteInteger(functions.size());
+		output.WriteInteger(variables.size());
+		for (size_t i = 0; i < functions.size(); i++)
+			functions[i]->SetSerializationIndex(i);
+		for (size_t i = 0; i < variables.size(); i++)
+			variables[i]->SetSerializationIndex(i);
+
+		// Serialize function objects
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+			(*i)->Serialize(&output);
+
+		// Serialize variable objects
+		for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
+			(*i)->Serialize(&output);
+
+		// Serialize function name map
+		output.WriteInteger(functionsByName.size());
+		for (map< string, Ref<Function> >::iterator i = functionsByName.begin(); i != functionsByName.end(); i++)
+		{
+			output.WriteString(i->first);
+			output.WriteInteger(i->second->GetSerializationIndex());
+		}
+
+		// Serialize variable name map
+		output.WriteInteger(variablesByName.size());
+		for (map< string, Ref<Variable> >::iterator i = variablesByName.begin(); i != variablesByName.end(); i++)
+		{
+			output.WriteString(i->first);
+			output.WriteInteger(i->second->GetSerializationIndex());
+		}
+
+		// Serialize initialization expression
+		initExpression->Serialize(&output);
+
+		// Output to file
+		FILE* outFP = stdout;
+		if (outputFile.size() > 0)
+		{
+			outFP = fopen(outputFile.c_str(), "wb");
+			if (!outFP)
+			{
+				fprintf(stderr, "error: unable to open output file '%s'\n", outputFile.c_str());
+				return 1;
+			}
+		}
+
+		if (!fwrite(output.code, output.len, 1, outFP))
+		{
+			fprintf(stderr, "error: unable to write to output file\n");
+			fclose(outFP);
+			return 1;
+		}
+
+		if (outFP != stdout)
+			fclose(outFP);
+
+		return 0;
 	}
 
 	// Link complete, remove prototype functions from linked set

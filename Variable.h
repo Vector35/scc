@@ -1,6 +1,7 @@
 #ifndef __VARIABLE_H__
 #define __VARIABLE_H__
 
+#include <map>
 #include "Type.h"
 #include "Expr.h"
 
@@ -23,7 +24,11 @@ class Variable: public RefCountObject
 	std::string m_name;
 	Location m_location;
 
+	int64_t m_serializationIndex;
+	static std::map< int64_t, Ref<Variable> > m_serializationMapping;
+
 public:
+	Variable();
 	Variable(VariableClass cls, Type* type, const std::string& name);
 	Variable(size_t paramIndex, Type* type, const std::string& name);
 
@@ -39,6 +44,13 @@ public:
 
 	const Location& GetLocation() const { return m_location; }
 	void SetLocation(const Location& loc) { m_location = loc; }
+
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
+	int64_t GetSerializationIndex() const { return m_serializationIndex; }
+	void SetSerializationIndex(int64_t i) { m_serializationIndex = i; }
+	static Variable* GetSerializationMapping(int64_t i);
+	static void SetSerializationMapping(int64_t i, Variable* var);
 };
 
 

@@ -2,8 +2,23 @@
 #include "Function.h"
 #include "Struct.h"
 #include "ParserState.h"
+#include "Output.h"
 
 using namespace std;
+
+
+map< size_t, Ref<Function> > Function::m_serializationMapping;
+
+
+Function::Function()
+{
+	m_callingConvention = CALLING_CONVENTION_DEFAULT;
+	m_location.lineNumber = 0;
+	m_nextTempId = 0;
+	m_defaultBlock = NULL;
+	m_localScope = false;
+	m_variableSizedStackFrame = false;
+}
 
 
 Function::Function(const FunctionInfo& info, bool isLocalScope)
@@ -237,6 +252,145 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 		for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
 			(*i)->CheckForUndefinedReferences(errors);
 	}
+}
+
+
+void Function::Serialize(OutputBlock* output)
+{
+	m_returnValue->Serialize(output);
+	output->WriteInteger(m_callingConvention);
+	output->WriteString(m_name);
+
+	output->WriteInteger(m_params.size());
+	for (vector<FunctionParameter>::iterator i = m_params.begin(); i != m_params.end(); i++)
+	{
+		i->type->Serialize(output);
+		output->WriteString(i->name);
+	}
+
+	output->WriteString(m_location.fileName);
+	output->WriteInteger(m_location.lineNumber);
+
+	output->WriteInteger(m_vars.size());
+	for (size_t i = 0; i < m_vars.size(); i++)
+	{
+		m_vars[i]->SetSerializationIndex(-(int64_t)(i + 1));
+		m_vars[i]->Serialize(output);
+	}
+
+	output->WriteInteger((m_body != NULL) ? 1 : 0);
+	if (m_body)
+		m_body->Serialize(output);
+
+	output->WriteInteger(m_ilBlocks.size());
+	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
+		(*i)->Serialize(output);
+
+	output->WriteInteger(m_nextTempId);
+	output->WriteInteger(m_localScope ? 1 : 0);
+	output->WriteInteger(m_variableSizedStackFrame ? 1 : 0);
+}
+
+
+bool Function::Deserialize(InputBlock* input)
+{
+	m_returnValue = Type::Deserialize(input);
+	if (!m_returnValue)
+		return false;
+
+	uint32_t convention;
+	if (!input->ReadUInt32(convention))
+		return false;
+	m_callingConvention = (CallingConvention)convention;
+
+	if (!input->ReadString(m_name))
+		return false;
+
+	size_t paramCount;
+	if (!input->ReadNativeInteger(paramCount))
+		return false;
+	for (size_t i = 0; i < paramCount; i++)
+	{
+		FunctionParameter param;
+		param.type = Type::Deserialize(input);
+		if (!param.type)
+			return false;
+		if (!input->ReadString(param.name))
+			return false;
+		m_params.push_back(param);
+	}
+
+	if (!input->ReadString(m_location.fileName))
+		return false;
+	if (!input->ReadInt32(m_location.lineNumber))
+		return false;
+
+	size_t varCount;
+	if (!input->ReadNativeInteger(varCount))
+		return false;
+	for (size_t i = 0; i < varCount; i++)
+	{
+		Variable* var = new Variable();
+		if (!var->Deserialize(input))
+		{
+			delete var;
+			return false;
+		}
+		m_vars.push_back(var);
+
+		var->SetSerializationIndex(-(int64_t)(i + 1));
+		Variable::SetSerializationMapping(-(int64_t)(i + 1), var);
+	}
+
+	bool bodyPresent;
+	if (!input->ReadBool(bodyPresent))
+		return false;
+	if (bodyPresent)
+	{
+		m_body = Expr::Deserialize(input);
+		if (!m_body)
+			return false;
+	}
+	else
+	{
+		m_body = NULL;
+	}
+
+	size_t blockCount;
+	if (!input->ReadNativeInteger(blockCount))
+		return false;
+	for (size_t i = 0; i < blockCount; i++)
+	{
+		ILBlock* block = new ILBlock(i);
+		m_ilBlocks.push_back(block);
+		ILBlock::SetSerializationMapping(i, block);
+	}
+	for (size_t i = 0; i < blockCount; i++)
+	{
+		if (!m_ilBlocks[i]->Deserialize(input))
+			return false;
+	}
+
+	if (!input->ReadUInt32(m_nextTempId))
+		return false;
+	if (!input->ReadBool(m_localScope))
+		return false;
+	if (!input->ReadBool(m_variableSizedStackFrame))
+		return false;
+
+	return true;
+}
+
+
+Function* Function::GetSerializationMapping(size_t i)
+{
+	return m_serializationMapping[i];
+}
+
+
+void Function::SetSerializationMapping(size_t i, Function* func)
+{
+	m_serializationMapping[i] = func;
 }
 
 

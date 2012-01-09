@@ -8,11 +8,15 @@
 
 using namespace std;
 
+
+map<size_t, ILBlock*> ILBlock::m_serializationMapping;
+
 	
 ILParameter::ILParameter()
 {
 	cls = ILPARAM_VOID;
 	integerValue = 0;
+	type = Type::VoidType();
 }
 
 
@@ -187,6 +191,112 @@ bool ILParameter::IsConstant() const
 }
 
 
+void ILParameter::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(cls);
+	type->Serialize(output);
+
+	switch (cls)
+	{
+	case ILPARAM_INT:
+		output->WriteInteger(integerValue);
+		break;
+	case ILPARAM_FLOAT:
+		output->Write(&floatValue, sizeof(floatValue));
+		break;
+	case ILPARAM_STRING:
+	case ILPARAM_NAME:
+		output->WriteString(stringValue);
+		break;
+	case ILPARAM_BOOL:
+		output->WriteInteger(boolValue ? 1 : 0);
+		break;
+	case ILPARAM_VAR:
+		output->WriteInteger(variable->GetSerializationIndex());
+		break;
+	case ILPARAM_FUNC:
+		output->WriteInteger(function->GetSerializationIndex());
+		break;
+	case ILPARAM_BLOCK:
+		output->WriteInteger(block->GetIndex());
+		break;
+	case ILPARAM_MEMBER:
+		parent->Serialize(output);
+		output->WriteString(stringValue);
+		break;
+	default:
+		break;
+	}
+}
+
+
+bool ILParameter::Deserialize(InputBlock* input)
+{
+	uint32_t clsInt;
+	if (!input->ReadUInt32(clsInt))
+		return false;
+	cls = (ILParameterClass)clsInt;
+
+	type = Type::Deserialize(input);
+	if (!type)
+		return false;
+
+	int64_t objectIndex;
+	switch (cls)
+	{
+	case ILPARAM_INT:
+		if (!input->ReadInt64(integerValue))
+			return false;
+		break;
+	case ILPARAM_FLOAT:
+		if (!input->Read(&floatValue, sizeof(floatValue)))
+			return false;
+		break;
+	case ILPARAM_STRING:
+	case ILPARAM_NAME:
+		if (!input->ReadString(stringValue))
+			return false;
+		break;
+	case ILPARAM_BOOL:
+		if (!input->ReadBool(boolValue))
+			return false;
+		break;
+	case ILPARAM_VAR:
+		if (!input->ReadInt64(objectIndex))
+			return false;
+		variable = Variable::GetSerializationMapping(objectIndex);
+		if (!variable)
+			return false;
+		break;
+	case ILPARAM_FUNC:
+		if (!input->ReadInt64(objectIndex))
+			return false;
+		function = Function::GetSerializationMapping((size_t)objectIndex);
+		if (!function)
+			return false;
+		break;
+	case ILPARAM_BLOCK:
+		if (!input->ReadInt64(objectIndex))
+			return false;
+		block = ILBlock::GetSerializationMapping((size_t)objectIndex);
+		if (!block)
+			return false;
+		break;
+	case ILPARAM_MEMBER:
+		parent = new ILParameter();
+		if (!parent->Deserialize(input))
+			return false;
+		if (!input->ReadString(stringValue))
+			return false;
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+
 void ILParameter::Print() const
 {
 	switch (cls)
@@ -293,6 +403,37 @@ void ILInstruction::CheckForUndefinedReferences(size_t& errors)
 {
 	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
 		i->CheckForUndefinedReferences(errors);
+}
+
+
+void ILInstruction::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(operation);
+	output->WriteInteger(params.size());
+	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
+		i->Serialize(output);
+}
+
+
+bool ILInstruction::Deserialize(InputBlock* input)
+{
+	uint32_t op;
+	if (!input->ReadUInt32(op))
+		return false;
+	operation = (ILOperation)op;
+
+	size_t paramCount;
+	if (!input->ReadNativeInteger(paramCount))
+		return false;
+	for (size_t i = 0; i < paramCount; i++)
+	{
+		ILParameter param;
+		if (!param.Deserialize(input))
+			return false;
+		params.push_back(param);
+	}
+
+	return true;
 }
 
 
@@ -511,6 +652,42 @@ bool ILBlock::EndsWithReturn() const
 	if (m_instrs[m_instrs.size() - 1].operation == ILOP_RETURN_VOID)
 		return true;
 	return false;
+}
+
+
+void ILBlock::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(m_instrs.size());
+	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
+		i->Serialize(output);
+}
+
+
+bool ILBlock::Deserialize(InputBlock* input)
+{
+	size_t instrCount;
+	if (!input->ReadNativeInteger(instrCount))
+		return false;
+	for (size_t i = 0; i < instrCount; i++)
+	{
+		ILInstruction instr;
+		if (!instr.Deserialize(input))
+			return false;
+		m_instrs.push_back(instr);
+	}
+	return true;
+}
+
+
+ILBlock* ILBlock::GetSerializationMapping(size_t i)
+{
+	return m_serializationMapping[i];
+}
+
+
+void ILBlock::SetSerializationMapping(size_t i, ILBlock* block)
+{
+	m_serializationMapping[i] = block;
 }
 
 

@@ -97,6 +97,8 @@ struct ILParameter
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
 	bool IsConstant() const;
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
 	void Print() const;
 };
 
@@ -120,6 +122,8 @@ struct ILInstruction
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
 	void Print() const;
 };
 
@@ -132,6 +136,8 @@ class ILBlock
 	std::vector<ILInstruction> m_instrs;
 	OutputBlock* m_output;
 	size_t m_addr;
+
+	static std::map<size_t, ILBlock*> m_serializationMapping;
 
 public:
 	ILBlock();
@@ -166,6 +172,11 @@ public:
 	bool ResolveRelocations();
 
 	bool EndsWithReturn() const;
+
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
+	static ILBlock* GetSerializationMapping(size_t i);
+	static void SetSerializationMapping(size_t i, ILBlock* block);
 
 	void Print() const;
 };

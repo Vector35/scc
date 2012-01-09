@@ -415,6 +415,67 @@ void PreprocessState::EndIf()
 }
 
 
+void PreprocessState::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(m_macros.size());
+
+	for (map<string, Macro>::iterator i = m_macros.begin(); i != m_macros.end(); i++)
+	{
+		output->WriteString(i->second.name);
+
+		output->WriteInteger(i->second.params.size());
+		for (vector<string>::iterator j = i->second.params.begin(); j != i->second.params.end(); j++)
+			output->WriteString(*j);
+
+		output->WriteInteger(i->second.tokens.size());
+		for (vector< Ref<Token> >::iterator j = i->second.tokens.begin(); j != i->second.tokens.end(); j++)
+			(*j)->Serialize(output);
+	}
+}
+
+
+bool PreprocessState::Deserialize(InputBlock* input)
+{
+	size_t macroCount;
+	if (!input->ReadNativeInteger(macroCount))
+		return false;
+
+	m_macros.clear();
+	for (size_t i = 0; i < macroCount; i++)
+	{
+		Macro macro;
+		if (!input->ReadString(macro.name))
+			return false;
+
+		size_t paramCount;
+		if (!input->ReadNativeInteger(paramCount))
+			return false;
+		for (size_t j = 0; j < paramCount; j++)
+		{
+			string param;
+			if (!input->ReadString(param))
+				return false;
+			macro.params.push_back(param);
+		}
+
+		size_t tokenCount;
+		if (!input->ReadNativeInteger(tokenCount))
+			return false;
+		for (size_t j = 0; j < tokenCount; j++)
+		{
+			Token* token = Token::Deserialize(input);
+			if (!token)
+				return false;
+			macro.tokens.push_back(token);
+		}
+
+		m_macros[macro.name] = macro;
+	}
+
+	return true;
+}
+
+
 bool PreprocessState::PreprocessSource(const string& source, const string& fileName, string& output, PreprocessState* parent)
 {
 	yyscan_t scanner;

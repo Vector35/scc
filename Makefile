@@ -122,25 +122,25 @@ $(RUNTIME_OBJS): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)
 
 Obj/x86.lib: Obj/scc-bootstrap $(X86_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(X86_RUNTIME) $(COMMON_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(X86_RUNTIME) $(COMMON_RUNTIME) --arch x86 --platform none -f lib -o $@
 Obj/x64.lib: Obj/scc-bootstrap $(X64_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(X64_RUNTIME) $(COMMON_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(X64_RUNTIME) $(COMMON_RUNTIME) --arch x64 --platform none -m32 -f lib -o $@
 Obj/linux_x86.lib: Obj/scc-bootstrap $(LINUX_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(LINUX_X86_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(LINUX_X86_RUNTIME) --arch x86 --platform linux -f lib -o $@
 Obj/linux_x64.lib: Obj/scc-bootstrap $(LINUX_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(LINUX_X64_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(LINUX_X64_RUNTIME) --arch x64 --platform linux -f lib -o $@
 Obj/freebsd_x86.lib: Obj/scc-bootstrap $(FREEBSD_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(FREEBSD_X86_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(FREEBSD_X86_RUNTIME) --arch x86 --platform freebsd -f lib -o $@
 Obj/freebsd_x64.lib: Obj/scc-bootstrap $(FREEBSD_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(FREEBSD_X64_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(FREEBSD_X64_RUNTIME) --arch x64 --platform freebsd -f lib -o $@
 Obj/mach_x86.lib: Obj/scc-bootstrap $(MACH_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(MACH_X86_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(MACH_X86_RUNTIME) --arch x86 --platform mach -f lib -o $@
 Obj/mach_x64.lib: Obj/scc-bootstrap $(MACH_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(MACH_X64_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(MACH_X64_RUNTIME) --arch x64 --platform mach -f lib -o $@
 Obj/windows_x86.lib: Obj/scc-bootstrap $(WINDOWS_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(WINDOWS_X86_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(WINDOWS_X86_RUNTIME) --arch x86 --platform windows -f lib -o $@
 Obj/windows_x64.lib: Obj/scc-bootstrap $(WINDOWS_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(WINDOWS_X64_RUNTIME) -f lib -o $@
+	Obj/scc-bootstrap $(WINDOWS_X64_RUNTIME) --arch x64 --platform windows -f lib -o $@
 
 $(ASMX86_OBJS): Obj/%.o: %.c $(ASMX86_HEADERS) Makefile | Obj/asmx86/
 	$(call COMPILE,$(GCC),$(CPPFLAGS) -std=gnu99,$<,$*)

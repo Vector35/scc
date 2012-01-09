@@ -486,7 +486,7 @@ void Function::Print()
 			fprintf(stderr, "[param %ld] ", (*i)->GetParameterIndex());
 		(*i)->GetType()->Print();
 		if ((*i)->GetName().size() != 0)
-			fprintf(stderr, " %s", (*i)->GetName().c_str());
+			fprintf(stderr, " %s (size %d)", (*i)->GetName().c_str(), (int)(*i)->GetType()->GetWidth());
 		fprintf(stderr, "\n");
 	}
 

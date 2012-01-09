@@ -216,7 +216,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_type = Type::PointerType(m_children[0]->GetType(), 1);
 		break;
 	case EXPR_DEREF:
-		if (m_children[0]->GetType()->GetClass() != TYPE_POINTER)
+		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) && (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: not a pointer for dereferencing\n", m_location.fileName.c_str(),

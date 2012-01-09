@@ -911,7 +911,41 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOf(OutputBlock* out, const ILInstruction&
 
 bool OUTPUT_CLASS_NAME::GenerateDeref(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+
+	if (src.type != OPERANDREF_REG)
+	{
+		// Load pointer into a register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+		temp.width = 4;
+#else
+		temp.width = 8;
+#endif
+		temp.sign = false;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, src))
+			return false;
+		src = temp;
+	}
+
+	if (instr.params[1].type->GetClass() != TYPE_POINTER)
+		return false;
+
+	OperandReference deref;
+	deref.type = OPERANDREF_MEM;
+	deref.width = dest.width;
+	deref.sign = dest.sign;
+	deref.mem.base = src.reg;
+	deref.mem.scale = 1;
+	deref.mem.index = NONE;
+	deref.mem.offset = 0;
+	return Move(out, dest, deref);
 }
 
 
@@ -963,13 +997,87 @@ bool OUTPUT_CLASS_NAME::GenerateDerefMember(OutputBlock* out, const ILInstructio
 
 bool OUTPUT_CLASS_NAME::GenerateDerefAssign(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src;
+	if (!PrepareLoad(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+
+	if (dest.type != OPERANDREF_REG)
+	{
+		// Load pointer into a register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+		temp.width = 4;
+#else
+		temp.width = 8;
+#endif
+		temp.sign = false;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, dest))
+			return false;
+		dest = temp;
+	}
+
+	if (instr.params[0].type->GetClass() != TYPE_POINTER)
+		return false;
+
+	OperandReference deref;
+	deref.type = OPERANDREF_MEM;
+	deref.width = src.width;
+	deref.sign = src.sign;
+	deref.mem.base = dest.reg;
+	deref.mem.scale = 1;
+	deref.mem.index = NONE;
+	deref.mem.offset = 0;
+	return Move(out, deref, src);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateDerefMemberAssign(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src;
+	if (!PrepareLoad(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], src))
+		return false;
+
+	if (dest.type != OPERANDREF_REG)
+	{
+		// Load pointer into a register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+		temp.width = 4;
+#else
+		temp.width = 8;
+#endif
+		temp.sign = false;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, dest))
+			return false;
+		dest = temp;
+	}
+
+	if (instr.params[0].type->GetClass() != TYPE_POINTER)
+		return false;
+	if (!instr.params[0].type->GetChildType()->GetStruct())
+		return false;
+
+	const StructMember* member = instr.params[0].type->GetChildType()->GetStruct()->GetMember(instr.params[1].stringValue);
+	if (!member)
+		return false;
+
+	OperandReference deref;
+	deref.type = OPERANDREF_MEM;
+	deref.width = src.width;
+	deref.sign = src.sign;
+	deref.mem.base = dest.reg;
+	deref.mem.scale = 1;
+	deref.mem.index = NONE;
+	deref.mem.offset = member->offset;
+	return Move(out, deref, src);
 }
 
 
@@ -1122,62 +1230,15 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstr
 		dest = temp;
 	}
 
-	OperandType reg, highReg;
-	if (src.type == OPERANDREF_REG)
-	{
-		reg = src.reg;
-		highReg = src.highReg;
-	}
-	else
-	{
-#ifdef OUTPUT32
-		if (dest.width == 8)
-		{
-			reg = AllocateTemporaryRegister(out, 4);
-			highReg = AllocateTemporaryRegister(out, 4);
-		}
-		else
-		{
-			reg = AllocateTemporaryRegister(out, dest.width);
-		}
-#else
-		reg = AllocateTemporaryRegister(out, dest.width);
-#endif
-
-		if (dest.width == 1)
-			EMIT_RM(mov_8, reg, X86_MEM_REF(dest.mem));
-		else if (dest.width == 2)
-			EMIT_RM(mov_16, reg, X86_MEM_REF(dest.mem));
-		else if (dest.width == 4)
-			EMIT_RM(mov_32, reg, X86_MEM_REF(dest.mem));
-		else if (dest.width == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_RM(mov_32, reg, X86_MEM_REF(dest.mem));
-			EMIT_RM(mov_32, highReg, X86_MEM_REF_OFFSET(dest.mem, 4));
-#else
-			EMIT_RM(mov_64, reg, X86_MEM_REF(dest.mem));
-#endif
-		}
-	}
-
 	if (index.type == OPERANDREF_IMMED)
 	{
-		if (dest.width == 1)
-			EMIT_MR(mov_8, X86_MEM(src.reg, index.immed), reg);
-		else if (dest.width == 2)
-			EMIT_MR(mov_16, X86_MEM(src.reg, index.immed * 2), reg);
-		else if (dest.width == 4)
-			EMIT_MR(mov_32, X86_MEM(src.reg, index.immed * 4), reg);
-		else if (dest.width == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_MR(mov_32, X86_MEM(src.reg, index.immed * 8), reg);
-			EMIT_MR(mov_32, X86_MEM(src.reg, (index.immed * 8) + 4), highReg);
-#else
-			EMIT_MR(mov_32, X86_MEM(src.reg, index.immed * 8), reg);
-#endif
-		}
+		dest.type = OPERANDREF_MEM;
+		dest.sign = src.sign;
+		dest.width = src.width;
+		dest.mem.base = dest.reg;
+		dest.mem.scale = 1;
+		dest.mem.index = NONE;
+		dest.mem.offset = src.width * index.immed;
 	}
 	else if ((dest.width == 1) || (dest.width == 2) || (dest.width == 4) || (dest.width == 8))
 	{
@@ -1194,28 +1255,20 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstr
 			index = temp;
 		}
 
-		if (dest.width == 1)
-			EMIT_MR(mov_8, X86_MEM_INDEX(src.reg, index.reg, 1, 0), reg);
-		else if (dest.width == 2)
-			EMIT_MR(mov_16, X86_MEM_INDEX(src.reg, index.reg, 2, 0), reg);
-		else if (dest.width == 4)
-			EMIT_MR(mov_32, X86_MEM_INDEX(src.reg, index.reg, 4, 0), reg);
-		else if (dest.width == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_MR(mov_32, X86_MEM_INDEX(src.reg, index.reg, 8, 0), reg);
-			EMIT_MR(mov_32, X86_MEM_INDEX(src.reg, index.reg, 8, 4), highReg);
-#else
-			EMIT_MR(mov_64, X86_MEM_INDEX(src.reg, index.reg, 8, 0), reg);
-#endif
-		}
+		dest.type = OPERANDREF_MEM;
+		dest.sign = src.sign;
+		dest.width = src.width;
+		dest.mem.base = dest.reg;
+		dest.mem.scale = src.width;
+		dest.mem.index = index.reg;
+		dest.mem.offset = 0;
 	}
 	else
 	{
 		return false;
 	}
 
-	return true;
+	return Move(out, dest, src);
 }
 
 

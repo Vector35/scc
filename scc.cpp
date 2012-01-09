@@ -14,8 +14,130 @@
 using namespace std;
 
 
+// Internal libraries
+extern unsigned char Obj_x86_lib[];
+extern unsigned int Obj_x86_lib_len;
+extern unsigned char Obj_x64_lib[];
+extern unsigned int Obj_x64_lib_len;
+extern unsigned char Obj_linux_x86_lib[];
+extern unsigned int Obj_linux_x86_lib_len;
+extern unsigned char Obj_linux_x64_lib[];
+extern unsigned int Obj_linux_x64_lib_len;
+extern unsigned char Obj_freebsd_x86_lib[];
+extern unsigned int Obj_freebsd_x86_lib_len;
+extern unsigned char Obj_freebsd_x64_lib[];
+extern unsigned int Obj_freebsd_x64_lib_len;
+extern unsigned char Obj_mach_x86_lib[];
+extern unsigned int Obj_mach_x86_lib_len;
+extern unsigned char Obj_mach_x64_lib[];
+extern unsigned int Obj_mach_x64_lib_len;
+extern unsigned char Obj_windows_x86_lib[];
+extern unsigned int Obj_windows_x86_lib_len;
+extern unsigned char Obj_windows_x64_lib[];
+extern unsigned int Obj_windows_x64_lib_len;
+
+// Create weak symbols for empty libraries to be used during bootstrap process
+unsigned char __attribute__((weak)) Obj_x86_lib[] = {};
+unsigned int __attribute__((weak)) Obj_x86_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_x64_lib[] = {};
+unsigned int __attribute__((weak)) Obj_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_linux_x86_lib[] = {};
+unsigned int __attribute__((weak)) Obj_linux_x86_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_linux_x64_lib[] = {};
+unsigned int __attribute__((weak)) Obj_linux_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_freebsd_x86_lib[] = {};
+unsigned int __attribute__((weak)) Obj_freebsd_x86_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_freebsd_x64_lib[] = {};
+unsigned int __attribute__((weak)) Obj_freebsd_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_mach_x86_lib[] = {};
+unsigned int __attribute__((weak)) Obj_mach_x86_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_mach_x64_lib[] = {};
+unsigned int __attribute__((weak)) Obj_mach_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_windows_x86_lib[] = {};
+unsigned int __attribute__((weak)) Obj_windows_x86_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_windows_x64_lib[] = {};
+unsigned int __attribute__((weak)) Obj_windows_x64_lib_len = 0;
+
+
 extern int Code_parse(ParserState* state);
 extern void Code_set_lineno(int line, void* yyscanner);
+
+
+bool ImportLibrary(InputBlock* input, vector< Ref<Function> >& functions, map< string, Ref<Function> >& functionsByName,
+	vector< Ref<Variable> >& variables, map< string, Ref<Variable> >& variablesByName, Ref<Expr>& initExpression,
+	PreprocessState& precompiledPreprocess, ParserState& precompileState)
+{
+	// Deserialize precompiled header state
+	if (!precompiledPreprocess.Deserialize(input))
+		return false;
+	if (!precompileState.Deserialize(input))
+		return false;
+
+	// Deserialize functions
+	size_t functionCount;
+	if (!input->ReadNativeInteger(functionCount))
+		return false;
+	for (size_t i = 0; i < functionCount; i++)
+	{
+		Function* func = Function::Deserialize(input);
+		if (!func)
+			return false;
+		functions.push_back(func);
+	}
+
+	// Deserialize variables
+	size_t variableCount;
+	if (!input->ReadNativeInteger(variableCount))
+		return false;
+	for (size_t i = 0; i < variableCount; i++)
+	{
+		Variable* var = Variable::Deserialize(input);
+		if (!var)
+			return false;
+		variables.push_back(var);
+	}
+
+	// Deserialize function name map
+	size_t functionMapCount;
+	if (!input->ReadNativeInteger(functionMapCount))
+		return false;
+	for (size_t i = 0; i < functionMapCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Function* func = Function::Deserialize(input);
+		if (!func)
+			return false;
+
+		functionsByName[name] = func;
+	}
+
+	// Deserialize variable name map
+	size_t variableMapCount;
+	if (!input->ReadNativeInteger(variableMapCount))
+		return false;
+	for (size_t i = 0; i < variableMapCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Variable* var = Variable::Deserialize(input);
+		if (!var)
+			return false;
+
+		variablesByName[name] = var;
+	}
+
+	// Deserialize initialization expression
+	initExpression = Expr::Deserialize(input);
+	if (!initExpression)
+		return false;
+
+	return true;
+}
 
 
 void Usage()
@@ -508,113 +630,96 @@ int main(int argc, char* argv[])
 		input.len = size;
 		input.offset = 0;
 
-		// Deserialize precompiled header state
-		if (!precompiledPreprocess.Deserialize(&input))
+		if (!ImportLibrary(&input, functions, functionsByName, variables, variablesByName, initExpression,
+			precompiledPreprocess, precompileState))
 		{
 			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 			return 1;
 		}
+	}
+	else
+	{
+		// No library given by user, find the correct internal library for this OS and architecture
+		unsigned char* lib;
+		unsigned int len;
 
-		if (!precompileState.Deserialize(&input))
+		switch (settings.os)
 		{
-			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-			return 1;
-		}
-
-		// Deserialize functions
-		size_t functionCount;
-		if (!input.ReadNativeInteger(functionCount))
-		{
-			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-			return 1;
-		}
-		for (size_t i = 0; i < functionCount; i++)
-		{
-			Function* func = Function::Deserialize(&input);
-			if (!func)
+		case OS_LINUX:
+			if (settings.preferredBits == 32)
 			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				lib = Obj_linux_x86_lib;
+				len = Obj_linux_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_linux_x64_lib;
+				len = Obj_linux_x64_lib_len;
+			}
+			break;
+		case OS_FREEBSD:
+			if (settings.preferredBits == 32)
+			{
+				lib = Obj_freebsd_x86_lib;
+				len = Obj_freebsd_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_freebsd_x64_lib;
+				len = Obj_freebsd_x64_lib_len;
+			}
+			break;
+		case OS_MACH:
+			if (settings.preferredBits == 32)
+			{
+				lib = Obj_mach_x86_lib;
+				len = Obj_mach_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_mach_x64_lib;
+				len = Obj_mach_x64_lib_len;
+			}
+			break;
+		case OS_WINDOWS:
+			if (settings.preferredBits == 32)
+			{
+				lib = Obj_windows_x86_lib;
+				len = Obj_windows_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_windows_x64_lib;
+				len = Obj_windows_x64_lib_len;
+			}
+			break;
+		default:
+			if (settings.preferredBits == 32)
+			{
+				lib = Obj_x86_lib;
+				len = Obj_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_x64_lib;
+				len = Obj_x64_lib_len;
+			}
+			break;
+		}
+
+		if (len != 0)
+		{
+			InputBlock input;
+			input.code = lib;
+			input.len = len;
+			input.offset = 0;
+
+			if (!ImportLibrary(&input, functions, functionsByName, variables, variablesByName, initExpression,
+				precompiledPreprocess, precompileState))
+			{
+				fprintf(stderr, "error: invalid format in internal library\n");
 				return 1;
 			}
-			functions.push_back(func);
-		}
-
-		// Deserialize variables
-		size_t variableCount;
-		if (!input.ReadNativeInteger(variableCount))
-		{
-			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-			return 1;
-		}
-		for (size_t i = 0; i < variableCount; i++)
-		{
-			Variable* var = Variable::Deserialize(&input);
-			if (!var)
-			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-				return 1;
-			}
-			variables.push_back(var);
-		}
-
-		// Deserialize function name map
-		size_t functionMapCount;
-		if (!input.ReadNativeInteger(functionMapCount))
-		{
-			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-			return 1;
-		}
-		for (size_t i = 0; i < functionMapCount; i++)
-		{
-			string name;
-			if (!input.ReadString(name))
-			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-				return 1;
-			}
-
-			Function* func = Function::Deserialize(&input);
-			if (!func)
-			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-				return 1;
-			}
-
-			functionsByName[name] = func;
-		}
-
-		// Deserialize variable name map
-		size_t variableMapCount;
-		if (!input.ReadNativeInteger(variableMapCount))
-		{
-			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-			return 1;
-		}
-		for (size_t i = 0; i < variableMapCount; i++)
-		{
-			string name;
-			if (!input.ReadString(name))
-			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-				return 1;
-			}
-
-			Variable* var = Variable::Deserialize(&input);
-			if (!var)
-			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-				return 1;
-			}
-
-			variablesByName[name] = var;
-		}
-
-		// Deserialize initialization expression
-		initExpression = Expr::Deserialize(&input);
-		if (!initExpression)
-		{
-			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-			return 1;
 		}
 	}
 

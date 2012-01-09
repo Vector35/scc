@@ -231,7 +231,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_POST_INCREMENT:
 	case EXPR_POST_DECREMENT:
 		m_type = m_children[0]->GetType();
-		if (m_type->GetClass() != TYPE_INT)
+		if ((m_type->GetClass() != TYPE_INT) && (m_type->GetClass() != TYPE_POINTER))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer\n", m_location.fileName.c_str(),

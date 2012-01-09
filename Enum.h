@@ -18,6 +18,8 @@ struct EnumMember
 
 class OutputBlock;
 class InputBlock;
+class Struct;
+struct DuplicateContext;
 
 class Enum: public RefCountObject
 {
@@ -33,6 +35,8 @@ class Enum: public RefCountObject
 
 public:
 	Enum();
+
+	Enum* Duplicate(DuplicateContext& dup);
 
 	void ReplaceWith(Enum* e);
 

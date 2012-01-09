@@ -29,6 +29,24 @@ Expr::Expr(const Location& loc, ExprClass cls)
 }
 
 
+Expr* Expr::Duplicate(DuplicateContext& dup)
+{
+	Expr* expr = new Expr(m_class);
+	expr->m_location = m_location;
+	expr->m_intValue = m_intValue;
+	expr->m_floatValue = m_floatValue;
+	expr->m_stringValue = m_stringValue;
+	expr->m_variable = (m_variable != NULL) ? m_variable->Duplicate(dup) : NULL;
+	expr->m_function = (m_function != NULL) ? m_function->Duplicate(dup) : NULL;
+	expr->m_type = (m_type != NULL) ? m_type->Duplicate(dup) : NULL;
+
+	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+		expr->m_children.push_back((*i)->Duplicate(dup));
+
+	return expr;
+}
+
+
 Variable* Expr::GetVariable() const
 {
 	return m_variable;
@@ -2669,10 +2687,10 @@ void Expr::Serialize(OutputBlock* output)
 		output->WriteString(m_stringValue);
 		break;
 	case EXPR_VARIABLE:
-		output->WriteInteger(m_variable->GetSerializationIndex());
+		m_variable->Serialize(output);
 		break;
 	case EXPR_FUNCTION:
-		output->WriteInteger(m_function->GetSerializationIndex());
+		m_function->Serialize(output);
 		break;
 	default:
 		break;
@@ -2712,7 +2730,6 @@ bool Expr::DeserializeInternal(InputBlock* input)
 		m_children.push_back(child);
 	}
 
-	int64_t objectIndex;
 	switch (m_class)
 	{
 	case EXPR_INT:
@@ -2733,16 +2750,12 @@ bool Expr::DeserializeInternal(InputBlock* input)
 			return false;
 		break;
 	case EXPR_VARIABLE:
-		if (!input->ReadInt64(objectIndex))
-			return false;
-		m_variable = Variable::GetSerializationMapping(objectIndex);
+		m_variable = Variable::Deserialize(input);
 		if (!m_variable)
 			return false;
 		break;
 	case EXPR_FUNCTION:
-		if (!input->ReadInt64(objectIndex))
-			return false;
-		m_function = Function::GetSerializationMapping((size_t)objectIndex);
+		m_function = Function::Deserialize(input);
 		if (!m_function)
 			return false;
 		break;

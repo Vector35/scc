@@ -1,5 +1,6 @@
 #include "Scope.h"
 #include "Struct.h"
+#include "Output.h"
 
 using namespace std;
 
@@ -8,6 +9,20 @@ Scope::Scope(Scope* parent, bool newContext)
 {
 	m_parent = parent;
 	m_root = ((!parent) || newContext) ? this : parent->m_root;
+}
+
+
+Scope* Scope::Duplicate(DuplicateContext& dup)
+{
+	Scope* scope = new Scope(NULL, true);
+
+	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+		scope->m_vars.push_back((*i)->Duplicate(dup));
+
+	for (map< string, Ref<Variable> >::iterator i = m_currentScopeVars.begin(); i != m_currentScopeVars.end(); i++)
+		scope->m_currentScopeVars[i->first] = i->second->Duplicate(dup);
+
+	return scope;
 }
 
 
@@ -67,5 +82,52 @@ void Scope::DefineVariable(Variable* var)
 {
 	m_root->m_vars.push_back(var);
 	m_currentScopeVars[var->GetName()] = var;
+}
+
+
+void Scope::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(m_vars.size());
+	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+		(*i)->Serialize(output);
+
+	output->WriteInteger(m_currentScopeVars.size());
+	for (map< string, Ref<Variable> >::iterator i = m_currentScopeVars.begin(); i != m_currentScopeVars.end(); i++)
+	{
+		output->WriteString(i->first);
+		i->second->Serialize(output);
+	}
+}
+
+
+bool Scope::Deserialize(InputBlock* input)
+{
+	size_t varCount;
+	if (!input->ReadNativeInteger(varCount))
+		return false;
+	for (size_t i = 0; i < varCount; i++)
+	{
+		Variable* var = Variable::Deserialize(input);
+		if (!var)
+			return false;
+		m_vars.push_back(var);
+	}
+
+	if (!input->ReadNativeInteger(varCount))
+		return false;
+	for (size_t i = 0; i < varCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Variable* var = Variable::Deserialize(input);
+		if (!var)
+			return false;
+
+		m_currentScopeVars[name] = var;
+	}
+
+	return true;
 }
 

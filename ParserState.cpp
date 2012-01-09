@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "ParserState.h"
+#include "Output.h"
 
 using namespace std;
 
@@ -8,6 +9,28 @@ ParserState::ParserState(const string& name, void* scanner): m_fileName(name), m
 {
 	m_initExpression = BasicExpr(EXPR_SEQUENCE);
 	m_globalScope = new Scope(NULL, true);
+	m_currentScope = m_globalScope;
+	m_errors = 0;
+	m_line = 1;
+}
+
+
+ParserState::ParserState(ParserState* parent, const std::string& name, void* scanner): m_fileName(name), m_scanner(scanner)
+{
+	DuplicateContext dup;
+	for (map< string, Ref<Type> >::iterator i = parent->m_types.begin(); i != parent->m_types.end(); i++)
+		m_types[i->first] = i->second->Duplicate(dup);
+	for (map< string, Ref<Type> >::iterator i = parent->m_structTypes.begin(); i != parent->m_structTypes.end(); i++)
+		m_structTypes[i->first] = i->second->Duplicate(dup);
+	for (map< string, Ref<Type> >::iterator i = parent->m_unionTypes.begin(); i != parent->m_unionTypes.end(); i++)
+		m_unionTypes[i->first] = i->second->Duplicate(dup);
+	for (map< string, Ref<Type> >::iterator i = parent->m_enumTypes.begin(); i != parent->m_enumTypes.end(); i++)
+		m_enumTypes[i->first] = i->second->Duplicate(dup);
+	for (map< string, Ref<Function> >::iterator i = parent->m_functions.begin(); i != parent->m_functions.end(); i++)
+		m_functions[i->first] = i->second->Duplicate(dup);
+	m_initExpression = parent->m_initExpression->Duplicate(dup);
+	m_globalScope = parent->m_globalScope->Duplicate(dup);
+	m_enumMembers = parent->m_enumMembers;
 	m_currentScope = m_globalScope;
 	m_errors = 0;
 	m_line = 1;
@@ -485,6 +508,161 @@ void ParserState::AddInitExpression(Expr* expr)
 		m_initExpression->CopyChildren(expr);
 	else
 		m_initExpression->AddChild(expr);
+}
+
+
+void ParserState::Serialize(OutputBlock* output)
+{
+	output->WriteInteger(m_types.size());
+	for (map< string, Ref<Type> >::iterator i = m_types.begin(); i != m_types.end(); i++)
+	{
+		output->WriteString(i->first);
+		i->second->Serialize(output);
+	}
+
+	output->WriteInteger(m_structTypes.size());
+	for (map< string, Ref<Type> >::iterator i = m_structTypes.begin(); i != m_structTypes.end(); i++)
+	{
+		output->WriteString(i->first);
+		i->second->Serialize(output);
+	}
+
+	output->WriteInteger(m_unionTypes.size());
+	for (map< string, Ref<Type> >::iterator i = m_unionTypes.begin(); i != m_unionTypes.end(); i++)
+	{
+		output->WriteString(i->first);
+		i->second->Serialize(output);
+	}
+
+	output->WriteInteger(m_enumTypes.size());
+	for (map< string, Ref<Type> >::iterator i = m_enumTypes.begin(); i != m_enumTypes.end(); i++)
+	{
+		output->WriteString(i->first);
+		i->second->Serialize(output);
+	}
+
+	output->WriteInteger(m_enumMembers.size());
+	for (map<string, uint32_t>::iterator i = m_enumMembers.begin(); i != m_enumMembers.end(); i++)
+	{
+		output->WriteString(i->first);
+		output->WriteInteger(i->second);
+	}
+
+	output->WriteInteger(m_functions.size());
+	for (map< string, Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	{
+		output->WriteString(i->first);
+		i->second->Serialize(output);
+	}
+
+	m_initExpression->Serialize(output);
+	m_globalScope->Serialize(output);
+}
+
+
+bool ParserState::Deserialize(InputBlock* input)
+{
+	size_t typeCount;
+	if (!input->ReadNativeInteger(typeCount))
+		return false;
+	for (size_t i = 0; i < typeCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Type* type = Type::Deserialize(input);
+		if (!type)
+			return false;
+
+		m_types[name] = type;
+	}
+
+	if (!input->ReadNativeInteger(typeCount))
+		return false;
+	for (size_t i = 0; i < typeCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Type* type = Type::Deserialize(input);
+		if (!type)
+			return false;
+
+		m_structTypes[name] = type;
+	}
+
+	if (!input->ReadNativeInteger(typeCount))
+		return false;
+	for (size_t i = 0; i < typeCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Type* type = Type::Deserialize(input);
+		if (!type)
+			return false;
+
+		m_unionTypes[name] = type;
+	}
+
+	if (!input->ReadNativeInteger(typeCount))
+		return false;
+	for (size_t i = 0; i < typeCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Type* type = Type::Deserialize(input);
+		if (!type)
+			return false;
+
+		m_enumTypes[name] = type;
+	}
+
+	size_t memberCount;
+	if (!input->ReadNativeInteger(memberCount))
+		return false;
+	for (size_t i = 0; i < memberCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		uint32_t value;
+		if (!input->ReadUInt32(value))
+			return false;
+
+		m_enumMembers[name] = value;
+	}
+
+	size_t functionCount;
+	if (!input->ReadNativeInteger(functionCount))
+		return false;
+	for (size_t i = 0; i < functionCount; i++)
+	{
+		string name;
+		if (!input->ReadString(name))
+			return false;
+
+		Function* func = Function::Deserialize(input);
+		if (!func)
+			return false;
+
+		m_functions[name] = func;
+	}
+
+	m_initExpression = Expr::Deserialize(input);
+	if (!m_initExpression)
+		return false;
+
+	if (!m_globalScope->Deserialize(input))
+		return false;
+
+	return true;
 }
 
 

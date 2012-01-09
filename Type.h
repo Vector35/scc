@@ -45,11 +45,18 @@ class Type: public RefCountObject
 	Ref<Enum> m_enum;
 	size_t m_elements;
 
+	size_t m_serializationIndex;
+	bool m_serializationIndexValid;
+	static size_t m_nextSerializationIndex;
+	static std::map< size_t, Ref<Type> > m_serializationMap;
+
 	bool DeserializeInternal(InputBlock* input);
 
 public:
 	Type();
 	Type(Type* type);
+
+	Type* Duplicate(DuplicateContext& dup);
 
 	TypeClass GetClass() const { return m_class; }
 	size_t GetWidth() const;

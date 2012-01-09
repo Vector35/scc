@@ -7,7 +7,8 @@
 using namespace std;
 
 
-map< size_t, Ref<Function> > Function::m_serializationMapping;
+size_t Function::m_nextSerializationIndex;
+map< size_t, Ref<Function> > Function::m_serializationMap;
 
 
 Function::Function()
@@ -18,6 +19,7 @@ Function::Function()
 	m_defaultBlock = NULL;
 	m_localScope = false;
 	m_variableSizedStackFrame = false;
+	m_serializationIndexValid = false;
 }
 
 
@@ -31,6 +33,7 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 	m_defaultBlock = NULL;
 	m_localScope = isLocalScope;
 	m_variableSizedStackFrame = false;
+	m_serializationIndexValid = false;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
@@ -54,6 +57,7 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 	m_defaultBlock = NULL;
 	m_localScope = isLocalScope;
 	m_variableSizedStackFrame = false;
+	m_serializationIndexValid = false;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
@@ -69,6 +73,37 @@ Function::~Function()
 {
 	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
 		delete *i;
+}
+
+
+Function* Function::Duplicate(DuplicateContext& dup)
+{
+	if (dup.funcs.find(this) != dup.funcs.end())
+		return dup.funcs[this];
+
+	Function* func = new Function();
+	dup.funcs[this] = func;
+
+	func->m_returnValue = m_returnValue->Duplicate(dup);
+	func->m_callingConvention = m_callingConvention;
+	func->m_name = m_name;
+	func->m_location = m_location;
+	func->m_body = (m_body != NULL) ? m_body->Duplicate(dup) : NULL;
+	func->m_localScope = m_localScope;
+	func->m_variableSizedStackFrame = m_variableSizedStackFrame;
+
+	for (vector<FunctionParameter>::iterator i = m_params.begin(); i != m_params.end(); i++)
+	{
+		FunctionParameter param;
+		param.type = i->type->Duplicate(dup);
+		param.name = i->name;
+		func->m_params.push_back(param);
+	}
+
+	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+		func->m_vars.push_back((*i)->Duplicate(dup));
+
+	return func;
 }
 
 
@@ -257,6 +292,18 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 
 void Function::Serialize(OutputBlock* output)
 {
+	if (m_serializationIndexValid)
+	{
+		output->WriteInteger(1);
+		output->WriteInteger(m_serializationIndex);
+		return;
+	}
+
+	m_serializationIndexValid = true;
+	m_serializationIndex = m_nextSerializationIndex++;
+	output->WriteInteger(0);
+	output->WriteInteger(m_serializationIndex);
+
 	m_returnValue->Serialize(output);
 	output->WriteInteger(m_callingConvention);
 	output->WriteString(m_name);
@@ -273,10 +320,7 @@ void Function::Serialize(OutputBlock* output)
 
 	output->WriteInteger(m_vars.size());
 	for (size_t i = 0; i < m_vars.size(); i++)
-	{
-		m_vars[i]->SetSerializationIndex(-(int64_t)(i + 1));
 		m_vars[i]->Serialize(output);
-	}
 
 	output->WriteInteger((m_body != NULL) ? 1 : 0);
 	if (m_body)
@@ -292,7 +336,7 @@ void Function::Serialize(OutputBlock* output)
 }
 
 
-bool Function::Deserialize(InputBlock* input)
+bool Function::DeserializeInternal(InputBlock* input)
 {
 	m_returnValue = Type::Deserialize(input);
 	if (!m_returnValue)
@@ -330,16 +374,10 @@ bool Function::Deserialize(InputBlock* input)
 		return false;
 	for (size_t i = 0; i < varCount; i++)
 	{
-		Variable* var = new Variable();
-		if (!var->Deserialize(input))
-		{
-			delete var;
+		Variable* var = Variable::Deserialize(input);
+		if (!var)
 			return false;
-		}
 		m_vars.push_back(var);
-
-		var->SetSerializationIndex(-(int64_t)(i + 1));
-		Variable::SetSerializationMapping(-(int64_t)(i + 1), var);
 	}
 
 	bool bodyPresent;
@@ -382,15 +420,23 @@ bool Function::Deserialize(InputBlock* input)
 }
 
 
-Function* Function::GetSerializationMapping(size_t i)
+Function* Function::Deserialize(InputBlock* input)
 {
-	return m_serializationMapping[i];
-}
+	bool existingFunc;
+	size_t i;
+	if (!input->ReadBool(existingFunc))
+		return NULL;
+	if (!input->ReadNativeInteger(i))
+		return NULL;
 
+	if (existingFunc)
+		return m_serializationMap[i];
 
-void Function::SetSerializationMapping(size_t i, Function* func)
-{
-	m_serializationMapping[i] = func;
+	Function* func = new Function();
+	m_serializationMap[i] = func;
+	if (func->DeserializeInternal(input))
+		return func;
+	return NULL;
 }
 
 

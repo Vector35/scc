@@ -2,6 +2,7 @@
 #include "Enum.h"
 #include "Output.h"
 #include "Struct.h"
+#include "ParserState.h"
 
 using namespace std;
 
@@ -19,6 +20,22 @@ Enum::Enum()
 	m_nextValue = 0;
 	m_fullyDefined = false;
 	m_serializationIndexValid = false;
+}
+
+
+Enum* Enum::Duplicate(DuplicateContext& dup)
+{
+	if (dup.enums.find(this) != dup.enums.end())
+		return dup.enums[this];
+
+	Enum* e = new Enum();
+	dup.enums[this] = e;
+
+	e->m_name = m_name;
+	e->m_members = m_members;
+	e->m_nextValue = m_nextValue;
+	e->m_fullyDefined = m_fullyDefined;
+	return e;
 }
 
 

@@ -116,6 +116,8 @@ public:
 	Expr(ExprClass cls);
 	Expr(const Location& loc, ExprClass cls);
 
+	Expr* Duplicate(DuplicateContext& dup);
+
 	void SetClass(ExprClass cls) { m_class = cls; }
 	void SetIntValue(int64_t value) { m_intValue = value; }
 	void SetFloatValue(double value) { m_floatValue = value; }

@@ -18,6 +18,8 @@ class Scope
 public:
 	Scope(Scope* parent, bool newContext);
 
+	Scope* Duplicate(DuplicateContext& dup);
+
 	Scope* GetParent() const { return m_parent; }
 	Scope* GetRoot() const { return m_root; }
 	const std::vector< Ref<Variable> >& GetVariables() { return m_vars; }
@@ -27,6 +29,9 @@ public:
 	Variable* GetVariable(const std::string& name) const;
 	Variable* DefineVariable(VariableClass cls, Type* type, const std::string& name);
 	void DefineVariable(Variable* var);
+
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
 };
 
 

@@ -3,11 +3,15 @@
 #include "Struct.h"
 #include "Enum.h"
 #include "Output.h"
+#include "ParserState.h"
 
 using namespace std;
 
 
 size_t g_targetPointerSize = 4;
+
+size_t Type::m_nextSerializationIndex = 0;
+map< size_t, Ref<Type> > Type::m_serializationMap;
 
 
 Type::Type()
@@ -19,6 +23,7 @@ Type::Type()
 	m_const = false;
 	m_callingConvention = CALLING_CONVENTION_DEFAULT;
 	m_elements = 0;
+	m_serializationIndexValid = false;
 }
 
 
@@ -35,6 +40,29 @@ Type::Type(Type* type)
 	m_struct = type->m_struct;
 	m_enum = type->m_enum;
 	m_elements = type->m_elements;
+	m_serializationIndexValid = false;
+}
+
+
+Type* Type::Duplicate(DuplicateContext& dup)
+{
+	if (dup.types.find(this) != dup.types.end())
+		return dup.types[this];
+
+	Type* type = new Type(this);
+	dup.types[this] = type;
+
+	if (type->m_struct)
+		type->m_struct = type->m_struct->Duplicate(dup);
+	if (type->m_enum)
+		type->m_enum = type->m_enum->Duplicate(dup);
+	if (type->m_childType)
+		type->m_childType = type->m_childType->Duplicate(dup);
+
+	for (vector< Ref<Type> >::iterator i = type->m_params.begin(); i != type->m_params.end(); i++)
+		*i = (*i)->Duplicate(dup);
+
+	return type;
 }
 
 
@@ -214,6 +242,18 @@ Type* Type::StructMemberType(Type* type, const string& name)
 
 void Type::Serialize(OutputBlock* output)
 {
+	if (m_serializationIndexValid)
+	{
+		output->WriteInteger(1);
+		output->WriteInteger(m_serializationIndex);
+		return;
+	}
+
+	m_serializationIndexValid = true;
+	m_serializationIndex = m_nextSerializationIndex++;
+	output->WriteInteger(0);
+	output->WriteInteger(m_serializationIndex);
+
 	output->WriteInteger(m_class);
 	output->WriteInteger(m_width);
 	output->WriteInteger(m_alignment);
@@ -317,10 +357,20 @@ bool Type::DeserializeInternal(InputBlock* input)
 
 Type* Type::Deserialize(InputBlock* input)
 {
+	bool existingType;
+	size_t i;
+	if (!input->ReadBool(existingType))
+		return NULL;
+	if (!input->ReadNativeInteger(i))
+		return NULL;
+
+	if (existingType)
+		return m_serializationMap[i];
+
 	Type* type = new Type();
+	m_serializationMap[i] = type;
 	if (type->DeserializeInternal(input))
 		return type;
-	delete type;
 	return NULL;
 }
 

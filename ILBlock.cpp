@@ -212,10 +212,10 @@ void ILParameter::Serialize(OutputBlock* output)
 		output->WriteInteger(boolValue ? 1 : 0);
 		break;
 	case ILPARAM_VAR:
-		output->WriteInteger(variable->GetSerializationIndex());
+		variable->Serialize(output);
 		break;
 	case ILPARAM_FUNC:
-		output->WriteInteger(function->GetSerializationIndex());
+		function->Serialize(output);
 		break;
 	case ILPARAM_BLOCK:
 		output->WriteInteger(block->GetIndex());
@@ -262,16 +262,12 @@ bool ILParameter::Deserialize(InputBlock* input)
 			return false;
 		break;
 	case ILPARAM_VAR:
-		if (!input->ReadInt64(objectIndex))
-			return false;
-		variable = Variable::GetSerializationMapping(objectIndex);
+		variable = Variable::Deserialize(input);
 		if (!variable)
 			return false;
 		break;
 	case ILPARAM_FUNC:
-		if (!input->ReadInt64(objectIndex))
-			return false;
-		function = Function::GetSerializationMapping((size_t)objectIndex);
+		function = Function::Deserialize(input);
 		if (!function)
 			return false;
 		break;

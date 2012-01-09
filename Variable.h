@@ -25,12 +25,18 @@ class Variable: public RefCountObject
 	Location m_location;
 
 	int64_t m_serializationIndex;
-	static std::map< int64_t, Ref<Variable> > m_serializationMapping;
+	bool m_serializationIndexValid;
+	static size_t m_nextSerializationIndex;
+	static std::map< size_t, Ref<Variable> > m_serializationMap;
+
+	bool DeserializeInternal(InputBlock* input);
 
 public:
 	Variable();
 	Variable(VariableClass cls, Type* type, const std::string& name);
 	Variable(size_t paramIndex, Type* type, const std::string& name);
+
+	Variable* Duplicate(DuplicateContext& dup);
 
 	VariableClass GetClass() const { return m_class; }
 	bool IsParameter() const { return m_class == VAR_PARAM; }
@@ -46,11 +52,7 @@ public:
 	void SetLocation(const Location& loc) { m_location = loc; }
 
 	void Serialize(OutputBlock* output);
-	bool Deserialize(InputBlock* input);
-	int64_t GetSerializationIndex() const { return m_serializationIndex; }
-	void SetSerializationIndex(int64_t i) { m_serializationIndex = i; }
-	static Variable* GetSerializationMapping(int64_t i);
-	static void SetSerializationMapping(int64_t i, Variable* var);
+	static Variable* Deserialize(InputBlock* input);
 };
 
 

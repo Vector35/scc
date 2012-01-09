@@ -38,6 +38,34 @@ Struct::Struct(bool isUnion)
 }
 
 
+Struct* Struct::Duplicate(DuplicateContext& dup)
+{
+	if (dup.structs.find(this) != dup.structs.end())
+		return dup.structs[this];
+
+	Struct* s = new Struct();
+	dup.structs[this] = s;
+
+	s->m_name = m_name;
+	s->m_width = m_width;
+	s->m_alignment = m_alignment;
+	s->m_union = m_union;
+	s->m_fullyDefined = m_fullyDefined;
+
+	for (vector<StructMember>::iterator i = m_members.begin(); i != m_members.end(); i++)
+	{
+		StructMember member;
+		member.type = i->type->Duplicate(dup);
+		member.name = i->name;
+		member.offset = i->offset;
+		s->m_members.push_back(member);
+		s->m_membersByName[i->name] = member;
+	}
+
+	return s;
+}
+
+
 void Struct::ReplaceWith(Struct* s)
 {
 	m_members = s->m_members;

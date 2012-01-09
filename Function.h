@@ -52,13 +52,19 @@ class Function: public RefCountObject
 	bool m_variableSizedStackFrame;
 
 	size_t m_serializationIndex;
-	static std::map< size_t, Ref<Function> > m_serializationMapping;
+	bool m_serializationIndexValid;
+	static size_t m_nextSerializationIndex;
+	static std::map< size_t, Ref<Function> > m_serializationMap;
+
+	bool DeserializeInternal(InputBlock* input);
 
 public:
 	Function();
 	Function(const FunctionInfo& info, bool isLocalScope);
 	Function(const FunctionInfo& info, const std::vector< Ref<Variable> >& vars, Expr* body, bool isLocalScope);
 	virtual ~Function();
+
+	Function* Duplicate(DuplicateContext& dup);
 
 	void SetVariables(const std::vector< Ref<Variable> >& vars) { m_vars = vars; }
 	void SetBody(Expr* body) { m_body = body; }
@@ -113,11 +119,7 @@ public:
 	void CheckForUndefinedReferences(size_t& errors);
 
 	void Serialize(OutputBlock* output);
-	bool Deserialize(InputBlock* input);
-	size_t GetSerializationIndex() const { return m_serializationIndex; }
-	void SetSerializationIndex(size_t i) { m_serializationIndex = i; }
-	static Function* GetSerializationMapping(size_t i);
-	static void SetSerializationMapping(size_t i, Function* func);
+	static Function* Deserialize(InputBlock* input);
 
 	void Print();
 };

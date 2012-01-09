@@ -36,6 +36,8 @@ public:
 	Struct();
 	Struct(bool isUnion);
 
+	Struct* Duplicate(DuplicateContext& dup);
+
 	void ReplaceWith(Struct* s);
 
 	bool IsFullyDefined() const { return m_fullyDefined; }

@@ -22,6 +22,15 @@ struct VarInitInfo
 	Location location;
 };
 
+struct DuplicateContext
+{
+	std::map< Type*, Ref<Type> > types;
+	std::map< Struct*, Ref<Struct> > structs;
+	std::map< Enum*, Ref<Enum> > enums;
+	std::map< Variable*, Ref<Variable> > vars;
+	std::map< Function*, Ref<Function> > funcs;
+};
+
 
 class ParserState
 {
@@ -45,6 +54,7 @@ class ParserState
 
 public:
 	ParserState(const std::string& name, void* scanner);
+	ParserState(ParserState* parent, const std::string& name, void* scanner);
 	~ParserState();
 
 	const std::string& GetFileName() const { return m_fileName; }
@@ -53,6 +63,7 @@ public:
 	void SetLocation(const std::string& name, int line) { m_fileName = name; m_line = line; }
 
 	void* GetScanner() { return m_scanner; }
+	void SetScanner(void* scanner) { m_scanner = scanner; }
 	void* GetLValue() const { return m_lvalue; }
 	void SetLValue(void* lvalue) { m_lvalue = lvalue; }
 
@@ -117,6 +128,9 @@ public:
 	Expr* CastExpr(Type* type, Expr* value) { return Expr::CastExpr(GetLocation(), type, value); }
 	Expr* LabelExpr(const std::string& value) { return Expr::LabelExpr(GetLocation(), value); }
 	Expr* GotoLabelExpr(const std::string& value) { return Expr::GotoLabelExpr(GetLocation(), value); }
+
+	void Serialize(OutputBlock* output);
+	bool Deserialize(InputBlock* input);
 
 	void Print();
 };

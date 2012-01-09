@@ -477,6 +477,7 @@ int main(int argc, char* argv[])
 
 	// Set up precompiled state
 	PreprocessState precompiledPreprocess("precompiled headers", NULL);
+	ParserState precompileState("precompiled headers", NULL);
 	vector< Ref<Function> > functions;
 	map< string, Ref<Function> > functionsByName;
 	vector< Ref<Variable> > variables;
@@ -514,50 +515,46 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		// Initialize function and variable objects
-		size_t functionCount, variableCount;
+		if (!precompileState.Deserialize(&input))
+		{
+			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+			return 1;
+		}
+
+		// Deserialize functions
+		size_t functionCount;
 		if (!input.ReadNativeInteger(functionCount))
 		{
 			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 			return 1;
 		}
+		for (size_t i = 0; i < functionCount; i++)
+		{
+			Function* func = Function::Deserialize(&input);
+			if (!func)
+			{
+				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
+				return 1;
+			}
+			functions.push_back(func);
+		}
+
+		// Deserialize variables
+		size_t variableCount;
 		if (!input.ReadNativeInteger(variableCount))
 		{
 			fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 			return 1;
 		}
-
-		for (size_t i = 0; i < functionCount; i++)
-		{
-			functions.push_back(new Function());
-			functions[i]->SetSerializationIndex(i);
-			Function::SetSerializationMapping(i, functions[i]);
-		}
 		for (size_t i = 0; i < variableCount; i++)
 		{
-			variables.push_back(new Variable());
-			variables[i]->SetSerializationIndex(i);
-			Variable::SetSerializationMapping(i, variables[i]);
-		}
-
-		// Deserialize functions
-		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
-		{
-			if (!(*i)->Deserialize(&input))
+			Variable* var = Variable::Deserialize(&input);
+			if (!var)
 			{
 				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 				return 1;
 			}
-		}
-
-		// Deserialize variables
-		for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
-		{
-			if (!(*i)->Deserialize(&input))
-			{
-				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
-				return 1;
-			}
+			variables.push_back(var);
 		}
 
 		// Deserialize function name map
@@ -570,20 +567,20 @@ int main(int argc, char* argv[])
 		for (size_t i = 0; i < functionMapCount; i++)
 		{
 			string name;
-			size_t objectIndex;
-
 			if (!input.ReadString(name))
 			{
 				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 				return 1;
 			}
-			if (!input.ReadNativeInteger(objectIndex))
+
+			Function* func = Function::Deserialize(&input);
+			if (!func)
 			{
 				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 				return 1;
 			}
 
-			functionsByName[name] = functions[objectIndex];
+			functionsByName[name] = func;
 		}
 
 		// Deserialize variable name map
@@ -596,20 +593,20 @@ int main(int argc, char* argv[])
 		for (size_t i = 0; i < variableMapCount; i++)
 		{
 			string name;
-			size_t objectIndex;
-
 			if (!input.ReadString(name))
 			{
 				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 				return 1;
 			}
-			if (!input.ReadNativeInteger(objectIndex))
+
+			Variable* var = Variable::Deserialize(&input);
+			if (!var)
 			{
 				fprintf(stderr, "%s: error: invalid format\n", library.c_str());
 				return 1;
 			}
 
-			variablesByName[name] = variables[objectIndex];
+			variablesByName[name] = var;
 		}
 
 		// Deserialize initialization expression
@@ -621,11 +618,34 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// Process the precompiled headers
-	for (vector<string>::iterator i = precompiledHeaders.begin(); i != precompiledHeaders.end(); i++)
+	if (precompiledHeaders.size() != 0)
 	{
-		precompiledPreprocess.IncludeFile(*i);
-		if (precompiledPreprocess.HasErrors())
+		// Process the precompiled headers
+		for (vector<string>::iterator i = precompiledHeaders.begin(); i != precompiledHeaders.end(); i++)
+		{
+			precompiledPreprocess.IncludeFile(*i);
+			if (precompiledPreprocess.HasErrors())
+				return 1;
+		}
+
+		// Parse the precompiled headers
+		yyscan_t scanner;
+		Code_lex_init(&scanner);
+		precompileState.SetScanner(scanner);
+
+		YY_BUFFER_STATE buf = Code__scan_string(precompiledPreprocess.GetOutput().c_str(), scanner);
+		Code__switch_to_buffer(buf, scanner);
+		Code_set_lineno(1, scanner);
+
+		bool ok = true;
+		if (Code_parse(&precompileState) != 0)
+			ok = false;
+		if (precompileState.HasErrors())
+			ok = false;
+
+		Code_lex_destroy(scanner);
+
+		if (!ok)
 			return 1;
 	}
 
@@ -689,7 +709,7 @@ int main(int argc, char* argv[])
 
 		yyscan_t scanner;
 		Code_lex_init(&scanner);
-		ParserState parser((i->size() == 0) ? "stdin" : i->c_str(), scanner);
+		ParserState parser(&precompileState, (i->size() == 0) ? "stdin" : i->c_str(), scanner);
 
 		YY_BUFFER_STATE buf = Code__scan_string(preprocessed.c_str(), scanner);
 		Code__switch_to_buffer(buf, scanner);
@@ -960,20 +980,15 @@ int main(int argc, char* argv[])
 
 		// Serialize precompiled header state
 		precompiledPreprocess.Serialize(&output);
-
-		// Initialize serialization indexes
-		output.WriteInteger(functions.size());
-		output.WriteInteger(variables.size());
-		for (size_t i = 0; i < functions.size(); i++)
-			functions[i]->SetSerializationIndex(i);
-		for (size_t i = 0; i < variables.size(); i++)
-			variables[i]->SetSerializationIndex(i);
+		precompileState.Serialize(&output);
 
 		// Serialize function objects
+		output.WriteInteger(functions.size());
 		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
 			(*i)->Serialize(&output);
 
 		// Serialize variable objects
+		output.WriteInteger(variables.size());
 		for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
 			(*i)->Serialize(&output);
 
@@ -982,7 +997,7 @@ int main(int argc, char* argv[])
 		for (map< string, Ref<Function> >::iterator i = functionsByName.begin(); i != functionsByName.end(); i++)
 		{
 			output.WriteString(i->first);
-			output.WriteInteger(i->second->GetSerializationIndex());
+			i->second->Serialize(&output);
 		}
 
 		// Serialize variable name map
@@ -990,7 +1005,7 @@ int main(int argc, char* argv[])
 		for (map< string, Ref<Variable> >::iterator i = variablesByName.begin(); i != variablesByName.end(); i++)
 		{
 			output.WriteString(i->first);
-			output.WriteInteger(i->second->GetSerializationIndex());
+			i->second->Serialize(&output);
 		}
 
 		// Serialize initialization expression

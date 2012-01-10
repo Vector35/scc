@@ -97,12 +97,16 @@ class OUTPUT_CLASS_NAME: public Output
 
 	bool GenerateAssign(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateAddressOfMember(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateDeref(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateDerefMember(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateDerefAssign(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateDerefMemberAssign(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateArrayIndex(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateArrayIndexAssign(OutputBlock* out, const ILInstruction& instr);
+	bool GeneratePtrAdd(OutputBlock* out, const ILInstruction& instr);
+	bool GeneratePtrSub(OutputBlock* out, const ILInstruction& instr);
+	bool GeneratePtrDiff(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAdd(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateSub(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateMult(OutputBlock* out, const ILInstruction& instr);

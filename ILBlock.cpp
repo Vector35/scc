@@ -439,12 +439,16 @@ void ILInstruction::Print() const
 	{
 	case ILOP_ASSIGN:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
 	case ILOP_ADDRESS_OF:  params[0].Print(); fprintf(stderr, " = &"); params[1].Print(); break;
+	case ILOP_ADDRESS_OF_MEMBER:  params[0].Print(); fprintf(stderr, " = &"); params[1].Print(); fprintf(stderr, "->"); params[2].Print(); break;
 	case ILOP_DEREF:  params[0].Print(); fprintf(stderr, " = *"); params[1].Print(); break;
 	case ILOP_DEREF_MEMBER:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "->"); params[2].Print(); break;
 	case ILOP_DEREF_ASSIGN:  fprintf(stderr, "*"); params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
 	case ILOP_DEREF_MEMBER_ASSIGN:  params[0].Print(); fprintf(stderr, "->"); params[1].Print(); fprintf(stderr, " = "); params[2].Print(); break;
 	case ILOP_ARRAY_INDEX:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "["); params[2].Print(); fprintf(stderr, "]"); break;
 	case ILOP_ARRAY_INDEX_ASSIGN:  params[0].Print(); fprintf(stderr, "["); params[1].Print(); fprintf(stderr, "] = "); params[2].Print(); break;
+	case ILOP_PTR_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr+ "); params[2].Print(); break;
+	case ILOP_PTR_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr- "); params[2].Print(); break;
+	case ILOP_PTR_DIFF:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptrdiff "); params[2].Print(); break;
 	case ILOP_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " + "); params[2].Print(); break;
 	case ILOP_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " - "); params[2].Print(); break;
 	case ILOP_MULT:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " * "); params[2].Print(); break;

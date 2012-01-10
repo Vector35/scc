@@ -147,6 +147,7 @@ public:
 	void CheckForUndefinedReferences(size_t& errors);
 
 	void GenerateConditionalIL(ParserState* state, Function* func, ILBlock* block, ILBlock* trueBlock, ILBlock* falseBlock);
+	ILParameter GenerateArrayAccessIL(ParserState* state, Function* func, ILBlock*& block);
 	ILParameter GenerateIL(ParserState* state, Function* func, ILBlock*& block);
 
 	static Expr* BoolExpr(const Location& loc, bool value);

@@ -258,7 +258,6 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_type = m_children[0]->GetType()->GetChildType();
 		break;
 	case EXPR_PLUS:
-	case EXPR_MINUS:
 		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
 		{
 			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
@@ -273,6 +272,75 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 				m_type = m_children[1]->GetType();
 			}
 			else if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
+			{
+				m_type = m_children[1]->GetType();
+				m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				break;
+			}
+			else
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				m_type = Type::VoidType();
+			}
+		}
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+		{
+			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
+				m_type = m_children[0]->GetType();
+			else if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
+			{
+				if (m_children[0]->GetType()->GetWidth() > m_children[1]->GetType()->GetWidth())
+					m_type = m_children[0]->GetType();
+				else
+					m_type = m_children[1]->GetType();
+			}
+			else
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				m_type = Type::VoidType();
+			}
+		}
+		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
+			{
+				m_type = m_children[0]->GetType();
+				m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				break;
+			}
+			else
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				m_type = Type::VoidType();
+			}
+		}
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		m_children[0] = m_children[0]->ConvertToType(state, m_type);
+		m_children[1] = m_children[1]->ConvertToType(state, m_type);
+		break;
+	case EXPR_MINUS:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+		{
+			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
+			{
+				if (m_children[0]->GetType()->GetWidth() > m_children[1]->GetType()->GetWidth())
+					m_type = m_children[0]->GetType();
+				else
+					m_type = m_children[1]->GetType();
+			}
+			else if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
 			{
 				m_type = m_children[1]->GetType();
 			}
@@ -306,7 +374,17 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
+			{
 				m_type = m_children[0]->GetType();
+				m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				break;
+			}
+			else if ((m_children[1]->GetType()->GetClass() == TYPE_POINTER) &&
+				((*m_children[0]->GetType()) == (*m_children[1]->GetType())))
+			{
+				m_type = Type::IntType(GetTargetPointerSize(), true);
+				break;
+			}
 			else
 			{
 				state->Error();
@@ -692,6 +770,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 					m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
+			m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+			break;
 		}
 		else
 		{
@@ -1126,7 +1206,8 @@ Expr* Expr::Simplify(ParserState* state)
 			return m_children[0]->m_children[0];
 		return this;
 	case EXPR_ARRAY_INDEX:
-		if ((m_children[1]->GetClass() == EXPR_INT) && (m_children[1]->GetIntValue() == 0))
+		if ((m_children[1]->GetClass() == EXPR_INT) && (m_children[1]->GetIntValue() == 0) &&
+			m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_POINTER))
 			return Expr::UnaryExpr(m_location, EXPR_DEREF, m_children[0]);
 		return this;
 	case EXPR_PLUS:
@@ -1680,6 +1761,30 @@ void Expr::GenerateConditionalIL(ParserState* state, Function* func, ILBlock* bl
 }
 
 
+ILParameter Expr::GenerateArrayAccessIL(ParserState* state, Function* func, ILBlock*& block)
+{
+	ILParameter result;
+
+	switch (m_class)
+	{
+	case EXPR_VARIABLE:
+		result = ILParameter(m_variable);
+		break;
+	case EXPR_DOT:
+		result = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
+		result.type = m_type;
+		break;
+	default:
+		state->Error();
+		fprintf(stderr, "%s:%d: error: invalid array access\n", m_location.fileName.c_str(),
+			m_location.lineNumber);
+		break;
+	}
+
+	return result;
+}
+
+
 ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block)
 {
 	ILParameter result, a, b, c;
@@ -1712,19 +1817,45 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(false);
 		break;
 	case EXPR_VARIABLE:
-		result = ILParameter(m_variable);
+		if (m_type->GetClass() == TYPE_ARRAY)
+		{
+			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
+			block->AddInstruction(ILOP_ADDRESS_OF, result, ILParameter(m_variable));
+		}
+		else
+		{
+			result = ILParameter(m_variable);
+		}
 		break;
 	case EXPR_FUNCTION:
 		result = ILParameter(m_function);
 		break;
 	case EXPR_DOT:
-		result = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
-		result.type = m_type;
+		a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
+		if (m_type->GetClass() == TYPE_ARRAY)
+		{
+			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
+			block->AddInstruction(ILOP_ADDRESS_OF, result, a);
+		}
+		else
+		{
+			result = a;
+			result.type = m_type;
+		}
 		break;
 	case EXPR_ARROW:
-		result = func->CreateTempVariable(m_type);
-		block->AddInstruction(ILOP_DEREF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
-			ILParameter(m_stringValue, ILPARAM_NAME));
+		if (m_type->GetClass() == TYPE_ARRAY)
+		{
+			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
+			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
+				ILParameter(m_stringValue, ILPARAM_NAME));
+		}
+		else
+		{
+			result = func->CreateTempVariable(m_type);
+			block->AddInstruction(ILOP_DEREF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
+				ILParameter(m_stringValue, ILPARAM_NAME));
+		}
 		break;
 	case EXPR_ADDRESS_OF:
 		result = func->CreateTempVariable(m_type);
@@ -1736,41 +1867,100 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		break;
 	case EXPR_PRE_INCREMENT:
 		result = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, (int64_t)1));
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			block->AddInstruction(ILOP_PTR_ADD, result, result,
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+		}
+		else
+		{
+			block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, (int64_t)1));
+		}
 		break;
 	case EXPR_PRE_DECREMENT:
 		result = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, (int64_t)1));
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			block->AddInstruction(ILOP_PTR_SUB, result, result,
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+		}
+		else
+		{
+			block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, (int64_t)1));
+		}
 		break;
 	case EXPR_POST_INCREMENT:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		block->AddInstruction(ILOP_ASSIGN, result, a);
-		block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, (int64_t)1));
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			block->AddInstruction(ILOP_PTR_ADD, a, a,
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+		}
+		else
+		{
+			block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, (int64_t)1));
+		}
 		break;
 	case EXPR_POST_DECREMENT:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		block->AddInstruction(ILOP_ASSIGN, result, a);
-		block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, (int64_t)1));
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			block->AddInstruction(ILOP_PTR_SUB, a, a,
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+		}
+		else
+		{
+			block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, (int64_t)1));
+		}
 		break;
 	case EXPR_ARRAY_INDEX:
 		result = func->CreateTempVariable(m_type);
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_ARRAY_INDEX, result, a, b);
+		if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
+			(m_children[0]->GetClass() == EXPR_ARROW))
+		{
+			a = m_children[0]->GenerateIL(state, func, block);
+			b = m_children[1]->GenerateIL(state, func, block);
+			c = func->CreateTempVariable(m_children[0]->GetType());
+			block->AddInstruction(ILOP_PTR_ADD, c, a, b);
+			block->AddInstruction(ILOP_DEREF, result, c);
+		}
+		else
+		{
+			a = m_children[0]->GenerateArrayAccessIL(state, func, block);
+			b = m_children[1]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_ARRAY_INDEX, result, a, b);
+		}
 		break;
 	case EXPR_PLUS:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_ADD, result, a, b);
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+			block->AddInstruction(ILOP_PTR_ADD, result, a, b);
+		else if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
+			block->AddInstruction(ILOP_PTR_ADD, result, b, a);
+		else
+			block->AddInstruction(ILOP_ADD, result, a, b);
 		break;
 	case EXPR_MINUS:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_SUB, result, a, b);
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
+				block->AddInstruction(ILOP_PTR_DIFF, result, a, b);
+			else
+				block->AddInstruction(ILOP_PTR_SUB, result, a, b);
+		}
+		else
+		{
+			block->AddInstruction(ILOP_SUB, result, a, b);
+		}
 		break;
 	case EXPR_MULT:
 		result = func->CreateTempVariable(m_type);
@@ -2019,11 +2209,25 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 	case EXPR_ASSIGN:
 		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
 		{
-			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
-			c = m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, a, b, c);
-			result = c;
+			if ((m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
+				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
+			{
+				result = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
+				a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
+				block->AddInstruction(ILOP_PTR_ADD, result, a, b);
+				c = m_children[1]->GenerateIL(state, func, block);
+				block->AddInstruction(ILOP_DEREF_ASSIGN, result, c);
+				result = c;
+			}
+			else
+			{
+				a = m_children[0]->m_children[0]->GenerateArrayAccessIL(state, func, block);
+				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
+				c = m_children[1]->GenerateIL(state, func, block);
+				block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, a, b, c);
+				result = c;
+			}
 		}
 		else if (m_children[0]->GetClass() == EXPR_DEREF)
 		{
@@ -2076,7 +2280,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		block->AddInstruction(ILOP_ADD, a, a, b);
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+			block->AddInstruction(ILOP_PTR_ADD, a, a, b);
+		else
+			block->AddInstruction(ILOP_ADD, a, a, b);
 		result = a;
 		break;
 	case EXPR_MINUS_EQ:
@@ -2087,7 +2294,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		block->AddInstruction(ILOP_SUB, a, a, b);
+		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+			block->AddInstruction(ILOP_PTR_SUB, a, a, b);
+		else
+			block->AddInstruction(ILOP_SUB, a, a, b);
 		result = a;
 		break;
 	case EXPR_MULT_EQ:

@@ -909,6 +909,67 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOf(OutputBlock* out, const ILInstruction&
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateAddressOfMember(OutputBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (src.type != OPERANDREF_MEM)
+		return false;
+
+	// Load pointer into a register
+	OperandReference temp;
+	temp.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+	temp.width = 4;
+#else
+	temp.width = 8;
+#endif
+	temp.sign = false;
+	temp.reg = AllocateTemporaryRegister(out, temp.width);
+	if (!Move(out, temp, src))
+		return false;
+	src = temp;
+
+	if (instr.params[1].type->GetClass() != TYPE_POINTER)
+		return false;
+	if (!instr.params[1].type->GetChildType()->GetStruct())
+		return false;
+
+	const StructMember* member = instr.params[1].type->GetChildType()->GetStruct()->GetMember(instr.params[2].stringValue);
+	if (!member)
+		return false;
+
+	OperandReference deref;
+	deref.type = OPERANDREF_MEM;
+	deref.width = dest.width;
+	deref.sign = dest.sign;
+	deref.mem.base = src.reg;
+	deref.mem.scale = 1;
+	deref.mem.index = NONE;
+	deref.mem.offset = member->offset;
+
+	temp.type = OPERANDREF_REG;
+	temp.sign = false;
+#ifdef OUTPUT32
+	temp.width = 4;
+#else
+	temp.width = 8;
+#endif
+	temp.reg = AllocateTemporaryRegister(out, temp.width);
+
+#ifdef OUTPUT32
+	EMIT_RM(lea_32, temp.reg, X86_MEM_REF(deref.mem));
+#else
+	EMIT_RM(lea_64, temp.reg, X86_MEM_REF(deref.mem));
+#endif
+
+	return Move(out, dest, temp);
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateDeref(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, src;
@@ -1090,64 +1151,19 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndex(OutputBlock* out, const ILInstruction
 		return false;
 	if (!PrepareLoad(out, instr.params[2], index))
 		return false;
-	if ((instr.params[1].type->GetClass() != TYPE_ARRAY) && (instr.params[1].type->GetClass() != TYPE_POINTER))
+	if (src.type != OPERANDREF_MEM)
+		return false;
+	if (src.mem.index != NONE)
+		return false;
+	if (!instr.params[1].type->GetChildType())
 		return false;
 
-	if (src.type != OPERANDREF_REG)
-	{
-		// Load source pointer into a register
-		OperandReference temp;
-		temp.type = OPERANDREF_REG;
-		temp.width = src.width;
-		temp.sign = src.sign;
-		temp.reg = AllocateTemporaryRegister(out, temp.width);
-		if (!Move(out, temp, src))
-			return false;
-		src = temp;
-	}
-
-	OperandType reg, highReg;
-	if (dest.type == OPERANDREF_REG)
-	{
-		reg = dest.reg;
-		highReg = dest.highReg;
-	}
-	else
-	{
-#ifdef OUTPUT32
-		if (dest.width == 8)
-		{
-			reg = AllocateTemporaryRegister(out, 4);
-			highReg = AllocateTemporaryRegister(out, 4);
-		}
-		else
-		{
-			reg = AllocateTemporaryRegister(out, dest.width);
-		}
-#else
-		reg = AllocateTemporaryRegister(out, dest.width);
-#endif
-	}
+	src.width = instr.params[1].type->GetChildType()->GetWidth();
+	src.sign = instr.params[1].type->GetChildType()->IsSigned();
 
 	if (index.type == OPERANDREF_IMMED)
-	{
-		if (dest.width == 1)
-			EMIT_RM(mov_8, reg, X86_MEM(src.reg, index.immed));
-		else if (dest.width == 2)
-			EMIT_RM(mov_16, reg, X86_MEM(src.reg, index.immed * 2));
-		else if (dest.width == 4)
-			EMIT_RM(mov_32, reg, X86_MEM(src.reg, index.immed * 4));
-		else if (dest.width == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_RM(mov_32, reg, X86_MEM(src.reg, index.immed * 8));
-			EMIT_RM(mov_32, highReg, X86_MEM(src.reg, (index.immed * 8) + 4));
-#else
-			EMIT_RM(mov_32, reg, X86_MEM(src.reg, index.immed * 8));
-#endif
-		}
-	}
-	else if ((dest.width == 1) || (dest.width == 2) || (dest.width == 4) || (dest.width == 8))
+		src.mem.offset += src.width * index.immed;
+	else if ((src.width == 1) || (src.width == 2) || (src.width == 4) || (src.width == 8))
 	{
 		if (index.type != OPERANDREF_REG)
 		{
@@ -1162,46 +1178,15 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndex(OutputBlock* out, const ILInstruction
 			index = temp;
 		}
 
-		if (dest.width == 1)
-			EMIT_RM(mov_8, reg, X86_MEM_INDEX(src.reg, index.reg, 1, 0));
-		else if (dest.width == 2)
-			EMIT_RM(mov_16, reg, X86_MEM_INDEX(src.reg, index.reg, 2, 0));
-		else if (dest.width == 4)
-			EMIT_RM(mov_32, reg, X86_MEM_INDEX(src.reg, index.reg, 4, 0));
-		else if (dest.width == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_RM(mov_32, reg, X86_MEM_INDEX(src.reg, index.reg, 8, 0));
-			EMIT_RM(mov_32, highReg, X86_MEM_INDEX(src.reg, index.reg, 8, 4));
-#else
-			EMIT_RM(mov_64, reg, X86_MEM_INDEX(src.reg, index.reg, 8, 0));
-#endif
-		}
+		src.mem.scale = src.width;
+		src.mem.index = index.reg;
 	}
 	else
 	{
 		return false;
 	}
 
-	if (dest.type == OPERANDREF_MEM)
-	{
-		if (dest.width == 1)
-			EMIT_MR(mov_8, X86_MEM_REF(dest.mem), reg);
-		else if (dest.width == 2)
-			EMIT_MR(mov_16, X86_MEM_REF(dest.mem), reg);
-		else if (dest.width == 4)
-			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), reg);
-		else if (dest.width == 8)
-		{
-#ifdef OUTPUT32
-			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), reg);
-			EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), highReg);
-#else
-			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), reg);
-#endif
-		}
-	}
-	return true;
+	return Move(out, dest, src);
 }
 
 
@@ -1214,32 +1199,18 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstr
 		return false;
 	if (!PrepareLoad(out, instr.params[2], src))
 		return false;
-	if ((instr.params[0].type->GetClass() != TYPE_ARRAY) && (instr.params[0].type->GetClass() != TYPE_POINTER))
+	if (dest.type != OPERANDREF_MEM)
+		return false;
+	if (dest.mem.index != NONE)
+		return false;
+	if (!instr.params[0].type->GetChildType())
 		return false;
 
-	if (dest.type != OPERANDREF_REG)
-	{
-		// Load destination pointer into a register
-		OperandReference temp;
-		temp.type = OPERANDREF_REG;
-		temp.width = dest.width;
-		temp.sign = dest.sign;
-		temp.reg = AllocateTemporaryRegister(out, temp.width);
-		if (!Move(out, temp, dest))
-			return false;
-		dest = temp;
-	}
+	dest.width = instr.params[0].type->GetChildType()->GetWidth();
+	dest.sign = instr.params[0].type->GetChildType()->IsSigned();
 
 	if (index.type == OPERANDREF_IMMED)
-	{
-		dest.type = OPERANDREF_MEM;
-		dest.sign = src.sign;
-		dest.width = src.width;
-		dest.mem.base = dest.reg;
-		dest.mem.scale = 1;
-		dest.mem.index = NONE;
-		dest.mem.offset = src.width * index.immed;
-	}
+		dest.mem.offset += src.width * index.immed;
 	else if ((dest.width == 1) || (dest.width == 2) || (dest.width == 4) || (dest.width == 8))
 	{
 		if (index.type != OPERANDREF_REG)
@@ -1255,13 +1226,8 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstr
 			index = temp;
 		}
 
-		dest.type = OPERANDREF_MEM;
-		dest.sign = src.sign;
-		dest.width = src.width;
-		dest.mem.base = dest.reg;
-		dest.mem.scale = src.width;
+		dest.mem.scale = dest.width;
 		dest.mem.index = index.reg;
-		dest.mem.offset = 0;
 	}
 	else
 	{
@@ -1269,6 +1235,200 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstr
 	}
 
 	return Move(out, dest, src);
+}
+
+
+bool OUTPUT_CLASS_NAME::GeneratePtrAdd(OutputBlock* out, const ILInstruction& instr)
+{
+	size_t width;
+	if (!instr.params[1].type->GetChildType())
+		return false;
+	width = instr.params[1].type->GetChildType()->GetWidth();
+	if (width == 1)
+		return GenerateAdd(out, instr);
+	if ((width != 2) && (width != 4) && (width != 8))
+		return false;
+
+	OperandReference dest, a, b;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+	if (b.type == OPERANDREF_MEM)
+	{
+		// Load count into register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = b.width;
+		temp.sign = b.sign;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+	else if (b.type == OPERANDREF_IMMED)
+	{
+		// Immediate count
+		b.immed *= width;
+		if (!Move(out, dest, a))
+			return false;
+		return Add(out, dest, b);
+	}
+
+	if (a.type != OPERANDREF_REG)
+	{
+		// Load pointer into register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.sign = a.sign;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, a))
+			return false;
+		a = temp;
+	}
+
+	if (dest.type == OPERANDREF_REG)
+	{
+#ifdef OUTPUT32
+		EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#else
+		EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#endif
+	}
+	else
+	{
+		OperandType temp = AllocateTemporaryRegister(out, dest.width);
+#ifdef OUTPUT32
+		EMIT_RM(lea_32, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
+#else
+		EMIT_RM(lea_64, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+		EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
+#endif
+	}
+
+	return true;
+}
+
+
+bool OUTPUT_CLASS_NAME::GeneratePtrSub(OutputBlock* out, const ILInstruction& instr)
+{
+	size_t width;
+	if (!instr.params[1].type->GetChildType())
+		return false;
+	width = instr.params[1].type->GetChildType()->GetWidth();
+	if (width == 1)
+		return GenerateSub(out, instr);
+	if ((width != 2) && (width != 4) && (width != 8))
+		return false;
+
+	OperandReference dest, a, b;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		// Immediate count
+		b.immed = -(b.immed * width);
+		if (!Move(out, dest, a))
+			return false;
+		return Add(out, dest, b);
+	}
+
+	// Load count into temporary register and negate
+	OperandReference countTemp;
+	countTemp.type = OPERANDREF_REG;
+	countTemp.width = b.width;
+	countTemp.sign = b.sign;
+	countTemp.reg = AllocateTemporaryRegister(out, countTemp.width);
+	if (!Move(out, countTemp, b))
+		return false;
+	b = countTemp;
+
+#ifdef OUTPUT32
+	EMIT_R(neg_32, b.reg);
+#else
+	EMIT_R(neg_64, b.reg);
+#endif
+
+	if (a.type != OPERANDREF_REG)
+	{
+		// Load pointer into register
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.sign = a.sign;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, a))
+			return false;
+		a = temp;
+	}
+
+	if (dest.type == OPERANDREF_REG)
+	{
+#ifdef OUTPUT32
+		EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#else
+		EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#endif
+	}
+	else
+	{
+		OperandType temp = AllocateTemporaryRegister(out, dest.width);
+#ifdef OUTPUT32
+		EMIT_RM(lea_32, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
+#else
+		EMIT_RM(lea_64, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+		EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
+#endif
+	}
+
+	return true;
+}
+
+
+bool OUTPUT_CLASS_NAME::GeneratePtrDiff(OutputBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, a, b;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+	if (!Move(out, dest, a))
+		return false;
+	if (!Sub(out, dest, b))
+		return false;
+
+	if (!instr.params[1].type->GetChildType())
+		return false;
+	size_t width = instr.params[1].type->GetChildType()->GetWidth();
+	if (width & (width - 1))
+	{
+		// Elements are not a power of two in size, must divide
+		return false;
+	}
+
+	size_t count = 0;
+	for (; width > 1; count++)
+		width >>= 1;
+
+	OperandReference countRef;
+	countRef.type = OPERANDREF_IMMED;
+	countRef.width = 1;
+	countRef.sign = false;
+	countRef.immed = count;
+	return ShiftRightSigned(out, dest, countRef);
 }
 
 
@@ -2951,6 +3111,10 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			if (!GenerateAddressOf(out, *i))
 				goto fail;
 			break;
+		case ILOP_ADDRESS_OF_MEMBER:
+			if (!GenerateAddressOfMember(out, *i))
+				goto fail;
+			break;
 		case ILOP_DEREF:
 			if (!GenerateDeref(out, *i))
 				goto fail;
@@ -2973,6 +3137,18 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			break;
 		case ILOP_ARRAY_INDEX_ASSIGN:
 			if (!GenerateArrayIndexAssign(out, *i))
+				goto fail;
+			break;
+		case ILOP_PTR_ADD:
+			if (!GeneratePtrAdd(out, *i))
+				goto fail;
+			break;
+		case ILOP_PTR_SUB:
+			if (!GeneratePtrSub(out, *i))
+				goto fail;
+			break;
+		case ILOP_PTR_DIFF:
+			if (!GeneratePtrDiff(out, *i))
 				goto fail;
 			break;
 		case ILOP_ADD:

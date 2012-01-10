@@ -1,7 +1,7 @@
 # Global defines
 GCC := gcc
 GXX := g++
-COMMON_CPPFLAGS := -g3 -Wstrict-aliasing=2 -fstrict-aliasing -march=nocona
+COMMON_CPPFLAGS := -g3 -fno-strict-aliasing -march=nocona
 CPPFLAGS := -Wall $(COMMON_CPPFLAGS)
 PARSER_CPPFLAGS := $(COMMON_CPPFLAGS)
 

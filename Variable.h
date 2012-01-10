@@ -4,6 +4,7 @@
 #include <map>
 #include "Type.h"
 #include "Expr.h"
+#include "Output.h"
 
 
 enum VariableClass
@@ -23,6 +24,9 @@ class Variable: public RefCountObject
 	Ref<Type> m_type;
 	std::string m_name;
 	Location m_location;
+
+	size_t m_dataSectionOffset;
+	OutputBlock m_data;
 
 	int64_t m_serializationIndex;
 	bool m_serializationIndexValid;
@@ -50,6 +54,10 @@ public:
 
 	const Location& GetLocation() const { return m_location; }
 	void SetLocation(const Location& loc) { m_location = loc; }
+
+	size_t GetDataSectionOffset() const { return m_dataSectionOffset; }
+	void SetDataSectionOffset(size_t offset) { m_dataSectionOffset = offset; }
+	const OutputBlock& GetData() const { return m_data; }
 
 	void Serialize(OutputBlock* output);
 	static Variable* Deserialize(InputBlock* input);

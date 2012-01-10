@@ -66,10 +66,6 @@ class OUTPUT_CLASS_NAME: public Output
 	bool m_framePointerEnabled;
 	asmx86::OperandType m_framePointer;
 
-	uint64_t m_blockAddress, m_instrAddress;
-	size_t m_instrStartLen;
-	bool m_finalPass;
-
 	size_t m_temporaryCount;
 	bool m_reserved[4];
 
@@ -77,6 +73,10 @@ class OUTPUT_CLASS_NAME: public Output
 	bool IsRegisterValid(asmx86::OperandType reg);
 	asmx86::OperandType AllocateTemporaryRegister(OutputBlock* out, size_t size);
 	void ReserveRegister(asmx86::OperandType reg);
+
+	static void LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+	static void ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+	static void UnconditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);
 
 	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref);
 	bool LoadCodePointer(OutputBlock* out, ILBlock* block, OperandReference& ref);
@@ -141,7 +141,7 @@ class OUTPUT_CLASS_NAME: public Output
 public:
 	OUTPUT_CLASS_NAME(const Settings& settings);
 
-	virtual bool GenerateCode(Function* func, bool finalPass);
+	virtual bool GenerateCode(Function* func);
 };
 
 

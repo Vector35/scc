@@ -224,6 +224,7 @@ int main(int argc, char* argv[])
 	settings.polymorph = false;
 	settings.seed = 0;
 	settings.staticBase = false;
+	settings.base = 0;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -1210,41 +1211,83 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	// Generate code on first pass.  This pass will generate the largest code possible when relative
-	// addresses are present and unresolved.  A final pass will be made to generate short relative
-	// references for those which are in range.
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
-	{
-		if (!out->GenerateCode(*i, false))
-			return 1;
-	}
+	// Generate data section
+	OutputBlock* dataSection = new OutputBlock;
+	dataSection->code = NULL;
+	dataSection->len = 0;
+	dataSection->maxLen = 0;
 
-	// Lay out address space for code
+	// Lay out address space for data
 	uint64_t addr = 0;
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
 	{
-		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+		if (addr & ((*i)->GetType()->GetAlignment() - 1))
+			addr += (*i)->GetType()->GetAlignment() - (addr & ((*i)->GetType()->GetAlignment() - 1));
+
+		(*i)->SetDataSectionOffset(addr);
+
+		dataSection->Write((*i)->GetData().code, (*i)->GetData().len);
+		if ((*i)->GetData().len < (*i)->GetType()->GetWidth())
 		{
-			(*j)->SetAddress(addr);
-			addr += (*j)->GetOutputBlock()->len;
+			uint8_t zero = 0;
+			for (size_t j = (*i)->GetData().len; j < (*i)->GetType()->GetWidth(); j++)
+				dataSection->Write(&zero, 1);
 		}
+
+		addr += (*i)->GetType()->GetWidth();
 	}
 
-	// Generate code on final pass
+	// Generate code for each block
 	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
 	{
-		if (!out->GenerateCode(*i, true))
+		if (!out->GenerateCode(*i))
 			return 1;
 	}
 
-	// Compute final addresses
-	addr = 0;
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	// Check relocations and ensure that everything is within bounds, and expand any references that are not
+	while (true)
 	{
-		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+		// Lay out address space for code
+		addr = settings.base;
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
 		{
-			(*j)->SetAddress(addr);
-			addr += (*j)->GetOutputBlock()->len;
+			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+			{
+				(*j)->SetAddress(addr);
+				addr += (*j)->GetOutputBlock()->len;
+			}
+		}
+
+		settings.dataSectionBase = addr;
+		if (settings.format == FORMAT_ELF)
+			settings.dataSectionBase = AdjustDataSectionBaseForElfFile(settings.dataSectionBase);
+
+		// Check relocations and gather the overflow list
+		vector<RelocationReference> overflows;
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		{
+			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+			{
+				if (!(*j)->CheckRelocations(settings.dataSectionBase, overflows))
+					return 1;
+			}
+		}
+
+		if (overflows.size() == 0)
+		{
+			// All relocations are within limits, ready to finalize
+			break;
+		}
+
+		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
+		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
+		{
+			i->reloc->overflow(i->block, i->reloc->start, i->reloc->offset);
+
+			if (i->reloc->type == CODE_RELOC_RELATIVE_8)
+				i->reloc->type = CODE_RELOC_RELATIVE_32;
+			else if (i->reloc->type == DATA_RELOC_RELATIVE_8)
+				i->reloc->type = DATA_RELOC_RELATIVE_32;
 		}
 	}
 
@@ -1253,16 +1296,10 @@ int main(int argc, char* argv[])
 	{
 		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
 		{
-			if (!(*j)->ResolveRelocations())
+			if (!(*j)->ResolveRelocations(settings.dataSectionBase))
 				return 1;
 		}
 	}
-
-	// Generate data section
-	OutputBlock* dataSection = new OutputBlock;
-	dataSection->code = NULL;
-	dataSection->len = 0;
-	dataSection->maxLen = 0;
 
 	// Generate code section
 	OutputBlock* codeSection = new OutputBlock;
@@ -1291,6 +1328,8 @@ int main(int argc, char* argv[])
 	case FORMAT_BIN:
 		memcpy(finalBinary->PrepareWrite(codeSection->len), codeSection->code, codeSection->len);
 		finalBinary->FinishWrite(codeSection->len);
+		memcpy(finalBinary->PrepareWrite(dataSection->len), dataSection->code, dataSection->len);
+		finalBinary->FinishWrite(dataSection->len);
 		break;
 	case FORMAT_ELF:
 		if (!GenerateElfFile(finalBinary, settings, codeSection, dataSection))

@@ -8,15 +8,26 @@
 
 enum RelocationType
 {
-	RELOC_RELATIVE_8,
-	RELOC_RELATIVE_32
+	CODE_RELOC_RELATIVE_8,
+	CODE_RELOC_RELATIVE_32,
+	CODE_RELOC_ABSOLUTE_32,
+	CODE_RELOC_ABSOLUTE_64,
+	DATA_RELOC_RELATIVE_8,
+	DATA_RELOC_RELATIVE_32,
+	DATA_RELOC_ABSOLUTE_32,
+	DATA_RELOC_ABSOLUTE_64
 };
 
 struct Relocation
 {
 	RelocationType type;
-	size_t offset;
-	ILBlock* target;
+	size_t offset, start;
+	void (*overflow)(OutputBlock* out, size_t start, size_t offset);
+	union
+	{
+		ILBlock* target;
+		size_t dataOffset;
+	};
 };
 
 struct OutputBlock
@@ -30,6 +41,8 @@ struct OutputBlock
 	void Write(const void* data, size_t len);
 	void WriteInteger(int64_t i);
 	void WriteString(const std::string& str);
+
+	void ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset);
 };
 
 struct InputBlock
@@ -51,6 +64,12 @@ struct InputBlock
 	bool ReadBool(bool& value);
 };
 
+struct RelocationReference
+{
+	OutputBlock* block;
+	Relocation* reloc;
+};
+
 
 class Output
 {
@@ -61,7 +80,7 @@ public:
 	Output(const Settings& settings);
 	virtual ~Output();
 
-	virtual bool GenerateCode(Function* func, bool finalPass) = 0;
+	virtual bool GenerateCode(Function* func) = 0;
 };
 
 

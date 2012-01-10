@@ -213,6 +213,53 @@ void OUTPUT_CLASS_NAME::ReserveRegister(OperandType reg)
 }
 
 
+void OUTPUT_CLASS_NAME::LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+{
+	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
+
+#ifdef OUTPUT64
+	// Skip REX prefix
+	if ((instr[0] & 0xf0) == 0x40)
+	{
+		start++;
+		instr++;
+	}
+#endif
+
+	// Use 32-bit displacement instead of 8-bit displacement
+	uint8_t modrm = (instr[1] & 0x3f) | 0x80;
+
+	uint8_t newInstr[15];
+	newInstr[0] = instr[0];
+	newInstr[1] = modrm;
+	memcpy(&newInstr[2], &instr[2], (offset - start) - 2);
+	*(uint32_t*)&newInstr[offset - start] = instr[offset - start] + 3;
+
+	out->ReplaceInstruction(start, (offset - start) + 1, newInstr, (offset - start) + 4, offset - start);
+}
+
+
+void OUTPUT_CLASS_NAME::ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+{
+	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
+	uint8_t newInstr[6];
+	newInstr[0] = 0x0f;
+	newInstr[1] = 0x80 + (instr[0] & 0x0f);
+	*(uint32_t*)&newInstr[2] = instr[1];
+	out->ReplaceInstruction(start, 2, newInstr, 6, 2);
+}
+
+
+void OUTPUT_CLASS_NAME::UnconditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+{
+	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
+	uint8_t newInstr[5];
+	newInstr[0] = 0xe9;
+	*(uint32_t*)&newInstr[1] = instr[1];
+	out->ReplaceInstruction(start, 2, newInstr, 5, 1);
+}
+
+
 bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref)
 {
 	if (param.cls == ILPARAM_MEMBER)
@@ -236,6 +283,59 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParamete
 
 	if (param.cls != ILPARAM_VAR)
 		return false;
+
+	if (param.variable->IsGlobal())
+	{
+#ifdef OUTPUT32
+		OperandType ptr = AllocateTemporaryRegister(out, 4);
+#else
+		OperandType ptr = AllocateTemporaryRegister(out, 8);
+#endif
+		ref.base = ptr;
+		ref.index = NONE;
+		ref.scale = 1;
+		ref.offset = 0;
+
+#ifdef OUTPUT32
+		if (m_settings.staticBase)
+		{
+			EMIT_RI(mov_32, ptr, 0);
+			Relocation reloc;
+			reloc.type = DATA_RELOC_ABSOLUTE_32;
+			reloc.offset = out->len - 4;
+			reloc.dataOffset = param.variable->GetDataSectionOffset();
+			out->relocs.push_back(reloc);
+			return true;
+		}
+
+		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+		buffer[0] = 0xe8;
+		*(uint32_t*)(&buffer[1]) = 0;
+		out->FinishWrite(5);
+		EMIT_R(pop, ptr);
+		size_t leaOffset = out->len;
+		EMIT_RM(lea_32, ptr, X86_MEM(ptr, 0x11));
+		*(int8_t*)((size_t)out->code + out->len - 1) = 4;
+
+		Relocation reloc;
+		reloc.type = DATA_RELOC_RELATIVE_8;
+		reloc.overflow = LeaOverflowHandler;
+		reloc.start = leaOffset;
+		reloc.offset = out->len - 1;
+		reloc.dataOffset = param.variable->GetDataSectionOffset();
+		out->relocs.push_back(reloc);
+#else
+		EMIT_RM(lea_64, ptr, X86_MEM(REG_RIP, 0));
+		Relocation reloc;
+		reloc.type = DATA_RELOC_RELATIVE_32;
+		reloc.offset = out->len - 4;
+		reloc.dataOffset = param.variable->GetDataSectionOffset();
+		out->relocs.push_back(reloc);
+#endif
+
+		return true;
+	}
+
 	map<Variable*, int32_t>::iterator i = m_stackFrame.find(param.variable);
 	if (i == m_stackFrame.end())
 		return false;
@@ -269,57 +369,29 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	ref.reg = AllocateTemporaryRegister(out, ref.width);
 
 #ifdef OUTPUT32
-	// On first pass, generate large relative code, as the first pass must generate
-	// the maximum code size for this block
-	bool large = true;
-	if (m_finalPass)
-	{
-		// Final pass, so we know the maximum offset, check to see if a short reference is possible
-		uint64_t curAddr = m_instrAddress + (out->len - m_instrStartLen) + 5;
-		int64_t maxOffset = block->GetAddress() - curAddr;
-		if ((maxOffset >= -0x80) && (maxOffset <= 0x7f))
-			large = false;
-	}
+	uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+	buffer[0] = 0xe8;
+	*(uint32_t*)(&buffer[1]) = 0;
+	out->FinishWrite(5);
+	EMIT_R(pop, ref.reg);
+	size_t leaOffset = out->len;
+	EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 0x11));
+	*(int8_t*)((size_t)out->code + out->len - 1) = 4;
 
-	if (large)
-	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-		buffer[0] = 0xe8;
-		*(uint32_t*)(&buffer[1]) = 0;
-		out->FinishWrite(5);
-		EMIT_R(pop, ref.reg);
-		EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 0x11111111));
-		*(int32_t*)((size_t)out->code + out->len - 4) = 7;
-
-		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_32;
-		reloc.offset = out->len - 4;
-		reloc.target = block;
-		out->relocs.push_back(reloc);
-	}
-	else
-	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-		buffer[0] = 0xe8;
-		*(uint32_t*)(&buffer[1]) = 0;
-		out->FinishWrite(5);
-		EMIT_R(pop, ref.reg);
-		EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 0x11));
-		*(int8_t*)((size_t)out->code + out->len - 1) = 4;
-
-		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_8;
-		reloc.offset = out->len - 1;
-		reloc.target = block;
-		out->relocs.push_back(reloc);
-	}
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_8;
+	reloc.overflow = LeaOverflowHandler;
+	reloc.start = leaOffset;
+	reloc.offset = out->len - 1;
+	reloc.target = block;
+	out->relocs.push_back(reloc);
 
 	return true;
 #else
 	EMIT_RM(lea_64, ref.reg, X86_MEM(REG_RIP, 0));
 
 	Relocation reloc;
-	reloc.type = RELOC_RELATIVE_32;
+	reloc.type = CODE_RELOC_RELATIVE_32;
 	reloc.offset = out->len - 4;
 	reloc.target = block;
 	out->relocs.push_back(reloc);
@@ -771,45 +843,18 @@ bool OUTPUT_CLASS_NAME::ShiftRightSigned(OutputBlock* out, const OperandReferenc
 
 void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock)
 {
-	// On first pass, generate large jump code, as the first pass must generate
-	// the maximum code size for this block
-	bool large = true;
-	if (m_finalPass)
-	{
-		// Final pass, so we know the maximum offset, check to see if a short jump is possible
-		uint64_t curAddr = m_instrAddress + (out->len - m_instrStartLen) + 2;
-		int64_t maxOffset = trueBlock->GetAddress() - curAddr;
-		if ((maxOffset >= -0x80) && (maxOffset <= 0x7f))
-			large = false;
-	}
+	uint8_t* buffer = (uint8_t*)out->PrepareWrite(2);
+	buffer[0] = 0x70 + (uint8_t)type;
+	buffer[1] = 0;
+	out->FinishWrite(2);
 
-	if (large)
-	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(6);
-		buffer[0] = 0x0f;
-		buffer[1] = 0x80 + (uint8_t)type;
-		*(uint32_t*)(&buffer[2]) = 0;
-		out->FinishWrite(6);
-
-		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_32;
-		reloc.offset = out->len - 4;
-		reloc.target = trueBlock;
-		out->relocs.push_back(reloc);
-	}
-	else
-	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(2);
-		buffer[0] = 0x70 + (uint8_t)type;
-		buffer[1] = 0;
-		out->FinishWrite(2);
-
-		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_8;
-		reloc.offset = out->len - 1;
-		reloc.target = trueBlock;
-		out->relocs.push_back(reloc);
-	}
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_8;
+	reloc.overflow = ConditionalJumpOverflowHandler;
+	reloc.start = out->len - 2;
+	reloc.offset = out->len - 1;
+	reloc.target = trueBlock;
+	out->relocs.push_back(reloc);
 
 	if (falseBlock)
 		UnconditionalJump(out, falseBlock);
@@ -818,44 +863,18 @@ void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType ty
 
 void OUTPUT_CLASS_NAME::UnconditionalJump(OutputBlock* out, ILBlock* block)
 {
-	// On first pass, generate large jump code, as the first pass must generate
-	// the maximum code size for this block
-	bool large = true;
-	if (m_finalPass)
-	{
-		// Final pass, so we know the maximum offset, check to see if a short jump is possible
-		uint64_t curAddr = m_instrAddress + (out->len - m_instrStartLen) + 2;
-		int64_t maxOffset = block->GetAddress() - curAddr;
-		if ((maxOffset >= -0x80) && (maxOffset <= 0x7f))
-			large = false;
-	}
+	uint8_t* buffer = (uint8_t*)out->PrepareWrite(2);
+	buffer[0] = 0xeb;
+	buffer[1] = 0;
+	out->FinishWrite(2);
 
-	if (large)
-	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-		buffer[0] = 0xe9;
-		*(uint32_t*)(&buffer[1]) = 0;
-		out->FinishWrite(5);
-
-		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_32;
-		reloc.offset = out->len - 4;
-		reloc.target = block;
-		out->relocs.push_back(reloc);
-	}
-	else
-	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(2);
-		buffer[0] = 0xeb;
-		buffer[1] = 0;
-		out->FinishWrite(2);
-
-		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_8;
-		reloc.offset = out->len - 1;
-		reloc.target = block;
-		out->relocs.push_back(reloc);
-	}
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_8;
+	reloc.overflow = UnconditionalJumpOverflowHandler;
+	reloc.start = out->len - 2;
+	reloc.offset = out->len - 1;
+	reloc.target = block;
+	out->relocs.push_back(reloc);
 }
 
 
@@ -2129,7 +2148,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 		out->FinishWrite(5);
 
 		Relocation reloc;
-		reloc.type = RELOC_RELATIVE_32;
+		reloc.type = CODE_RELOC_RELATIVE_32;
 		reloc.offset = out->len - 4;
 		reloc.target = instr.params[1].function->GetIL()[0];
 		out->relocs.push_back(reloc);
@@ -3087,16 +3106,9 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 {
-	m_blockAddress = block->GetAddress();
-
 	vector<ILInstruction>::iterator i;
-	size_t blockOffset = out->len;
 	for (i = block->GetInstructions().begin(); i != block->GetInstructions().end(); i++)
 	{
-		i->offset = out->len - blockOffset;
-		m_instrAddress = m_blockAddress + i->offset;
-		m_instrStartLen = out->len;
-
 		m_temporaryCount = 0;
 		memset(m_reserved, 0, sizeof(m_reserved));
 
@@ -3290,7 +3302,7 @@ fail:
 }
 
 
-bool OUTPUT_CLASS_NAME::GenerateCode(Function* func, bool finalPass)
+bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 {
 	// Generate stack frame
 	m_framePointer = DEFAULT_FRAME_POINTER;
@@ -3382,7 +3394,6 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func, bool finalPass)
 	}
 
 	bool first = true;
-	m_finalPass = finalPass;
 	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
 	{
 		OutputBlock* out = new OutputBlock;
@@ -3417,19 +3428,6 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func, bool finalPass)
 
 		if (!GenerateCodeBlock(out, *i))
 			return false;
-
-		if (finalPass)
-		{
-			// Perform sanity check on size, it should never get bigger.  If there are bugs
-			// which cause the code generator to have nondeterministic output (remeber that
-			// pseudorandom number generators are deterministic with a given seed) then it
-			// could get bigger and cause relocations to be out of range.
-			if (out->len > (*i)->GetOutputBlock()->len)
-			{
-				fprintf(stderr, "error: block grew during final pass\n");
-				return false;
-			}
-		}
 
 		(*i)->SetOutputBlock(out);
 	}

@@ -14,6 +14,9 @@ Variable::Variable()
 {
 	m_class = VAR_TEMP;
 	m_location.lineNumber = 0;
+	m_data.code = NULL;
+	m_data.len = 0;
+	m_data.maxLen = 0;
 	m_serializationIndexValid = false;
 }
 
@@ -24,6 +27,9 @@ Variable::Variable(VariableClass cls, Type* type, const string& name)
 	m_type = type;
 	m_name = name;
 	m_location.lineNumber = 0;
+	m_data.code = NULL;
+	m_data.len = 0;
+	m_data.maxLen = 0;
 	m_serializationIndexValid = false;
 }
 
@@ -35,6 +41,9 @@ Variable::Variable(size_t paramIndex, Type* type, const string& name)
 	m_type = type;
 	m_name = name;
 	m_location.lineNumber = 0;
+	m_data.code = NULL;
+	m_data.len = 0;
+	m_data.maxLen = 0;
 	m_serializationIndexValid = false;
 }
 

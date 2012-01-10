@@ -251,9 +251,8 @@ uint64_t AdjustBaseForElfFile(uint64_t fileBase, const Settings& settings)
 }
 
 
-uint64_t GetDataSectionBaseForElfFile(OutputBlock* codeSection, uint64_t entry)
+uint64_t AdjustDataSectionBaseForElfFile(uint64_t base)
 {
-	uint64_t base = entry + codeSection->len;
 	if (base & 0xfff)
 		base += 0x1000;
 	return base;

@@ -75,6 +75,41 @@ void OutputBlock::WriteString(const string& str)
 }
 
 
+void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset)
+{
+	// Ensure there is enough space in the buffer
+	if (newLen > origLen)
+		PrepareWrite(newLen - origLen);
+
+	// Move code after the instruction into place
+	memmove((void*)((size_t)code + offset + newLen), (void*)((size_t)code + offset + origLen),
+		(len - (offset + origLen)));
+
+	// Copy in the new instruction
+	memcpy((void*)((size_t)code + offset), newInstr, newLen);
+	len += newLen - origLen;
+
+	// Adjust relocation offsets
+	for (vector<Relocation>::iterator i = relocs.begin(); i != relocs.end(); i++)
+	{
+		if (i->offset < offset)
+			continue;
+
+		if (i->offset < (offset + origLen))
+		{
+			// This instruction's relocation
+			i->offset = offset + newRelocOffset;
+		}
+		else
+		{
+			// Relocation is after current instruction
+			i->start += newLen - origLen;
+			i->offset += newLen - origLen;
+		}
+	}
+}
+
+
 bool InputBlock::Read(void* data, size_t readLen)
 {
 	if ((offset + readLen) > len)

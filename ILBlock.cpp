@@ -601,7 +601,7 @@ void ILBlock::SetOutputBlock(OutputBlock* output)
 }
 
 
-bool ILBlock::ResolveRelocations()
+bool ILBlock::CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationReference>& overflows)
 {
 	if (!m_output)
 	{
@@ -614,23 +614,114 @@ bool ILBlock::ResolveRelocations()
 		int64_t diff;
 		switch (i->type)
 		{
-		case RELOC_RELATIVE_8:
+		case CODE_RELOC_RELATIVE_8:
 			diff = i->target->m_addr - (m_addr + i->offset + 1);
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				RelocationReference ref;
+				ref.block = m_output;
+				ref.reloc = &(*i);
+				overflows.push_back(ref);
+			}
+			break;
+		case CODE_RELOC_RELATIVE_32:
+			break;
+		case CODE_RELOC_ABSOLUTE_32:
+			break;
+		case CODE_RELOC_ABSOLUTE_64:
+			break;
+		case DATA_RELOC_RELATIVE_8:
+			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				RelocationReference ref;
+				ref.block = m_output;
+				ref.reloc = &(*i);
+				overflows.push_back(ref);
+			}
+			break;
+		case DATA_RELOC_RELATIVE_32:
+			break;
+		case DATA_RELOC_ABSOLUTE_32:
+			break;
+		case DATA_RELOC_ABSOLUTE_64:
+			break;
+		default:
+			fprintf(stderr, "error: invalid relocation\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
+{
+	if (!m_output)
+	{
+		fprintf(stderr, "error: resolving relocations for block that has no output\n");
+		return false;
+	}
+
+	for (vector<Relocation>::iterator i = m_output->relocs.begin(); i != m_output->relocs.end(); i++)
+	{
+		int64_t diff;
+		switch (i->type)
+		{
+		case CODE_RELOC_RELATIVE_8:
+			diff = i->target->m_addr - (m_addr + i->offset + 1);
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				fprintf(stderr, "error: 8-bit relative reference out of range\n");
 				return false;
 			}
-			*(int8_t*)((size_t)m_output->code + i->offset) += (int8_t)diff;
+			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
 			break;
-		case RELOC_RELATIVE_32:
+		case CODE_RELOC_RELATIVE_32:
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
+			diff += *(int32_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{
 				fprintf(stderr, "error: 32-bit relative reference out of range\n");
 				return false;
 			}
-			*(int32_t*)((size_t)m_output->code + i->offset) += (int32_t)diff;
+			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			break;
+		case CODE_RELOC_ABSOLUTE_32:
+			*(uint32_t*)((size_t)m_output->code + i->offset) = (uint32_t)(i->target->m_addr);
+			break;
+		case CODE_RELOC_ABSOLUTE_64:
+			*(uint64_t*)((size_t)m_output->code + i->offset) = i->target->m_addr;
+			break;
+		case DATA_RELOC_RELATIVE_8:
+			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				fprintf(stderr, "error: 8-bit relative reference out of range\n");
+				return false;
+			}
+			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			break;
+		case DATA_RELOC_RELATIVE_32:
+			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
+			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
+			{
+				fprintf(stderr, "error: 32-bit relative reference out of range\n");
+				return false;
+			}
+			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			break;
+		case DATA_RELOC_ABSOLUTE_32:
+			*(uint32_t*)((size_t)m_output->code + i->offset) = (uint32_t)(dataSectionBase + i->dataOffset);
+			break;
+		case DATA_RELOC_ABSOLUTE_64:
+			*(uint64_t*)((size_t)m_output->code + i->offset) = dataSectionBase + i->dataOffset;
 			break;
 		default:
 			fprintf(stderr, "error: invalid relocation\n");

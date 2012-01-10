@@ -56,6 +56,7 @@ struct Settings
 
 	bool staticBase;
 	uint64_t base;
+	uint64_t dataSectionBase;
 };
 
 #endif

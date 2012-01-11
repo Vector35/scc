@@ -440,6 +440,7 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 
 		i->second->SetVariables(m_currentScope->GetRoot()->GetVariables());
 		i->second->SetBody(body);
+		i->second->SetLocation(func.location);
 		return;
 	}
 

@@ -68,6 +68,7 @@ public:
 
 	void SetVariables(const std::vector< Ref<Variable> >& vars) { m_vars = vars; }
 	void SetBody(Expr* body) { m_body = body; }
+	void SetLocation(const Location& loc) { m_location = loc; }
 
 	Type* GetReturnValue() const { return m_returnValue; }
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }

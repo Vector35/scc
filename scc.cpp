@@ -954,15 +954,11 @@ int main(int argc, char* argv[])
 								prev->GetName().c_str());
 						}
 
-						if (prev->IsFullyDefined())
-						{
-							// Function has already been fully defined, replace references
-							// with the full function
-							for (map< string, Ref<Function> >::const_iterator j =
-								parser.GetFunctions().begin(); j != parser.GetFunctions().end(); j++)
-								j->second->ReplaceFunction(i->second, prev);
-							parser.GetInitExpression()->ReplaceFunction(i->second, prev);
-						}
+						// Replace references with existing definition
+						for (map< string, Ref<Function> >::const_iterator j =
+							parser.GetFunctions().begin(); j != parser.GetFunctions().end(); j++)
+							j->second->ReplaceFunction(i->second, prev);
+						parser.GetInitExpression()->ReplaceFunction(i->second, prev);
 					}
 					else
 					{

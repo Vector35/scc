@@ -1,11 +1,6 @@
 char* strcpy(char* dest, const char* src)
 {
-	char* start = dest;
-	char ch;
-	while ((ch = *(src++)) != 0)
-		*(dest++) = ch;
-	*dest = 0;
-	return start;
+	return (char*)memcpy(dest, src, strlen(src) + 1);
 }
 
 size_t strlen(const char* str)

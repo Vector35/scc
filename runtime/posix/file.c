@@ -10,7 +10,7 @@ int fputs(const char* str, FILE* fp)
 
 int puts(const char* str)
 {
-	return fputs(str, stdin);
+	return fputs(str, stdout);
 }
 
 int fgetc(FILE* fp)

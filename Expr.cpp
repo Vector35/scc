@@ -934,7 +934,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		for (size_t i = 0; i < m_children[0]->GetType()->GetParams().size(); i++)
 		{
 			if ((!m_children[i + 1]->GetType()->CanAssignTo(*m_children[0]->GetType()->GetParams()[i])) &&
-				((m_children[i + 1]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) ||
+				((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) ||
 				(m_children[i + 1]->GetClass() != EXPR_INT) || (m_children[i + 1]->GetIntValue() != 0)))
 			{
 				state->Error();
@@ -1016,13 +1016,15 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		break;
 	case EXPR_MEMCPY:
 		m_type = Type::PointerType(Type::VoidType(), 1);
-		if (m_children[0]->GetType()->GetClass() != TYPE_POINTER)
+		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer for destination in 'memcpy'\n",
 				m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		if (m_children[1]->GetType()->GetClass() != TYPE_POINTER)
+		if ((m_children[1]->GetType()->GetClass() != TYPE_POINTER) &&
+			(m_children[1]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer for source in 'memcpy'\n",
@@ -1038,7 +1040,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		break;
 	case EXPR_MEMSET:
 		m_type = Type::PointerType(Type::VoidType(), 1);
-		if (m_children[0]->GetType()->GetClass() != TYPE_POINTER)
+		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer for destination in 'memset'\n",
@@ -1880,6 +1883,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		break;
 	case EXPR_DOT:
 		a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
+		a.type = m_type;
 		if (m_type->GetClass() == TYPE_ARRAY)
 		{
 			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
@@ -1888,7 +1892,6 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		else
 		{
 			result = a;
-			result.type = m_type;
 		}
 		break;
 	case EXPR_ARROW:

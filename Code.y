@@ -657,19 +657,19 @@ var_type:	primitive_type  { $$ = $1; }
 	|	primitive_type ptr_decorator { $$ = Type::PointerType($1, $2); $$->AddRef(); }
 	|	CONST_TOK primitive_type ptr_decorator { $$ = Type::PointerType($2, $3); $$->AddRef(); $$->SetConst(true); }
 	|	STRUCT LBRACE struct_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
-	|	STRUCT ID LBRACE struct_member_list RBRACE
+	|	STRUCT ID LBRACE { state->DefineStructType($2, Type::StructType(new Struct(true))); } struct_member_list RBRACE
 		{
-			$$ = $4;
+			$$ = $5;
 			$$->GetStruct()->Complete();
-			state->DefineStructType($2, $4);
+			state->DefineStructType($2, $5);
 			free($2);
 		}
 	|	UNION LBRACE union_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
-	|	UNION ID LBRACE union_member_list RBRACE
+	|	UNION ID LBRACE { state->DefineUnionType($2, Type::StructType(new Struct(false))); } union_member_list RBRACE
 		{
-			$$ = $4;
+			$$ = $5;
 			$$->GetStruct()->Complete();
-			state->DefineUnionType($2, $4);
+			state->DefineUnionType($2, $5);
 			free($2);
 		}
 	|	ENUM LBRACE enum_member_list RBRACE  { $$ = $3; $$->GetEnum()->Complete(); }

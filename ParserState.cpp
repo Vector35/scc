@@ -354,6 +354,8 @@ void ParserState::BeginFunctionScope(const FunctionInfo& func)
 	{
 		if (func.params[i].second.size() == 0)
 			continue;
+		if (func.params[i].second == "...")
+			continue;
 
 		m_currentScope->DefineVariable(new Variable(i, func.params[i].first, func.params[i].second));
 	}

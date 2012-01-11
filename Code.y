@@ -75,6 +75,7 @@ void Code_error(ParserState* state, const char* msg)
 %token SEMICOLON COMMA
 %token LOGICAL_OR LOGICAL_AND LOGICAL_NOT
 %token SHIFT_LEFT SHIFT_RIGHT
+%token ELLIPSIS
 %token <intval> INT_VAL
 %token <floatval> FLOAT_VAL
 %token <str> STRING_VAL CHAR_VAL
@@ -605,7 +606,17 @@ param_list:	param_list_nonempty  { $$ = $1; }
 	|	{ $$ = new vector< pair< Ref<Type>, string > >(); }
 	;
 
-param_list_nonempty:	param_list_nonempty COMMA param  { $$ = $1; $$->insert($$->end(), $3->begin(), $3->end()); delete $3; }
+param_list_nonempty:	param_list_nonempty COMMA param
+			{
+				$$ = $1;
+				if (($$->size() > 0) && ((*$$)[$$->size() - 1].second == "..."))
+				{
+					Code_error(state, "variable arguments must be last");
+					$$->erase($$->end() - 1);
+				}
+				$$->insert($$->end(), $3->begin(), $3->end());
+				delete $3;
+			}
 		|	param  { $$ = $1; }
 		;
 
@@ -649,6 +660,11 @@ param:	var_type ID
 		$$->push_back(pair< Ref<Type>, string >(Type::ArrayType($1, $3->ComputeIntegerValue(state)), ""));
 		$1->Release();
 		$3->Release();
+	}
+|	ELLIPSIS
+	{
+		$$ = new vector< pair< Ref<Type>, string > >();
+		$$->push_back(pair< Ref<Type>, string >(NULL, "..."));
 	}
 ;
 

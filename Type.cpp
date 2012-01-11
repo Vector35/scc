@@ -37,6 +37,7 @@ Type::Type(Type* type)
 	m_childType = type->m_childType;
 	m_callingConvention = type->m_callingConvention;
 	m_params = type->m_params;
+	m_variableArguments = type->m_variableArguments;
 	m_struct = type->m_struct;
 	m_enum = type->m_enum;
 	m_elements = type->m_elements;
@@ -116,6 +117,8 @@ bool Type::operator==(const Type& type) const
 			return false;
 		if (m_params.size() != type.m_params.size())
 			return false;
+		if (m_variableArguments != type.m_variableArguments)
+			return false;
 		for (size_t i = 0; i < m_params.size(); i++)
 		{
 			if ((*m_params[i]) != (*type.m_params[i]))
@@ -164,6 +167,8 @@ bool Type::CanAssignTo(const Type& type) const
 		if (m_callingConvention != type.m_callingConvention)
 			return false;
 		if (m_params.size() != type.m_params.size())
+			return false;
+		if (m_variableArguments != type.m_variableArguments)
 			return false;
 		for (size_t i = 0; i < m_params.size(); i++)
 		{
@@ -273,9 +278,15 @@ Type* Type::FunctionType(Type* returnValue, CallingConvention cc, const vector< 
 	type->m_callingConvention = cc;
 	type->m_width = GetTargetPointerSize();
 	type->m_alignment = GetTargetPointerSize();
+	type->m_variableArguments = false;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = params.begin(); i != params.end(); i++)
-		type->m_params.push_back(i->first);
+	{
+		if (i->second == "...")
+			type->m_variableArguments = true;
+		else
+			type->m_params.push_back(i->first);
+	}
 
 	return type;
 }
@@ -331,6 +342,7 @@ void Type::Serialize(OutputBlock* output)
 		output->WriteInteger(m_params.size());
 		for (vector< Ref<Type> >::iterator i = m_params.begin(); i != m_params.end(); i++)
 			(*i)->Serialize(output);
+		output->WriteInteger(m_variableArguments ? 1 : 0);
 		break;
 	default:
 		break;
@@ -395,6 +407,8 @@ bool Type::DeserializeInternal(InputBlock* input)
 				return false;
 			m_params.push_back(type);
 		}
+		if (!input->ReadBool(m_variableArguments))
+			return false;
 		break;
 	default:
 		break;
@@ -489,6 +503,8 @@ void Type::Print()
 				fprintf(stderr, ", ");
 			m_params[i]->Print();
 		}
+		if (m_variableArguments)
+			fprintf(stderr, ", ...");
 		fprintf(stderr, ")");
 		break;
 	default:

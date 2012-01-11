@@ -115,6 +115,7 @@
 ">="		TOKSTR(TOKEN, yytext)
 ">"		TOKSTR(TOKEN, yytext)
 "~"		TOKSTR(TOKEN, yytext)
+"..."		TOKSTR(TOKEN, yytext)
 "."		TOKSTR(TOKEN, yytext)
 "->"		TOKSTR(TOKEN, yytext)
 ":"		TOKSTR(TOKEN, yytext)

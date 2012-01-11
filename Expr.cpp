@@ -943,6 +943,13 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			}
 			m_children[i + 1] = m_children[i + 1]->ConvertToType(state, m_children[0]->GetType()->GetParams()[i]);
 		}
+		if (((m_children.size() - 1) > m_children[0]->GetType()->GetParams().size()) &&
+			(!m_children[0]->GetType()->HasVariableArguments()))
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: too many parameters in call\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+		}
 		break;
 	case EXPR_MIN:
 	case EXPR_MAX:

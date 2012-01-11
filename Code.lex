@@ -109,6 +109,7 @@
 ">="		TOK(GREATER_EQUAL)
 ">"		TOK(GREATER_THAN)
 "~"		TOK(NOT)
+"..."		TOK(ELLIPSIS)
 "."		TOK(DOT)
 "->"		TOK(ARROW)
 ":"		TOK(COLON)

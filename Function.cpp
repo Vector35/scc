@@ -14,6 +14,7 @@ map< size_t, Ref<Function> > Function::m_serializationMap;
 Function::Function()
 {
 	m_callingConvention = CALLING_CONVENTION_DEFAULT;
+	m_variableArguments = false;
 	m_location.lineNumber = 0;
 	m_nextTempId = 0;
 	m_defaultBlock = NULL;
@@ -28,6 +29,7 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 	m_returnValue = info.returnValue;
 	m_callingConvention = info.callingConvention;
 	m_name = info.name;
+	m_variableArguments = false;
 	m_location = info.location;
 	m_nextTempId = 0;
 	m_defaultBlock = NULL;
@@ -37,10 +39,15 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
-		FunctionParameter param;
-		param.type = i->first;
-		param.name = i->second;
-		m_params.push_back(param);
+		if (i->second == "...")
+			m_variableArguments = true;
+		else
+		{
+			FunctionParameter param;
+			param.type = i->first;
+			param.name = i->second;
+			m_params.push_back(param);
+		}
 	}
 }
 
@@ -50,6 +57,7 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 	m_returnValue = info.returnValue;
 	m_callingConvention = info.callingConvention;
 	m_name = info.name;
+	m_variableArguments = false;
 	m_location = info.location;
 	m_vars = vars;
 	m_body = body;
@@ -61,10 +69,15 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
-		FunctionParameter param;
-		param.type = i->first;
-		param.name = i->second;
-		m_params.push_back(param);
+		if (i->second == "...")
+			m_variableArguments = true;
+		else
+		{
+			FunctionParameter param;
+			param.type = i->first;
+			param.name = i->second;
+			m_params.push_back(param);
+		}
 	}
 }
 
@@ -87,6 +100,7 @@ Function* Function::Duplicate(DuplicateContext& dup)
 	func->m_returnValue = m_returnValue->Duplicate(dup);
 	func->m_callingConvention = m_callingConvention;
 	func->m_name = m_name;
+	func->m_variableArguments = m_variableArguments;
 	func->m_location = m_location;
 	func->m_body = (m_body != NULL) ? m_body->Duplicate(dup) : NULL;
 	func->m_localScope = m_localScope;
@@ -109,18 +123,28 @@ Function* Function::Duplicate(DuplicateContext& dup)
 
 bool Function::IsCompatible(const FunctionInfo& info)
 {
-	return IsCompatible(info.returnValue, info.callingConvention, info.params);
+	vector< pair< Ref<Type>, string > > params = info.params;
+	bool variableArguments = false;
+	if ((params.size() > 0) && (params[params.size() - 1].second == "..."))
+	{
+		params.erase(params.end() - 1);
+		variableArguments = true;
+	}
+
+	return IsCompatible(info.returnValue, info.callingConvention, params, variableArguments);
 }
 
 
 bool Function::IsCompatible(Type* returnValue, CallingConvention callingConvention,
-	const vector< pair< Ref<Type>, string > >& params)
+	const vector< pair< Ref<Type>, string > >& params, bool variableArguments)
 {
 	if ((*m_returnValue) != (*returnValue))
 		return false;
 	if (callingConvention != m_callingConvention)
 		return false;
 	if (params.size() != m_params.size())
+		return false;
+	if (variableArguments != m_variableArguments)
 		return false;
 
 	for (size_t i = 0; i < params.size(); i++)
@@ -138,6 +162,8 @@ Type* Function::GetType() const
 	vector< pair< Ref<Type>, string > > params;
 	for (vector<FunctionParameter>::const_iterator i = m_params.begin(); i != m_params.end(); i++)
 		params.push_back(pair< Ref<Type>, string >(i->type, i->name));
+	if (m_variableArguments)
+		params.push_back(pair< Ref<Type>, string >(NULL, "..."));
 	return Type::FunctionType(m_returnValue, m_callingConvention, params);
 }
 
@@ -307,6 +333,7 @@ void Function::Serialize(OutputBlock* output)
 	m_returnValue->Serialize(output);
 	output->WriteInteger(m_callingConvention);
 	output->WriteString(m_name);
+	output->WriteInteger(m_variableArguments ? 1 : 0);
 
 	output->WriteInteger(m_params.size());
 	for (vector<FunctionParameter>::iterator i = m_params.begin(); i != m_params.end(); i++)
@@ -348,6 +375,8 @@ bool Function::DeserializeInternal(InputBlock* input)
 	m_callingConvention = (CallingConvention)convention;
 
 	if (!input->ReadString(m_name))
+		return false;
+	if (!input->ReadBool(m_variableArguments))
 		return false;
 
 	size_t paramCount;
@@ -470,6 +499,9 @@ void Function::Print()
 		if (m_params[i].name.size() != 0)
 			fprintf(stderr, " %s", m_params[i].name.c_str());
 	}
+
+	if (m_variableArguments)
+		fprintf(stderr, ", ...");
 
 	fprintf(stderr, ")\n");
 

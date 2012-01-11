@@ -37,6 +37,7 @@ class Function: public RefCountObject
 	CallingConvention m_callingConvention;
 	std::string m_name;
 	std::vector<FunctionParameter> m_params;
+	bool m_variableArguments;
 	Location m_location;
 	std::vector< Ref<Variable> > m_vars;
 	Ref<Expr> m_body;
@@ -74,6 +75,7 @@ public:
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }
 	const std::string& GetName() const { return m_name; }
 	const std::vector<FunctionParameter>& GetParameters() const { return m_params; }
+	bool HasVariableArguments() const { return m_variableArguments; }
 	Location GetLocation() const { return m_location; }
 	const std::vector< Ref<Variable> >& GetVariables() { return m_vars; }
 	Expr* GetBody() const { return m_body; }
@@ -82,7 +84,8 @@ public:
 	bool IsLocalScope() const { return m_localScope; }
 	bool IsCompatible(const FunctionInfo& info);
 	bool IsCompatible(Type* returnValue, CallingConvention callingConvention,
-		const std::vector< std::pair< Ref<Type>, std::string > >& params);
+		const std::vector< std::pair< Ref<Type>, std::string > >& params,
+		bool variableArguments);
 
 	Type* GetType() const;
 

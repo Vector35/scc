@@ -41,6 +41,7 @@ class Type: public RefCountObject
 	Ref<Type> m_childType;
 	CallingConvention m_callingConvention;
 	std::vector< Ref<Type> > m_params;
+	bool m_variableArguments;
 	Ref<Struct> m_struct;
 	Ref<Enum> m_enum;
 	size_t m_elements;
@@ -66,6 +67,7 @@ public:
 	Type* GetChildType() const { return m_childType; }
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }
 	const std::vector< Ref<Type> >& GetParams() const { return m_params; }
+	bool HasVariableArguments() const { return m_variableArguments; }
 	Struct* GetStruct() const { return m_struct; }
 	Enum* GetEnum() const { return m_enum; }
 	size_t GetElements() const { return m_elements; }

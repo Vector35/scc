@@ -900,7 +900,7 @@ int main(int argc, char* argv[])
 								prev->GetParameters().begin(); j != prev->GetParameters().end(); j++)
 								params.push_back(pair< Ref<Type>, string>(j->type, j->name));
 							if (!i->second->IsCompatible(prev->GetReturnValue(),
-								prev->GetCallingConvention(), params))
+								prev->GetCallingConvention(), params, prev->HasVariableArguments()))
 							{
 								parser.Error();
 								fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
@@ -941,7 +941,7 @@ int main(int argc, char* argv[])
 							prev->GetParameters().begin(); j != prev->GetParameters().end(); j++)
 							params.push_back(pair< Ref<Type>, string>(j->type, j->name));
 						if (!i->second->IsCompatible(prev->GetReturnValue(),
-							prev->GetCallingConvention(), params))
+							prev->GetCallingConvention(), params, prev->HasVariableArguments()))
 						{
 							parser.Error();
 							fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",

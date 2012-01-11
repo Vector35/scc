@@ -158,7 +158,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_type = Type::FloatType(0);
 		break;
 	case EXPR_STRING:
-		m_type = Type::PointerType(Type::IntType(1, true), 1); // const char*
+		m_type = Type::ArrayType(Type::IntType(1, true), m_stringValue.size() + 1); // const char[]
 		m_type->SetConst(true);
 		break;
 	case EXPR_TRUE:
@@ -670,7 +670,18 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 					m_location.lineNumber);
 			}
 		}
-		else if ((*m_children[0]->GetType()) != (*m_children[1]->GetType()))
+		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			// Special case NULL, which is simply integer constant zero
+			if ((!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType())) &&
+				((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0)))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+			}
+		}
+		else if (!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
@@ -718,7 +729,18 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			fprintf(stderr, "%s:%d: error: structure/array initializers not yet implemented\n",
 				m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		else if ((*m_children[0]->GetType()) != (*m_children[1]->GetType()))
+		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		{
+			// Special case NULL, which is simply integer constant zero
+			if ((!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType())) &&
+				((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0)))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+			}
+		}
+		else if (!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
@@ -910,7 +932,17 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		}
 		m_type = m_children[0]->GetType()->GetChildType();
 		for (size_t i = 0; i < m_children[0]->GetType()->GetParams().size(); i++)
+		{
+			if ((!m_children[i + 1]->GetType()->CanAssignTo(*m_children[0]->GetType()->GetParams()[i])) &&
+				((m_children[i + 1]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) ||
+				(m_children[i + 1]->GetClass() != EXPR_INT) || (m_children[i + 1]->GetIntValue() != 0)))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in parameter %d\n", m_location.fileName.c_str(),
+					m_location.lineNumber, (int)i + 1);
+			}
 			m_children[i + 1] = m_children[i + 1]->ConvertToType(state, m_children[0]->GetType()->GetParams()[i]);
+		}
 		break;
 	case EXPR_MIN:
 	case EXPR_MAX:
@@ -1052,6 +1084,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			if ((m_children[0]->GetType()->GetClass() != TYPE_INT) &&
 				(m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+				(m_children[0]->GetType()->GetClass() != TYPE_ARRAY) &&
 				(m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
 			{
 				state->Error();
@@ -1097,7 +1130,18 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 					m_location.lineNumber);
 			}
 		}
-		else if ((*func->GetReturnValue()) != (*m_children[0]->GetType()))
+		else if (func->GetReturnValue()->GetClass() == TYPE_POINTER)
+		{
+			// Special case NULL, which is simply integer constant zero
+			if ((!m_children[0]->GetType()->CanAssignTo(*func->GetReturnValue())) &&
+				((m_children[0]->GetClass() != EXPR_INT) || (m_children[0]->GetIntValue() != 0)))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in return\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+			}
+		}
+		else if (!m_children[0]->GetType()->CanAssignTo(*func->GetReturnValue()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in return\n", m_location.fileName.c_str(),
@@ -1767,6 +1811,9 @@ ILParameter Expr::GenerateArrayAccessIL(ParserState* state, Function* func, ILBl
 
 	switch (m_class)
 	{
+	case EXPR_STRING:
+		result = ILParameter(m_stringValue);
+		break;
 	case EXPR_VARIABLE:
 		result = ILParameter(m_variable);
 		break;
@@ -1808,7 +1855,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(m_type, m_floatValue);
 		break;
 	case EXPR_STRING:
-		result = ILParameter(m_stringValue);
+		result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
+		block->AddInstruction(ILOP_ADDRESS_OF, result, ILParameter(m_stringValue));
 		break;
 	case EXPR_TRUE:
 		result = ILParameter(true);

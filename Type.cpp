@@ -128,6 +128,55 @@ bool Type::operator==(const Type& type) const
 }
 
 
+bool Type::CanAssignTo(const Type& type) const
+{
+	if ((m_class != type.m_class) && (!((m_class == TYPE_ARRAY) && (type.m_class == TYPE_POINTER))) &&
+		(!((m_class == TYPE_ENUM) && (type.m_class == TYPE_INT))))
+		return false;
+	if (m_const && (!type.m_const))
+		return false;
+
+	switch (m_class)
+	{
+	case TYPE_STRUCT:
+		return m_struct == type.m_struct;
+	case TYPE_ENUM:
+		if (type.m_class == TYPE_INT)
+			return true;
+		return m_enum == type.m_enum;
+	case TYPE_POINTER:
+		if (type.m_childType->m_class == TYPE_VOID)
+			return true;
+		return (*m_childType) == (*type.m_childType);
+	case TYPE_ARRAY:
+		if (type.m_class == TYPE_POINTER)
+		{
+			if (type.m_childType->m_class == TYPE_VOID)
+				return true;
+			return (*m_childType) == (*type.m_childType);
+		}
+		if ((*m_childType) != (*type.m_childType))
+			return false;
+		return m_elements == type.m_elements;
+	case TYPE_FUNCTION:
+		if ((*m_childType) != (*type.m_childType))
+			return false;
+		if (m_callingConvention != type.m_callingConvention)
+			return false;
+		if (m_params.size() != type.m_params.size())
+			return false;
+		for (size_t i = 0; i < m_params.size(); i++)
+		{
+			if ((*m_params[i]) != (*type.m_params[i]))
+				return false;
+		}
+		return true;
+	default:
+		return true;
+	}
+}
+
+
 Type* Type::VoidType()
 {
 	return new Type();

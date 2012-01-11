@@ -48,7 +48,7 @@ ILParameter::ILParameter(const string& str, ILParameterClass c)
 {
 	cls = c;
 	stringValue = str;
-	type = Type::PointerType(Type::IntType(1, true), 1); // const char*
+	type = Type::ArrayType(Type::IntType(1, true), str.size() + 1); // const char[]
 	type->SetConst(true);
 }
 
@@ -173,6 +173,28 @@ void ILParameter::CheckForUndefinedReferences(size_t& errors)
 		errors++;
 		fprintf(stderr, "error: undefined reference to '%s'\n", variable->GetName().c_str());
 	}
+}
+
+
+void ILParameter::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
+{
+	if (cls != ILPARAM_STRING)
+		return;
+
+	map< string, Ref<Variable> >::iterator i = stringMap.find(stringValue);
+	if (i != stringMap.end())
+	{
+		cls = ILPARAM_VAR;
+		variable = i->second;
+		return;
+	}
+
+	Variable* var = new Variable(VAR_GLOBAL, type, string("$str$" + stringValue));
+	var->GetData().Write(stringValue.c_str(), stringValue.size() + 1);
+	stringMap[stringValue] = var;
+
+	cls = ILPARAM_VAR;
+	variable = var;
 }
 
 
@@ -402,6 +424,13 @@ void ILInstruction::CheckForUndefinedReferences(size_t& errors)
 }
 
 
+void ILInstruction::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
+{
+	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
+		i->ConvertStringsToVariables(stringMap);
+}
+
+
 void ILInstruction::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(operation);
@@ -586,6 +615,13 @@ void ILBlock::CheckForUndefinedReferences(size_t& errors)
 {
 	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
 		i->CheckForUndefinedReferences(errors);
+}
+
+
+void ILBlock::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
+{
+	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
+		i->ConvertStringsToVariables(stringMap);
 }
 
 

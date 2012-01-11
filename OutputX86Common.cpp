@@ -3097,7 +3097,15 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #else
 		EMIT(syscall);
 #endif
-		return true;
+
+		OperandReference dest, result;
+		if (!PrepareStore(out, instr.params[0], dest))
+			return false;
+		result.type = OPERANDREF_REG;
+		result.sign = false;
+		result.width = dest.width;
+		result.reg = GetRegisterOfSize(REG_EAX, result.width);
+		return Move(out, dest, result);
 	}
 
 	return false;

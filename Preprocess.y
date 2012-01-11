@@ -49,17 +49,17 @@ void Preprocess_error(PreprocessState* state, const char* msg)
 %token LPAREN RPAREN COMMA
 %token NEWLINE PASTE
 
-%token DEFINE_TOK UNDEF_TOK IFDEF_TOK IFNDEF_TOK ELSE_TOK ENDIF_TOK
+%token UNDEF_TOK IFDEF_TOK IFNDEF_TOK ELSE_TOK ENDIF_TOK
 
-%token <str> ID TOKEN MACRO
+%token <str> ID TOKEN MACRO DEFINE_PARAMS DEFINE_NO_PARAMS
 
-%destructor { free($$); } ID TOKEN MACRO id_or_macro
+%destructor { free($$); } ID TOKEN MACRO DEFINE_PARAMS DEFINE_NO_PARAMS id_or_macro
 %destructor { delete $$; } token_list
 %destructor { delete $$; } param_list
-%destructor { $$->Release(); } token non_lparen
+%destructor { $$->Release(); } token
 
 %type <tokens> token_list
-%type <token> token non_lparen
+%type <token> token
 %type <params> param_list
 %type <str> id_or_macro
 
@@ -79,51 +79,40 @@ toplevel_stmt:	output_token_list NEWLINE
 	|	IFNDEF_TOK id_or_macro NEWLINE  { state->BeginIf(!state->IsDefined($2)); free($2); }
 	|	ELSE_TOK NEWLINE  { state->Else(); }
 	|	ENDIF_TOK NEWLINE  { state->EndIf(); }
-	|	DEFINE_TOK id_or_macro non_lparen NEWLINE
+	|	DEFINE_NO_PARAMS NEWLINE
 		{
-			std::vector< Ref<Token> > tokens;
-			tokens.push_back($3);
-			state->Define($2, std::vector<std::string>(), tokens);
-			free($2);
-			$3->Release();
+			state->Define($1, std::vector<std::string>(), std::vector< Ref<Token> >());
+			free($1);
 		}
-	|	DEFINE_TOK id_or_macro non_lparen token_list NEWLINE
+	|	DEFINE_NO_PARAMS token_list NEWLINE
 		{
-			std::vector< Ref<Token> > tokens;
-			tokens.push_back($3);
-			tokens.insert(tokens.end(), $4->begin(), $4->end());
-			state->Define($2, std::vector<std::string>(), tokens);
-			free($2);
+			state->Define($1, std::vector<std::string>(), *$2);
+			free($1);
+			delete $2;
+		}
+	|	DEFINE_PARAMS RPAREN token_list NEWLINE
+		{
+			state->Define($1, std::vector<std::string>(), *$3);
+			free($1);
 			delete $3;
 		}
-	|	DEFINE_TOK id_or_macro NEWLINE
+	|	DEFINE_PARAMS RPAREN NEWLINE
 		{
-			state->Define($2, std::vector<std::string>(), std::vector< Ref<Token> >());
-			free($2);
+			state->Define($1, std::vector<std::string>(), std::vector< Ref<Token> >());
+			free($1);
 		}
-	|	DEFINE_TOK id_or_macro LPAREN RPAREN token_list NEWLINE
+	|	DEFINE_PARAMS param_list RPAREN token_list NEWLINE
 		{
-			state->Define($2, std::vector<std::string>(), *$5);
-			free($2);
-			delete $5;
-		}
-	|	DEFINE_TOK id_or_macro LPAREN RPAREN NEWLINE
-		{
-			state->Define($2, std::vector<std::string>(), std::vector< Ref<Token> >());
-			free($2);
-		}
-	|	DEFINE_TOK id_or_macro LPAREN param_list RPAREN token_list NEWLINE
-		{
-			state->Define($2, *$4, *$6);
-			free($2);
+			state->Define($1, *$2, *$4);
+			free($1);
+			delete $2;
 			delete $4;
-			delete $6;
 		}
-	|	DEFINE_TOK id_or_macro LPAREN param_list RPAREN NEWLINE
+	|	DEFINE_PARAMS param_list RPAREN NEWLINE
 		{
-			state->Define($2, *$4, std::vector< Ref<Token> >());
-			free($2);
-			delete $4;
+			state->Define($1, *$2, std::vector< Ref<Token> >());
+			free($1);
+			delete $2;
 		}
 	|	UNDEF_TOK id_or_macro NEWLINE  { state->Undefine($2); free($2); }
 	;
@@ -136,16 +125,13 @@ token_list:	token_list token  { $$ = $1; $$->push_back($2); $2->Release(); }
 	|	token  { $$ = new std::vector< Ref<Token> >(); $$->push_back($1); $1->Release(); }
 	;
 
-token:	non_lparen  { $$ = $1; }
+token:	TOKEN  { $$ = new Token(TOKEN_BASIC, $1); $$->AddRef(); free($1); }
+|	ID  { $$ = new Token(TOKEN_ID, $1); $$->AddRef(); free($1); }
+|	MACRO  { $$ = new Token(TOKEN_ID, $1); $$->AddRef(); free($1); }
 |	LPAREN  { $$ = new Token(TOKEN_LPAREN); $$->AddRef(); }
+|	RPAREN  { $$ = new Token(TOKEN_RPAREN); $$->AddRef(); }
+|	COMMA  { $$ = new Token(TOKEN_COMMA); $$->AddRef(); }
 ;
-
-non_lparen:	TOKEN  { $$ = new Token(TOKEN_BASIC, $1); $$->AddRef(); free($1); }
-	|	ID  { $$ = new Token(TOKEN_ID, $1); $$->AddRef(); free($1); }
-	|	MACRO  { $$ = new Token(TOKEN_ID, $1); $$->AddRef(); free($1); }
-	|	RPAREN  { $$ = new Token(TOKEN_RPAREN); $$->AddRef(); }
-	|	COMMA  { $$ = new Token(TOKEN_COMMA); $$->AddRef(); }
-	;
 
 param_list:	param_list COMMA ID  { $$ = $1; $$->push_back($3); free($3); }
 	|	ID  { $$ = new std::vector<std::string>(); $$->push_back($1); free($1); }

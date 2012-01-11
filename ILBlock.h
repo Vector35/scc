@@ -101,6 +101,7 @@ struct ILParameter
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
+	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
 	bool IsConstant() const;
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
@@ -126,6 +127,7 @@ struct ILInstruction
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
+	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
 	void Print() const;
@@ -168,6 +170,7 @@ public:
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
+	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
 
 	OutputBlock* GetOutputBlock() const { return m_output; }
 	void SetOutputBlock(OutputBlock* output);

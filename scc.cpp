@@ -468,6 +468,8 @@ int main(int argc, char* argv[])
 				settings.os = OS_MACH;
 			else if ((!strcmp(argv[i], "win32")) || (!strcmp(argv[i], "windows")))
 				settings.os = OS_WINDOWS;
+			else if (!strcmp(argv[i], "none"))
+				settings.os = OS_NONE;
 			else
 			{
 				fprintf(stderr, "error: unsupported platform '%s'\n", argv[i]);
@@ -1169,13 +1171,6 @@ int main(int argc, char* argv[])
 	if (errors > 0)
 		return 1;
 
-	if (internalDebug)
-	{
-		fprintf(stderr, "Functions:\n");
-		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
-			(*i)->Print();
-	}
-
 	// Ensure entry function is at the start
 	map< string, Ref<Function> >::iterator entryFunc = functionsByName.find("main");
 	if (entryFunc == functionsByName.end())
@@ -1192,6 +1187,24 @@ int main(int argc, char* argv[])
 			functions.insert(functions.begin(), entryFunc->second);
 			break;
 		}
+	}
+
+	// Make string constants into global const character arrays
+	map< string, Ref<Variable> > stringMap;
+	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	{
+		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+			(*j)->ConvertStringsToVariables(stringMap);
+	}
+
+	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
+		variables.push_back(i->second);
+
+	if (internalDebug)
+	{
+		fprintf(stderr, "Functions:\n");
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+			(*i)->Print();
 	}
 
 	fprintf(stderr, "Generating code...\n");

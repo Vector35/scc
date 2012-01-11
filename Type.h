@@ -84,6 +84,7 @@ public:
 
 	bool operator==(const Type& type) const;
 	bool operator!=(const Type& type) const { return !((*this) == type); }
+	bool CanAssignTo(const Type& type) const;
 
 	static Type* VoidType();
 	static Type* BoolType();

@@ -57,7 +57,7 @@ public:
 
 	size_t GetDataSectionOffset() const { return m_dataSectionOffset; }
 	void SetDataSectionOffset(size_t offset) { m_dataSectionOffset = offset; }
-	const OutputBlock& GetData() const { return m_data; }
+	OutputBlock& GetData() { return m_data; }
 
 	void Serialize(OutputBlock* output);
 	static Variable* Deserialize(InputBlock* input);

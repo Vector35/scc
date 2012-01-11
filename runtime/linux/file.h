@@ -1,7 +1,23 @@
 #ifndef __LIBC__FILE_H__
 #define __LIBC__FILE_H__
 
+#define stdin  (FILE*)0
+#define stdout (FILE*)1
+#define stderr (FILE*)2
+
+#define EOF    -1
+
+typedef void* FILE;
+
+ssize_t read(int fd, void* buf, size_t count);
 ssize_t write(int fd, const void* buf, size_t count);
+
+int fputc(int ch, FILE* fp);
+int fputs(const char* str, FILE* fp);
+int puts(const char* str);
+
+int fgetc(FILE* fp);
+char* fgets(char* result, int size, FILE* fp);
 
 #endif
 

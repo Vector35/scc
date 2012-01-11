@@ -13,6 +13,7 @@
 
 #define TOK(t) { return (t); }
 #define TOKSTR(t, v) { YYLVAL->str = strdup(v); return (t); }
+#define TOKSTR_NODUP(t, v) { YYLVAL->str = (v); return (t); }
 %}
 
 %option noyywrap
@@ -58,7 +59,22 @@
 						PARSERSTATE->IncludeFile(std::string(name, strlen(name) - 1));
 					}
 
-#[ \t]*define	TOK(DEFINE_TOK)
+#[ \t]*define[\ \t]*[[:alpha:]_][[:alnum:]_]*	{
+							char* name = strstr(yytext, "define") + strlen("define");
+							while ((name[0] == ' ') || (name[0] == '\t'))
+								name++;
+							TOKSTR(DEFINE_NO_PARAMS, name)
+						}
+
+#[ \t]*define[\ \t]*[[:alpha:]_][[:alnum:]_]*\(	{
+							char* name = strstr(yytext, "define") + strlen("define");
+							while ((name[0] == ' ') || (name[0] == '\t'))
+								name++;
+							char* trimmed = strdup(name);
+							trimmed[strlen(trimmed) - 1] = 0;
+							TOKSTR_NODUP(DEFINE_PARAMS, trimmed)
+						}
+
 #[ \t]*undef	TOK(UNDEF_TOK)
 #[ \t]*ifdef	TOK(IFDEF_TOK)
 #[ \t]*ifndef	TOK(IFNDEF_TOK)

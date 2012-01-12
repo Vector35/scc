@@ -1160,13 +1160,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// Generate errors for undefined references
-	size_t errors = 0;
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
-		(*i)->CheckForUndefinedReferences(errors);
-	if (errors > 0)
-		return 1;
-
 	// Ensure entry function is at the start
 	map< string, Ref<Function> >::iterator entryFunc = functionsByName.find("main");
 	if (entryFunc == functionsByName.end())
@@ -1228,6 +1221,13 @@ int main(int argc, char* argv[])
 			i--;
 		}
 	}
+
+	// Generate errors for undefined references
+	size_t errors = 0;
+	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		(*i)->CheckForUndefinedReferences(errors);
+	if (errors > 0)
+		return 1;
 
 	fprintf(stderr, "Generating code...\n");
 

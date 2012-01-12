@@ -91,8 +91,6 @@ bool Type::operator==(const Type& type) const
 {
 	if (m_class != type.m_class)
 		return false;
-	if (m_const != type.m_const)
-		return false;
 	if (GetWidth() != type.GetWidth())
 		return false;
 
@@ -135,8 +133,6 @@ bool Type::CanAssignTo(const Type& type) const
 {
 	if ((m_class != type.m_class) && (!((m_class == TYPE_ARRAY) && (type.m_class == TYPE_POINTER))) &&
 		(!((m_class == TYPE_ENUM) && (type.m_class == TYPE_INT))))
-		return false;
-	if (m_const && (!type.m_const))
 		return false;
 
 	switch (m_class)

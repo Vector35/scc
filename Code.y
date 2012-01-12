@@ -110,7 +110,7 @@ void Code_error(ParserState* state, const char* msg)
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
-%destructor { $$->Release(); } var_type primitive_type
+%destructor { $$->Release(); } var_type return_type primitive_type
 %destructor { $$->Release(); } struct_member_list union_member_list struct_member
 %destructor { $$->Release(); } enum_member_list
 %destructor { delete $$; } enum_member
@@ -122,7 +122,7 @@ void Code_error(ParserState* state, const char* msg)
 %destructor { delete $$; } var_init_list var_init
 %destructor { delete $$; } func_type
 
-%type <type> var_type primitive_type
+%type <type> var_type return_type primitive_type
 %type <type> struct_member_list union_member_list struct_member
 %type <type> enum_member_list
 %type <enumMember> enum_member
@@ -180,7 +180,7 @@ toplevel_stmt:	var_declaration SEMICOLON  { state->AddInitExpression($1); $1->Re
 			$2->Release();
 			delete $3;
 		}
-	|	EXTERN_TOK var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
+	|	EXTERN_TOK return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
 		{
 			Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$9), $5 - 1);
 			VarInitInfo info;
@@ -194,7 +194,7 @@ toplevel_stmt:	var_declaration SEMICOLON  { state->AddInitExpression($1); $1->Re
 			free($6);
 			delete $9;
 		}
-	|	EXTERN_TOK var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+	|	EXTERN_TOK return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
 		{
 			Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$12), $5 - 1);
 			VarInitInfo info;
@@ -219,7 +219,7 @@ toplevel_stmt:	var_declaration SEMICOLON  { state->AddInitExpression($1); $1->Re
 			free($3);
 			$5->Release();
 		}
-	|	TYPEDEF var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN SEMICOLON
+	|	TYPEDEF return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN SEMICOLON
 		{
 			Type* type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$9), $5 - 1);
 			state->DefineType($6, type);
@@ -227,7 +227,7 @@ toplevel_stmt:	var_declaration SEMICOLON  { state->AddInitExpression($1); $1->Re
 			free($6);
 			delete $9;
 		}
-	|	TYPEDEF var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN SEMICOLON
+	|	TYPEDEF return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN SEMICOLON
 		{
 			Type* type = Type::ArrayType(Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$12), $5 - 1),
 				$8->ComputeIntegerValue(state));
@@ -258,7 +258,7 @@ var_declaration:	var_type var_init_list
 				$1->Release();
 				delete $2;
 			}
-		|	var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
+		|	return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($1, (CallingConvention)$3, *$8), $4 - 1);
 				VarInitInfo info;
@@ -272,7 +272,7 @@ var_declaration:	var_type var_init_list
 				free($5);
 				delete $8;
 			}
-		|	var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+		|	return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($1, (CallingConvention)$3, *$11), $4 - 1);
 				VarInitInfo info;
@@ -288,7 +288,7 @@ var_declaration:	var_type var_init_list
 				$7->Release();
 				delete $11;
 			}
-		|	var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN ASSIGN expression
+		|	return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN ASSIGN expression
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($1, (CallingConvention)$3, *$8), $4 - 1);
 				VarInitInfo info;
@@ -304,7 +304,7 @@ var_declaration:	var_type var_init_list
 				delete $8;
 				$11->Release();
 			}
-		|	var_type LPAREN calling_convention ptr_decorator ID LBRACKET RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
+		|	return_type LPAREN calling_convention ptr_decorator ID LBRACKET RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($1, (CallingConvention)$3, *$10), $4 - 1);
 				VarInitInfo info;
@@ -327,7 +327,7 @@ var_declaration:	var_type var_init_list
 				delete $10;
 				$13->Release();
 			}
-		|	var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
+		|	return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($1, (CallingConvention)$3, *$11), $4 - 1);
 				VarInitInfo info;
@@ -360,7 +360,7 @@ var_declaration:	var_type var_init_list
 				$2->Release();
 				delete $3;
 			}
-		|	STATIC_TOK var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
+		|	STATIC_TOK return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$9), $5 - 1);
 				VarInitInfo info;
@@ -374,7 +374,7 @@ var_declaration:	var_type var_init_list
 				free($6);
 				delete $9;
 			}
-		|	STATIC_TOK var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+		|	STATIC_TOK return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$12), $5 - 1);
 				VarInitInfo info;
@@ -390,7 +390,7 @@ var_declaration:	var_type var_init_list
 				$8->Release();
 				delete $12;
 			}
-		|	STATIC_TOK var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN ASSIGN expression
+		|	STATIC_TOK return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN ASSIGN expression
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$9), $5 - 1);
 				VarInitInfo info;
@@ -406,7 +406,7 @@ var_declaration:	var_type var_init_list
 				delete $9;
 				$12->Release();
 			}
-		|	STATIC_TOK var_type LPAREN calling_convention ptr_decorator ID LBRACKET RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
+		|	STATIC_TOK return_type LPAREN calling_convention ptr_decorator ID LBRACKET RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$11), $5 - 1);
 				VarInitInfo info;
@@ -429,7 +429,7 @@ var_declaration:	var_type var_init_list
 				delete $11;
 				$14->Release();
 			}
-		|	STATIC_TOK var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
+		|	STATIC_TOK return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN ASSIGN initializer
 			{
 				Ref<Type> type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$12), $5 - 1);
 				VarInitInfo info;
@@ -600,9 +600,54 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			free($3);
 			delete $5;
 		}
+	|	VOID_TOK ID LPAREN param_list RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->returnValue = Type::VoidType();
+			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
+			$$->name = $2;
+			$$->params = *$4;
+			$$->location = state->GetLocation();
+			free($2);
+			delete $4;
+		}
+	|	VOID_TOK CDECL_TOK ID LPAREN param_list RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->returnValue = Type::VoidType();
+			$$->callingConvention = CALLING_CONVENTION_CDECL;
+			$$->name = $3;
+			$$->params = *$5;
+			$$->location = state->GetLocation();
+			free($3);
+			delete $5;
+		}
+	|	VOID_TOK STDCALL_TOK ID LPAREN param_list RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->returnValue = Type::VoidType();
+			$$->callingConvention = CALLING_CONVENTION_STDCALL;
+			$$->name = $3;
+			$$->params = *$5;
+			$$->location = state->GetLocation();
+			free($3);
+			delete $5;
+		}
+	|	VOID_TOK FASTCALL_TOK ID LPAREN param_list RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->returnValue = Type::VoidType();
+			$$->callingConvention = CALLING_CONVENTION_FASTCALL;
+			$$->name = $3;
+			$$->params = *$5;
+			$$->location = state->GetLocation();
+			free($3);
+			delete $5;
+		}
 	;
 
 param_list:	param_list_nonempty  { $$ = $1; }
+	|	VOID_TOK  { $$ = new vector< pair< Ref<Type>, string > >(); }
 	|	{ $$ = new vector< pair< Ref<Type>, string > >(); }
 	;
 
@@ -661,7 +706,7 @@ param:	var_type ID
 		$1->Release();
 		$3->Release();
 	}
-|	var_type LPAREN calling_convention ptr_decorator RPAREN LPAREN param_list RPAREN
+|	return_type LPAREN calling_convention ptr_decorator RPAREN LPAREN param_list RPAREN
 	{
 		$$ = new vector< pair< Ref<Type>, string > >();
 		$$->push_back(pair< Ref<Type>, string >(Type::PointerType(Type::FunctionType($1,
@@ -669,7 +714,7 @@ param:	var_type ID
 		$1->Release();
 		delete $7;
 	}
-|	var_type LPAREN calling_convention ptr_decorator LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+|	return_type LPAREN calling_convention ptr_decorator LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
 	{
 		$$ = new vector< pair< Ref<Type>, string > >();
 		$$->push_back(pair< Ref<Type>, string >(Type::ArrayType(Type::PointerType(Type::FunctionType($1,
@@ -678,7 +723,7 @@ param:	var_type ID
 		$6->Release();
 		delete $10;
 	}
-|	var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
+|	return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
 	{
 		$$ = new vector< pair< Ref<Type>, string > >();
 		$$->push_back(pair< Ref<Type>, string >(Type::PointerType(Type::FunctionType($1,
@@ -687,7 +732,7 @@ param:	var_type ID
 		free($5);
 		delete $8;
 	}
-|	var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+|	return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
 	{
 		$$ = new vector< pair< Ref<Type>, string > >();
 		$$->push_back(pair< Ref<Type>, string >(Type::ArrayType(Type::PointerType(Type::FunctionType($1,
@@ -704,10 +749,16 @@ param:	var_type ID
 	}
 ;
 
+return_type:	var_type  { $$ = $1; }
+	|	VOID_TOK  { $$ = Type::VoidType(); $$->AddRef(); }
+	;
+
 var_type:	primitive_type  { $$ = $1; }
 	|	CONST_TOK primitive_type  { $$ = new Type($2); $$->AddRef(); $$->SetConst(true); $2->Release(); }
 	|	primitive_type ptr_decorator { $$ = Type::PointerType($1, $2); $$->AddRef(); }
+	|	VOID_TOK ptr_decorator { $$ = Type::PointerType(Type::VoidType(), $2); $$->AddRef(); }
 	|	CONST_TOK primitive_type ptr_decorator { $$ = Type::PointerType($2, $3); $$->AddRef(); $$->SetConst(true); }
+	|	CONST_TOK VOID_TOK ptr_decorator { $$ = Type::PointerType(Type::VoidType(), $3); $$->AddRef(); $$->SetConst(true); }
 	|	STRUCT LBRACE struct_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
 	|	STRUCT ID LBRACE { state->DefineStructType($2, Type::StructType(new Struct(true))); } struct_member_list RBRACE
 		{
@@ -734,8 +785,7 @@ var_type:	primitive_type  { $$ = $1; }
 		}
 	;
 
-primitive_type:	VOID_TOK  { $$ = Type::VoidType(); $$->AddRef(); }
-	|	BOOL_TOK  { $$ = Type::BoolType(); $$->AddRef(); }
+primitive_type:	BOOL_TOK  { $$ = Type::BoolType(); $$->AddRef(); }
 	|	sign_type CHAR_TOK  { $$ = Type::IntType(1, $1); $$->AddRef(); }
 	|	sign_type INT_TOK  { $$ = Type::IntType(4, $1); $$->AddRef(); }
 	|	sign_type SHORT_TOK  { $$ = Type::IntType(2, $1); $$->AddRef(); }

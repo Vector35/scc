@@ -19,5 +19,10 @@ int puts(const char* str);
 int fgetc(FILE* fp);
 char* fgets(char* result, int size, FILE* fp);
 
+int printf(const char* fmt, ...);
+int fprintf(FILE* fp, const char* fmt, ...);
+int vprintf(const char* fmt, va_list va);
+int vfprintf(FILE* fp, const char* fmt, va_list va);
+
 #endif
 

@@ -338,6 +338,7 @@ void Type::Serialize(OutputBlock* output)
 		output->WriteInteger(m_elements);
 		break;
 	case TYPE_FUNCTION:
+		m_childType->Serialize(output);
 		output->WriteInteger(m_callingConvention);
 		output->WriteInteger(m_params.size());
 		for (vector< Ref<Type> >::iterator i = m_params.begin(); i != m_params.end(); i++)
@@ -395,6 +396,9 @@ bool Type::DeserializeInternal(InputBlock* input)
 			return false;
 		break;
 	case TYPE_FUNCTION:
+		m_childType = Type::Deserialize(input);
+		if (!m_childType)
+			return false;
 		if (!input->ReadUInt32(convention))
 			return false;
 		m_callingConvention = (CallingConvention)convention;

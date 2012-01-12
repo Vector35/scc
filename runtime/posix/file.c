@@ -44,3 +44,33 @@ char* fgets(char* result, int size, FILE* fp)
 	return result;
 }
 
+static void fprintf_output(void* ctxt, char ch)
+{
+	if (ch != 0)
+		fputc(ch, (FILE*)ctxt);
+}
+
+int printf(const char* fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	return __vaprintf(fprintf_output, stdout, fmt, va);
+}
+
+int fprintf(FILE* fp, const char* fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	return __vaprintf(fprintf_output, fp, fmt, va);
+}
+
+int vprintf(const char* fmt, va_list va)
+{
+	return __vaprintf(fprintf_output, stdout, fmt, va);
+}
+
+int vfprintf(FILE* fp, const char* fmt, va_list va)
+{
+	return __vaprintf(fprintf_output, fp, fmt, va);
+}
+

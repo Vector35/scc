@@ -3373,8 +3373,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 		if (var == func->GetVariables().end())
 		{
-			fprintf(stderr, "error: parameter %d not found in variable list\n", (int)i);
-			return false;
+			// Variable not named, so it won't be referenced
+			continue;
 		}
 
 		// Allocate stack space for this parameter

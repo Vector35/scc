@@ -661,6 +661,42 @@ param:	var_type ID
 		$1->Release();
 		$3->Release();
 	}
+|	var_type LPAREN calling_convention ptr_decorator RPAREN LPAREN param_list RPAREN
+	{
+		$$ = new vector< pair< Ref<Type>, string > >();
+		$$->push_back(pair< Ref<Type>, string >(Type::PointerType(Type::FunctionType($1,
+			(CallingConvention)$3, *$7), $4 - 1), ""));
+		$1->Release();
+		delete $7;
+	}
+|	var_type LPAREN calling_convention ptr_decorator LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+	{
+		$$ = new vector< pair< Ref<Type>, string > >();
+		$$->push_back(pair< Ref<Type>, string >(Type::ArrayType(Type::PointerType(Type::FunctionType($1,
+			(CallingConvention)$3, *$10), $4 - 1), (size_t)$6->ComputeIntegerValue(state)), ""));
+		$1->Release();
+		$6->Release();
+		delete $10;
+	}
+|	var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN
+	{
+		$$ = new vector< pair< Ref<Type>, string > >();
+		$$->push_back(pair< Ref<Type>, string >(Type::PointerType(Type::FunctionType($1,
+			(CallingConvention)$3, *$8), $4 - 1), $5));
+		$1->Release();
+		free($5);
+		delete $8;
+	}
+|	var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN
+	{
+		$$ = new vector< pair< Ref<Type>, string > >();
+		$$->push_back(pair< Ref<Type>, string >(Type::ArrayType(Type::PointerType(Type::FunctionType($1,
+			(CallingConvention)$3, *$11), $4 - 1), (size_t)$7->ComputeIntegerValue(state)), $5));
+		$1->Release();
+		free($5);
+		$7->Release();
+		delete $11;
+	}
 |	ELLIPSIS
 	{
 		$$ = new vector< pair< Ref<Type>, string > >();

@@ -275,6 +275,7 @@ Struct* Struct::Deserialize(InputBlock* input)
 		if (!input->ReadNativeInteger(member.offset))
 			return NULL;
 		result->m_members.push_back(member);
+		result->m_membersByName[member.name] = member;
 	}
 
 	if (!input->ReadNativeInteger(result->m_width))

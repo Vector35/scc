@@ -15,6 +15,7 @@ PreprocessState::PreprocessState(const string& name, void* scanner): m_fileName(
 	m_errors = 0;
 	m_expansionInProgress = false;
 	m_ifFailCount = 0;
+	m_startingIfStackSize = 0;
 	m_locationRequest = true;
 }
 
@@ -24,6 +25,7 @@ PreprocessState::PreprocessState(PreprocessState& parent, const string& name, vo
 	m_errors = 0;
 	m_expansionInProgress = false;
 	m_ifFailCount = 0;
+	m_startingIfStackSize = 0;
 	m_locationRequest = true;
 
 	m_macros = parent.m_macros;
@@ -197,7 +199,9 @@ void PreprocessState::IncludeFile(const string& name)
 
 	string origFileName = m_fileName;
 	void* origScanner = m_scanner;
+	size_t origStartingIfStackSize = m_startingIfStackSize;
 	m_fileName = name;
+	m_startingIfStackSize = m_ifStack.size();
 
 	yyscan_t scanner;
 	Preprocess_lex_init(&scanner);
@@ -215,6 +219,7 @@ void PreprocessState::IncludeFile(const string& name)
 
 	m_fileName = origFileName;
 	m_scanner = origScanner;
+	m_startingIfStackSize = origStartingIfStackSize;
 }
 
 
@@ -363,15 +368,12 @@ void PreprocessState::Finalize()
 		}
 	}
 
-	if (m_ifStack.size() != 0)
+	if (m_ifStack.size() != m_startingIfStackSize)
 	{
 		fprintf(stderr, "%s:%d: error: expected #endif\n", GetFileName().c_str(),
 			GetLineNumber());
 		m_errors++;
 	}
-
-	m_ifStack = stack<bool>();
-	m_ifFailCount = 0;
 }
 
 

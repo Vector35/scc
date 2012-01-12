@@ -40,6 +40,7 @@ class PreprocessState
 
 	std::stack<bool> m_ifStack;
 	size_t m_ifFailCount;
+	size_t m_startingIfStackSize;
 
 	std::string m_output;
 	bool m_locationRequest;

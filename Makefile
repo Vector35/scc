@@ -128,7 +128,7 @@ $(RUNTIME_OBJS): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 Obj/x86.lib: Obj/scc-bootstrap $(X86_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
 	Obj/scc-bootstrap $(X86_RUNTIME) $(COMMON_RUNTIME) --arch x86 --platform none -f lib -o $@
 Obj/x64.lib: Obj/scc-bootstrap $(X64_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(X64_RUNTIME) $(COMMON_RUNTIME) --arch x64 --platform none -m32 -f lib -o $@
+	Obj/scc-bootstrap $(X64_RUNTIME) $(COMMON_RUNTIME) --arch x64 --platform none -f lib -o $@
 Obj/linux_x86.lib: Obj/scc-bootstrap $(LINUX_X86_RUNTIME_SRC) Makefile | Obj/
 	Obj/scc-bootstrap $(LINUX_X86_RUNTIME) --arch x86 --platform linux -f lib -o $@
 Obj/linux_x64.lib: Obj/scc-bootstrap $(LINUX_X64_RUNTIME_SRC) Makefile | Obj/

@@ -1203,6 +1203,32 @@ int main(int argc, char* argv[])
 			(*i)->Print();
 	}
 
+	// Tag everything referenced from the main function
+	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		(*i)->ResetTagCount();
+	for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
+		(*i)->ResetTagCount();
+	functions[0]->TagReferences();
+
+	// Remove anything not referenced
+	for (size_t i = 0; i < functions.size(); i++)
+	{
+		if (functions[i]->GetTagCount() == 0)
+		{
+			functions.erase(functions.begin() + i);
+			i--;
+		}
+	}
+
+	for (size_t i = 0; i < variables.size(); i++)
+	{
+		if (variables[i]->GetTagCount() == 0)
+		{
+			variables.erase(variables.begin() + i);
+			i--;
+		}
+	}
+
 	fprintf(stderr, "Generating code...\n");
 
 	// Create output class for the requested architecture

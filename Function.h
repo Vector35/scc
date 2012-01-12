@@ -52,6 +52,8 @@ class Function: public RefCountObject
 	bool m_localScope;
 	bool m_variableSizedStackFrame;
 
+	size_t m_tagCount;
+
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
@@ -121,6 +123,10 @@ public:
 	void ReplaceVariable(Variable* from, Variable* to);
 
 	void CheckForUndefinedReferences(size_t& errors);
+
+	void ResetTagCount() { m_tagCount = 0; }
+	size_t GetTagCount() const { return m_tagCount; }
+	void TagReferences();
 
 	void Serialize(OutputBlock* output);
 	static Function* Deserialize(InputBlock* input);

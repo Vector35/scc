@@ -316,6 +316,20 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 }
 
 
+void Function::TagReferences()
+{
+	// Mark self as referenced
+	m_tagCount++;
+
+	if (m_tagCount == 1)
+	{
+		// Loop through IL to find references, but only on first reference
+		for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
+			(*i)->TagReferences();
+	}
+}
+
+
 void Function::Serialize(OutputBlock* output)
 {
 	if (m_serializationIndexValid)

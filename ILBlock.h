@@ -103,6 +103,7 @@ struct ILParameter
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
 	bool IsConstant() const;
+	void TagReferences();
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
 	void Print() const;
@@ -128,6 +129,7 @@ struct ILInstruction
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void TagReferences();
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
 	void Print() const;
@@ -180,6 +182,8 @@ public:
 	bool ResolveRelocations(uint64_t dataSectionBase);
 
 	bool EndsWithReturn() const;
+
+	void TagReferences();
 
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);

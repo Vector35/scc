@@ -213,6 +213,22 @@ bool ILParameter::IsConstant() const
 }
 
 
+void ILParameter::TagReferences()
+{
+	switch (cls)
+	{
+	case ILPARAM_FUNC:
+		function->TagReferences();
+		break;
+	case ILPARAM_VAR:
+		variable->TagReference();
+		break;
+	default:
+		break;
+	}
+}
+
+
 void ILParameter::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(cls);
@@ -428,6 +444,13 @@ void ILInstruction::ConvertStringsToVariables(map< string, Ref<Variable> >& stri
 {
 	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
 		i->ConvertStringsToVariables(stringMap);
+}
+
+
+void ILInstruction::TagReferences()
+{
+	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
+		i->TagReferences();
 }
 
 
@@ -779,6 +802,13 @@ bool ILBlock::EndsWithReturn() const
 	if (m_instrs[m_instrs.size() - 1].operation == ILOP_RETURN_VOID)
 		return true;
 	return false;
+}
+
+
+void ILBlock::TagReferences()
+{
+	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
+		i->TagReferences();
 }
 
 

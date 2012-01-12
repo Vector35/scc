@@ -28,6 +28,8 @@ class Variable: public RefCountObject
 	size_t m_dataSectionOffset;
 	OutputBlock m_data;
 
+	size_t m_tagCount;
+
 	int64_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
@@ -58,6 +60,10 @@ public:
 	size_t GetDataSectionOffset() const { return m_dataSectionOffset; }
 	void SetDataSectionOffset(size_t offset) { m_dataSectionOffset = offset; }
 	OutputBlock& GetData() { return m_data; }
+
+	void ResetTagCount() { m_tagCount = 0; }
+	size_t GetTagCount() const { return m_tagCount; }
+	void TagReference() { m_tagCount++; }
 
 	void Serialize(OutputBlock* output);
 	static Variable* Deserialize(InputBlock* input);

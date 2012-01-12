@@ -879,7 +879,7 @@ struct_member:	var_type ID SEMICOLON  { $$ = Type::StructMemberType($1, $2); $$-
 			free($2);
 			$4->Release();
 		}
-	|	var_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN SEMICOLON
+	|	return_type LPAREN calling_convention ptr_decorator ID RPAREN LPAREN param_list RPAREN SEMICOLON
 		{
 			$$ = Type::StructMemberType(Type::PointerType(Type::FunctionType($1, (CallingConvention)$3, *$8), $4 - 1), $5);
 			$$->AddRef();
@@ -887,7 +887,7 @@ struct_member:	var_type ID SEMICOLON  { $$ = Type::StructMemberType($1, $2); $$-
 			free($5);
 			delete $8;
 		}
-	|	var_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN SEMICOLON
+	|	return_type LPAREN calling_convention ptr_decorator ID LBRACKET expression RBRACKET RPAREN LPAREN param_list RPAREN SEMICOLON
 		{
 			$$ = Type::StructMemberType(Type::ArrayType(Type::PointerType(Type::FunctionType($1,
 				(CallingConvention)$3, *$11), $4 - 1), (size_t)$7->ComputeIntegerValue(state)), $5);

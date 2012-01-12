@@ -566,7 +566,7 @@ bool OUTPUT_CLASS_NAME::PrepareStore(OutputBlock* out, const ILParameter& param,
 			{ \
 			case OPERANDREF_REG:  EMIT_RR(operation ## _16, dest.reg, src.reg); return true; \
 			case OPERANDREF_MEM:  EMIT_RM(operation ## _16, dest.reg, X86_MEM_REF(src.mem)); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _16, dest.reg, (uint8_t)src.immed); return true; \
+			case OPERANDREF_IMMED:  EMIT_RI(operation ## _16, dest.reg, (uint16_t)src.immed); return true; \
 			default:  return false; \
 			} \
 		} \
@@ -594,7 +594,7 @@ bool OUTPUT_CLASS_NAME::PrepareStore(OutputBlock* out, const ILParameter& param,
 			{ \
 			case OPERANDREF_REG:  EMIT_RR(operation ## _32, dest.reg, src.reg); return true; \
 			case OPERANDREF_MEM:  EMIT_RM(operation ## _32, dest.reg, X86_MEM_REF(src.mem)); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _32, dest.reg, (uint8_t)src.immed); return true; \
+			case OPERANDREF_IMMED:  EMIT_RI(operation ## _32, dest.reg, (uint32_t)src.immed); return true; \
 			default:  return false; \
 			} \
 		} \

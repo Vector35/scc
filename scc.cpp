@@ -1189,13 +1189,6 @@ int main(int argc, char* argv[])
 	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
 		variables.push_back(i->second);
 
-	if (internalDebug)
-	{
-		fprintf(stderr, "Functions:\n");
-		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
-			(*i)->Print();
-	}
-
 	// Tag everything referenced from the main function
 	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
 		(*i)->ResetTagCount();
@@ -1220,6 +1213,13 @@ int main(int argc, char* argv[])
 			variables.erase(variables.begin() + i);
 			i--;
 		}
+	}
+
+	if (internalDebug)
+	{
+		fprintf(stderr, "Functions:\n");
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+			(*i)->Print();
 	}
 
 	// Generate errors for undefined references

@@ -143,7 +143,7 @@ int64_t ParserState::CharStringToValue(const string& str)
 	for (size_t i = 0; i < str.size(); i++)
 	{
 		value <<= 8;
-		value |= str[i];
+		value |= (int64_t)((uint8_t)str[i]);
 	}
 	return value;
 }

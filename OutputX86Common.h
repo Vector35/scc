@@ -91,6 +91,10 @@ class OUTPUT_CLASS_NAME: public Output
 	bool ShiftLeft(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool ShiftRightUnsigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool ShiftRightSigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Neg(OutputBlock* out, const OperandReference& dest);
+	bool Not(OutputBlock* out, const OperandReference& dest);
+	bool Increment(OutputBlock* out, const OperandReference& dest);
+	bool Decrement(OutputBlock* out, const OperandReference& dest);
 	void ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
 	void UnconditionalJump(OutputBlock* out, ILBlock* block);
 

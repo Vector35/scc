@@ -188,7 +188,7 @@ __syscall	TOK(SYSCALL_TOK)
 [0-9]+([eE][-+]?[0-9]+)				TOKFLOAT(FLOAT_VAL, (float)atof(yytext))
 
 \"([^\"\r\n]*(\\\")?)*\"			TOKQUOTEDSTR(STRING_VAL, yytext)
-\'([^\"\r\n]*(\\\")?)*\'			TOKQUOTEDSTR(CHAR_VAL, yytext)
+\'([^\'\r\n]*(\\\')?)*\'			TOKQUOTEDSTR(CHAR_VAL, yytext)
 [[:alpha:]_][[:alnum:]_]*			{
 							if (PARSERSTATE->IsTypeDefined(yytext))
 							{

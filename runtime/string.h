@@ -12,5 +12,7 @@ int vsprintf(char* out, const char* fmt, va_list va);
 int vsnprintf(char* out, size_t len, const char* fmt, va_list va);
 int __vaprintf(void (*output)(void* ctxt, char ch), void* ctxt, const char* fmt, va_list va);
 
+int atoi(const char* str);
+
 #endif
 

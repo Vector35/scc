@@ -415,6 +415,10 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(OutputBlock* out, const ILParameter& param, 
 		ref.type = OPERANDREF_IMMED;
 		ref.immed = param.integerValue;
 		return true;
+	case ILPARAM_BOOL:
+		ref.type = OPERANDREF_IMMED;
+		ref.immed = param.boolValue ? 1 : 0;
+		return true;
 	case ILPARAM_FUNC:
 		return LoadCodePointer(out, param.function->GetIL()[0], ref);
 	default:
@@ -836,6 +840,157 @@ bool OUTPUT_CLASS_NAME::ShiftRightUnsigned(OutputBlock* out, const OperandRefere
 bool OUTPUT_CLASS_NAME::ShiftRightSigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_SHIFT_OP(sar, true);
+}
+
+
+#define IMPLEMENT_UNARY_OP_COMMON(op) \
+	if (dest.width == 1) \
+	{ \
+		if (dest.type == OPERANDREF_REG) \
+			EMIT_R(op ## _8, dest.reg); \
+		else \
+			EMIT_M(op ## _8, X86_MEM_REF(dest.mem)); \
+		return true; \
+	} \
+	else if (dest.width == 2) \
+	{ \
+		if (dest.type == OPERANDREF_REG) \
+			EMIT_R(op ## _16, dest.reg); \
+		else \
+			EMIT_M(op ## _16, X86_MEM_REF(dest.mem)); \
+		return true; \
+	} \
+	else if (dest.width == 4) \
+	{ \
+		if (dest.type == OPERANDREF_REG) \
+			EMIT_R(op ## _32, dest.reg); \
+		else \
+			EMIT_M(op ## _32, X86_MEM_REF(dest.mem)); \
+		return true; \
+	}
+
+
+bool OUTPUT_CLASS_NAME::Neg(OutputBlock* out, const OperandReference& dest)
+{
+	IMPLEMENT_UNARY_OP_COMMON(neg)
+	else if (dest.width == 8)
+	{
+#ifdef OUTPUT32
+		if (dest.type == OPERANDREF_REG)
+		{
+			EMIT_R(not_32, dest.reg);
+			EMIT_R(not_32, dest.highReg);
+			EMIT_RI(add_32, dest.reg, 1);
+			EMIT_RI(adc_32, dest.highReg, 0);
+		}
+		else
+		{
+			EMIT_M(not_32, X86_MEM_REF(dest.mem));
+			EMIT_M(not_32, X86_MEM_REF_OFFSET(dest.mem, 4));
+			EMIT_MI(add_32, X86_MEM_REF(dest.mem), 1);
+			EMIT_MI(adc_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
+		}
+		return true;
+#else
+		if (dest.type == OPERANDREF_REG)
+			EMIT_R(neg_64, dest.reg);
+		else
+			EMIT_M(neg_64, X86_MEM_REF(dest.mem));
+		return true;
+#endif
+	}
+
+	return false;
+}
+
+
+bool OUTPUT_CLASS_NAME::Not(OutputBlock* out, const OperandReference& dest)
+{
+	IMPLEMENT_UNARY_OP_COMMON(not)
+	else if (dest.width == 8)
+	{
+#ifdef OUTPUT32
+		if (dest.type == OPERANDREF_REG)
+		{
+			EMIT_R(not_32, dest.reg);
+			EMIT_R(not_32, dest.highReg);
+		}
+		else
+		{
+			EMIT_M(not_32, X86_MEM_REF(dest.mem));
+			EMIT_M(not_32, X86_MEM_REF_OFFSET(dest.mem, 4));
+		}
+		return true;
+#else
+		if (dest.type == OPERANDREF_REG)
+			EMIT_R(not_64, dest.reg);
+		else
+			EMIT_M(not_64, X86_MEM_REF(dest.mem));
+		return true;
+#endif
+	}
+
+	return false;
+}
+
+
+bool OUTPUT_CLASS_NAME::Increment(OutputBlock* out, const OperandReference& dest)
+{
+	IMPLEMENT_UNARY_OP_COMMON(inc)
+	else if (dest.width == 8)
+	{
+#ifdef OUTPUT32
+		if (dest.type == OPERANDREF_REG)
+		{
+			EMIT_RI(add_32, dest.reg, 1);
+			EMIT_RI(adc_32, dest.highReg, 0);
+		}
+		else
+		{
+			EMIT_MI(add_32, X86_MEM_REF(dest.mem), 1);
+			EMIT_MI(adc_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
+		}
+		return true;
+#else
+		if (dest.type == OPERANDREF_REG)
+			EMIT_R(inc_64, dest.reg);
+		else
+			EMIT_M(inc_64, X86_MEM_REF(dest.mem));
+		return true;
+#endif
+	}
+
+	return false;
+}
+
+
+bool OUTPUT_CLASS_NAME::Decrement(OutputBlock* out, const OperandReference& dest)
+{
+	IMPLEMENT_UNARY_OP_COMMON(dec)
+	else if (dest.width == 8)
+	{
+#ifdef OUTPUT32
+		if (dest.type == OPERANDREF_REG)
+		{
+			EMIT_RI(sub_32, dest.reg, 1);
+			EMIT_RI(sbb_32, dest.highReg, 0);
+		}
+		else
+		{
+			EMIT_MI(sub_32, X86_MEM_REF(dest.mem), 1);
+			EMIT_MI(sbb_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
+		}
+		return true;
+#else
+		if (dest.type == OPERANDREF_REG)
+			EMIT_R(dec_64, dest.reg);
+		else
+			EMIT_M(dec_64, X86_MEM_REF(dest.mem));
+		return true;
+#endif
+	}
+
+	return false;
 }
 
 
@@ -1436,37 +1591,519 @@ bool OUTPUT_CLASS_NAME::GenerateSub(OutputBlock* out, const ILInstruction& instr
 
 bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+#ifdef OUTPUT32
+	if (a.width == 8)
+		return false;
+#endif
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+
+	switch (a.width)
+	{
+	case 1:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(imul_8, b.reg);
+		else
+			EMIT_M(imul_8, X86_MEM_REF(b.mem));
+		break;
+	case 2:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(imul_16, b.reg);
+		else
+			EMIT_M(imul_16, X86_MEM_REF(b.mem));
+		break;
+	case 4:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(imul_32, b.reg);
+		else
+			EMIT_M(imul_32, X86_MEM_REF(b.mem));
+		break;
+#ifdef OUTPUT64
+	case 8:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(imul_64, b.reg);
+		else
+			EMIT_M(imul_64, X86_MEM_REF(b.mem));
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	return Move(out, dest, eax);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+#ifdef OUTPUT32
+	if (a.width == 8)
+		return false;
+#endif
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+
+	switch (a.width)
+	{
+	case 1:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(mul_8, b.reg);
+		else
+			EMIT_M(mul_8, X86_MEM_REF(b.mem));
+		break;
+	case 2:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(mul_16, b.reg);
+		else
+			EMIT_M(mul_16, X86_MEM_REF(b.mem));
+		break;
+	case 4:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(mul_32, b.reg);
+		else
+			EMIT_M(mul_32, X86_MEM_REF(b.mem));
+		break;
+#ifdef OUTPUT64
+	case 8:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(mul_64, b.reg);
+		else
+			EMIT_M(mul_64, X86_MEM_REF(b.mem));
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	return Move(out, dest, eax);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateSignedDiv(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+#ifdef OUTPUT32
+	if (a.width == 8)
+		return false;
+#endif
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
+
+	switch (a.width)
+	{
+	case 1:
+		EMIT_RR(movsx_16_8, REG_AX, REG_AL);
+		break;
+	case 2:
+		EMIT(cwd);
+		break;
+	case 4:
+		EMIT(cdq);
+		break;
+#ifdef OUTPUT64
+	case 8:
+		EMIT(cqo);
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+
+	switch (a.width)
+	{
+	case 1:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_8, b.reg);
+		else
+			EMIT_M(idiv_8, X86_MEM_REF(b.mem));
+		break;
+	case 2:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_16, b.reg);
+		else
+			EMIT_M(idiv_16, X86_MEM_REF(b.mem));
+		break;
+	case 4:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_32, b.reg);
+		else
+			EMIT_M(idiv_32, X86_MEM_REF(b.mem));
+		break;
+#ifdef OUTPUT64
+	case 8:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_64, b.reg);
+		else
+			EMIT_M(idiv_64, X86_MEM_REF(b.mem));
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	return Move(out, dest, eax);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateUnsignedDiv(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+	switch (a.width)
+	{
+	case 1:
+		EMIT_RR(xor_8, REG_AH, REG_AH);
+		break;
+	case 2:
+		EMIT_RR(xor_16, REG_DX, REG_DX);
+		break;
+	case 4:
+		EMIT_RR(xor_32, REG_EDX, REG_EDX);
+		break;
+#ifdef OUTPUT64
+	case 8:
+		EMIT_RR(xor_64, REG_RDX, REG_RDX);
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+
+	switch (a.width)
+	{
+	case 1:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_8, b.reg);
+		else
+			EMIT_M(div_8, X86_MEM_REF(b.mem));
+		break;
+	case 2:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_16, b.reg);
+		else
+			EMIT_M(div_16, X86_MEM_REF(b.mem));
+		break;
+	case 4:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_32, b.reg);
+		else
+			EMIT_M(div_32, X86_MEM_REF(b.mem));
+		break;
+#ifdef OUTPUT64
+	case 8:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_64, b.reg);
+		else
+			EMIT_M(div_64, X86_MEM_REF(b.mem));
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	return Move(out, dest, eax);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateSignedMod(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+#ifdef OUTPUT32
+	if (a.width == 8)
+		return false;
+#endif
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
+
+	OperandReference edx;
+	edx.type = OPERANDREF_REG;
+	edx.width = a.width;
+
+	switch (a.width)
+	{
+	case 1:
+		edx.reg = REG_AH;
+		EMIT_RR(movsx_16_8, REG_AX, REG_AL);
+		break;
+	case 2:
+		edx.reg = REG_DX;
+		EMIT(cwd);
+		break;
+	case 4:
+		edx.reg = REG_EDX;
+		EMIT(cdq);
+		break;
+#ifdef OUTPUT64
+	case 8:
+		edx.reg = REG_RDX;
+		EMIT(cqo);
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+
+	switch (a.width)
+	{
+	case 1:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_8, b.reg);
+		else
+			EMIT_M(idiv_8, X86_MEM_REF(b.mem));
+		break;
+	case 2:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_16, b.reg);
+		else
+			EMIT_M(idiv_16, X86_MEM_REF(b.mem));
+		break;
+	case 4:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_32, b.reg);
+		else
+			EMIT_M(idiv_32, X86_MEM_REF(b.mem));
+		break;
+#ifdef OUTPUT64
+	case 8:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(idiv_64, b.reg);
+		else
+			EMIT_M(idiv_64, X86_MEM_REF(b.mem));
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	return Move(out, dest, edx);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateUnsignedMod(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, a, b;
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+
+	OperandReference edx;
+	edx.type = OPERANDREF_REG;
+	edx.width = a.width;
+
+	switch (a.width)
+	{
+	case 1:
+		edx.reg = REG_AH;
+		EMIT_RR(xor_8, REG_AH, REG_AH);
+		break;
+	case 2:
+		edx.reg = REG_DX;
+		EMIT_RR(xor_16, REG_DX, REG_DX);
+		break;
+	case 4:
+		edx.reg = REG_EDX;
+		EMIT_RR(xor_32, REG_EDX, REG_EDX);
+		break;
+#ifdef OUTPUT64
+	case 8:
+		edx.reg = REG_RDX;
+		EMIT_RR(xor_64, REG_RDX, REG_RDX);
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
+
+	if (b.type == OPERANDREF_IMMED)
+	{
+		OperandReference temp;
+		temp.type = OPERANDREF_REG;
+		temp.width = a.width;
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		if (!Move(out, temp, b))
+			return false;
+		b = temp;
+	}
+
+	switch (a.width)
+	{
+	case 1:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_8, b.reg);
+		else
+			EMIT_M(div_8, X86_MEM_REF(b.mem));
+		break;
+	case 2:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_16, b.reg);
+		else
+			EMIT_M(div_16, X86_MEM_REF(b.mem));
+		break;
+	case 4:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_32, b.reg);
+		else
+			EMIT_M(div_32, X86_MEM_REF(b.mem));
+		break;
+#ifdef OUTPUT64
+	case 8:
+		if (b.type == OPERANDREF_REG)
+			EMIT_R(div_64, b.reg);
+		else
+			EMIT_M(div_64, X86_MEM_REF(b.mem));
+		break;
+#endif
+	default:
+		return false;
+	}
+
+	return Move(out, dest, edx);
 }
 
 
@@ -1598,19 +2235,55 @@ bool OUTPUT_CLASS_NAME::GenerateSar(OutputBlock* out, const ILInstruction& instr
 
 bool OUTPUT_CLASS_NAME::GenerateNeg(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (!Move(out, dest, src))
+		return false;
+	return Neg(out, dest);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateNot(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+	if (!Move(out, dest, src))
+		return false;
+	return Not(out, dest);
 }
 
 
 bool OUTPUT_CLASS_NAME::GenerateIfTrue(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference value;
+	if (!PrepareLoad(out, instr.params[0], value))
+		return false;
+	if (value.width != 1)
+		return false;
+
+	if (value.type == OPERANDREF_REG)
+		EMIT_RR(test_8, value.reg, value.reg);
+	else if (value.type == OPERANDREF_MEM)
+		EMIT_MI(cmp_8, X86_MEM_REF(value.mem), 0);
+	else if (value.immed)
+	{
+		UnconditionalJump(out, instr.params[1].block);
+		return true;
+	}
+	else
+	{
+		UnconditionalJump(out, instr.params[2].block);
+		return true;
+	}
+
+	ConditionalJump(out, CONDJUMP_NOT_EQUAL, instr.params[1].block, instr.params[2].block);
+	return true;
 }
 
 

@@ -930,6 +930,13 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			m_type = Type::VoidType();
 			break;
 		}
+		if ((m_children.size() - 1) < m_children[0]->GetType()->GetParams().size())
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: too few parameters in call\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			break;
+		}
 		m_type = m_children[0]->GetType()->GetChildType();
 		for (size_t i = 0; i < m_children[0]->GetType()->GetParams().size(); i++)
 		{
@@ -1917,7 +1924,17 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		break;
 	case EXPR_ADDRESS_OF:
 		result = func->CreateTempVariable(m_type);
-		block->AddInstruction(ILOP_ADDRESS_OF, result, m_children[0]->GenerateIL(state, func, block));
+		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
+		{
+			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
+		}
+		else
+		{
+			block->AddInstruction(ILOP_ADDRESS_OF, result, m_children[0]->GenerateIL(state, func, block));
+		}
 		break;
 	case EXPR_DEREF:
 		result = func->CreateTempVariable(m_type);

@@ -20,9 +20,12 @@ typedef enum
 	ILOP_PTR_DIFF,
 	ILOP_ADD,
 	ILOP_SUB,
-	ILOP_MULT,
-	ILOP_DIV,
-	ILOP_MOD,
+	ILOP_SMULT,
+	ILOP_UMULT,
+	ILOP_SDIV,
+	ILOP_UDIV,
+	ILOP_SMOD,
+	ILOP_UMOD,
 	ILOP_AND,
 	ILOP_OR,
 	ILOP_XOR,
@@ -39,7 +42,8 @@ typedef enum
 	ILOP_IF_EQUAL,
 	ILOP_GOTO,
 	ILOP_CALL,
-	ILOP_CONVERT,
+	ILOP_SCONVERT,
+	ILOP_UCONVERT,
 	ILOP_RETURN,
 	ILOP_RETURN_VOID,
 	ILOP_ALLOCA,
@@ -54,7 +58,7 @@ typedef enum
 	ILPARAM_INT,
 	ILPARAM_FLOAT,
 	ILPARAM_STRING,
-	ILPARAM_NAME,
+	ILPARAM_FIELD,
 	ILPARAM_BOOL,
 	ILPARAM_VAR,
 	ILPARAM_FUNC,
@@ -62,6 +66,17 @@ typedef enum
 	ILPARAM_MEMBER,
 	ILPARAM_UNDEFINED
 } ILParameterClass;
+
+typedef enum
+{
+	ILTYPE_VOID,
+	ILTYPE_INT8,
+	ILTYPE_INT16,
+	ILTYPE_INT32,
+	ILTYPE_INT64,
+	ILTYPE_FLOAT,
+	ILTYPE_DOUBLE
+} ILParameterType;
 
 
 class Variable;
@@ -72,8 +87,9 @@ struct RelocationReference;
 struct ILParameter
 {
 	ILParameterClass cls;
-	Ref<Type> type;
+	ILParameterType type;
 	std::string stringValue;
+	Ref<Struct> structure;
 	Ref<Variable> variable;
 	Ref<Function> function;
 	union
@@ -87,17 +103,24 @@ struct ILParameter
 
 	ILParameter();
 	ILParameter(bool b);
+	ILParameter(ILParameterType t, int64_t i);
 	ILParameter(Type* t, int64_t i);
+	ILParameter(ILParameterType t, double f);
 	ILParameter(Type* t, double f);
-	ILParameter(const std::string& str, ILParameterClass c = ILPARAM_STRING);
+	ILParameter(const std::string& str);
+	ILParameter(Struct* s, const std::string& name);
 	ILParameter(Variable* var);
 	ILParameter(Function* func);
 	ILParameter(ILBlock* b);
-	ILParameter(const ILParameter& obj, const std::string& str);
+	ILParameter(const ILParameter& obj, Type* objType, const std::string& str);
 	ILParameter(const ILParameter& param);
 	~ILParameter();
 	ILParameter& operator=(const ILParameter& param);
 
+	static ILParameterType ReduceType(Type* t);
+
+	bool IsFloat() const { return (type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE); }
+	size_t GetWidth() const;
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);

@@ -25,7 +25,6 @@ class OUTPUT_CLASS_NAME: public Output
 	{
 		OperandReferenceType type;
 		size_t width;
-		bool sign;
 		union
 		{
 			struct
@@ -109,9 +108,12 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GeneratePtrDiff(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAdd(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateSub(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateMult(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateDiv(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateMod(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateSignedMult(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedMult(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateSignedDiv(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedDiv(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateSignedMod(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedMod(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAnd(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateOr(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateXor(OutputBlock* out, const ILInstruction& instr);
@@ -128,7 +130,8 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateIfEqual(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateGoto(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateCall(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateConvert(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateSignedConvert(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedConvert(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateReturn(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateReturnVoid(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAlloca(OutputBlock* out, const ILInstruction& instr);

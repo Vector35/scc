@@ -1828,8 +1828,8 @@ ILParameter Expr::GenerateArrayAccessIL(ParserState* state, Function* func, ILBl
 		result = ILParameter(m_variable);
 		break;
 	case EXPR_DOT:
-		result = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
-		result.type = m_type;
+		result = ILParameter(m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
+		result.type = ILParameter::ReduceType(m_type);
 		break;
 	default:
 		state->Error();
@@ -1889,8 +1889,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(m_function);
 		break;
 	case EXPR_DOT:
-		a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_stringValue);
-		a.type = m_type;
+		a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
+		a.type = ILParameter::ReduceType(m_type);
 		if (m_type->GetClass() == TYPE_ARRAY)
 		{
 			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
@@ -1906,13 +1906,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
 			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
-				ILParameter(m_stringValue, ILPARAM_NAME));
+				ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
 		}
 		else
 		{
 			result = func->CreateTempVariable(m_type);
 			block->AddInstruction(ILOP_DEREF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
-				ILParameter(m_stringValue, ILPARAM_NAME));
+				ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
 		}
 		break;
 	case EXPR_ADDRESS_OF:
@@ -1928,7 +1928,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_ADD, result, result,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+				ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -1940,7 +1942,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_SUB, result, result,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+				ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -1954,7 +1958,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_ADD, a, a,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+				ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -1968,7 +1974,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_SUB, a, a,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1));
+				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+				ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -1983,14 +1991,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			a = m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
 			c = func->CreateTempVariable(m_children[0]->GetType());
-			block->AddInstruction(ILOP_PTR_ADD, c, a, b);
+			block->AddInstruction(ILOP_PTR_ADD, c, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 			block->AddInstruction(ILOP_DEREF, result, c);
 		}
 		else
 		{
 			a = m_children[0]->GenerateArrayAccessIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_ARRAY_INDEX, result, a, b);
+			block->AddInstruction(ILOP_ARRAY_INDEX, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		break;
 	case EXPR_PLUS:
@@ -1998,11 +2008,19 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
-			block->AddInstruction(ILOP_PTR_ADD, result, a, b);
+		{
+			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+		}
 		else if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
-			block->AddInstruction(ILOP_PTR_ADD, result, b, a);
+		{
+			block->AddInstruction(ILOP_PTR_ADD, result, b, a, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[1]->GetType()->GetChildType()->GetWidth()));
+		}
 		else
+		{
 			block->AddInstruction(ILOP_ADD, result, a, b);
+		}
 		break;
 	case EXPR_MINUS:
 		result = func->CreateTempVariable(m_type);
@@ -2011,9 +2029,17 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
-				block->AddInstruction(ILOP_PTR_DIFF, result, a, b);
+			{
+				block->AddInstruction(ILOP_PTR_DIFF, result, a, b,
+					ILParameter(Type::IntType(GetTargetPointerSize(), false),
+					(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			}
 			else
-				block->AddInstruction(ILOP_PTR_SUB, result, a, b);
+			{
+				block->AddInstruction(ILOP_PTR_SUB, result, a, b,
+					ILParameter(Type::IntType(GetTargetPointerSize(), false),
+					(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			}
 		}
 		else
 		{
@@ -2024,19 +2050,28 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_MULT, result, a, b);
+		if (m_children[0]->GetType()->IsSigned())
+			block->AddInstruction(ILOP_SMULT, result, a, b);
+		else
+			block->AddInstruction(ILOP_UMULT, result, a, b);
 		break;
 	case EXPR_DIV:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_DIV, result, a, b);
+		if (m_children[0]->GetType()->IsSigned())
+			block->AddInstruction(ILOP_SDIV, result, a, b);
+		else
+			block->AddInstruction(ILOP_UDIV, result, a, b);
 		break;
 	case EXPR_MOD:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_MOD, result, a, b);
+		if (m_children[0]->GetType()->IsSigned())
+			block->AddInstruction(ILOP_SMOD, result, a, b);
+		else
+			block->AddInstruction(ILOP_UMOD, result, a, b);
 		break;
 	case EXPR_AND:
 		result = func->CreateTempVariable(m_type);
@@ -2066,7 +2101,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if (a.type->IsSigned())
+		if (m_children[0]->GetType()->IsSigned())
 			block->AddInstruction(ILOP_SAR, result, a, b);
 		else
 			block->AddInstruction(ILOP_SHR, result, a, b);
@@ -2131,14 +2166,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		endBlock = func->CreateILBlock();
 		if (a.IsConstant())
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_THAN, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
@@ -2158,14 +2193,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		endBlock = func->CreateILBlock();
 		if (a.IsConstant())
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_THAN, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
@@ -2219,14 +2254,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		endBlock = func->CreateILBlock();
 		if (a.IsConstant())
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_THAN, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
@@ -2246,14 +2281,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		endBlock = func->CreateILBlock();
 		if (a.IsConstant())
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_THAN, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
-			if (a.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
@@ -2273,7 +2308,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				result = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
 				a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
-				block->AddInstruction(ILOP_PTR_ADD, result, a, b);
+				block->AddInstruction(ILOP_PTR_ADD, result, a, b,
+					ILParameter(Type::IntType(GetTargetPointerSize(), false),
+					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
 				c = m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_DEREF_ASSIGN, result, c);
 				result = c;
@@ -2283,7 +2320,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				a = m_children[0]->m_children[0]->GenerateArrayAccessIL(state, func, block);
 				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
 				c = m_children[1]->GenerateIL(state, func, block);
-				block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, a, b, c);
+				block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, a, b,
+					ILParameter(Type::IntType(GetTargetPointerSize(), false),
+					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()), c);
 				result = c;
 			}
 		}
@@ -2298,7 +2337,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(m_children[0]->m_stringValue, ILPARAM_NAME), b);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), b);
 			result = b;
 		}
 		else
@@ -2339,9 +2380,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
-			block->AddInstruction(ILOP_PTR_ADD, a, a, b);
+		{
+			block->AddInstruction(ILOP_PTR_ADD, a, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+		}
 		else
+		{
 			block->AddInstruction(ILOP_ADD, a, a, b);
+		}
 		result = a;
 		break;
 	case EXPR_MINUS_EQ:
@@ -2353,9 +2399,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
-			block->AddInstruction(ILOP_PTR_SUB, a, a, b);
+		{
+			block->AddInstruction(ILOP_PTR_SUB, a, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+		}
 		else
+		{
 			block->AddInstruction(ILOP_SUB, a, a, b);
+		}
 		result = a;
 		break;
 	case EXPR_MULT_EQ:
@@ -2366,7 +2417,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		block->AddInstruction(ILOP_MULT, a, a, b);
+		if (m_children[0]->GetType()->IsSigned())
+			block->AddInstruction(ILOP_SMULT, a, a, b);
+		else
+			block->AddInstruction(ILOP_UMULT, a, a, b);
 		result = a;
 		break;
 	case EXPR_DIV_EQ:
@@ -2377,7 +2431,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		block->AddInstruction(ILOP_DIV, a, a, b);
+		if (m_children[0]->GetType()->IsSigned())
+			block->AddInstruction(ILOP_SDIV, a, a, b);
+		else
+			block->AddInstruction(ILOP_UDIV, a, a, b);
 		result = a;
 		break;
 	case EXPR_MOD_EQ:
@@ -2388,7 +2445,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		block->AddInstruction(ILOP_MOD, a, a, b);
+		if (m_children[0]->GetType()->IsSigned())
+			block->AddInstruction(ILOP_SMOD, a, a, b);
+		else
+			block->AddInstruction(ILOP_UMOD, a, a, b);
 		result = a;
 		break;
 	case EXPR_AND_EQ:
@@ -2443,7 +2503,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		if (a.type->IsSigned())
+		if (m_children[0]->GetType()->IsSigned())
 			block->AddInstruction(ILOP_SAR, a, a, b);
 		else
 			block->AddInstruction(ILOP_SHR, a, a, b);
@@ -2543,10 +2603,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		block->AddInstruction(ILOP_ASSIGN, result, a);
 		for (size_t i = 1; i < m_children.size(); i++)
 		{
-			a = m_children[0]->GenerateIL(state, func, block);
+			a = m_children[i]->GenerateIL(state, func, block);
 			trueBlock = func->CreateILBlock();
 			falseBlock = func->CreateILBlock();
-			if (result.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_THAN, a, result, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, a, result, ILParameter(trueBlock), ILParameter(falseBlock));
@@ -2561,10 +2621,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		block->AddInstruction(ILOP_ASSIGN, result, a);
 		for (size_t i = 1; i < m_children.size(); i++)
 		{
-			a = m_children[0]->GenerateIL(state, func, block);
+			a = m_children[i]->GenerateIL(state, func, block);
 			trueBlock = func->CreateILBlock();
 			falseBlock = func->CreateILBlock();
-			if (result.type->IsSigned())
+			if (m_children[0]->GetType()->IsSigned())
 				block->AddInstruction(ILOP_IF_LESS_THAN, result, a, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, result, a, ILParameter(trueBlock), ILParameter(falseBlock));
@@ -2619,9 +2679,17 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = a;
 		break;
 	case EXPR_CAST:
-		result = func->CreateTempVariable(m_type);
-		a = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_CONVERT, result, a);
+		if (ILParameter::ReduceType(m_type) == ILParameter::ReduceType(m_children[0]->GetType()))
+			result = m_children[0]->GenerateIL(state, func, block);
+		else
+		{
+			result = func->CreateTempVariable(m_type);
+			a = m_children[0]->GenerateIL(state, func, block);
+			if (m_children[0]->GetType()->IsSigned())
+				block->AddInstruction(ILOP_SCONVERT, result, a);
+			else
+				block->AddInstruction(ILOP_UCONVERT, result, a);
+		}
 		break;
 	case EXPR_RETURN:
 		a = m_children[0]->GenerateIL(state, func, block);

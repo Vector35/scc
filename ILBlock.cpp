@@ -16,7 +16,7 @@ ILParameter::ILParameter()
 {
 	cls = ILPARAM_VOID;
 	integerValue = 0;
-	type = Type::VoidType();
+	type = ILTYPE_VOID;
 }
 
 
@@ -24,7 +24,15 @@ ILParameter::ILParameter(bool b)
 {
 	cls = ILPARAM_BOOL;
 	boolValue = b;
-	type = Type::BoolType();
+	type = ILTYPE_INT8;
+}
+
+
+ILParameter::ILParameter(ILParameterType t, int64_t i)
+{
+	cls = ILPARAM_INT;
+	integerValue = i;
+	type = t;
 }
 
 
@@ -32,6 +40,14 @@ ILParameter::ILParameter(Type* t, int64_t i)
 {
 	cls = ILPARAM_INT;
 	integerValue = i;
+	type = ReduceType(t);
+}
+
+
+ILParameter::ILParameter(ILParameterType t, double f)
+{
+	cls = ILPARAM_FLOAT;
+	floatValue = f;
 	type = t;
 }
 
@@ -40,16 +56,26 @@ ILParameter::ILParameter(Type* t, double f)
 {
 	cls = ILPARAM_FLOAT;
 	floatValue = f;
-	type = t;
+	type = ReduceType(t);
 }
 
 
-ILParameter::ILParameter(const string& str, ILParameterClass c)
+ILParameter::ILParameter(const string& str)
 {
-	cls = c;
+	cls = ILPARAM_STRING;
 	stringValue = str;
-	type = Type::ArrayType(Type::IntType(1, true), str.size() + 1); // const char[]
-	type->SetConst(true);
+	type = (GetTargetPointerSize() == 4) ? ILTYPE_INT32 : ILTYPE_INT64;
+}
+
+
+ILParameter::ILParameter(Struct* s, const string& name)
+{
+	if (!s)
+		__asm__ __volatile__("int3");
+	cls = ILPARAM_FIELD;
+	structure = s;
+	stringValue = name;
+	type = ILTYPE_VOID;
 }
 
 
@@ -57,7 +83,7 @@ ILParameter::ILParameter(Variable* var)
 {
 	cls = ILPARAM_VAR;
 	variable = var;
-	type = var->GetType();
+	type = ReduceType(var->GetType());
 }
 
 
@@ -65,7 +91,7 @@ ILParameter::ILParameter(Function* func)
 {
 	cls = ILPARAM_FUNC;
 	function = func;
-	type = func->GetType();
+	type = (GetTargetPointerSize() == 4) ? ILTYPE_INT32 : ILTYPE_INT64;
 }
 
 
@@ -73,14 +99,15 @@ ILParameter::ILParameter(ILBlock* b)
 {
 	cls = ILPARAM_BLOCK;
 	block = b;
-	type = Type::VoidType();
+	type = (GetTargetPointerSize() == 4) ? ILTYPE_INT32 : ILTYPE_INT64;
 }
 
 
-ILParameter::ILParameter(const ILParameter& obj, const string& str)
+ILParameter::ILParameter(const ILParameter& obj, Type* objType, const string& str)
 {
 	cls = ILPARAM_MEMBER;
 	parent = new ILParameter(obj);
+	structure = objType->GetStruct();
 	stringValue = str;
 }
 
@@ -90,6 +117,7 @@ ILParameter::ILParameter(const ILParameter& param)
 	cls = param.cls;
 	type = param.type;
 	stringValue = param.stringValue;
+	structure = param.structure;
 	variable = param.variable;
 	function = param.function;
 
@@ -117,6 +145,7 @@ ILParameter& ILParameter::operator=(const ILParameter& param)
 	cls = param.cls;
 	type = param.type;
 	stringValue = param.stringValue;
+	structure = param.structure;
 	variable = param.variable;
 	function = param.function;
 
@@ -128,6 +157,58 @@ ILParameter& ILParameter::operator=(const ILParameter& param)
 		integerValue = param.integerValue;
 
 	return *this;
+}
+
+
+ILParameterType ILParameter::ReduceType(Type* t)
+{
+	switch (t->GetClass())
+	{
+	case TYPE_BOOL:
+		return ILTYPE_INT8;
+	case TYPE_INT:
+		switch (t->GetWidth())
+		{
+		case 1:
+			return ILTYPE_INT8;
+		case 2:
+			return ILTYPE_INT16;
+		case 4:
+			return ILTYPE_INT32;
+		case 8:
+			return ILTYPE_INT64;
+		default:
+			return ILTYPE_VOID;
+		}
+	case TYPE_FLOAT:
+		return (t->GetWidth() == 4) ? ILTYPE_FLOAT : ILTYPE_DOUBLE;
+	case TYPE_POINTER:
+	case TYPE_ARRAY:
+	case TYPE_FUNCTION:
+		return (GetTargetPointerSize() == 4) ? ILTYPE_INT32 : ILTYPE_INT64;
+	default:
+		return ILTYPE_VOID;
+	}
+}
+
+
+size_t ILParameter::GetWidth() const
+{
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		return 1;
+	case ILTYPE_INT16:
+		return 2;
+	case ILTYPE_INT32:
+	case ILTYPE_FLOAT:
+		return 4;
+	case ILTYPE_INT64:
+	case ILTYPE_DOUBLE:
+		return 8;
+	default:
+		return 0;
+	}
 }
 
 
@@ -189,7 +270,9 @@ void ILParameter::ConvertStringsToVariables(map< string, Ref<Variable> >& string
 		return;
 	}
 
-	Variable* var = new Variable(VAR_GLOBAL, type, string("$str$" + stringValue));
+	Type* t = Type::ArrayType(Type::IntType(1, true), stringValue.size() + 1);
+	t->SetConst(true);
+	Variable* var = new Variable(VAR_GLOBAL, t, string("$str$" + stringValue));
 	var->GetData().Write(stringValue.c_str(), stringValue.size() + 1);
 	stringMap[stringValue] = var;
 
@@ -232,7 +315,7 @@ void ILParameter::TagReferences()
 void ILParameter::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(cls);
-	type->Serialize(output);
+	output->WriteInteger(type);
 
 	switch (cls)
 	{
@@ -243,7 +326,10 @@ void ILParameter::Serialize(OutputBlock* output)
 		output->Write(&floatValue, sizeof(floatValue));
 		break;
 	case ILPARAM_STRING:
-	case ILPARAM_NAME:
+		output->WriteString(stringValue);
+		break;
+	case ILPARAM_FIELD:
+		structure->Serialize(output);
 		output->WriteString(stringValue);
 		break;
 	case ILPARAM_BOOL:
@@ -260,6 +346,7 @@ void ILParameter::Serialize(OutputBlock* output)
 		break;
 	case ILPARAM_MEMBER:
 		parent->Serialize(output);
+		structure->Serialize(output);
 		output->WriteString(stringValue);
 		break;
 	default:
@@ -275,9 +362,10 @@ bool ILParameter::Deserialize(InputBlock* input)
 		return false;
 	cls = (ILParameterClass)clsInt;
 
-	type = Type::Deserialize(input);
-	if (!type)
+	uint32_t typeInt;
+	if (!input->ReadUInt32(typeInt))
 		return false;
+	type = (ILParameterType)typeInt;
 
 	int64_t objectIndex;
 	switch (cls)
@@ -291,7 +379,13 @@ bool ILParameter::Deserialize(InputBlock* input)
 			return false;
 		break;
 	case ILPARAM_STRING:
-	case ILPARAM_NAME:
+		if (!input->ReadString(stringValue))
+			return false;
+		break;
+	case ILPARAM_FIELD:
+		structure = Struct::Deserialize(input);
+		if (!structure)
+			return false;
 		if (!input->ReadString(stringValue))
 			return false;
 		break;
@@ -320,6 +414,9 @@ bool ILParameter::Deserialize(InputBlock* input)
 		parent = new ILParameter();
 		if (!parent->Deserialize(input))
 			return false;
+		structure = Struct::Deserialize(input);
+		if (!structure)
+			return false;
 		if (!input->ReadString(stringValue))
 			return false;
 		break;
@@ -339,12 +436,12 @@ void ILParameter::Print() const
 	case ILPARAM_INT:  fprintf(stderr, "%lld", (long long)integerValue); break;
 	case ILPARAM_FLOAT:  fprintf(stderr, "%f", floatValue); break;
 	case ILPARAM_STRING:  fprintf(stderr, "\"%s\"", stringValue.c_str()); break;
-	case ILPARAM_NAME:  fprintf(stderr, "%s", stringValue.c_str()); break;
+	case ILPARAM_FIELD:  fprintf(stderr, "%s::%s", structure->GetName().c_str(), stringValue.c_str()); break;
 	case ILPARAM_BOOL:  fprintf(stderr, "%s", boolValue ? "true" : "false"); break;
 	case ILPARAM_VAR:  fprintf(stderr, "var<%s>", variable->GetName().c_str()); break;
 	case ILPARAM_FUNC:  fprintf(stderr, "func<%s>", function->GetName().c_str()); break;
 	case ILPARAM_BLOCK:  fprintf(stderr, "block<%d>", (int)block->GetIndex()); break;
-	case ILPARAM_MEMBER:  parent->Print(); fprintf(stderr, ".%s", stringValue.c_str()); break;
+	case ILPARAM_MEMBER:  parent->Print(); fprintf(stderr, ".%s::%s", structure->GetName().c_str(), stringValue.c_str()); break;
 	case ILPARAM_UNDEFINED:  fprintf(stderr, "__undefined"); break;
 	default:  fprintf(stderr, "<invalid>"); break;
 	}
@@ -496,16 +593,19 @@ void ILInstruction::Print() const
 	case ILOP_DEREF_MEMBER:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "->"); params[2].Print(); break;
 	case ILOP_DEREF_ASSIGN:  fprintf(stderr, "*"); params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
 	case ILOP_DEREF_MEMBER_ASSIGN:  params[0].Print(); fprintf(stderr, "->"); params[1].Print(); fprintf(stderr, " = "); params[2].Print(); break;
-	case ILOP_ARRAY_INDEX:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "["); params[2].Print(); fprintf(stderr, "]"); break;
-	case ILOP_ARRAY_INDEX_ASSIGN:  params[0].Print(); fprintf(stderr, "["); params[1].Print(); fprintf(stderr, "] = "); params[2].Print(); break;
-	case ILOP_PTR_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr+ "); params[2].Print(); break;
-	case ILOP_PTR_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr- "); params[2].Print(); break;
-	case ILOP_PTR_DIFF:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptrdiff "); params[2].Print(); break;
+	case ILOP_ARRAY_INDEX:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "["); params[2].Print(); fprintf(stderr, "]{%d}", (int)params[3].integerValue); break;
+	case ILOP_ARRAY_INDEX_ASSIGN:  params[0].Print(); fprintf(stderr, "["); params[1].Print(); fprintf(stderr, "]{%d} = ", (int)params[2].integerValue); params[3].Print(); break;
+	case ILOP_PTR_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr+ "); params[2].Print(); fprintf(stderr, " {%d}", (int)params[3].integerValue); break;
+	case ILOP_PTR_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr- "); params[2].Print(); fprintf(stderr, " {%d}", (int)params[3].integerValue); break;
+	case ILOP_PTR_DIFF:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptrdiff "); params[2].Print(); fprintf(stderr, " {%d}", (int)params[3].integerValue); break;
 	case ILOP_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " + "); params[2].Print(); break;
 	case ILOP_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " - "); params[2].Print(); break;
-	case ILOP_MULT:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " * "); params[2].Print(); break;
-	case ILOP_DIV:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " / "); params[2].Print(); break;
-	case ILOP_MOD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " %% "); params[2].Print(); break;
+	case ILOP_SMULT:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " smult "); params[2].Print(); break;
+	case ILOP_UMULT:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " umult "); params[2].Print(); break;
+	case ILOP_SDIV:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " sdiv "); params[2].Print(); break;
+	case ILOP_UDIV:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " udiv "); params[2].Print(); break;
+	case ILOP_SMOD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " smod "); params[2].Print(); break;
+	case ILOP_UMOD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " umod "); params[2].Print(); break;
 	case ILOP_AND:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " & "); params[2].Print(); break;
 	case ILOP_OR:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " | "); params[2].Print(); break;
 	case ILOP_XOR:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ^ "); params[2].Print(); break;
@@ -521,7 +621,8 @@ void ILInstruction::Print() const
 	case ILOP_IF_BELOW_EQUAL:  fprintf(stderr, "if unsigned "); params[0].Print(); fprintf(stderr, " <= "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
 	case ILOP_IF_EQUAL:  fprintf(stderr, "if "); params[0].Print(); fprintf(stderr, " == "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
 	case ILOP_GOTO:  fprintf(stderr, "goto "); params[0].Print(); break;
-	case ILOP_CONVERT:  params[0].Print(); fprintf(stderr, " = convert "); params[1].Print(); break;
+	case ILOP_SCONVERT:  params[0].Print(); fprintf(stderr, " = sconvert "); params[1].Print(); break;
+	case ILOP_UCONVERT:  params[0].Print(); fprintf(stderr, " = uconvert "); params[1].Print(); break;
 	case ILOP_RETURN:  fprintf(stderr, "return "); params[0].Print(); break;
 	case ILOP_RETURN_VOID:  fprintf(stderr, "return"); break;
 	case ILOP_ALLOCA:  params[0].Print(); fprintf(stderr, " = alloca "); params[1].Print(); break;

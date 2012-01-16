@@ -179,6 +179,10 @@ __fastcall	TOK(FASTCALL_TOK)
 
 __syscall	TOK(SYSCALL_TOK)
 
+__rdtsc		TOK(RDTSC_TOK)
+__rdtsc_low	TOK(RDTSC_LOW)
+__rdtsc_high	TOK(RDTSC_HIGH)
+
 [0-9]+						TOKINT(INT_VAL, strtoull(yytext, NULL, 10))
 0x[0-9a-fA-F]+					TOKINT(INT_VAL, strtoull(yytext + 2, NULL, 16))
 0b[0-1]+					TOKINT(INT_VAL, strtoull(yytext + 2, NULL, 2))

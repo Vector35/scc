@@ -628,6 +628,9 @@ void ILInstruction::Print() const
 	case ILOP_ALLOCA:  params[0].Print(); fprintf(stderr, " = alloca "); params[1].Print(); break;
 	case ILOP_MEMCPY:  fprintf(stderr, "memcpy "); params[0].Print(); fprintf(stderr, ", "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_MEMSET:  fprintf(stderr, "memset "); params[0].Print(); fprintf(stderr, ", "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
+	case ILOP_RDTSC:  params[0].Print(); fprintf(stderr, " = rdtsc"); break;
+	case ILOP_RDTSC_LOW:  params[0].Print(); fprintf(stderr, " = rdtsc_low"); break;
+	case ILOP_RDTSC_HIGH:  params[0].Print(); fprintf(stderr, " = rdtsc_high"); break;
 	case ILOP_CALL:
 		params[0].Print();
 		fprintf(stderr, " = ");

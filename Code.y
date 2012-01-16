@@ -108,6 +108,8 @@ void Code_error(ParserState* state, const char* msg)
 
 %token SYSCALL_TOK
 
+%token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
+
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
 %destructor { $$->Release(); } var_type return_type primitive_type
@@ -1309,6 +1311,9 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			delete $9;
 		}
 	|	SYSCALL_TOK LPAREN arg_list RPAREN  { $$ = state->BuiltinCallExpr(EXPR_SYSCALL, *$3); $$->AddRef(); delete $3; }
+	|	RDTSC_TOK LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC); $$->AddRef(); }
+	|	RDTSC_LOW LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_LOW); $$->AddRef(); }
+	|	RDTSC_HIGH LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_HIGH); $$->AddRef(); }
 	;
 
 expression_with_comma:	expression_with_comma COMMA expression  { $$ = $1; $$->AddChild($3); $3->Release(); }

@@ -1228,6 +1228,15 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		m_type = Type::IntType(GetTargetPointerSize(), false);
 		break;
+	case EXPR_RDTSC:
+		m_type = Type::IntType(8, false);
+		break;
+	case EXPR_RDTSC_LOW:
+		m_type = Type::IntType(4, false);
+		break;
+	case EXPR_RDTSC_HIGH:
+		m_type = Type::IntType(4, false);
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n", m_location.fileName.c_str(),
@@ -2822,6 +2831,18 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			params.push_back(m_children[i]->GenerateIL(state, func, block));
 		block->AddInstruction(ILOP_SYSCALL, params);
 		break;
+	case EXPR_RDTSC:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_RDTSC, result);
+		break;
+	case EXPR_RDTSC_LOW:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_RDTSC_LOW, result);
+		break;
+	case EXPR_RDTSC_HIGH:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_RDTSC_HIGH, result);
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in IL generation\n", m_location.fileName.c_str(),
@@ -3469,6 +3490,9 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, ")");
 		break;
+	case EXPR_RDTSC:  fprintf(stderr, "__rdtsc()"); break;
+	case EXPR_RDTSC_LOW:  fprintf(stderr, "__rdtsc_low()"); break;
+	case EXPR_RDTSC_HIGH:  fprintf(stderr, "__rdtsc_high()"); break;
 	default:
 		fprintf(stderr, "<invalid_expr>");
 		break;

@@ -3833,6 +3833,74 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateRdtsc(OutputBlock* out, const ILInstruction& instr)
+{
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	OperandReference dest;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	EMIT(rdtsc);
+
+	if (dest.type == OPERANDREF_REG)
+	{
+#ifdef OUTPUT32
+		EMIT_RR(mov_32, dest.reg, REG_EAX);
+		EMIT_RR(mov_32, dest.highReg, REG_EDX);
+#else
+		EMIT_RR(mov_64, dest.reg, REG_RDX);
+		EMIT_RI(shl_64, dest.reg, 32);
+		EMIT_RR(or_64, dest.reg, REG_RAX);
+#endif
+	}
+	else
+	{
+		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), REG_EAX);
+		EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), REG_EDX);
+	}
+
+	return true;
+}
+
+
+bool OUTPUT_CLASS_NAME::GenerateRdtscLow(OutputBlock* out, const ILInstruction& instr)
+{
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	OperandReference dest;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	EMIT(rdtsc);
+	if (dest.type == OPERANDREF_REG)
+		EMIT_RR(mov_32, dest.reg, REG_EAX);
+	else
+		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), REG_EAX);
+	return true;
+}
+
+
+bool OUTPUT_CLASS_NAME::GenerateRdtscHigh(OutputBlock* out, const ILInstruction& instr)
+{
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+
+	OperandReference dest;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	EMIT(rdtsc);
+	if (dest.type == OPERANDREF_REG)
+		EMIT_RR(mov_32, dest.reg, REG_EDX);
+	else
+		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), REG_EDX);
+	return true;
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 {
 	vector<ILInstruction>::iterator i;
@@ -4027,6 +4095,18 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			break;
 		case ILOP_SYSCALL:
 			if (!GenerateSyscall(out, *i))
+				goto fail;
+			break;
+		case ILOP_RDTSC:
+			if (!GenerateRdtsc(out, *i))
+				goto fail;
+			break;
+		case ILOP_RDTSC_LOW:
+			if (!GenerateRdtscLow(out, *i))
+				goto fail;
+			break;
+		case ILOP_RDTSC_HIGH:
+			if (!GenerateRdtscHigh(out, *i))
 				goto fail;
 			break;
 		default:

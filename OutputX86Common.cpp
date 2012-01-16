@@ -367,21 +367,33 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	ref.reg = AllocateTemporaryRegister(out, ref.width);
 
 #ifdef OUTPUT32
-	uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-	buffer[0] = 0xe8;
-	*(uint32_t*)(&buffer[1]) = 0;
-	out->FinishWrite(5);
-	EMIT_R(pop, ref.reg);
-	size_t leaOffset = out->len;
-	EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 4));
+	if (m_settings.staticBase)
+	{
+		EMIT_RI(mov_32, ref.reg, 0);
+		Relocation reloc;
+		reloc.type = CODE_RELOC_ABSOLUTE_32;
+		reloc.offset = out->len - 4;
+		reloc.target = block;
+		out->relocs.push_back(reloc);
+	}
+	else
+	{
+		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+		buffer[0] = 0xe8;
+		*(uint32_t*)(&buffer[1]) = 0;
+		out->FinishWrite(5);
+		EMIT_R(pop, ref.reg);
+		size_t leaOffset = out->len;
+		EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 4));
 
-	Relocation reloc;
-	reloc.type = CODE_RELOC_RELATIVE_8;
-	reloc.overflow = LeaOverflowHandler;
-	reloc.start = leaOffset;
-	reloc.offset = out->len - 1;
-	reloc.target = block;
-	out->relocs.push_back(reloc);
+		Relocation reloc;
+		reloc.type = CODE_RELOC_RELATIVE_8;
+		reloc.overflow = LeaOverflowHandler;
+		reloc.start = leaOffset;
+		reloc.offset = out->len - 1;
+		reloc.target = block;
+		out->relocs.push_back(reloc);
+	}
 #else
 	EMIT_RM(lea_64, ref.reg, X86_MEM(REG_RIP, 0));
 
@@ -2814,17 +2826,27 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 
 			// Generate code to get return address and add a relocation for it
 #ifdef OUTPUT32
-			uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-			buffer[0] = 0xe8;
-			*(uint32_t*)(&buffer[1]) = 0;
-			out->FinishWrite(5);
-			EMIT_R(pop, retAddr.reg);
-			EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
-
 			Relocation reloc;
-			reloc.type = CODE_RELOC_RELATIVE_8;
-			reloc.offset = out->len - 1;
-			reloc.target = NULL;
+			if (m_settings.staticBase)
+			{
+				EMIT_RI(mov_32, retAddr.reg, 0);
+				reloc.type = CODE_RELOC_ABSOLUTE_32;
+				reloc.offset = out->len - 4;
+				reloc.target = NULL;
+			}
+			else
+			{
+				uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+				buffer[0] = 0xe8;
+				*(uint32_t*)(&buffer[1]) = 0;
+				out->FinishWrite(5);
+				EMIT_R(pop, retAddr.reg);
+				EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
+
+				reloc.type = CODE_RELOC_RELATIVE_8;
+				reloc.offset = out->len - 1;
+				reloc.target = NULL;
+			}
 #else
 			EMIT_RM(lea_64, retAddr.reg, X86_MEM(REG_RIP, 0));
 
@@ -2917,17 +2939,27 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 
 			// Generate code to get return address and add a relocation for it
 #ifdef OUTPUT32
-			uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-			buffer[0] = 0xe8;
-			*(uint32_t*)(&buffer[1]) = 0;
-			out->FinishWrite(5);
-			EMIT_R(pop, retAddr.reg);
-			EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
-
 			Relocation reloc;
-			reloc.type = CODE_RELOC_RELATIVE_8;
-			reloc.offset = out->len - 1;
-			reloc.target = NULL;
+			if (m_settings.staticBase)
+			{
+				EMIT_RI(mov_32, retAddr.reg, 0);
+				reloc.type = CODE_RELOC_ABSOLUTE_32;
+				reloc.offset = out->len - 4;
+				reloc.target = NULL;
+			}
+			else
+			{
+				uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+				buffer[0] = 0xe8;
+				*(uint32_t*)(&buffer[1]) = 0;
+				out->FinishWrite(5);
+				EMIT_R(pop, retAddr.reg);
+				EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
+
+				reloc.type = CODE_RELOC_RELATIVE_8;
+				reloc.offset = out->len - 1;
+				reloc.target = NULL;
+			}
 #else
 			EMIT_RM(lea_64, retAddr.reg, X86_MEM(REG_RIP, 0));
 

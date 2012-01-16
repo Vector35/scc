@@ -2812,6 +2812,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 	case EXPR_UNDEFINED:
 		result = ILParameter();
 		result.cls = ILPARAM_UNDEFINED;
+		result.type = ILParameter::ReduceType(m_type);
 		break;
 	case EXPR_SYSCALL:
 		result = func->CreateTempVariable(m_type);

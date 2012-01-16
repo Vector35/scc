@@ -21,7 +21,7 @@ enum RelocationType
 struct Relocation
 {
 	RelocationType type;
-	size_t offset, start;
+	size_t offset, start, end;
 	void (*overflow)(OutputBlock* out, size_t start, size_t offset);
 	union
 	{

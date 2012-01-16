@@ -314,8 +314,7 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParamete
 		out->FinishWrite(5);
 		EMIT_R(pop, ptr);
 		size_t leaOffset = out->len;
-		EMIT_RM(lea_32, ptr, X86_MEM(ptr, 0x11));
-		*(int8_t*)((size_t)out->code + out->len - 1) = 4;
+		EMIT_RM(lea_32, ptr, X86_MEM(ptr, 4));
 
 		Relocation reloc;
 		reloc.type = DATA_RELOC_RELATIVE_8;
@@ -374,8 +373,7 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	out->FinishWrite(5);
 	EMIT_R(pop, ref.reg);
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 0x11));
-	*(int8_t*)((size_t)out->code + out->len - 1) = 4;
+	EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 4));
 
 	Relocation reloc;
 	reloc.type = CODE_RELOC_RELATIVE_8;
@@ -384,8 +382,6 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	reloc.offset = out->len - 1;
 	reloc.target = block;
 	out->relocs.push_back(reloc);
-
-	return true;
 #else
 	EMIT_RM(lea_64, ref.reg, X86_MEM(REG_RIP, 0));
 
@@ -394,8 +390,19 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	reloc.offset = out->len - 4;
 	reloc.target = block;
 	out->relocs.push_back(reloc);
-	return true;
 #endif
+
+	if (m_settings.encodePointers)
+	{
+		ILParameter keyParam(m_settings.encodePointerKey);
+		OperandReference key;
+		if (!PrepareLoad(out, keyParam, key))
+			return false;
+		if (!Xor(out, ref, key))
+			return false;
+	}
+
+	return true;
 }
 
 
@@ -1021,6 +1028,12 @@ void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType ty
 
 void OUTPUT_CLASS_NAME::UnconditionalJump(OutputBlock* out, ILBlock* block)
 {
+/*	if (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1))
+	{
+		// The destination block is the one just after the current one, just fall through
+		return;
+	}*/
+
 	uint8_t* buffer = (uint8_t*)out->PrepareWrite(2);
 	buffer[0] = 0xeb;
 	buffer[1] = 0;
@@ -2787,16 +2800,80 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	if (instr.params[1].cls == ILPARAM_FUNC)
 	{
 		// Direct function call
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-		buffer[0] = 0xe8;
-		*(uint32_t*)(&buffer[1]) = 0;
-		out->FinishWrite(5);
+		if (m_settings.encodePointers)
+		{
+			// Encoded pointer call, push encoded return address then jump to function
+			OperandReference retAddr;
+			retAddr.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+			retAddr.width = 4;
+#else
+			retAddr.width = 8;
+#endif
+			retAddr.reg = AllocateTemporaryRegister(out, retAddr.width);
 
-		Relocation reloc;
-		reloc.type = CODE_RELOC_RELATIVE_32;
-		reloc.offset = out->len - 4;
-		reloc.target = instr.params[1].function->GetIL()[0];
-		out->relocs.push_back(reloc);
+			// Generate code to get return address and add a relocation for it
+#ifdef OUTPUT32
+			uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+			buffer[0] = 0xe8;
+			*(uint32_t*)(&buffer[1]) = 0;
+			out->FinishWrite(5);
+			EMIT_R(pop, retAddr.reg);
+			EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_8;
+			reloc.offset = out->len - 1;
+			reloc.target = NULL;
+#else
+			EMIT_RM(lea_64, retAddr.reg, X86_MEM(REG_RIP, 0));
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_32;
+			reloc.offset = out->len - 4;
+			reloc.target = NULL;
+			out->relocs.push_back(reloc);
+#endif
+
+			size_t beforeLen = out->len;
+
+			// Generate code to encode pointer and perform call
+			ILParameter keyParam(m_settings.encodePointerKey);
+			OperandReference key;
+			if (!PrepareLoad(out, keyParam, key))
+				return false;
+			if (!Xor(out, retAddr, key))
+				return false;
+
+			EMIT_R(push, retAddr.reg);
+			UnconditionalJump(out, instr.params[1].function->GetIL()[0]);
+
+			// Fix up relocation to point to return address
+			size_t afterLen = out->len;
+			reloc.start = beforeLen;
+			reloc.end = afterLen;
+#ifdef OUTPUT32
+			*(int8_t*)((size_t)out->code + reloc.offset) += (int8_t)(afterLen - beforeLen);
+			out->relocs.push_back(reloc);
+#else
+			*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
+			out->relocs.push_back(reloc);
+#endif
+		}
+		else
+		{
+			// Normal call
+			uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+			buffer[0] = 0xe8;
+			*(uint32_t*)(&buffer[1]) = 0;
+			out->FinishWrite(5);
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_32;
+			reloc.offset = out->len - 4;
+			reloc.target = instr.params[1].function->GetIL()[0];
+			out->relocs.push_back(reloc);
+		}
 	}
 	else
 	{
@@ -2805,16 +2882,107 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 		if (!PrepareLoad(out, instr.params[1], func))
 			return false;
 
-		switch (func.type)
+		if (m_settings.encodePointers)
 		{
-		case OPERANDREF_REG:
-			EMIT_R(calln, func.reg);
-			break;
-		case OPERANDREF_MEM:
-			EMIT_M(calln, X86_MEM_REF(func.mem));
-			break;
-		default:
-			return false;
+			// Decode pointer before calling
+			ILParameter keyParam(m_settings.encodePointerKey);
+			OperandReference key;
+			if (!PrepareLoad(out, keyParam, key))
+				return false;
+
+			OperandReference temp;
+			temp.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+			temp.width = 4;
+#else
+			temp.width = 8;
+#endif
+			temp.reg = AllocateTemporaryRegister(out, temp.width);
+			if (!Move(out, temp, func))
+				return false;
+			if (!Xor(out, temp, key))
+				return false;
+
+			func = temp;
+
+			// Push encoded return address on stack, then jump to destination
+			OperandReference retAddr;
+			retAddr.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+			retAddr.width = 4;
+#else
+			retAddr.width = 8;
+#endif
+			retAddr.reg = AllocateTemporaryRegister(out, retAddr.width);
+
+			// Generate code to get return address and add a relocation for it
+#ifdef OUTPUT32
+			uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+			buffer[0] = 0xe8;
+			*(uint32_t*)(&buffer[1]) = 0;
+			out->FinishWrite(5);
+			EMIT_R(pop, retAddr.reg);
+			EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_8;
+			reloc.offset = out->len - 1;
+			reloc.target = NULL;
+#else
+			EMIT_RM(lea_64, retAddr.reg, X86_MEM(REG_RIP, 0));
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_32;
+			reloc.offset = out->len - 4;
+			reloc.target = NULL;
+#endif
+
+			size_t beforeLen = out->len;
+
+			// Encode return address
+			if (!Xor(out, retAddr, key))
+				return false;
+
+			// Push return address and jump to destination
+			EMIT_R(push, retAddr.reg);
+			func = temp;
+			switch (func.type)
+			{
+			case OPERANDREF_REG:
+				EMIT_R(jmpn, func.reg);
+				break;
+			case OPERANDREF_MEM:
+				EMIT_M(jmpn, X86_MEM_REF(func.mem));
+				break;
+			default:
+				return false;
+			}
+
+			// Fix up relocation to point to return address
+			size_t afterLen = out->len;
+			reloc.start = beforeLen;
+			reloc.end = afterLen;
+#ifdef OUTPUT32
+			*(int8_t*)((size_t)out->code + reloc.offset) += (int8_t)(afterLen - beforeLen);
+			out->relocs.push_back(reloc);
+#else
+			*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
+			out->relocs.push_back(reloc);
+#endif
+		}
+		else
+		{
+			switch (func.type)
+			{
+			case OPERANDREF_REG:
+				EMIT_R(calln, func.reg);
+				break;
+			case OPERANDREF_MEM:
+				EMIT_M(calln, X86_MEM_REF(func.mem));
+				break;
+			default:
+				return false;
+			}
 		}
 	}
 
@@ -3472,6 +3640,30 @@ bool OUTPUT_CLASS_NAME::GenerateReturn(OutputBlock* out, const ILInstruction& in
 
 bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction& instr)
 {
+	ReserveRegister(REG_EAX);
+	ReserveRegister(REG_EDX);
+	ReserveRegister(REG_ECX);
+
+	if (m_settings.encodePointers)
+	{
+		// Using encoded pointers, load decode key into ECX
+		ILParameter keyParam(m_settings.encodePointerKey);
+		OperandReference ecx, key;
+
+		if (!PrepareLoad(out, keyParam, key))
+			return false;
+
+		ecx.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+		ecx.width = 4;
+#else
+		ecx.width = 8;
+#endif
+		ecx.reg = GetRegisterOfSize(REG_ECX, ecx.width);
+		if (!Move(out, ecx, key))
+			return false;
+	}
+
 	if (m_framePointerEnabled)
 	{
 		EMIT(leave);
@@ -3487,6 +3679,17 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 #endif
 		}
 	}
+
+	if (m_settings.encodePointers)
+	{
+		// Using encoded pointers, decode return address before returning
+#ifdef OUTPUT32
+		EMIT_MR(xor_32, X86_MEM(STACK_POINTER, 0), REG_ECX);
+#else
+		EMIT_MR(xor_64, X86_MEM(STACK_POINTER, 0), REG_RCX);
+#endif
+	}
+
 	EMIT(retn);
 	return true;
 }
@@ -3792,6 +3995,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 			else
 			{
 				reg = GetRegisterOfSize(linuxRegs[regIndex++], cur.width);
+				highReg = NONE;
 			}
 #else
 			OperandType reg = GetRegisterOfSize(linuxRegs[regIndex++], cur.width);
@@ -3903,6 +4107,8 @@ bool OUTPUT_CLASS_NAME::GenerateRdtscHigh(OutputBlock* out, const ILInstruction&
 
 bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 {
+	m_currentBlock = block;
+
 	vector<ILInstruction>::iterator i;
 	for (i = block->GetInstructions().begin(); i != block->GetInstructions().end(); i++)
 	{

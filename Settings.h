@@ -34,6 +34,8 @@ enum OptimizationLevel
 	OPTIMIZE_NORMAL
 };
 
+class Variable;
+
 struct Settings
 {
 	std::vector<uint8_t> blacklist;
@@ -48,8 +50,10 @@ struct Settings
 	bool allowReturn;
 	bool assumeSafeStack;
 	bool concat;
-	bool encodePointers;
 	bool sharedLibrary;
+
+	bool encodePointers;
+	Ref<Variable> encodePointerKey;
 
 	bool polymorph;
 	uint32_t seed;

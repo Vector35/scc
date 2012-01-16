@@ -1236,6 +1236,20 @@ int main(int argc, char* argv[])
 	functionsByName["_start"] = startFunction;
 
 	Ref<Expr> startBody = new Expr(EXPR_SEQUENCE);
+
+	// If using encoded pointers, choose the key now
+	if (settings.encodePointers)
+	{
+		settings.encodePointerKey = new Variable(VAR_GLOBAL, Type::IntType(GetTargetPointerSize(), false), "@pointer_key");
+		variables.push_back(settings.encodePointerKey);
+		variablesByName["@pointer_key"] = settings.encodePointerKey;
+
+		Ref<Expr> keyExpr = Expr::VariableExpr(mainFunc->GetLocation(), settings.encodePointerKey);
+		Ref<Expr> valueExpr = new Expr(mainFunc->GetLocation(), (GetTargetPointerSize() == 4) ? EXPR_RDTSC_LOW : EXPR_RDTSC);
+		startBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN, keyExpr, valueExpr));
+	}
+
+	// Add global variable initialization expression
 	startBody->AddChild(initExpression);
 
 	Ref<Expr> mainExpr = Expr::FunctionExpr(mainFunc->GetLocation(), mainFunc);
@@ -1379,6 +1393,14 @@ int main(int argc, char* argv[])
 		}
 
 		addr += (*i)->GetType()->GetWidth();
+	}
+
+	// Ensure IL blocks have global indexes
+	size_t globalBlockIndex = 0;
+	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	{
+		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+			(*j)->SetGlobalIndex(globalBlockIndex++);
 	}
 
 	// Generate code for each block

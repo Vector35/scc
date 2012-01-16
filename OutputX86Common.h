@@ -64,6 +64,7 @@ class OUTPUT_CLASS_NAME: public Output
 	uint32_t m_stackFrameSize;
 	bool m_framePointerEnabled;
 	asmx86::OperandType m_framePointer;
+	ILBlock* m_currentBlock;
 
 	size_t m_temporaryCount;
 	bool m_reserved[4];

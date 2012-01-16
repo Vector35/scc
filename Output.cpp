@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "Output.h"
 #include "Struct.h"
+#include "Variable.h"
 
 using namespace std;
 
@@ -104,7 +106,31 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 		{
 			// Relocation is after current instruction
 			i->start += newLen - origLen;
+			i->end += newLen - origLen;
 			i->offset += newLen - origLen;
+		}
+	}
+
+	// Check for block-internal relocations
+	for (vector<Relocation>::iterator i = relocs.begin(); i != relocs.end(); i++)
+	{
+		switch (i->type)
+		{
+		case CODE_RELOC_RELATIVE_8:
+			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
+				*(int8_t*)((size_t)code + i->offset) += newLen - origLen;
+			break;
+		case CODE_RELOC_RELATIVE_32:
+		case CODE_RELOC_ABSOLUTE_32:
+			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
+				*(int32_t*)((size_t)code + i->offset) += newLen - origLen;
+			break;
+		case CODE_RELOC_ABSOLUTE_64:
+			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
+				*(int64_t*)((size_t)code + i->offset) += newLen - origLen;
+			break;
+		default:
+			break;
 		}
 	}
 }

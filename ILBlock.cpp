@@ -778,6 +778,8 @@ bool ILBlock::CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationR
 		switch (i->type)
 		{
 		case CODE_RELOC_RELATIVE_8:
+			if (!i->target)
+				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 1);
 			diff += *(int8_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
@@ -835,6 +837,8 @@ bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
 		switch (i->type)
 		{
 		case CODE_RELOC_RELATIVE_8:
+			if (!i->target)
+				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 1);
 			diff += *(int8_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
@@ -845,6 +849,8 @@ bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
 			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
 			break;
 		case CODE_RELOC_RELATIVE_32:
+			if (!i->target)
+				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
 			diff += *(int32_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
@@ -855,10 +861,16 @@ bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
 			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
 			break;
 		case CODE_RELOC_ABSOLUTE_32:
-			*(uint32_t*)((size_t)m_output->code + i->offset) = (uint32_t)(i->target->m_addr);
+			if (i->target)
+				*(uint32_t*)((size_t)m_output->code + i->offset) += (uint32_t)(i->target->m_addr);
+			else
+				*(uint32_t*)((size_t)m_output->code + i->offset) += (uint32_t)(m_addr + i->offset + 4);
 			break;
 		case CODE_RELOC_ABSOLUTE_64:
-			*(uint64_t*)((size_t)m_output->code + i->offset) = i->target->m_addr;
+			if (i->target)
+				*(uint64_t*)((size_t)m_output->code + i->offset) += i->target->m_addr;
+			else
+				*(uint64_t*)((size_t)m_output->code + i->offset) += m_addr + i->offset + 8;
 			break;
 		case DATA_RELOC_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);

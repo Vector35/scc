@@ -166,7 +166,7 @@ struct OutputBlock;
 
 class ILBlock
 {
-	size_t m_index;
+	size_t m_index, m_globalIndex;
 	std::vector<ILInstruction> m_instrs;
 	OutputBlock* m_output;
 	size_t m_addr;
@@ -180,6 +180,9 @@ public:
 
 	size_t GetIndex() const { return m_index; }
 	void SetIndex(size_t i) { m_index = i; }
+
+	size_t GetGlobalIndex() const { return m_globalIndex; }
+	void SetGlobalIndex(size_t i) { m_globalIndex = i; }
 
 	std::vector<ILInstruction>& GetInstructions() { return m_instrs; }
 	const std::vector<ILInstruction>& GetInstructions() const { return m_instrs; }

@@ -935,6 +935,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			state->Error();
 			fprintf(stderr, "%s:%d: error: too few parameters in call\n", m_location.fileName.c_str(),
 				m_location.lineNumber);
+			m_type = Type::VoidType();
 			break;
 		}
 		m_type = m_children[0]->GetType()->GetChildType();

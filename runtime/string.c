@@ -9,6 +9,18 @@ char* strcpy(char* dest, const char* src)
 	return (char*)memcpy(dest, src, strlen(src) + 1);
 }
 
+char* strncpy(char* dest, const char* src, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+	{
+		char ch = src[i];
+		dest[i] = ch;
+		if (ch == 0)
+			break;
+	}
+	return dest;
+}
+
 size_t strlen(const char* str)
 {
 	size_t result;

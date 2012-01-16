@@ -4,6 +4,7 @@
 #include "runtime/vararg.h"
 
 char* strcpy(char* dest, const char* src);
+char* strncpy(char* dest, const char* src, size_t len);
 size_t strlen(const char* str);
 
 int sprintf(char* out, const char* fmt, ...);

@@ -170,6 +170,7 @@ void Usage()
 	fprintf(stderr, "    --internal-debug                  Enable internal debugging output\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
+	fprintf(stderr, "    --map <file>                      Generate map file\n");
 	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
 	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
 	fprintf(stderr, "    -O0                               Do not run the optimizer\n");
@@ -200,6 +201,7 @@ int main(int argc, char* argv[])
 	string library;
 	vector<string> precompiledHeaders;
 	string outputFile = "";
+	string mapFile = "";
 	bool hexOutput = true;
 	bool architectureIsExplicit = false;
 	bool osIsExplicit = false;
@@ -409,6 +411,18 @@ int main(int argc, char* argv[])
 
 			i++;
 			library = argv[i];
+			continue;
+		}
+		else if (!strcmp(argv[i], "--map"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			mapFile = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--max-length"))
@@ -1376,6 +1390,36 @@ int main(int argc, char* argv[])
 	default:
 		fprintf(stderr, "error: unimplemented output format\n");
 		return 1;
+	}
+
+	// Generate map file
+	if (mapFile.size() != 0)
+	{
+		FILE* outFP = fopen(mapFile.c_str(), "w");
+		if (!outFP)
+		{
+			fprintf(stderr, "error: unable to open map file\n");
+			return 1;
+		}
+
+		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		{
+			if ((*i)->GetName().size() == 0)
+				continue;
+			fprintf(outFP, "%llx %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(), (*i)->GetName().c_str());
+		}
+
+		for (vector< Ref<Variable> >::iterator i = variables.begin(); i != variables.end(); i++)
+		{
+			if ((*i)->GetName().size() == 0)
+				continue;
+			if ((*i)->GetName()[0] == '$')
+				continue;
+			fprintf(outFP, "%llx %s\n", (unsigned long long)(settings.dataSectionBase +
+				(*i)->GetDataSectionOffset()), (*i)->GetName().c_str());
+		}
+
+		fclose(outFP);
 	}
 
 	fprintf(stderr, "Output is %u bytes\n", (uint32_t)finalBinary->len);

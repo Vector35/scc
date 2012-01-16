@@ -3743,6 +3743,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	{
 #ifdef OUTPUT32
 		static const OperandType linuxRegs[] = {REG_EAX, REG_EBX, REG_ECX, REG_EDX, REG_ESI, REG_EDI, REG_EBP, NONE};
+		bool savedEbp = false;
 #else
 		static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
 #endif
@@ -3759,6 +3760,12 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 				if (linuxRegs[regIndex + 1] == NONE)
 					return false;
 				ReserveRegister(linuxRegs[regIndex + 1]);
+			}
+
+			if (linuxRegs[regIndex + 1] == REG_EBP)
+			{
+				EMIT_R(push, REG_EBP);
+				savedEbp = true;
 			}
 #endif
 
@@ -3797,6 +3804,11 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 		EMIT_I(int, 0x80);
 #else
 		EMIT(syscall);
+#endif
+
+#ifdef OUTPUT32
+		if (savedEbp)
+			EMIT_R(pop, REG_EBP);
 #endif
 
 		OperandReference dest, result;

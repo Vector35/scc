@@ -1174,23 +1174,118 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// Ensure entry function is at the start
-	map< string, Ref<Function> >::iterator entryFunc = functionsByName.find("main");
-	if (entryFunc == functionsByName.end())
+	// Find main function
+	map< string, Ref<Function> >::iterator mainFuncRef = functionsByName.find("main");
+	if (mainFuncRef == functionsByName.end())
 	{
 		fprintf(stderr, "error: function 'main' is undefined\n");
 		return 1;
 	}
+	Ref<Function> mainFunc = mainFuncRef->second;
 
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	if (mainFunc->HasVariableArguments())
 	{
-		if ((*i) == entryFunc->second)
-		{
-			functions.erase(i);
-			functions.insert(functions.begin(), entryFunc->second);
-			break;
-		}
+		fprintf(stderr, "error: function 'main' can not have variable arguments\n");
+		return 1;
 	}
+
+	// Find exit function
+	map< string, Ref<Function> >::iterator exitFuncRef = functionsByName.find("exit");
+	if (exitFuncRef == functionsByName.end())
+	{
+		fprintf(stderr, "error: function 'exit' is undefined\n");
+		return 1;
+	}
+	Ref<Function> exitFunc = exitFuncRef->second;
+
+	// Generate _start function
+	map< string, Ref<Function> >::iterator entryFuncRef = functionsByName.find("_start");
+	if (entryFuncRef != functionsByName.end())
+	{
+		fprintf(stderr, "error: cannot override internal function '_start'\n");
+		return 1;
+	}
+
+	FunctionInfo startInfo;
+	startInfo.returnValue = mainFunc->GetReturnValue();
+	startInfo.callingConvention = mainFunc->GetCallingConvention();
+	startInfo.name = "_start";
+	startInfo.location = mainFunc->GetLocation();
+
+	// Set up _start parameters to mirror main
+	vector< Ref<Variable> > paramVars;
+	for (vector<FunctionParameter>::const_iterator i = mainFunc->GetParameters().begin();
+		i != mainFunc->GetParameters().end(); i++)
+	{
+		string name = i->name;
+		if (name.c_str() == 0)
+		{
+			char str[32];
+			sprintf(str, "$%d", (int)paramVars.size());
+			name = str;
+		}
+
+		startInfo.params.push_back(pair< Ref<Type>, string >(i->type, name));
+
+		Variable* var = new Variable(paramVars.size(), i->type, name);
+		paramVars.push_back(var);
+	}
+
+	Ref<Function> startFunction = new Function(startInfo, false);
+	functions.insert(functions.begin(), startFunction);
+	functionsByName["_start"] = startFunction;
+
+	Ref<Expr> startBody = new Expr(EXPR_SEQUENCE);
+	startBody->AddChild(initExpression);
+
+	Ref<Expr> mainExpr = Expr::FunctionExpr(mainFunc->GetLocation(), mainFunc);
+	Ref<Expr> exitExpr = Expr::FunctionExpr(mainFunc->GetLocation(), exitFunc);
+
+	// Generate call to main
+	vector< Ref<Expr> > params;
+	for (size_t i = 0; i < mainFunc->GetParameters().size(); i++)
+		params.push_back(Expr::VariableExpr(mainFunc->GetLocation(), paramVars[i]));
+	Ref<Expr> callExpr = Expr::CallExpr(mainFunc->GetLocation(), mainExpr, params);
+
+	// Handle result of main
+	if (settings.allowReturn)
+	{
+		if (mainFunc->GetReturnValue()->GetClass() == TYPE_VOID)
+			startBody->AddChild(callExpr);
+		else
+			startBody->AddChild(Expr::UnaryExpr(mainFunc->GetLocation(), EXPR_RETURN, callExpr));
+	}
+	else if (mainFunc->GetReturnValue()->GetClass() == TYPE_VOID)
+	{
+		startBody->AddChild(callExpr);
+
+		vector< Ref<Expr> > exitParams;
+		exitParams.push_back(new Expr(mainFunc->GetLocation(), EXPR_UNDEFINED));
+		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), exitExpr, exitParams));
+	}
+	else
+	{
+		vector< Ref<Expr> > exitParams;
+		exitParams.push_back(callExpr);
+		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), exitExpr, exitParams));
+	}
+
+	// Generate code for _start
+	startFunction->SetBody(startBody);
+
+	// First, propogate type information
+	ParserState startState("_start", NULL);
+	startFunction->SetBody(startFunction->GetBody()->Simplify(&startState));
+	startFunction->GetBody()->ComputeType(&startState, startFunction);
+	startFunction->SetBody(startFunction->GetBody()->Simplify(&startState));
+	if (startState.HasErrors())
+		return 1;
+
+	// Generate IL
+	startFunction->GenerateIL(&startState);
+	startFunction->ReportUndefinedLabels(&startState);
+	if (startState.HasErrors())
+		return 1;
 
 	// Make string constants into global const character arrays
 	map< string, Ref<Variable> > stringMap;

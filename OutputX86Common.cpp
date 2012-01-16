@@ -421,6 +421,11 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(OutputBlock* out, const ILParameter& param, 
 		return true;
 	case ILPARAM_FUNC:
 		return LoadCodePointer(out, param.function->GetIL()[0], ref);
+	case ILPARAM_UNDEFINED:
+		ref.type = OPERANDREF_REG;
+		ref.width = param.GetWidth();
+		ref.reg = GetRegisterOfSize(REG_EAX, ref.width);
+		return true;
 	default:
 		return false;
 	}
@@ -3754,6 +3759,10 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 			if (linuxRegs[regIndex] == NONE)
 				return false;
 			ReserveRegister(linuxRegs[regIndex]);
+
+			if (instr.params[i].cls == ILPARAM_UNDEFINED)
+				continue;
+
 #ifdef OUTPUT32
 			if (instr.params[i].GetWidth() == 8)
 			{

@@ -23,9 +23,9 @@ all : scc
 # Object directories
 Obj/:
 	if [ ! -d Obj ]; then mkdir Obj; fi
-Obj/Obj/:
+Obj/Obj/: | Obj/
 	if [ ! -d Obj/Obj ]; then mkdir Obj/Obj; fi
-Obj/asmx86/:
+Obj/asmx86/: | Obj/
 	if [ ! -d Obj/asmx86 ]; then mkdir Obj/asmx86; fi
 
 # Main build targets

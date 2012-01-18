@@ -166,6 +166,7 @@ void Usage()
 	fprintf(stderr, "                                      output to a file)\n");
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe\n");
+	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
 	fprintf(stderr, "    --internal-debug                  Enable internal debugging output\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
@@ -176,12 +177,17 @@ void Usage()
 	fprintf(stderr, "    -O0                               Do not run the optimizer\n");
 	fprintf(stderr, "    -Os                               Try to generate the smallest code possible\n");
 	fprintf(stderr, "    --pad                             Pad output to be exactly the maximum length\n");
+	fprintf(stderr, "    --pie                             Always generate position independent code\n");
 	fprintf(stderr, "    --platform <value>                Specify operating system\n");
 	fprintf(stderr, "                                      Can be: linux (default), freebsd, mach, windows, none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
+	fprintf(stderr, "    --return-reg <reg>                Use alternate register as the return value\n");
+	fprintf(stderr, "    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return\n");
+	fprintf(stderr, "                                      value (32-bit output only)\n");
 	fprintf(stderr, "    --seed <value>                    Specify random seed (to reproduce --polymorph runs)\n");
 	fprintf(stderr, "    --shared                          Generate shared library instead of executable\n");
+	fprintf(stderr, "    --stack-reg <reg>                 Use alternate register as the stack pointer\n");
 	fprintf(stderr, "    --stdin                           Read source code from stdin\n");
 	fprintf(stderr, "    --stdout                          Send generated code to stdout for pipelines\n\n");
 	fprintf(stderr, "Useful extensions:\n");
@@ -211,6 +217,7 @@ int main(int argc, char* argv[])
 	uint32_t maxLength = 0;
 	bool pad = false;
 	bool useSpecificSeed = false;
+	bool positionIndependentExplicit = false;
 	Settings settings;
 
 	settings.architecture = ARCH_X86;
@@ -226,6 +233,7 @@ int main(int argc, char* argv[])
 	settings.polymorph = false;
 	settings.seed = 0;
 	settings.staticBase = false;
+	settings.positionIndependent = true;
 	settings.base = 0;
 
 	for (int i = 1; i < argc; i++)
@@ -349,6 +357,18 @@ int main(int argc, char* argv[])
 			execute = true;
 			continue;
 		}
+		else if (!strcmp(argv[i], "--frame-reg"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.frameReg = argv[i];
+			continue;
+		}
 		else if ((!strcmp(argv[i], "--format")) || (!strcmp(argv[i], "-f")))
 		{
 			if ((i + 1) >= argc)
@@ -465,6 +485,12 @@ int main(int argc, char* argv[])
 			settings.optimization = OPTIMIZE_SIZE;
 			continue;
 		}
+		else if (!strcmp(argv[i], "--pie"))
+		{
+			settings.positionIndependent = true;
+			positionIndependentExplicit = true;
+			continue;
+		}
 		else if (!strcmp(argv[i], "--platform"))
 		{
 			if ((i + 1) >= argc)
@@ -509,6 +535,30 @@ int main(int argc, char* argv[])
 			settings.preservedRegs.push_back(argv[i]);
 			continue;
 		}
+		else if (!strcmp(argv[i], "--return-reg"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.returnReg = argv[i];
+			continue;
+		}
+		else if (!strcmp(argv[i], "--return-high-reg"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.returnHighReg = argv[i];
+			continue;
+		}
 		else if (!strcmp(argv[i], "--seed"))
 		{
 			if ((i + 1) >= argc)
@@ -525,6 +575,18 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--shared"))
 		{
 			settings.sharedLibrary = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--stack-reg"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.stackReg = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--stdin"))
@@ -600,11 +662,15 @@ int main(int argc, char* argv[])
 	if ((!settings.staticBase) && (settings.format == FORMAT_ELF) && (!settings.sharedLibrary))
 	{
 		settings.staticBase = true;
+		if (!positionIndependentExplicit)
+			settings.positionIndependent = false;
 		settings.base = AdjustBaseForElfFile(0x8040000, settings);
 	}
 	if ((!settings.staticBase) && (settings.format == FORMAT_PE) && (!settings.sharedLibrary))
 	{
 		settings.staticBase = true;
+		if (!positionIndependentExplicit)
+			settings.positionIndependent = false;
 		settings.base = 0x1001000;
 	}
 

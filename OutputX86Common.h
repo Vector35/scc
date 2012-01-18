@@ -63,6 +63,7 @@ class OUTPUT_CLASS_NAME: public Output
 	std::map<Variable*, int32_t> m_stackFrame;
 	uint32_t m_stackFrameSize;
 	bool m_framePointerEnabled;
+	asmx86::OperandType m_stackPointer;
 	asmx86::OperandType m_framePointer;
 	ILBlock* m_currentBlock;
 

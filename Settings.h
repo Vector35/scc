@@ -40,6 +40,7 @@ struct Settings
 {
 	std::vector<uint8_t> blacklist;
 	std::vector<std::string> preservedRegs;
+	std::string stackReg, frameReg, returnReg, returnHighReg;
 
 	Architecture architecture;
 	OperatingSystem os;
@@ -58,6 +59,7 @@ struct Settings
 	bool polymorph;
 	uint32_t seed;
 
+	bool positionIndependent;
 	bool staticBase;
 	uint64_t base;
 	uint64_t dataSectionBase;

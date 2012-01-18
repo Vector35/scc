@@ -28,7 +28,7 @@
 #define EMIT_SEG_MRR(op, seg, a, b, c) X86_DYNALLOC_EMIT32_SEG_MRR(out, GETCODEPTR, ADVANCECODEPTR, op, seg, X86_MEM_INDEX(a), b, c)
 #define EMIT_SEG_MRI(op, seg, a, b, c) X86_DYNALLOC_EMIT32_SEG_MRI(out, GETCODEPTR, ADVANCECODEPTR, op, seg, X86_MEM_INDEX(a), b, c)
 
-#define STACK_POINTER REG_ESP
+#define DEFAULT_STACK_POINTER REG_ESP
 #define DEFAULT_FRAME_POINTER REG_EBP
 
 #include "OutputX86Common.cpp"

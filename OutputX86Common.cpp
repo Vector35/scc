@@ -297,7 +297,7 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParamete
 		ref.offset = 0;
 
 #ifdef OUTPUT32
-		if (m_settings.staticBase)
+		if (!m_settings.positionIndependent)
 		{
 			EMIT_RI(mov_32, ptr, 0);
 			Relocation reloc;
@@ -347,7 +347,7 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParamete
 	}
 	else
 	{
-		ref.base = STACK_POINTER;
+		ref.base = m_stackPointer;
 		ref.index = NONE;
 		ref.scale = 1;
 		ref.offset = i->second;
@@ -367,16 +367,7 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	ref.reg = AllocateTemporaryRegister(out, ref.width);
 
 #ifdef OUTPUT32
-	if (m_settings.staticBase)
-	{
-		EMIT_RI(mov_32, ref.reg, 0);
-		Relocation reloc;
-		reloc.type = CODE_RELOC_ABSOLUTE_32;
-		reloc.offset = out->len - 4;
-		reloc.target = block;
-		out->relocs.push_back(reloc);
-	}
-	else
+	if (m_settings.positionIndependent)
 	{
 		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
 		buffer[0] = 0xe8;
@@ -391,6 +382,15 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 		reloc.overflow = LeaOverflowHandler;
 		reloc.start = leaOffset;
 		reloc.offset = out->len - 1;
+		reloc.target = block;
+		out->relocs.push_back(reloc);
+	}
+	else
+	{
+		EMIT_RI(mov_32, ref.reg, 0);
+		Relocation reloc;
+		reloc.type = CODE_RELOC_ABSOLUTE_32;
+		reloc.offset = out->len - 4;
 		reloc.target = block;
 		out->relocs.push_back(reloc);
 	}
@@ -2687,6 +2687,34 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 		if (!PrepareLoad(out, instr.params[i], param))
 			return false;
 
+		if (m_stackPointer != DEFAULT_STACK_POINTER)
+		{
+#ifdef OUTPUT32
+			size_t paramSize = (param.width + 3) & (~3);
+#else
+			size_t paramSize = (param.width + 7) & (~7);
+#endif
+			OperandReference dest;
+			dest.type = OPERANDREF_MEM;
+			dest.width = param.width;
+			dest.mem.base = m_stackPointer;
+			dest.mem.index = NONE;
+			dest.mem.scale = 1;
+			dest.mem.offset = -paramSize;
+
+			if (!Move(out, dest, param))
+				return false;
+
+#ifdef OUTPUT32
+			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
+#else
+			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
+#endif
+
+			pushSize += paramSize;
+			continue;
+		}
+
 		// Check for native size parameters
 #ifdef OUTPUT32
 		if (param.width == 4)
@@ -2827,14 +2855,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			// Generate code to get return address and add a relocation for it
 #ifdef OUTPUT32
 			Relocation reloc;
-			if (m_settings.staticBase)
-			{
-				EMIT_RI(mov_32, retAddr.reg, 0);
-				reloc.type = CODE_RELOC_ABSOLUTE_32;
-				reloc.offset = out->len - 4;
-				reloc.target = NULL;
-			}
-			else
+			if (m_settings.positionIndependent)
 			{
 				uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
 				buffer[0] = 0xe8;
@@ -2847,6 +2868,13 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 				reloc.offset = out->len - 1;
 				reloc.target = NULL;
 			}
+			else
+			{
+				EMIT_RI(mov_32, retAddr.reg, 0);
+				reloc.type = CODE_RELOC_ABSOLUTE_32;
+				reloc.offset = out->len - 4;
+				reloc.target = NULL;
+			}
 #else
 			EMIT_RM(lea_64, retAddr.reg, X86_MEM(REG_RIP, 0));
 
@@ -2854,7 +2882,6 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			reloc.type = CODE_RELOC_RELATIVE_32;
 			reloc.offset = out->len - 4;
 			reloc.target = NULL;
-			out->relocs.push_back(reloc);
 #endif
 
 			size_t beforeLen = out->len;
@@ -2875,7 +2902,10 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			reloc.start = beforeLen;
 			reloc.end = afterLen;
 #ifdef OUTPUT32
-			*(int8_t*)((size_t)out->code + reloc.offset) += (int8_t)(afterLen - beforeLen);
+			if (m_settings.positionIndependent)
+				*(int8_t*)((size_t)out->code + reloc.offset) += (int8_t)(afterLen - beforeLen);
+			else
+				*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
 			out->relocs.push_back(reloc);
 #else
 			*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
@@ -2940,14 +2970,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			// Generate code to get return address and add a relocation for it
 #ifdef OUTPUT32
 			Relocation reloc;
-			if (m_settings.staticBase)
-			{
-				EMIT_RI(mov_32, retAddr.reg, 0);
-				reloc.type = CODE_RELOC_ABSOLUTE_32;
-				reloc.offset = out->len - 4;
-				reloc.target = NULL;
-			}
-			else
+			if (m_settings.positionIndependent)
 			{
 				uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
 				buffer[0] = 0xe8;
@@ -2958,6 +2981,13 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 
 				reloc.type = CODE_RELOC_RELATIVE_8;
 				reloc.offset = out->len - 1;
+				reloc.target = NULL;
+			}
+			else
+			{
+				EMIT_RI(mov_32, retAddr.reg, 0);
+				reloc.type = CODE_RELOC_ABSOLUTE_32;
+				reloc.offset = out->len - 4;
 				reloc.target = NULL;
 			}
 #else
@@ -2995,7 +3025,10 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			reloc.start = beforeLen;
 			reloc.end = afterLen;
 #ifdef OUTPUT32
-			*(int8_t*)((size_t)out->code + reloc.offset) += (int8_t)(afterLen - beforeLen);
+			if (m_settings.positionIndependent)
+				*(int8_t*)((size_t)out->code + reloc.offset) += (int8_t)(afterLen - beforeLen);
+			else
+				*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
 			out->relocs.push_back(reloc);
 #else
 			*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
@@ -3022,9 +3055,9 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	if (pushSize != 0)
 	{
 #ifdef OUTPUT32
-		EMIT_RI(add_32, STACK_POINTER, pushSize);
+		EMIT_RI(add_32, m_stackPointer, pushSize);
 #else
-		EMIT_RI(add_64, STACK_POINTER, pushSize);
+		EMIT_RI(add_64, m_stackPointer, pushSize);
 #endif
 	}
 
@@ -3705,9 +3738,9 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 		if (m_stackFrameSize != 0)
 		{
 #ifdef OUTPUT32
-			EMIT_RI(add_32, STACK_POINTER, m_stackFrameSize);
+			EMIT_RI(add_32, m_stackPointer, m_stackFrameSize);
 #else
-			EMIT_RI(add_64, STACK_POINTER, m_stackFrameSize);
+			EMIT_RI(add_64, m_stackPointer, m_stackFrameSize);
 #endif
 		}
 	}
@@ -3716,9 +3749,9 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 	{
 		// Using encoded pointers, decode return address before returning
 #ifdef OUTPUT32
-		EMIT_MR(xor_32, X86_MEM(STACK_POINTER, 0), REG_ECX);
+		EMIT_MR(xor_32, X86_MEM(m_stackPointer, 0), REG_ECX);
 #else
-		EMIT_MR(xor_64, X86_MEM(STACK_POINTER, 0), REG_RCX);
+		EMIT_MR(xor_64, X86_MEM(m_stackPointer, 0), REG_RCX);
 #endif
 	}
 
@@ -3742,15 +3775,15 @@ bool OUTPUT_CLASS_NAME::GenerateAlloca(OutputBlock* out, const ILInstruction& in
 #else
 	stack.width = 8;
 #endif
-	stack.reg = STACK_POINTER;
+	stack.reg = m_stackPointer;
 
 	if (!Sub(out, stack, size))
 		return false;
 
 #ifdef OUTPUT32
-	EMIT_RI(and_32, STACK_POINTER, ~3);
+	EMIT_RI(and_32, m_stackPointer, ~3);
 #else
-	EMIT_RI(and_64, STACK_POINTER, ~7);
+	EMIT_RI(and_64, m_stackPointer, ~7);
 #endif
 
 	return Move(out, dest, stack);
@@ -4369,6 +4402,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 {
 	// Generate stack frame
 	m_framePointer = DEFAULT_FRAME_POINTER;
+	m_stackPointer = DEFAULT_STACK_POINTER;
 	if (func->IsVariableSizedStackFrame())
 		m_framePointerEnabled = true;
 	else
@@ -4471,18 +4505,18 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			{
 				EMIT_R(push, m_framePointer);
 #ifdef OUTPUT32
-				EMIT_RR(mov_32, m_framePointer, STACK_POINTER);
+				EMIT_RR(mov_32, m_framePointer, m_stackPointer);
 #else
-				EMIT_RR(mov_64, m_framePointer, STACK_POINTER);
+				EMIT_RR(mov_64, m_framePointer, m_stackPointer);
 #endif
 			}
 
 			if (m_stackFrameSize != 0)
 			{
 #ifdef OUTPUT32
-				EMIT_RI(sub_32, STACK_POINTER, m_stackFrameSize);
+				EMIT_RI(sub_32, m_stackPointer, m_stackFrameSize);
 #else
-				EMIT_RI(sub_64, STACK_POINTER, m_stackFrameSize);
+				EMIT_RI(sub_64, m_stackPointer, m_stackFrameSize);
 #endif
 			}
 

@@ -118,16 +118,25 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 		{
 		case CODE_RELOC_RELATIVE_8:
 			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
+			{
 				*(int8_t*)((size_t)code + i->offset) += newLen - origLen;
+				i->end += newLen - origLen;
+			}
 			break;
 		case CODE_RELOC_RELATIVE_32:
 		case CODE_RELOC_ABSOLUTE_32:
 			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
+			{
 				*(int32_t*)((size_t)code + i->offset) += newLen - origLen;
+				i->end += newLen - origLen;
+			}
 			break;
 		case CODE_RELOC_ABSOLUTE_64:
 			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
+			{
 				*(int64_t*)((size_t)code + i->offset) += newLen - origLen;
+				i->end += newLen - origLen;
+			}
 			break;
 		default:
 			break;

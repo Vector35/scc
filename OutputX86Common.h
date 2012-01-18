@@ -68,12 +68,15 @@ class OUTPUT_CLASS_NAME: public Output
 	ILBlock* m_currentBlock;
 
 	size_t m_temporaryCount;
-	bool m_reserved[4];
+	asmx86::OperandType m_temporaryRegisters[16];
+	size_t m_maxTemporaryRegisters;
+	bool m_reserved[16];
 
 	asmx86::OperandType GetRegisterOfSize(asmx86::OperandType base, size_t size);
 	bool IsRegisterValid(asmx86::OperandType reg);
 	asmx86::OperandType AllocateTemporaryRegister(OutputBlock* out, size_t size);
 	void ReserveRegister(asmx86::OperandType reg);
+	asmx86::OperandType GetRegisterByName(const std::string& name);
 
 	static void LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);
 	static void ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);

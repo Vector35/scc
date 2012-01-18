@@ -171,45 +171,168 @@ bool OUTPUT_CLASS_NAME::IsRegisterValid(OperandType reg)
 OperandType OUTPUT_CLASS_NAME::AllocateTemporaryRegister(OutputBlock* out, size_t size)
 {
 	// Skip reserved registers
-	while ((m_temporaryCount < 4) && (m_reserved[m_temporaryCount]))
+	while ((m_temporaryCount < m_maxTemporaryRegisters) && (m_reserved[m_temporaryCount]))
 		m_temporaryCount++;
 
 	// Allocate the register
-	switch (m_temporaryCount++)
-	{
-	case 0:
-		return GetRegisterOfSize(REG_EAX, size);
-	case 1:
-		return GetRegisterOfSize(REG_EDX, size);
-	case 2:
-		return GetRegisterOfSize(REG_ECX, size);
-	case 3:
-		return GetRegisterOfSize(REG_EBX, size);
-	default:
+	if (m_temporaryCount >= m_maxTemporaryRegisters)
 		return NONE;
-	}
+	return GetRegisterOfSize(m_temporaryRegisters[m_temporaryCount++], size);
 }
 
 
 void OUTPUT_CLASS_NAME::ReserveRegister(OperandType reg)
 {
-	switch (reg)
+	for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
 	{
-	case REG_EAX:
-		m_reserved[0] = true;
-		break;
-	case REG_EDX:
-		m_reserved[1] = true;
-		break;
-	case REG_ECX:
-		m_reserved[2] = true;
-		break;
-	case REG_EBX:
-		m_reserved[3] = true;
-		break;
-	default:
-		break;
+		if (m_temporaryRegisters[i] == reg)
+		{
+			m_reserved[i] = true;
+			break;
+		}
 	}
+}
+
+
+OperandType OUTPUT_CLASS_NAME::GetRegisterByName(const string& name)
+{
+	if (name == "al")
+		return REG_AL;
+	if (name == "ah")
+		return REG_AH;
+	if (name == "ax")
+		return REG_AX;
+	if (name == "eax")
+		return REG_EAX;
+	if (name == "rax")
+		return REG_RAX;
+	if (name == "cl")
+		return REG_CL;
+	if (name == "ch")
+		return REG_CH;
+	if (name == "cx")
+		return REG_CX;
+	if (name == "ecx")
+		return REG_ECX;
+	if (name == "rcx")
+		return REG_RCX;
+	if (name == "dl")
+		return REG_DL;
+	if (name == "dh")
+		return REG_DH;
+	if (name == "dx")
+		return REG_DX;
+	if (name == "edx")
+		return REG_EDX;
+	if (name == "rdx")
+		return REG_RDX;
+	if (name == "bl")
+		return REG_BL;
+	if (name == "bh")
+		return REG_BH;
+	if (name == "bx")
+		return REG_BX;
+	if (name == "ebx")
+		return REG_EBX;
+	if (name == "rbx")
+		return REG_RBX;
+	if (name == "spl")
+		return REG_SPL;
+	if (name == "sp")
+		return REG_SP;
+	if (name == "esp")
+		return REG_ESP;
+	if (name == "rsp")
+		return REG_RSP;
+	if (name == "bpl")
+		return REG_BPL;
+	if (name == "bp")
+		return REG_BP;
+	if (name == "ebp")
+		return REG_EBP;
+	if (name == "rbp")
+		return REG_RBP;
+	if (name == "sil")
+		return REG_SIL;
+	if (name == "si")
+		return REG_SI;
+	if (name == "esi")
+		return REG_ESI;
+	if (name == "rsi")
+		return REG_RSI;
+	if (name == "dil")
+		return REG_DIL;
+	if (name == "di")
+		return REG_DI;
+	if (name == "edi")
+		return REG_EDI;
+	if (name == "rdi")
+		return REG_RDI;
+	if (name == "r8b")
+		return REG_R8B;
+	if (name == "r8w")
+		return REG_R8W;
+	if (name == "r8d")
+		return REG_R8D;
+	if (name == "r8")
+		return REG_R8;
+	if (name == "r9b")
+		return REG_R9B;
+	if (name == "r9w")
+		return REG_R9W;
+	if (name == "r9d")
+		return REG_R9D;
+	if (name == "r9")
+		return REG_R9;
+	if (name == "r10b")
+		return REG_R10B;
+	if (name == "r10w")
+		return REG_R10W;
+	if (name == "r10d")
+		return REG_R10D;
+	if (name == "r10")
+		return REG_R10;
+	if (name == "r11b")
+		return REG_R11B;
+	if (name == "r11w")
+		return REG_R11W;
+	if (name == "r11d")
+		return REG_R11D;
+	if (name == "r11")
+		return REG_R11;
+	if (name == "r12b")
+		return REG_R12B;
+	if (name == "r12w")
+		return REG_R12W;
+	if (name == "r12d")
+		return REG_R12D;
+	if (name == "r12")
+		return REG_R12;
+	if (name == "r13b")
+		return REG_R13B;
+	if (name == "r13w")
+		return REG_R13W;
+	if (name == "r13d")
+		return REG_R13D;
+	if (name == "r13")
+		return REG_R13;
+	if (name == "r14b")
+		return REG_R14B;
+	if (name == "r14w")
+		return REG_R14W;
+	if (name == "r14d")
+		return REG_R14D;
+	if (name == "r14")
+		return REG_R14;
+	if (name == "r15b")
+		return REG_R15B;
+	if (name == "r15w")
+		return REG_R15W;
+	if (name == "r15d")
+		return REG_R15D;
+	if (name == "r15")
+		return REG_R15;
+	return NONE;
 }
 
 
@@ -2691,25 +2814,22 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 		{
 #ifdef OUTPUT32
 			size_t paramSize = (param.width + 3) & (~3);
+			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
 #else
 			size_t paramSize = (param.width + 7) & (~7);
+			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
 #endif
+
 			OperandReference dest;
 			dest.type = OPERANDREF_MEM;
 			dest.width = param.width;
 			dest.mem.base = m_stackPointer;
 			dest.mem.index = NONE;
 			dest.mem.scale = 1;
-			dest.mem.offset = -paramSize;
+			dest.mem.offset = 0;
 
 			if (!Move(out, dest, param))
 				return false;
-
-#ifdef OUTPUT32
-			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
-#else
-			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
-#endif
 
 			pushSize += paramSize;
 			continue;
@@ -2840,9 +2960,10 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	if (instr.params[1].cls == ILPARAM_FUNC)
 	{
 		// Direct function call
-		if (m_settings.encodePointers)
+		if (m_settings.encodePointers || (m_stackPointer != DEFAULT_STACK_POINTER))
 		{
-			// Encoded pointer call, push encoded return address then jump to function
+			// Encoded pointer call or call with alternate stack pointer, push
+			// return address then jump to function
 			OperandReference retAddr;
 			retAddr.type = OPERANDREF_REG;
 #ifdef OUTPUT32
@@ -2886,15 +3007,31 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 
 			size_t beforeLen = out->len;
 
-			// Generate code to encode pointer and perform call
-			ILParameter keyParam(m_settings.encodePointerKey);
-			OperandReference key;
-			if (!PrepareLoad(out, keyParam, key))
-				return false;
-			if (!Xor(out, retAddr, key))
-				return false;
+			if (m_settings.encodePointers)
+			{
+				// Generate code to encode pointer
+				ILParameter keyParam(m_settings.encodePointerKey);
+				OperandReference key;
+				if (!PrepareLoad(out, keyParam, key))
+					return false;
+				if (!Xor(out, retAddr, key))
+					return false;
+			}
 
-			EMIT_R(push, retAddr.reg);
+			// Push return address and jump to function
+			if (m_stackPointer == DEFAULT_STACK_POINTER)
+				EMIT_R(push, retAddr.reg);
+			else
+			{
+#ifdef OUTPUT32
+				EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -4));
+				EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), retAddr.reg);
+#else
+				EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -8));
+				EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), retAddr.reg);
+#endif
+			}
+
 			UnconditionalJump(out, instr.params[1].function->GetIL()[0]);
 
 			// Fix up relocation to point to return address
@@ -2930,7 +3067,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	else
 	{
 		// Indirect function call
-		OperandReference func;
+		OperandReference func, key;
 		if (!PrepareLoad(out, instr.params[1], func))
 			return false;
 
@@ -2938,7 +3075,6 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 		{
 			// Decode pointer before calling
 			ILParameter keyParam(m_settings.encodePointerKey);
-			OperandReference key;
 			if (!PrepareLoad(out, keyParam, key))
 				return false;
 
@@ -2956,8 +3092,12 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 				return false;
 
 			func = temp;
+		}
 
-			// Push encoded return address on stack, then jump to destination
+		if (m_settings.encodePointers || (m_stackPointer != DEFAULT_STACK_POINTER))
+		{
+			// Encoded pointer call or call with alternate stack pointer, push
+			// return address then jump to function
 			OperandReference retAddr;
 			retAddr.type = OPERANDREF_REG;
 #ifdef OUTPUT32
@@ -3001,13 +3141,27 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 
 			size_t beforeLen = out->len;
 
-			// Encode return address
-			if (!Xor(out, retAddr, key))
-				return false;
+			if (m_settings.encodePointers)
+			{
+				// Encode return address
+				if (!Xor(out, retAddr, key))
+					return false;
+			}
 
 			// Push return address and jump to destination
-			EMIT_R(push, retAddr.reg);
-			func = temp;
+			if (m_stackPointer == DEFAULT_STACK_POINTER)
+				EMIT_R(push, retAddr.reg);
+			else
+			{
+#ifdef OUTPUT32
+				EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -4));
+				EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), retAddr.reg);
+#else
+				EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -8));
+				EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), retAddr.reg);
+#endif
+			}
+
 			switch (func.type)
 			{
 			case OPERANDREF_REG:
@@ -3707,31 +3861,53 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 {
 	ReserveRegister(REG_EAX);
 	ReserveRegister(REG_EDX);
-	ReserveRegister(REG_ECX);
+#ifdef OUTPUT32
+	OperandType temp = AllocateTemporaryRegister(out, 4);
+#else
+	OperandType temp = AllocateTemporaryRegister(out, 8);
+#endif
 
 	if (m_settings.encodePointers)
 	{
 		// Using encoded pointers, load decode key into ECX
 		ILParameter keyParam(m_settings.encodePointerKey);
-		OperandReference ecx, key;
+		OperandReference tempRef, key;
 
 		if (!PrepareLoad(out, keyParam, key))
 			return false;
 
-		ecx.type = OPERANDREF_REG;
+		tempRef.type = OPERANDREF_REG;
 #ifdef OUTPUT32
-		ecx.width = 4;
+		tempRef.width = 4;
 #else
-		ecx.width = 8;
+		tempRef.width = 8;
 #endif
-		ecx.reg = GetRegisterOfSize(REG_ECX, ecx.width);
-		if (!Move(out, ecx, key))
+		tempRef.reg = GetRegisterOfSize(temp, tempRef.width);
+		if (!Move(out, tempRef, key))
 			return false;
 	}
 
 	if (m_framePointerEnabled)
 	{
-		EMIT(leave);
+		if ((m_framePointer == DEFAULT_FRAME_POINTER) && (m_stackPointer == DEFAULT_STACK_POINTER))
+			EMIT(leave);
+		else if (m_stackPointer == DEFAULT_STACK_POINTER)
+		{
+			EMIT_RR(mov_32, m_stackPointer, m_framePointer);
+			EMIT_R(pop, m_framePointer);
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RR(mov_32, m_stackPointer, m_framePointer);
+			EMIT_RM(mov_32, m_framePointer, X86_MEM(m_stackPointer, 0));
+			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, 4));
+#else
+			EMIT_RR(mov_64, m_stackPointer, m_framePointer);
+			EMIT_RM(mov_64, m_framePointer, X86_MEM(m_stackPointer, 0));
+			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, 8));
+#endif
+		}
 	}
 	else
 	{
@@ -3745,17 +3921,48 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 		}
 	}
 
-	if (m_settings.encodePointers)
+	if (m_stackPointer == DEFAULT_STACK_POINTER)
 	{
-		// Using encoded pointers, decode return address before returning
+		if (m_settings.encodePointers)
+		{
+			// Using encoded pointers, decode return address before returning
 #ifdef OUTPUT32
-		EMIT_MR(xor_32, X86_MEM(m_stackPointer, 0), REG_ECX);
+			EMIT_MR(xor_32, X86_MEM(m_stackPointer, 0), temp);
 #else
-		EMIT_MR(xor_64, X86_MEM(m_stackPointer, 0), REG_RCX);
+			EMIT_MR(xor_64, X86_MEM(m_stackPointer, 0), temp);
 #endif
+		}
+
+		EMIT(retn);
+	}
+	else
+	{
+		if (m_settings.encodePointers)
+		{
+			// Using encoded pointers, decode return address before returning
+#ifdef OUTPUT32
+			EMIT_RM(xor_32, temp, X86_MEM(m_stackPointer, 0));
+#else
+			EMIT_RM(xor_64, temp, X86_MEM(m_stackPointer, 0));
+#endif
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RM(mov_32, temp, X86_MEM(m_stackPointer, 0));
+#else
+			EMIT_RM(mov_64, temp, X86_MEM(m_stackPointer, 0));
+#endif
+		}
+
+#ifdef OUTPUT32
+		EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, 4));
+#else
+		EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, 8));
+#endif
+		EMIT_R(jmpn, temp);
 	}
 
-	EMIT(retn);
 	return true;
 }
 
@@ -4016,10 +4223,20 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	{
 #ifdef OUTPUT32
 		static const OperandType linuxRegs[] = {REG_EAX, REG_EBX, REG_ECX, REG_EDX, REG_ESI, REG_EDI, REG_EBP, NONE};
-		bool savedEbp = false;
 #else
 		static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
 #endif
+		bool savedFramePointer = false;
+		OperandType originalFramePointer = m_framePointer;
+
+		if (m_stackPointer != DEFAULT_STACK_POINTER)
+		{
+#ifdef OUTPUT32
+			EMIT_RR(xchg_32, m_stackPointer, REG_ESP);
+#else
+			EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
+#endif
+		}
 
 		size_t regIndex = 0;
 		for (size_t i = 1; i < instr.params.size(); i++)
@@ -4038,13 +4255,23 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 					return false;
 				ReserveRegister(linuxRegs[regIndex + 1]);
 			}
-
-			if (linuxRegs[regIndex + 1] == REG_EBP)
-			{
-				EMIT_R(push, REG_EBP);
-				savedEbp = true;
-			}
 #endif
+
+			if ((linuxRegs[regIndex + 1] == m_framePointer) && (m_framePointer == originalFramePointer))
+			{
+				EMIT_R(push, m_framePointer);
+				savedFramePointer = true;
+
+				if (m_framePointer != DEFAULT_FRAME_POINTER)
+				{
+#ifdef OUTPUT32
+					EMIT_RR(mov_32, DEFAULT_FRAME_POINTER, m_framePointer);
+#else
+					EMIT_RR(mov_64, DEFAULT_FRAME_POINTER, m_framePointer);
+#endif
+					m_framePointer = DEFAULT_FRAME_POINTER;
+				}
+			}
 
 			OperandReference cur;
 			if (!PrepareLoad(out, instr.params[i], cur))
@@ -4084,10 +4311,18 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 		EMIT(syscall);
 #endif
 
+		m_framePointer = originalFramePointer;
+		if (savedFramePointer)
+			EMIT_R(pop, m_framePointer);
+
+		if (m_stackPointer != DEFAULT_STACK_POINTER)
+		{
 #ifdef OUTPUT32
-		if (savedEbp)
-			EMIT_R(pop, REG_EBP);
+			EMIT_RR(xchg_32, m_stackPointer, REG_ESP);
+#else
+			EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
 #endif
+		}
 
 		OperandReference dest, result;
 		if (!PrepareStore(out, instr.params[0], dest))
@@ -4400,7 +4635,7 @@ fail:
 
 bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 {
-	// Generate stack frame
+	// Determine what the stack and frame pointers should be
 	m_framePointer = DEFAULT_FRAME_POINTER;
 	m_stackPointer = DEFAULT_STACK_POINTER;
 	if (func->IsVariableSizedStackFrame())
@@ -4408,6 +4643,72 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	else
 		m_framePointerEnabled = false;
 
+#ifdef OUTPUT32
+	if (m_settings.stackReg.size() != 0)
+		m_stackPointer = GetRegisterOfSize(GetRegisterByName(m_settings.stackReg), 4);
+	if (m_settings.frameReg.size() != 0)
+		m_framePointer = GetRegisterOfSize(GetRegisterByName(m_settings.frameReg), 4);
+#else
+	if (m_settings.stackReg.size() != 0)
+		m_stackPointer = GetRegisterOfSize(GetRegisterByName(m_settings.stackReg), 8);
+	if (m_settings.frameReg.size() != 0)
+		m_framePointer = GetRegisterOfSize(GetRegisterByName(m_settings.frameReg), 8);
+#endif
+
+	if (m_stackPointer == NONE)
+	{
+		fprintf(stderr, "error: invalid stack pointer register\n");
+		return false;
+	}
+
+	if (m_framePointer == NONE)
+	{
+		fprintf(stderr, "error: invalid frame pointer register\n");
+		return false;
+	}
+
+	if (m_stackPointer == m_framePointer)
+	{
+		fprintf(stderr, "error: stack pointer and frame pointer cannot be the same register\n");
+		return false;
+	}
+
+	// Determine which registers can be used as temporaries
+	m_temporaryRegisters[0] = REG_EAX;
+	m_temporaryRegisters[1] = REG_ECX;
+	m_temporaryRegisters[2] = REG_EDX;
+	m_temporaryRegisters[3] = REG_EBX;
+	m_temporaryRegisters[4] = REG_ESP;
+	m_temporaryRegisters[5] = REG_EBP;
+	m_temporaryRegisters[6] = REG_ESI;
+	m_temporaryRegisters[7] = REG_EDI;
+#ifdef OUTPUT32
+	m_maxTemporaryRegisters = 8;
+#else
+	m_temporaryRegisters[8] = REG_R8D;
+	m_temporaryRegisters[9] = REG_R9D;
+	m_temporaryRegisters[10] = REG_R10D;
+	m_temporaryRegisters[11] = REG_R11D;
+	m_temporaryRegisters[12] = REG_R12D;
+	m_temporaryRegisters[13] = REG_R13D;
+	m_temporaryRegisters[14] = REG_R14D;
+	m_temporaryRegisters[15] = REG_R15D;
+	m_maxTemporaryRegisters = 16;
+#endif
+
+	for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
+	{
+		if ((m_temporaryRegisters[i] == GetRegisterOfSize(m_stackPointer, 4)) ||
+			(m_temporaryRegisters[i] == GetRegisterOfSize(m_framePointer, 4)))
+		{
+			memmove(&m_temporaryRegisters[i], &m_temporaryRegisters[i + 1], sizeof(OperandType) *
+				((m_maxTemporaryRegisters - i) - 1));
+			m_maxTemporaryRegisters--;
+			i--;
+		}
+	}
+
+	// Generate stack frame
 	uint32_t offset = 0;
 	m_stackFrame.clear();
 	for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
@@ -4501,9 +4802,35 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		if (first)
 		{
 			// Generate function prologue
-			if (m_framePointerEnabled)
+			if ((m_stackPointer != DEFAULT_STACK_POINTER) && (func->GetName() == "_start"))
 			{
-				EMIT_R(push, m_framePointer);
+				// If using alternate stack pointer, and this is the _start function, initialize stack pointer
+				EMIT_II(enter, 0, 0);
+#ifdef OUTPUT32
+				EMIT_RM(lea_32, m_stackPointer, X86_MEM(REG_EBP, -4));
+				EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), m_framePointer);
+				EMIT_RR(mov_32, m_framePointer, m_stackPointer);
+#else
+				EMIT_RM(lea_64, m_stackPointer, X86_MEM(REG_EBP, -8));
+				EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), m_framePointer);
+				EMIT_RR(mov_64, m_framePointer, m_stackPointer);
+#endif
+			}
+			else if (m_framePointerEnabled)
+			{
+				if (m_stackPointer == DEFAULT_STACK_POINTER)
+					EMIT_R(push, m_framePointer);
+				else
+				{
+#ifdef OUTPUT32
+					EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -4));
+					EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), m_framePointer);
+#else
+					EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -8));
+					EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), m_framePointer);
+#endif
+				}
+
 #ifdef OUTPUT32
 				EMIT_RR(mov_32, m_framePointer, m_stackPointer);
 #else

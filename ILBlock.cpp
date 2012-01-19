@@ -631,6 +631,8 @@ void ILInstruction::Print() const
 	case ILOP_RDTSC:  params[0].Print(); fprintf(stderr, " = rdtsc"); break;
 	case ILOP_RDTSC_LOW:  params[0].Print(); fprintf(stderr, " = rdtsc_low"); break;
 	case ILOP_RDTSC_HIGH:  params[0].Print(); fprintf(stderr, " = rdtsc_high"); break;
+	case ILOP_NEXT_ARG:  params[0].Print(); fprintf(stderr, " = next_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
+	case ILOP_PREV_ARG:  params[0].Print(); fprintf(stderr, " = prev_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_CALL:
 		params[0].Print();
 		fprintf(stderr, " = ");

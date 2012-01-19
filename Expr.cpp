@@ -1237,6 +1237,19 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_RDTSC_HIGH:
 		m_type = Type::IntType(4, false);
 		break;
+	case EXPR_NEXT_ARG:
+	case EXPR_PREV_ARG:
+		m_type = m_children[0]->GetType();
+		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) ||
+			(m_children[1]->GetType()->GetClass() != TYPE_INT))
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n", m_location.fileName.c_str(),
@@ -2843,6 +2856,18 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		block->AddInstruction(ILOP_RDTSC_HIGH, result);
 		break;
+	case EXPR_NEXT_ARG:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		b = m_children[1]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_NEXT_ARG, result, a, b);
+		break;
+	case EXPR_PREV_ARG:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		b = m_children[1]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_PREV_ARG, result, a, b);
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in IL generation\n", m_location.fileName.c_str(),
@@ -3493,6 +3518,18 @@ void Expr::Print(size_t indent)
 	case EXPR_RDTSC:  fprintf(stderr, "__rdtsc()"); break;
 	case EXPR_RDTSC_LOW:  fprintf(stderr, "__rdtsc_low()"); break;
 	case EXPR_RDTSC_HIGH:  fprintf(stderr, "__rdtsc_high()"); break;
+	case EXPR_NEXT_ARG:  fprintf(stderr, "__next_arg(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ", ");
+		m_children[1]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_PREV_ARG:  fprintf(stderr, "__prev_arg(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ", ");
+		m_children[1]->Print(indent);
+		fprintf(stderr, ")");
+		break;
 	default:
 		fprintf(stderr, "<invalid_expr>");
 		break;

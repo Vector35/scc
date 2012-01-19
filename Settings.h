@@ -53,6 +53,7 @@ struct Settings
 	bool concat;
 	bool sharedLibrary;
 
+	bool stackGrowsUp;
 	bool encodePointers;
 	Ref<Variable> encodePointerKey;
 

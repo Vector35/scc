@@ -105,10 +105,9 @@ void Code_error(ParserState* state, const char* msg)
 %token UNDEFINED
 
 %token CDECL_TOK STDCALL_TOK FASTCALL_TOK
-
 %token SYSCALL_TOK
-
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
+%token NEXT_ARG PREV_ARG
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
@@ -1314,6 +1313,20 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 	|	RDTSC_TOK LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC); $$->AddRef(); }
 	|	RDTSC_LOW LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_LOW); $$->AddRef(); }
 	|	RDTSC_HIGH LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_HIGH); $$->AddRef(); }
+	|	NEXT_ARG LPAREN expression COMMA expression RPAREN
+		{
+			$$ = state->BinaryExpr(EXPR_NEXT_ARG, $3, $5);
+			$$->AddRef();
+			$3->Release();
+			$5->Release();
+		}
+	|	PREV_ARG LPAREN expression COMMA expression RPAREN
+		{
+			$$ = state->BinaryExpr(EXPR_PREV_ARG, $3, $5);
+			$$->AddRef();
+			$3->Release();
+			$5->Release();
+		}
 	;
 
 expression_with_comma:	expression_with_comma COMMA expression  { $$ = $1; $$->AddChild($3); $3->Release(); }

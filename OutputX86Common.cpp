@@ -2820,14 +2820,14 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 #endif
 		}
 
-		if (m_stackPointer != DEFAULT_STACK_POINTER)
+		if (!m_normalStack)
 		{
 #ifdef OUTPUT32
 			size_t paramSize = (param.width + 3) & (~3);
-			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
+			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? paramSize : -paramSize));
 #else
 			size_t paramSize = (param.width + 7) & (~7);
-			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -paramSize));
+			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? paramSize : -paramSize));
 #endif
 
 			OperandReference dest;
@@ -2970,7 +2970,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	if (instr.params[1].cls == ILPARAM_FUNC)
 	{
 		// Direct function call
-		if (m_settings.encodePointers || (m_stackPointer != DEFAULT_STACK_POINTER))
+		if (m_settings.encodePointers || (!m_normalStack))
 		{
 			// Encoded pointer call or call with alternate stack pointer, push
 			// return address then jump to function
@@ -3029,15 +3029,15 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			}
 
 			// Push return address and jump to function
-			if (m_stackPointer == DEFAULT_STACK_POINTER)
+			if (m_normalStack)
 				EMIT_R(push, retAddr.reg);
 			else
 			{
 #ifdef OUTPUT32
-				EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -4));
+				EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 4 : -4));
 				EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), retAddr.reg);
 #else
-				EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -8));
+				EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 8 : -8));
 				EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), retAddr.reg);
 #endif
 			}
@@ -3104,7 +3104,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			func = temp;
 		}
 
-		if (m_settings.encodePointers || (m_stackPointer != DEFAULT_STACK_POINTER))
+		if (m_settings.encodePointers || (!m_normalStack))
 		{
 			// Encoded pointer call or call with alternate stack pointer, push
 			// return address then jump to function
@@ -3159,15 +3159,15 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			}
 
 			// Push return address and jump to destination
-			if (m_stackPointer == DEFAULT_STACK_POINTER)
+			if (m_stackPointer == m_normalStack)
 				EMIT_R(push, retAddr.reg);
 			else
 			{
 #ifdef OUTPUT32
-				EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -4));
+				EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 4 : -4));
 				EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), retAddr.reg);
 #else
-				EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -8));
+				EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 8 : -8));
 				EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), retAddr.reg);
 #endif
 			}
@@ -3218,11 +3218,22 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	// Adjust stack pointer to pop off parameters
 	if (pushSize != 0)
 	{
+		if (m_settings.stackGrowsUp)
+		{
 #ifdef OUTPUT32
-		EMIT_RI(add_32, m_stackPointer, pushSize);
+			EMIT_RI(sub_32, m_stackPointer, pushSize);
 #else
-		EMIT_RI(add_64, m_stackPointer, pushSize);
+			EMIT_RI(sub_64, m_stackPointer, pushSize);
 #endif
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RI(add_32, m_stackPointer, pushSize);
+#else
+			EMIT_RI(add_64, m_stackPointer, pushSize);
+#endif
+		}
 	}
 
 	// Store return value, if there is one
@@ -3899,9 +3910,9 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 
 	if (m_framePointerEnabled)
 	{
-		if ((m_framePointer == DEFAULT_FRAME_POINTER) && (m_stackPointer == DEFAULT_STACK_POINTER))
+		if ((m_framePointer == DEFAULT_FRAME_POINTER) && m_normalStack)
 			EMIT(leave);
-		else if (m_stackPointer == DEFAULT_STACK_POINTER)
+		else if (m_normalStack)
 		{
 			EMIT_RR(mov_32, m_stackPointer, m_framePointer);
 			EMIT_R(pop, m_framePointer);
@@ -3911,11 +3922,11 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 #ifdef OUTPUT32
 			EMIT_RR(mov_32, m_stackPointer, m_framePointer);
 			EMIT_RM(mov_32, m_framePointer, X86_MEM(m_stackPointer, 0));
-			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, 4));
+			EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? -4 : 4));
 #else
 			EMIT_RR(mov_64, m_stackPointer, m_framePointer);
 			EMIT_RM(mov_64, m_framePointer, X86_MEM(m_stackPointer, 0));
-			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, 8));
+			EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? -8 : 8));
 #endif
 		}
 	}
@@ -3923,15 +3934,26 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 	{
 		if (m_stackFrameSize != 0)
 		{
+			if (m_settings.stackGrowsUp)
+			{
 #ifdef OUTPUT32
-			EMIT_RI(add_32, m_stackPointer, m_stackFrameSize);
+				EMIT_RI(sub_32, m_stackPointer, m_stackFrameSize);
 #else
-			EMIT_RI(add_64, m_stackPointer, m_stackFrameSize);
+				EMIT_RI(sub_64, m_stackPointer, m_stackFrameSize);
 #endif
+			}
+			else
+			{
+#ifdef OUTPUT32
+				EMIT_RI(add_32, m_stackPointer, m_stackFrameSize);
+#else
+				EMIT_RI(add_64, m_stackPointer, m_stackFrameSize);
+#endif
+			}
 		}
 	}
 
-	if (m_stackPointer == DEFAULT_STACK_POINTER)
+	if (m_normalStack)
 	{
 		if (m_settings.encodePointers)
 		{
@@ -3966,9 +3988,9 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 		}
 
 #ifdef OUTPUT32
-		EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, 4));
+		EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? -4 : 4));
 #else
-		EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, 8));
+		EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? -8 : 8));
 #endif
 		EMIT_R(jmpn, temp);
 	}
@@ -3994,16 +4016,41 @@ bool OUTPUT_CLASS_NAME::GenerateAlloca(OutputBlock* out, const ILInstruction& in
 #endif
 	stack.reg = m_stackPointer;
 
-	if (!Sub(out, stack, size))
-		return false;
-
+	if (m_settings.stackGrowsUp)
+	{
 #ifdef OUTPUT32
-	EMIT_RI(and_32, m_stackPointer, ~3);
+		EMIT_RI(add_32, m_stackPointer, 4);
 #else
-	EMIT_RI(and_64, m_stackPointer, ~7);
+		EMIT_RI(add_32, m_stackPointer, 8);
 #endif
 
-	return Move(out, dest, stack);
+		if (!Move(out, dest, stack))
+			return false;
+		if (!Add(out, stack, size))
+			return false;
+
+		EMIT_R(dec_32, m_stackPointer);
+#ifdef OUTPUT32
+		EMIT_RI(and_32, m_stackPointer, ~3);
+#else
+		EMIT_RI(and_64, m_stackPointer, ~7);
+#endif
+
+		return true;
+	}
+	else
+	{
+		if (!Sub(out, stack, size))
+			return false;
+
+#ifdef OUTPUT32
+		EMIT_RI(and_32, m_stackPointer, ~3);
+#else
+		EMIT_RI(and_64, m_stackPointer, ~7);
+#endif
+
+		return Move(out, dest, stack);
+	}
 }
 
 
@@ -4269,7 +4316,21 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 			if ((linuxRegs[regIndex + 1] == m_framePointer) && (m_framePointer == originalFramePointer))
 			{
-				EMIT_R(push, m_framePointer);
+				if (m_settings.stackGrowsUp)
+				{
+#ifdef OUTPUT32
+					EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 4));
+					EMIT_MR(mov_32, X86_MEM(DEFAULT_STACK_POINTER, 0), m_framePointer);
+#else
+					EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 8));
+					EMIT_MR(mov_64, X86_MEM(DEFAULT_STACK_POINTER, 0), m_framePointer);
+#endif
+				}
+				else
+				{
+					EMIT_R(push, m_framePointer);
+				}
+
 				savedFramePointer = true;
 
 				if (m_framePointer != DEFAULT_FRAME_POINTER)
@@ -4323,7 +4384,22 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 		m_framePointer = originalFramePointer;
 		if (savedFramePointer)
-			EMIT_R(pop, m_framePointer);
+		{
+			if (m_settings.stackGrowsUp)
+			{
+#ifdef OUTPUT32
+				EMIT_RM(mov_32, m_framePointer, X86_MEM(DEFAULT_STACK_POINTER, 0));
+				EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -4));
+#else
+				EMIT_RM(mov_64, m_framePointer, X86_MEM(DEFAULT_STACK_POINTER, 0));
+				EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -8));
+#endif
+			}
+			else
+			{
+				EMIT_R(pop, m_framePointer);
+			}
+		}
 
 		if (m_stackPointer != DEFAULT_STACK_POINTER)
 		{
@@ -4412,6 +4488,44 @@ bool OUTPUT_CLASS_NAME::GenerateRdtscHigh(OutputBlock* out, const ILInstruction&
 	else
 		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), REG_EDX);
 	return true;
+}
+
+
+bool OUTPUT_CLASS_NAME::GenerateNextArg(OutputBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, a, b;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+	if (!Move(out, dest, a))
+		return false;
+
+	if (m_settings.stackGrowsUp)
+		return Sub(out, dest, b);
+	else
+		return Add(out, dest, b);
+}
+
+
+bool OUTPUT_CLASS_NAME::GeneratePrevArg(OutputBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, a, b;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], a))
+		return false;
+	if (!PrepareLoad(out, instr.params[2], b))
+		return false;
+	if (!Move(out, dest, a))
+		return false;
+
+	if (m_settings.stackGrowsUp)
+		return Add(out, dest, b);
+	else
+		return Sub(out, dest, b);
 }
 
 
@@ -4625,6 +4739,14 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			if (!GenerateRdtscHigh(out, *i))
 				goto fail;
 			break;
+		case ILOP_NEXT_ARG:
+			if (!GenerateNextArg(out, *i))
+				goto fail;
+			break;
+		case ILOP_PREV_ARG:
+			if (!GeneratePrevArg(out, *i))
+				goto fail;
+			break;
 		default:
 			goto fail;
 		}
@@ -4683,6 +4805,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		return false;
 	}
 
+	m_normalStack = true;
+	if ((m_stackPointer != DEFAULT_STACK_POINTER) || m_settings.stackGrowsUp)
+		m_normalStack = false;
+
 	// Determine which registers can be used as temporaries
 	m_temporaryRegisters[0] = REG_EAX;
 	m_temporaryRegisters[1] = REG_ECX;
@@ -4725,6 +4851,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	{
 		if ((*i)->IsParameter())
 			continue;
+
 		if ((offset & ((*i)->GetType()->GetAlignment() - 1)) != 0)
 			offset += (uint32_t)((*i)->GetType()->GetAlignment() - (offset & ((*i)->GetType()->GetAlignment() - 1)));
 		m_stackFrame[*i] = offset;
@@ -4740,6 +4867,21 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		offset += 8 - (offset & 7);
 #endif
 
+	if (m_settings.stackGrowsUp)
+	{
+		for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
+		{
+			if ((*i)->IsParameter())
+				continue;
+
+#ifdef OUTPUT32
+			m_stackFrame[*i] -= offset - 4;
+#else
+			m_stackFrame[*i] -= offset - 8;
+#endif
+		}
+	}
+
 	m_stackFrameSize = offset;
 	if (m_stackFrameSize != 0)
 	{
@@ -4753,7 +4895,12 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	{
 		// Adjust variable offsets to be relative to the frame pointer (negative offsets)
 		for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
-			i->second -= m_stackFrameSize;
+		{
+			if (m_settings.stackGrowsUp)
+				i->second += m_stackFrameSize;
+			else
+				i->second -= m_stackFrameSize;
+		}
 	}
 
 	// Generate parameter offsets
@@ -4790,6 +4937,9 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			m_stackFrame[*var] = offset + m_stackFrameSize + 8;
 #endif
 
+		if (m_settings.stackGrowsUp)
+			m_stackFrame[*var] = -m_stackFrame[*var];
+
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();
 #ifdef OUTPUT32
@@ -4812,31 +4962,32 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		if (first)
 		{
 			// Generate function prologue
-			if ((m_stackPointer != DEFAULT_STACK_POINTER) && (func->GetName() == "_start"))
+			if ((!m_normalStack) && (func->GetName() == "_start"))
 			{
 				// If using alternate stack pointer, and this is the _start function, initialize stack pointer
+				size_t stackAdjust = m_settings.stackGrowsUp ? -0x10000 : 0;
 				EMIT_II(enter, 0, 0);
 #ifdef OUTPUT32
-				EMIT_RM(lea_32, m_stackPointer, X86_MEM(REG_EBP, -4));
+				EMIT_RM(lea_32, m_stackPointer, X86_MEM(REG_EBP, -4 + stackAdjust));
 				EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), m_framePointer);
 				EMIT_RR(mov_32, m_framePointer, m_stackPointer);
 #else
-				EMIT_RM(lea_64, m_stackPointer, X86_MEM(REG_EBP, -8));
+				EMIT_RM(lea_64, m_stackPointer, X86_MEM(REG_EBP, -8 + stackAdjust));
 				EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), m_framePointer);
 				EMIT_RR(mov_64, m_framePointer, m_stackPointer);
 #endif
 			}
 			else if (m_framePointerEnabled)
 			{
-				if (m_stackPointer == DEFAULT_STACK_POINTER)
+				if (m_normalStack)
 					EMIT_R(push, m_framePointer);
 				else
 				{
 #ifdef OUTPUT32
-					EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, -4));
+					EMIT_RM(lea_32, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 4 : -4));
 					EMIT_MR(mov_32, X86_MEM(m_stackPointer, 0), m_framePointer);
 #else
-					EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, -8));
+					EMIT_RM(lea_64, m_stackPointer, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 8 : -8));
 					EMIT_MR(mov_64, X86_MEM(m_stackPointer, 0), m_framePointer);
 #endif
 				}
@@ -4850,11 +5001,22 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 			if (m_stackFrameSize != 0)
 			{
+				if (m_settings.stackGrowsUp)
+				{
 #ifdef OUTPUT32
-				EMIT_RI(sub_32, m_stackPointer, m_stackFrameSize);
+					EMIT_RI(add_32, m_stackPointer, m_stackFrameSize);
 #else
-				EMIT_RI(sub_64, m_stackPointer, m_stackFrameSize);
+					EMIT_RI(add_64, m_stackPointer, m_stackFrameSize);
 #endif
+				}
+				else
+				{
+#ifdef OUTPUT32
+					EMIT_RI(sub_32, m_stackPointer, m_stackFrameSize);
+#else
+					EMIT_RI(sub_64, m_stackPointer, m_stackFrameSize);
+#endif
+				}
 			}
 
 			first = false;

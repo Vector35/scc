@@ -87,6 +87,8 @@ enum ExprClass
 	EXPR_RDTSC,
 	EXPR_RDTSC_LOW,
 	EXPR_RDTSC_HIGH,
+	EXPR_NEXT_ARG,
+	EXPR_PREV_ARG
 };
 
 struct Location

@@ -187,6 +187,7 @@ void Usage()
 	fprintf(stderr, "                                      value (32-bit output only)\n");
 	fprintf(stderr, "    --seed <value>                    Specify random seed (to reproduce --polymorph runs)\n");
 	fprintf(stderr, "    --shared                          Generate shared library instead of executable\n");
+	fprintf(stderr, "    --stack-grows-up                  Stack grows toward larger addresses\n");
 	fprintf(stderr, "    --stack-reg <reg>                 Use alternate register as the stack pointer\n");
 	fprintf(stderr, "    --stdin                           Read source code from stdin\n");
 	fprintf(stderr, "    --stdout                          Send generated code to stdout for pipelines\n\n");
@@ -229,6 +230,7 @@ int main(int argc, char* argv[])
 	settings.assumeSafeStack = false;
 	settings.concat = false;
 	settings.encodePointers = false;
+	settings.stackGrowsUp = false;
 	settings.sharedLibrary = false;
 	settings.polymorph = false;
 	settings.seed = 0;
@@ -575,6 +577,11 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--shared"))
 		{
 			settings.sharedLibrary = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--stack-grows-up"))
+		{
+			settings.stackGrowsUp = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--stack-reg"))

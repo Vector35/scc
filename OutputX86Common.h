@@ -65,6 +65,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool m_framePointerEnabled;
 	asmx86::OperandType m_stackPointer;
 	asmx86::OperandType m_framePointer;
+	bool m_normalStack;
 	ILBlock* m_currentBlock;
 
 	size_t m_temporaryCount;
@@ -150,6 +151,8 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateRdtsc(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscLow(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscHigh(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateNextArg(OutputBlock* out, const ILInstruction& instr);
+	bool GeneratePrevArg(OutputBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(OutputBlock* out, ILBlock* block);
 

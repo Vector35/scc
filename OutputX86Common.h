@@ -60,23 +60,31 @@ class OUTPUT_CLASS_NAME: public Output
 		CONDJUMP_GREATER_THAN
 	};
 
+	enum RegisterUsageType
+	{
+		USAGE_NORMAL,
+		USAGE_INDEX
+	};
+
 	std::map<Variable*, int32_t> m_stackFrame;
 	uint32_t m_stackFrameSize;
 	bool m_framePointerEnabled;
-	asmx86::OperandType m_stackPointer;
-	asmx86::OperandType m_framePointer;
+	asmx86::OperandType m_stackPointer, m_origStackPointer;
+	asmx86::OperandType m_framePointer, m_origFramePointer;
 	bool m_normalStack;
 	ILBlock* m_currentBlock;
 
-	size_t m_temporaryCount;
 	asmx86::OperandType m_temporaryRegisters[16];
 	size_t m_maxTemporaryRegisters;
+	bool m_alloc[16];
 	bool m_reserved[16];
 
 	asmx86::OperandType GetRegisterOfSize(asmx86::OperandType base, size_t size);
 	bool IsRegisterValid(asmx86::OperandType reg);
-	asmx86::OperandType AllocateTemporaryRegister(OutputBlock* out, size_t size);
-	void ReserveRegister(asmx86::OperandType reg);
+	bool IsValidIndexRegister(asmx86::OperandType reg);
+	asmx86::OperandType AllocateTemporaryRegister(OutputBlock* out, size_t size, RegisterUsageType usage = USAGE_NORMAL);
+	void ReserveRegisters(OutputBlock* out, ...);
+	void ClearReservedRegisters(OutputBlock* out);
 	asmx86::OperandType GetRegisterByName(const std::string& name);
 
 	static void LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);

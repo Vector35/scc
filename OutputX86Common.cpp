@@ -1,7 +1,9 @@
 #ifdef OUTPUT_CLASS_NAME
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "OutputX86Common.h"
 #include "Struct.h"
 #include "Function.h"
@@ -168,29 +170,144 @@ bool OUTPUT_CLASS_NAME::IsRegisterValid(OperandType reg)
 }
 
 
-OperandType OUTPUT_CLASS_NAME::AllocateTemporaryRegister(OutputBlock* out, size_t size)
+bool OUTPUT_CLASS_NAME::IsValidIndexRegister(asmx86::OperandType reg)
 {
-	// Skip reserved registers
-	while ((m_temporaryCount < m_maxTemporaryRegisters) && (m_reserved[m_temporaryCount]))
-		m_temporaryCount++;
-
-	// Allocate the register
-	if (m_temporaryCount >= m_maxTemporaryRegisters)
-		return NONE;
-	return GetRegisterOfSize(m_temporaryRegisters[m_temporaryCount++], size);
+	if ((reg == REG_ESP) || (reg == REG_R12D))
+		return false;
+	if ((reg == REG_RSP) || (reg == REG_R12))
+		return false;
+	return true;
 }
 
 
-void OUTPUT_CLASS_NAME::ReserveRegister(OperandType reg)
+OperandType OUTPUT_CLASS_NAME::AllocateTemporaryRegister(OutputBlock* out, size_t size, RegisterUsageType usage)
 {
+	size_t possibleRegs[16];
+	size_t possibleRegCount = 0;
+
 	for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
 	{
-		if (m_temporaryRegisters[i] == reg)
+		if ((!m_alloc[i]) && (!m_reserved[i]))
 		{
-			m_reserved[i] = true;
-			break;
+			OperandType reg = GetRegisterOfSize(m_temporaryRegisters[i], size);
+			if (!IsRegisterValid(reg))
+				continue;
+			if ((usage == USAGE_INDEX) && (!IsValidIndexRegister(reg)))
+				continue;
+			possibleRegs[possibleRegCount++] = i;
 		}
 	}
+
+	if (possibleRegCount == 0)
+		return NONE;
+
+	if (m_settings.polymorph)
+	{
+		size_t choice = rand() % possibleRegCount;
+		m_alloc[possibleRegs[choice]] = true;
+		return GetRegisterOfSize(m_temporaryRegisters[possibleRegs[choice]], size);
+	}
+	else
+	{
+		m_alloc[possibleRegs[0]] = true;
+		return GetRegisterOfSize(m_temporaryRegisters[possibleRegs[0]], size);
+	}
+}
+
+
+void OUTPUT_CLASS_NAME::ReserveRegisters(OutputBlock* out, ...)
+{
+	OperandType regs[16];
+	size_t regCount;
+	va_list va;
+	va_start(va, out);
+
+	// Process register list and mark them as reserved
+	for (regCount = 0; regCount < 16; regCount++)
+	{
+		OperandType reg = (OperandType)va_arg(va, int);
+		if (reg == NONE)
+			break;
+		regs[regCount] = reg;
+
+		for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
+		{
+			if (m_temporaryRegisters[i] == reg)
+			{
+				m_reserved[i] = true;
+				break;
+			}
+		}
+	}
+
+	// Check for register collisions and handle them
+	if (out)
+	{
+		for (size_t i = 0; i < regCount; i++)
+		{
+#ifdef OUTPUT32
+			if (GetRegisterOfSize(regs[i], 4) == m_stackPointer)
+			{
+				// Caller needs register that currently holds the stack pointer, relocate it to another register
+				OperandType temp = AllocateTemporaryRegister(out, 4);
+				EMIT_RR(xchg_32, m_stackPointer, temp);
+				m_stackPointer = temp;
+			}
+			else if (GetRegisterOfSize(regs[i], 4) == m_framePointer)
+			{
+				// Caller needs register that currently holds the frame pointer, relocate it to another register
+				OperandType temp = AllocateTemporaryRegister(out, 4);
+				EMIT_RR(xchg_32, m_framePointer, temp);
+				m_framePointer = temp;
+			}
+#else
+			if (GetRegisterOfSize(regs[i], 8) == m_stackPointer)
+			{
+				// Caller needs register that currently holds the stack pointer, relocate it to another register
+				OperandType temp = AllocateTemporaryRegister(out, 8);
+				EMIT_RR(xchg_64, m_stackPointer, temp);
+				m_stackPointer = temp;
+			}
+			else if (GetRegisterOfSize(regs[i], 8) == m_framePointer)
+			{
+				// Caller needs register that currently holds the frame pointer, relocate it to another register
+				OperandType temp = AllocateTemporaryRegister(out, 8);
+				EMIT_RR(xchg_64, m_framePointer, temp);
+				m_framePointer = temp;
+			}
+#endif
+		}
+	}
+}
+
+
+void OUTPUT_CLASS_NAME::ClearReservedRegisters(OutputBlock* out)
+{
+	if (m_stackPointer != m_origStackPointer)
+	{
+		// Stack pointer was relocated, move it back
+#ifdef OUTPUT32
+		EMIT_RR(xchg_32, m_stackPointer, m_origStackPointer);
+#else
+		EMIT_RR(xchg_64, m_stackPointer, m_origStackPointer);
+#endif
+	}
+
+	if (m_framePointer != m_origFramePointer)
+	{
+		// Frame pointer was relocated, move it back
+#ifdef OUTPUT32
+		EMIT_RR(xchg_32, m_framePointer, m_origFramePointer);
+#else
+		EMIT_RR(xchg_64, m_framePointer, m_origFramePointer);
+#endif
+	}
+
+	m_stackPointer = m_origStackPointer;
+	m_framePointer = m_origFramePointer;
+
+	for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
+		m_reserved[i] = false;
 }
 
 
@@ -1463,13 +1580,13 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndex(OutputBlock* out, const ILInstruction
 		src.mem.offset += src.width * index.immed;
 	else if ((src.width == 1) || (src.width == 2) || (src.width == 4) || (src.width == 8))
 	{
-		if (index.type != OPERANDREF_REG)
+		if ((index.type != OPERANDREF_REG) || (!IsValidIndexRegister(index.reg)))
 		{
 			// Load index into a register
 			OperandReference temp;
 			temp.type = OPERANDREF_REG;
 			temp.width = index.width;
-			temp.reg = AllocateTemporaryRegister(out, temp.width);
+			temp.reg = AllocateTemporaryRegister(out, temp.width, USAGE_INDEX);
 			if (!Move(out, temp, index))
 				return false;
 			index = temp;
@@ -1507,13 +1624,13 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(OutputBlock* out, const ILInstr
 		dest.mem.offset += src.width * index.immed;
 	else if ((dest.width == 1) || (dest.width == 2) || (dest.width == 4) || (dest.width == 8))
 	{
-		if (index.type != OPERANDREF_REG)
+		if ((index.type != OPERANDREF_REG) || (!IsValidIndexRegister(index.reg)))
 		{
 			// Load index into a register
 			OperandReference temp;
 			temp.type = OPERANDREF_REG;
 			temp.width = index.width;
-			temp.reg = AllocateTemporaryRegister(out, temp.width);
+			temp.reg = AllocateTemporaryRegister(out, temp.width, USAGE_INDEX);
 			if (!Move(out, temp, index))
 				return false;
 			index = temp;
@@ -1567,13 +1684,13 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(OutputBlock* out, const ILInstruction& in
 		return Add(out, dest, b);
 	}
 
-	if (a.type != OPERANDREF_REG)
+	if ((a.type != OPERANDREF_REG) || (!IsValidIndexRegister(a.reg)))
 	{
 		// Load pointer into register
 		OperandReference temp;
 		temp.type = OPERANDREF_REG;
 		temp.width = a.width;
-		temp.reg = AllocateTemporaryRegister(out, temp.width);
+		temp.reg = AllocateTemporaryRegister(out, temp.width, USAGE_INDEX);
 		if (!Move(out, temp, a))
 			return false;
 		a = temp;
@@ -1632,7 +1749,7 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(OutputBlock* out, const ILInstruction& in
 	OperandReference countTemp;
 	countTemp.type = OPERANDREF_REG;
 	countTemp.width = b.width;
-	countTemp.reg = AllocateTemporaryRegister(out, countTemp.width);
+	countTemp.reg = AllocateTemporaryRegister(out, countTemp.width, USAGE_INDEX);
 	if (!Move(out, countTemp, b))
 		return false;
 	b = countTemp;
@@ -1745,8 +1862,7 @@ bool OUTPUT_CLASS_NAME::GenerateSub(OutputBlock* out, const ILInstruction& instr
 bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -1817,8 +1933,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction
 bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -1889,8 +2004,7 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(OutputBlock* out, const ILInstructi
 bool OUTPUT_CLASS_NAME::GenerateSignedDiv(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -1981,8 +2095,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedDiv(OutputBlock* out, const ILInstruction&
 bool OUTPUT_CLASS_NAME::GenerateUnsignedDiv(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -2068,8 +2181,7 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedDiv(OutputBlock* out, const ILInstructio
 bool OUTPUT_CLASS_NAME::GenerateSignedMod(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -2168,8 +2280,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMod(OutputBlock* out, const ILInstruction&
 bool OUTPUT_CLASS_NAME::GenerateUnsignedMod(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -2309,7 +2420,7 @@ bool OUTPUT_CLASS_NAME::GenerateShl(OutputBlock* out, const ILInstruction& instr
 {
 	OperandReference dest, a, b, count;
 
-	ReserveRegister(REG_ECX);
+	ReserveRegisters(out, REG_ECX, NONE);
 	count.type = OPERANDREF_REG;
 	count.width = 1;
 	count.reg = REG_CL;
@@ -2336,7 +2447,7 @@ bool OUTPUT_CLASS_NAME::GenerateShr(OutputBlock* out, const ILInstruction& instr
 {
 	OperandReference dest, a, b, count;
 
-	ReserveRegister(REG_ECX);
+	ReserveRegisters(out, REG_ECX, NONE);
 	count.type = OPERANDREF_REG;
 	count.width = 1;
 	count.reg = REG_CL;
@@ -2363,7 +2474,7 @@ bool OUTPUT_CLASS_NAME::GenerateSar(OutputBlock* out, const ILInstruction& instr
 {
 	OperandReference dest, a, b, count;
 
-	ReserveRegister(REG_ECX);
+	ReserveRegisters(out, REG_ECX, NONE);
 	count.type = OPERANDREF_REG;
 	count.width = 1;
 	count.reg = REG_CL;
@@ -2803,8 +2914,8 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	// Push parameters from right to left
 	for (size_t i = instr.params.size() - 1; i >= 2; i--)
 	{
-		m_temporaryCount = 0;
-		memset(m_reserved, 0, sizeof(m_reserved));
+		memset(m_alloc, 0, sizeof(m_alloc));
+		ClearReservedRegisters(out);
 
 		OperandReference param;
 		if (!PrepareLoad(out, instr.params[i], param))
@@ -2963,8 +3074,8 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 #endif
 	}
 
-	m_temporaryCount = 0;
-	memset(m_reserved, 0, sizeof(m_reserved));
+	memset(m_alloc, 0, sizeof(m_alloc));
+	ClearReservedRegisters(out);
 
 	// Perform function call
 	if (instr.params[1].cls == ILPARAM_FUNC)
@@ -3239,10 +3350,13 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 	// Store return value, if there is one
 	if (instr.params[0].cls != ILPARAM_VOID)
 	{
-		ReserveRegister(REG_EAX);
 #ifdef OUTPUT32
 		if (instr.params[0].GetWidth() > 4)
-			ReserveRegister(REG_EDX);
+			ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
+		else
+			ReserveRegisters(out, REG_EAX, NONE);
+#else
+		ReserveRegisters(out, REG_EAX, NONE);
 #endif
 
 		OperandReference dest, retVal;
@@ -3880,8 +3994,7 @@ bool OUTPUT_CLASS_NAME::GenerateReturn(OutputBlock* out, const ILInstruction& in
 
 bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction& instr)
 {
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 #ifdef OUTPUT32
 	OperandType temp = AllocateTemporaryRegister(out, 4);
 #else
@@ -4056,9 +4169,7 @@ bool OUTPUT_CLASS_NAME::GenerateAlloca(OutputBlock* out, const ILInstruction& in
 
 bool OUTPUT_CLASS_NAME::GenerateMemcpy(OutputBlock* out, const ILInstruction& instr)
 {
-	ReserveRegister(REG_ESI);
-	ReserveRegister(REG_EDI);
-	ReserveRegister(REG_ECX);
+	ReserveRegisters(out, REG_ESI, REG_EDI, REG_ECX, NONE);
 
 	OperandReference dest, src, size;
 	if (!PrepareLoad(out, instr.params[0], dest))
@@ -4174,9 +4285,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemcpy(OutputBlock* out, const ILInstruction& in
 
 bool OUTPUT_CLASS_NAME::GenerateMemset(OutputBlock* out, const ILInstruction& instr)
 {
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDI);
-	ReserveRegister(REG_ECX);
+	ReserveRegisters(out, REG_EAX, REG_EDI, REG_ECX, NONE);
 
 	OperandReference dest, src, size;
 	if (!PrepareLoad(out, instr.params[0], dest))
@@ -4295,12 +4404,14 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #endif
 		}
 
+		ReserveRegisters(NULL, REG_ESP, REG_EBP, NONE);
+
 		size_t regIndex = 0;
 		for (size_t i = 1; i < instr.params.size(); i++)
 		{
 			if (linuxRegs[regIndex] == NONE)
 				return false;
-			ReserveRegister(linuxRegs[regIndex]);
+			ReserveRegisters(NULL, linuxRegs[regIndex], NONE);
 
 			if (instr.params[i].cls == ILPARAM_UNDEFINED)
 				continue;
@@ -4310,7 +4421,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 			{
 				if (linuxRegs[regIndex + 1] == NONE)
 					return false;
-				ReserveRegister(linuxRegs[regIndex + 1]);
+				ReserveRegisters(NULL, linuxRegs[regIndex + 1], NONE);
 			}
 #endif
 
@@ -4425,8 +4536,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 bool OUTPUT_CLASS_NAME::GenerateRdtsc(OutputBlock* out, const ILInstruction& instr)
 {
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	OperandReference dest;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -4457,8 +4567,7 @@ bool OUTPUT_CLASS_NAME::GenerateRdtsc(OutputBlock* out, const ILInstruction& ins
 
 bool OUTPUT_CLASS_NAME::GenerateRdtscLow(OutputBlock* out, const ILInstruction& instr)
 {
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	OperandReference dest;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -4475,8 +4584,7 @@ bool OUTPUT_CLASS_NAME::GenerateRdtscLow(OutputBlock* out, const ILInstruction& 
 
 bool OUTPUT_CLASS_NAME::GenerateRdtscHigh(OutputBlock* out, const ILInstruction& instr)
 {
-	ReserveRegister(REG_EAX);
-	ReserveRegister(REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	OperandReference dest;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -4536,8 +4644,8 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 	vector<ILInstruction>::iterator i;
 	for (i = block->GetInstructions().begin(); i != block->GetInstructions().end(); i++)
 	{
-		m_temporaryCount = 0;
-		memset(m_reserved, 0, sizeof(m_reserved));
+		memset(m_alloc, 0, sizeof(m_alloc));
+		ClearReservedRegisters(out);
 
 		bool end = false;
 		switch (i->operation)
@@ -4808,6 +4916,9 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	m_normalStack = true;
 	if ((m_stackPointer != DEFAULT_STACK_POINTER) || m_settings.stackGrowsUp)
 		m_normalStack = false;
+
+	m_origStackPointer = m_stackPointer;
+	m_origFramePointer = m_framePointer;
 
 	// Determine which registers can be used as temporaries
 	m_temporaryRegisters[0] = REG_EAX;

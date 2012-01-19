@@ -2810,6 +2810,16 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 		if (!PrepareLoad(out, instr.params[i], param))
 			return false;
 
+		if (param.width == 0)
+		{
+			// Indefinite width (used for immediates, for example), use native size
+#ifdef OUTPUT32
+			param.width = 4;
+#else
+			param.width = 8;
+#endif
+		}
+
 		if (m_stackPointer != DEFAULT_STACK_POINTER)
 		{
 #ifdef OUTPUT32

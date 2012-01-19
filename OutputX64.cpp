@@ -31,6 +31,7 @@
 
 #define DEFAULT_STACK_POINTER REG_RSP
 #define DEFAULT_FRAME_POINTER REG_RBP
+#define DEFAULT_BASE_POINTER NONE
 
 #include "OutputX86Common.cpp"
 

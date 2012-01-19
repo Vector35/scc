@@ -71,6 +71,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool m_framePointerEnabled;
 	asmx86::OperandType m_stackPointer, m_origStackPointer;
 	asmx86::OperandType m_framePointer, m_origFramePointer;
+	asmx86::OperandType m_basePointer, m_origBasePointer;
 	bool m_normalStack;
 	ILBlock* m_currentBlock;
 
@@ -88,9 +89,11 @@ class OUTPUT_CLASS_NAME: public Output
 	asmx86::OperandType GetRegisterByName(const std::string& name);
 
 	static void LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+	static void BaseRelativeLeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);
 	static void ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);
 	static void UnconditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);
 
+	size_t GetInstructionPointer(OutputBlock* out, asmx86::OperandType reg);
 	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref);
 	bool LoadCodePointer(OutputBlock* out, ILBlock* block, OperandReference& ref);
 	bool PrepareLoad(OutputBlock* out, const ILParameter& param, OperandReference& ref);

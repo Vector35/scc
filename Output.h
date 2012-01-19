@@ -10,10 +10,14 @@ enum RelocationType
 {
 	CODE_RELOC_RELATIVE_8,
 	CODE_RELOC_RELATIVE_32,
+	CODE_RELOC_BASE_RELATIVE_8,
+	CODE_RELOC_BASE_RELATIVE_32,
 	CODE_RELOC_ABSOLUTE_32,
 	CODE_RELOC_ABSOLUTE_64,
 	DATA_RELOC_RELATIVE_8,
 	DATA_RELOC_RELATIVE_32,
+	DATA_RELOC_BASE_RELATIVE_8,
+	DATA_RELOC_BASE_RELATIVE_32,
 	DATA_RELOC_ABSOLUTE_32,
 	DATA_RELOC_ABSOLUTE_64
 };
@@ -21,7 +25,7 @@ enum RelocationType
 struct Relocation
 {
 	RelocationType type;
-	size_t offset, start, end;
+	size_t offset, instruction, start, end;
 	void (*overflow)(OutputBlock* out, size_t start, size_t offset);
 	union
 	{

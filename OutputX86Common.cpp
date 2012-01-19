@@ -260,6 +260,13 @@ void OUTPUT_CLASS_NAME::ReserveRegisters(OutputBlock* out, ...)
 				EMIT_RR(xchg_32, m_framePointer, temp);
 				m_framePointer = temp;
 			}
+			else if (GetRegisterOfSize(regs[i], 4) == m_basePointer)
+			{
+				// Caller needs register that currently holds the base pointer, relocate it to another register
+				OperandType temp = AllocateTemporaryRegister(out, 4);
+				EMIT_RR(xchg_32, m_basePointer, temp);
+				m_basePointer = temp;
+			}
 #else
 			if (GetRegisterOfSize(regs[i], 8) == m_stackPointer)
 			{
@@ -274,6 +281,13 @@ void OUTPUT_CLASS_NAME::ReserveRegisters(OutputBlock* out, ...)
 				OperandType temp = AllocateTemporaryRegister(out, 8);
 				EMIT_RR(xchg_64, m_framePointer, temp);
 				m_framePointer = temp;
+			}
+			else if (GetRegisterOfSize(regs[i], 8) == m_basePointer)
+			{
+				// Caller needs register that currently holds the base pointer, relocate it to another register
+				OperandType temp = AllocateTemporaryRegister(out, 8);
+				EMIT_RR(xchg_64, m_basePointer, temp);
+				m_basePointer = temp;
 			}
 #endif
 		}
@@ -303,8 +317,19 @@ void OUTPUT_CLASS_NAME::ClearReservedRegisters(OutputBlock* out)
 #endif
 	}
 
+	if (m_basePointer != m_origBasePointer)
+	{
+		// Base pointer was relocated, move it back
+#ifdef OUTPUT32
+		EMIT_RR(xchg_32, m_basePointer, m_origBasePointer);
+#else
+		EMIT_RR(xchg_64, m_basePointer, m_origBasePointer);
+#endif
+	}
+
 	m_stackPointer = m_origStackPointer;
 	m_framePointer = m_origFramePointer;
+	m_basePointer = m_origBasePointer;
 
 	for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
 		m_reserved[i] = false;
@@ -479,6 +504,32 @@ void OUTPUT_CLASS_NAME::LeaOverflowHandler(OutputBlock* out, size_t start, size_
 }
 
 
+void OUTPUT_CLASS_NAME::BaseRelativeLeaOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+{
+	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
+
+#ifdef OUTPUT64
+	// Skip REX prefix
+	if ((instr[0] & 0xf0) == 0x40)
+	{
+		start++;
+		instr++;
+	}
+#endif
+
+	// Use 32-bit displacement instead of 8-bit displacement
+	uint8_t modrm = (instr[1] & 0x3f) | 0x80;
+
+	uint8_t newInstr[15];
+	newInstr[0] = instr[0];
+	newInstr[1] = modrm;
+	memcpy(&newInstr[2], &instr[2], (offset - start) - 2);
+	*(uint32_t*)&newInstr[offset - start] = instr[offset - start];
+
+	out->ReplaceInstruction(start, (offset - start) + 1, newInstr, (offset - start) + 4, offset - start);
+}
+
+
 void OUTPUT_CLASS_NAME::ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset)
 {
 	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
@@ -497,6 +548,45 @@ void OUTPUT_CLASS_NAME::UnconditionalJumpOverflowHandler(OutputBlock* out, size_
 	newInstr[0] = 0xe9;
 	*(uint32_t*)&newInstr[1] = instr[1];
 	out->ReplaceInstruction(start, 2, newInstr, 5, 1);
+}
+
+
+size_t OUTPUT_CLASS_NAME::GetInstructionPointer(OutputBlock* out, OperandType reg)
+{
+	size_t capturedOffset, leaOffset;
+
+	if (m_normalStack)
+	{
+		// Normal stack, use call/pop method
+		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
+		buffer[0] = 0xe8;
+		*(uint32_t*)(&buffer[1]) = 0;
+		out->FinishWrite(5);
+		capturedOffset = out->len;
+		EMIT_R(pop, reg);
+		leaOffset = out->len;
+		EMIT_RM(lea_32, reg, X86_MEM(reg, 1));
+	}
+	else
+	{
+		// Not a normal stack, must use fstenv method
+		capturedOffset = out->len;
+		EMIT(fnop);
+#ifdef OUTPUT32
+		EMIT_M(fstenv, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 4 : -28));
+		EMIT_RM(mov_32, reg, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 16 : -16));
+		leaOffset = out->len;
+		EMIT_RM(lea_32, reg, X86_MEM(reg, 1));
+#else
+		EMIT_M(fstenv, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 8 : -28));
+		EMIT_RM(mov_64, reg, X86_MEM(m_stackPointer, m_settings.stackGrowsUp ? 20 : -16));
+		leaOffset = out->len;
+		EMIT_RM(lea_64, reg, X86_MEM(reg, 1));
+#endif
+	}
+
+	*(int8_t*)((size_t)out->code + out->len - 1) = (int8_t)(out->len - capturedOffset);
+	return leaOffset;
 }
 
 
@@ -548,18 +638,27 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(OutputBlock* out, const ILParamete
 			return true;
 		}
 
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-		buffer[0] = 0xe8;
-		*(uint32_t*)(&buffer[1]) = 0;
-		out->FinishWrite(5);
-		EMIT_R(pop, ptr);
-		size_t leaOffset = out->len;
-		EMIT_RM(lea_32, ptr, X86_MEM(ptr, 4));
+		if (m_basePointer != NONE)
+		{
+			size_t leaOffset = out->len;
+			EMIT_RM(lea_32, ptr, X86_MEM(m_basePointer, 1));
+			*(int8_t*)((size_t)out->code + out->len - 1) = 0;
+			Relocation reloc;
+			reloc.type = DATA_RELOC_BASE_RELATIVE_8;
+			reloc.overflow = BaseRelativeLeaOverflowHandler;
+			reloc.instruction = leaOffset;
+			reloc.offset = out->len - 1;
+			reloc.dataOffset = param.variable->GetDataSectionOffset();
+			out->relocs.push_back(reloc);
+			return true;
+		}
+
+		size_t leaOffset = GetInstructionPointer(out, ptr);
 
 		Relocation reloc;
 		reloc.type = DATA_RELOC_RELATIVE_8;
 		reloc.overflow = LeaOverflowHandler;
-		reloc.start = leaOffset;
+		reloc.instruction = leaOffset;
 		reloc.offset = out->len - 1;
 		reloc.dataOffset = param.variable->GetDataSectionOffset();
 		out->relocs.push_back(reloc);
@@ -607,20 +706,27 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(OutputBlock* out, ILBlock* block, Operan
 	ref.reg = AllocateTemporaryRegister(out, ref.width);
 
 #ifdef OUTPUT32
-	if (m_settings.positionIndependent)
+	if (m_basePointer != NONE)
 	{
-		uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-		buffer[0] = 0xe8;
-		*(uint32_t*)(&buffer[1]) = 0;
-		out->FinishWrite(5);
-		EMIT_R(pop, ref.reg);
 		size_t leaOffset = out->len;
-		EMIT_RM(lea_32, ref.reg, X86_MEM(ref.reg, 4));
+		EMIT_RM(lea_32, ref.reg, X86_MEM(m_basePointer, 1));
+		*(int8_t*)((size_t)out->code + out->len - 1) = 0;
+		Relocation reloc;
+		reloc.type = CODE_RELOC_BASE_RELATIVE_8;
+		reloc.overflow = BaseRelativeLeaOverflowHandler;
+		reloc.instruction = leaOffset;
+		reloc.offset = out->len - 1;
+		reloc.target = block;
+		out->relocs.push_back(reloc);
+	}
+	else if (m_settings.positionIndependent)
+	{
+		size_t leaOffset = GetInstructionPointer(out, ref.reg);
 
 		Relocation reloc;
 		reloc.type = CODE_RELOC_RELATIVE_8;
 		reloc.overflow = LeaOverflowHandler;
-		reloc.start = leaOffset;
+		reloc.instruction = leaOffset;
 		reloc.offset = out->len - 1;
 		reloc.target = block;
 		out->relocs.push_back(reloc);
@@ -1268,7 +1374,7 @@ void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType ty
 	Relocation reloc;
 	reloc.type = CODE_RELOC_RELATIVE_8;
 	reloc.overflow = ConditionalJumpOverflowHandler;
-	reloc.start = out->len - 2;
+	reloc.instruction = out->len - 2;
 	reloc.offset = out->len - 1;
 	reloc.target = trueBlock;
 	out->relocs.push_back(reloc);
@@ -1294,7 +1400,7 @@ void OUTPUT_CLASS_NAME::UnconditionalJump(OutputBlock* out, ILBlock* block)
 	Relocation reloc;
 	reloc.type = CODE_RELOC_RELATIVE_8;
 	reloc.overflow = UnconditionalJumpOverflowHandler;
-	reloc.start = out->len - 2;
+	reloc.instruction = out->len - 2;
 	reloc.offset = out->len - 1;
 	reloc.target = block;
 	out->relocs.push_back(reloc);
@@ -3097,15 +3203,20 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			// Generate code to get return address and add a relocation for it
 #ifdef OUTPUT32
 			Relocation reloc;
-			if (m_settings.positionIndependent)
+			if (m_basePointer != NONE)
 			{
-				uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-				buffer[0] = 0xe8;
-				*(uint32_t*)(&buffer[1]) = 0;
-				out->FinishWrite(5);
-				EMIT_R(pop, retAddr.reg);
-				EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
-
+				size_t leaOffset = out->len;
+				EMIT_RM(lea_32, retAddr.reg, X86_MEM(m_basePointer, 1));
+				*(int8_t*)((size_t)out->code + out->len - 1) = 0;
+				reloc.type = CODE_RELOC_BASE_RELATIVE_8;
+				reloc.overflow = BaseRelativeLeaOverflowHandler;
+				reloc.instruction = leaOffset;
+				reloc.offset = out->len - 1;
+				reloc.target = NULL;
+			}
+			else if (m_settings.positionIndependent)
+			{
+				GetInstructionPointer(out, retAddr.reg);
 				reloc.type = CODE_RELOC_RELATIVE_8;
 				reloc.offset = out->len - 1;
 				reloc.target = NULL;
@@ -3231,15 +3342,20 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			// Generate code to get return address and add a relocation for it
 #ifdef OUTPUT32
 			Relocation reloc;
-			if (m_settings.positionIndependent)
+			if (m_basePointer != NONE)
 			{
-				uint8_t* buffer = (uint8_t*)out->PrepareWrite(5);
-				buffer[0] = 0xe8;
-				*(uint32_t*)(&buffer[1]) = 0;
-				out->FinishWrite(5);
-				EMIT_R(pop, retAddr.reg);
-				EMIT_RM(lea_32, retAddr.reg, X86_MEM(retAddr.reg, 4));
-
+				size_t leaOffset = out->len;
+				EMIT_RM(lea_32, retAddr.reg, X86_MEM(m_basePointer, 1));
+				*(int8_t*)((size_t)out->code + out->len - 1) = 0;
+				reloc.type = CODE_RELOC_BASE_RELATIVE_8;
+				reloc.overflow = BaseRelativeLeaOverflowHandler;
+				reloc.instruction = leaOffset;
+				reloc.offset = out->len - 1;
+				reloc.target = NULL;
+			}
+			else if (m_settings.positionIndependent)
+			{
+				GetInstructionPointer(out, retAddr.reg);
 				reloc.type = CODE_RELOC_RELATIVE_8;
 				reloc.offset = out->len - 1;
 				reloc.target = NULL;
@@ -4392,8 +4508,10 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #else
 		static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
 #endif
+		OperandType savedRegs[2];
+		size_t savedRegCount = 0;
 		bool savedFramePointer = false;
-		OperandType originalFramePointer = m_framePointer;
+		bool savedBasePointer = false;
 
 		if (m_stackPointer != DEFAULT_STACK_POINTER)
 		{
@@ -4419,13 +4537,13 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #ifdef OUTPUT32
 			if (instr.params[i].GetWidth() == 8)
 			{
-				if (linuxRegs[regIndex + 1] == NONE)
+				if (linuxRegs[regIndex] == NONE)
 					return false;
-				ReserveRegisters(NULL, linuxRegs[regIndex + 1], NONE);
+				ReserveRegisters(NULL, linuxRegs[regIndex], NONE);
 			}
 #endif
 
-			if ((linuxRegs[regIndex + 1] == m_framePointer) && (m_framePointer == originalFramePointer))
+			if ((linuxRegs[regIndex] == m_framePointer) && (!savedFramePointer))
 			{
 				if (m_settings.stackGrowsUp)
 				{
@@ -4442,6 +4560,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 					EMIT_R(push, m_framePointer);
 				}
 
+				savedRegs[savedRegCount++] = m_framePointer;
 				savedFramePointer = true;
 
 				if (m_framePointer != DEFAULT_FRAME_POINTER)
@@ -4453,6 +4572,28 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #endif
 					m_framePointer = DEFAULT_FRAME_POINTER;
 				}
+			}
+
+			if ((linuxRegs[regIndex] == m_basePointer) && (!savedBasePointer))
+			{
+				if (m_settings.stackGrowsUp)
+				{
+#ifdef OUTPUT32
+					EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 4));
+					EMIT_MR(mov_32, X86_MEM(DEFAULT_STACK_POINTER, 0), m_basePointer);
+#else
+					EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 8));
+					EMIT_MR(mov_64, X86_MEM(DEFAULT_STACK_POINTER, 0), m_basePointer);
+#endif
+				}
+				else
+				{
+					EMIT_R(push, m_basePointer);
+				}
+
+				savedRegs[savedRegCount++] = m_basePointer;
+				savedBasePointer = true;
+				m_basePointer = NONE;
 			}
 
 			OperandReference cur;
@@ -4493,22 +4634,26 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 		EMIT(syscall);
 #endif
 
-		m_framePointer = originalFramePointer;
-		if (savedFramePointer)
+		m_framePointer = m_origFramePointer;
+		m_basePointer = m_origBasePointer;
+
+		for (size_t i = 0; i < savedRegCount; i++)
 		{
+			OperandType reg = savedRegs[(savedRegCount - 1) - i];
+
 			if (m_settings.stackGrowsUp)
 			{
 #ifdef OUTPUT32
-				EMIT_RM(mov_32, m_framePointer, X86_MEM(DEFAULT_STACK_POINTER, 0));
+				EMIT_RM(mov_32, reg, X86_MEM(DEFAULT_STACK_POINTER, 0));
 				EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -4));
 #else
-				EMIT_RM(mov_64, m_framePointer, X86_MEM(DEFAULT_STACK_POINTER, 0));
+				EMIT_RM(mov_64, reg, X86_MEM(DEFAULT_STACK_POINTER, 0));
 				EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -8));
 #endif
 			}
 			else
 			{
-				EMIT_R(pop, m_framePointer);
+				EMIT_R(pop, reg);
 			}
 		}
 
@@ -4878,6 +5023,11 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	// Determine what the stack and frame pointers should be
 	m_framePointer = DEFAULT_FRAME_POINTER;
 	m_stackPointer = DEFAULT_STACK_POINTER;
+#ifdef OUTPUT32
+	m_basePointer = m_settings.positionIndependent ? DEFAULT_BASE_POINTER : NONE;
+#else
+	m_basePointer = NONE;
+#endif
 	if (func->IsVariableSizedStackFrame())
 		m_framePointerEnabled = true;
 	else
@@ -4888,11 +5038,15 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		m_stackPointer = GetRegisterOfSize(GetRegisterByName(m_settings.stackReg), 4);
 	if (m_settings.frameReg.size() != 0)
 		m_framePointer = GetRegisterOfSize(GetRegisterByName(m_settings.frameReg), 4);
+	if ((m_settings.baseReg.size() != 0) && m_settings.positionIndependent)
+		m_basePointer = GetRegisterOfSize(GetRegisterByName(m_settings.baseReg), 4);
 #else
 	if (m_settings.stackReg.size() != 0)
 		m_stackPointer = GetRegisterOfSize(GetRegisterByName(m_settings.stackReg), 8);
 	if (m_settings.frameReg.size() != 0)
 		m_framePointer = GetRegisterOfSize(GetRegisterByName(m_settings.frameReg), 8);
+	if ((m_settings.baseReg.size() != 0) && m_settings.positionIndependent)
+		m_basePointer = GetRegisterOfSize(GetRegisterByName(m_settings.baseReg), 8);
 #endif
 
 	if (m_stackPointer == NONE)
@@ -4907,9 +5061,29 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		return false;
 	}
 
+#ifdef OUTPUT32
+	if ((m_basePointer == NONE) && m_settings.positionIndependent)
+	{
+		fprintf(stderr, "error: invalid base pointer register\n");
+		return false;
+	}
+#endif
+
 	if (m_stackPointer == m_framePointer)
 	{
 		fprintf(stderr, "error: stack pointer and frame pointer cannot be the same register\n");
+		return false;
+	}
+
+	if (m_stackPointer == m_basePointer)
+	{
+		fprintf(stderr, "error: stack pointer and base pointer cannot be the same register\n");
+		return false;
+	}
+
+	if (m_framePointer == m_basePointer)
+	{
+		fprintf(stderr, "error: frame pointer and base pointer cannot be the same register\n");
 		return false;
 	}
 
@@ -4919,6 +5093,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 	m_origStackPointer = m_stackPointer;
 	m_origFramePointer = m_framePointer;
+	m_origBasePointer = m_basePointer;
 
 	// Determine which registers can be used as temporaries
 	m_temporaryRegisters[0] = REG_EAX;
@@ -4946,7 +5121,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	for (size_t i = 0; i < m_maxTemporaryRegisters; i++)
 	{
 		if ((m_temporaryRegisters[i] == GetRegisterOfSize(m_stackPointer, 4)) ||
-			(m_temporaryRegisters[i] == GetRegisterOfSize(m_framePointer, 4)))
+			(m_temporaryRegisters[i] == GetRegisterOfSize(m_framePointer, 4)) ||
+			(m_temporaryRegisters[i] == GetRegisterOfSize(m_basePointer, 4)))
 		{
 			memmove(&m_temporaryRegisters[i], &m_temporaryRegisters[i + 1], sizeof(OperandType) *
 				((m_maxTemporaryRegisters - i) - 1));
@@ -5128,6 +5304,28 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 					EMIT_RI(sub_64, m_stackPointer, m_stackFrameSize);
 #endif
 				}
+			}
+
+			if (m_settings.positionIndependent && (func->GetName() == "_start"))
+			{
+				// Capture base of code at start
+#ifdef OUTPUT32
+				size_t leaOffset = GetInstructionPointer(out, m_basePointer);
+				Relocation reloc;
+				reloc.type = CODE_RELOC_RELATIVE_8;
+				reloc.overflow = LeaOverflowHandler;
+				reloc.instruction = leaOffset;
+				reloc.offset = out->len - 1;
+				reloc.target = func->GetIL()[0];
+				out->relocs.push_back(reloc);
+#else
+				EMIT_RM(lea_64, m_basePointer, X86_MEM(REG_RIP, 0));
+				Relocation reloc;
+				reloc.type = CODE_RELOC_RELATIVE_32;
+				reloc.offset = out->len - 4;
+				reloc.target = func->GetIL()[0];
+				out->relocs.push_back(reloc);
+#endif
 			}
 
 			first = false;

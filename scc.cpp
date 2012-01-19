@@ -157,6 +157,7 @@ void Usage()
 	fprintf(stderr, "    --assume-safe-stack               Assume the stack pointer is not near the code\n");
 	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
 	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
+	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
 	fprintf(stderr, "    --blacklist <byte>                Blacklist the given byte value\n");
 	fprintf(stderr, "    --concat                          Jump to end of output on return for concatenating code\n");
 	fprintf(stderr, "    --decoder <source>                Use decoder to decode shellcode before executing\n");
@@ -292,6 +293,18 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--concat"))
 		{
 			settings.concat = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--base-reg"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.baseReg = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--blacklist"))
@@ -1507,7 +1520,7 @@ int main(int argc, char* argv[])
 		{
 			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
 			{
-				if (!(*j)->CheckRelocations(settings.dataSectionBase, overflows))
+				if (!(*j)->CheckRelocations(settings.base, settings.dataSectionBase, overflows))
 					return 1;
 			}
 		}
@@ -1521,12 +1534,16 @@ int main(int argc, char* argv[])
 		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
 		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
 		{
-			i->reloc->overflow(i->block, i->reloc->start, i->reloc->offset);
+			i->reloc->overflow(i->block, i->reloc->instruction, i->reloc->offset);
 
 			if (i->reloc->type == CODE_RELOC_RELATIVE_8)
 				i->reloc->type = CODE_RELOC_RELATIVE_32;
+			else if (i->reloc->type == CODE_RELOC_BASE_RELATIVE_8)
+				i->reloc->type = CODE_RELOC_BASE_RELATIVE_32;
 			else if (i->reloc->type == DATA_RELOC_RELATIVE_8)
 				i->reloc->type = DATA_RELOC_RELATIVE_32;
+			else if (i->reloc->type == DATA_RELOC_BASE_RELATIVE_8)
+				i->reloc->type = DATA_RELOC_BASE_RELATIVE_32;
 		}
 	}
 
@@ -1535,7 +1552,7 @@ int main(int argc, char* argv[])
 	{
 		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
 		{
-			if (!(*j)->ResolveRelocations(settings.dataSectionBase))
+			if (!(*j)->ResolveRelocations(settings.base, settings.dataSectionBase))
 				return 1;
 		}
 	}

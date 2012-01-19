@@ -40,7 +40,7 @@ struct Settings
 {
 	std::vector<uint8_t> blacklist;
 	std::vector<std::string> preservedRegs;
-	std::string stackReg, frameReg, returnReg, returnHighReg;
+	std::string stackReg, frameReg, returnReg, returnHighReg, baseReg;
 
 	Architecture architecture;
 	OperatingSystem os;

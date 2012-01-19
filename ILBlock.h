@@ -209,8 +209,8 @@ public:
 	void SetOutputBlock(OutputBlock* output);
 	uint64_t GetAddress() const { return m_addr; }
 	void SetAddress(size_t addr) { m_addr = addr; }
-	bool CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationReference>& overflows);
-	bool ResolveRelocations(uint64_t dataSectionBase);
+	bool CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase, std::vector<RelocationReference>& overflows);
+	bool ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase);
 
 	bool EndsWithReturn() const;
 

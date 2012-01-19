@@ -31,6 +31,7 @@
 
 #define DEFAULT_STACK_POINTER REG_ESP
 #define DEFAULT_FRAME_POINTER REG_EBP
+#define DEFAULT_BASE_POINTER REG_EBX
 
 #include "OutputX86Common.cpp"
 

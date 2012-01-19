@@ -766,7 +766,7 @@ void ILBlock::SetOutputBlock(OutputBlock* output)
 }
 
 
-bool ILBlock::CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationReference>& overflows)
+bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase, std::vector<RelocationReference>& overflows)
 {
 	if (!m_output)
 	{
@@ -792,11 +792,19 @@ bool ILBlock::CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationR
 				overflows.push_back(ref);
 			}
 			break;
-		case CODE_RELOC_RELATIVE_32:
-			break;
-		case CODE_RELOC_ABSOLUTE_32:
-			break;
-		case CODE_RELOC_ABSOLUTE_64:
+		case CODE_RELOC_BASE_RELATIVE_8:
+			if (i->target)
+				diff = i->target->m_addr - codeSectionBase;
+			else
+				diff = (m_addr + i->offset + 1) - codeSectionBase;
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				RelocationReference ref;
+				ref.block = m_output;
+				ref.reloc = &(*i);
+				overflows.push_back(ref);
+			}
 			break;
 		case DATA_RELOC_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);
@@ -809,10 +817,24 @@ bool ILBlock::CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationR
 				overflows.push_back(ref);
 			}
 			break;
+		case DATA_RELOC_BASE_RELATIVE_8:
+			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				RelocationReference ref;
+				ref.block = m_output;
+				ref.reloc = &(*i);
+				overflows.push_back(ref);
+			}
+			break;
+		case CODE_RELOC_RELATIVE_32:
+		case CODE_RELOC_BASE_RELATIVE_32:
+		case CODE_RELOC_ABSOLUTE_32:
+		case CODE_RELOC_ABSOLUTE_64:
 		case DATA_RELOC_RELATIVE_32:
-			break;
+		case DATA_RELOC_BASE_RELATIVE_32:
 		case DATA_RELOC_ABSOLUTE_32:
-			break;
 		case DATA_RELOC_ABSOLUTE_64:
 			break;
 		default:
@@ -825,7 +847,7 @@ bool ILBlock::CheckRelocations(uint64_t dataSectionBase, std::vector<RelocationR
 }
 
 
-bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
+bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase)
 {
 	if (!m_output)
 	{
@@ -850,10 +872,36 @@ bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
 			}
 			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
 			break;
+		case CODE_RELOC_BASE_RELATIVE_8:
+			if (i->target)
+				diff = i->target->m_addr - codeSectionBase;
+			else
+				diff = (m_addr + i->offset + 1) - codeSectionBase;
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				fprintf(stderr, "error: 8-bit relative reference out of range\n");
+				return false;
+			}
+			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			break;
 		case CODE_RELOC_RELATIVE_32:
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
+			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
+			{
+				fprintf(stderr, "error: 32-bit relative reference out of range\n");
+				return false;
+			}
+			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			break;
+		case CODE_RELOC_BASE_RELATIVE_32:
+			if (i->target)
+				diff = i->target->m_addr - (m_addr + i->offset + 4);
+			else
+				diff = (m_addr + i->offset + 4) - codeSectionBase;
 			diff += *(int32_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{
@@ -884,8 +932,28 @@ bool ILBlock::ResolveRelocations(uint64_t dataSectionBase)
 			}
 			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
 			break;
+		case DATA_RELOC_BASE_RELATIVE_8:
+			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;
+			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80) || (diff >= 0x80))
+			{
+				fprintf(stderr, "error: 8-bit relative reference out of range\n");
+				return false;
+			}
+			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			break;
 		case DATA_RELOC_RELATIVE_32:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
+			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
+			{
+				fprintf(stderr, "error: 32-bit relative reference out of range\n");
+				return false;
+			}
+			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			break;
+		case DATA_RELOC_BASE_RELATIVE_32:
+			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;
 			diff += *(int32_t*)((size_t)m_output->code + i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{

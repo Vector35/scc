@@ -369,6 +369,7 @@ namespace asmx86
 #define __TWOBYTE_OPSZ_INSTR(n, op) __DEF_INSTR_0(n) { return __twobyte_opsz(__CONTEXT, op); }
 #define __ONEBYTE_INSTR_64(n, op) __DEF_INSTR_0(n) { return __onebyte64(__CONTEXT, op); }
 #define __TWOBYTE_INSTR_64(n, op) __DEF_INSTR_0(n) { return __twobyte64(__CONTEXT, op); }
+#define __FPU_TWOBYTE_INSTR(n, op1, op2) __DEF_INSTR_0(n) { return __fpu_twobyte(__CONTEXT, op1, op2); }
 
 	static __inline size_t __alwaysinline __onebyte(__CONTEXT_PARAMS, uint8_t op)
 	{
@@ -610,6 +611,14 @@ namespace asmx86
 		__TRANSLATE_UNUSED
 		__NO_ASSERT
 		__WRITE_BUF_8_8(0, 0x0f, op);
+		return 2;
+	}
+
+	static __inline size_t __alwaysinline __fpu_twobyte(__CONTEXT_PARAMS, uint8_t op1, uint8_t op2)
+	{
+		__TRANSLATE_UNUSED
+		__NO_ASSERT
+		__WRITE_BUF_8_8(0, op1, op2);
 		return 2;
 	}
 
@@ -3453,6 +3462,10 @@ namespace asmx86
 	__ONEBYTE_INSTR_64(lodsq, 0xad)
 	__ONEBYTE_INSTR_64(scasq, 0xaf)
 #endif
+
+	// Floating point instructions
+	__FPU_TWOBYTE_INSTR(fnop, 0xd9, 0xd0)
+	__DEF_INSTR_1(fstenv, m, __MEM) { return __MODRM(mem_onebyte) (__CONTEXT, 0xd9, 6, __MEMOP(a), 0); }
 
 	// Misc instructions
 #ifdef __CODEGENX86_32BIT

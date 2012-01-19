@@ -105,6 +105,7 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 		else
 		{
 			// Relocation is after current instruction
+			i->instruction += newLen - origLen;
 			i->start += newLen - origLen;
 			i->end += newLen - origLen;
 			i->offset += newLen - origLen;
@@ -117,6 +118,7 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 		switch (i->type)
 		{
 		case CODE_RELOC_RELATIVE_8:
+		case CODE_RELOC_BASE_RELATIVE_8:
 			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
 			{
 				*(int8_t*)((size_t)code + i->offset) += newLen - origLen;
@@ -124,6 +126,7 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 			}
 			break;
 		case CODE_RELOC_RELATIVE_32:
+		case CODE_RELOC_BASE_RELATIVE_32:
 		case CODE_RELOC_ABSOLUTE_32:
 			if ((!i->target) && ((offset >= i->start) && (offset < i->end)))
 			{

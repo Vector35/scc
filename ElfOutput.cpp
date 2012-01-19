@@ -156,7 +156,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.stringTable = 0;
 		header.programHeaderOffset = header.headerSize;
 		header.programHeaderSize = sizeof(Elf64ProgramHeader);
-		header.programHeaderCount = 2;
+		header.programHeaderCount = 3;
 		header.flags = 0;
 
 		header.entry = 0;
@@ -183,13 +183,24 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		Elf64ProgramHeader data;
 		data.type = 1; // Loadable segment
 		data.flags = 6; // Read write
-		data.offset = header.headerSize + (sizeof(Elf64ProgramHeader) * 2) + codeSection->len;
+		data.offset = header.headerSize + (sizeof(Elf64ProgramHeader) * 3) + codeSection->len;
 		data.virtualAddress = dataStart;
 		data.physicalAddress = data.virtualAddress;
 		data.fileSize = dataSection->len;
 		data.memorySize = data.fileSize;
 		data.align = 0x1000;
 		output->Write(&data, sizeof(data));
+
+		Elf64ProgramHeader stack;
+		stack.type = 0x6474e551; // GNU_STACK
+		stack.flags = 6; // Read write
+		stack.offset = 0;
+		stack.virtualAddress = 0;
+		stack.physicalAddress = 0;
+		stack.fileSize = 0;
+		stack.memorySize = 0;
+		stack.align = 8;
+		output->Write(&stack, sizeof(stack));
 	}
 	else
 	{
@@ -201,7 +212,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.stringTable = 0;
 		header.programHeaderOffset = header.headerSize;
 		header.programHeaderSize = sizeof(Elf32ProgramHeader);
-		header.programHeaderCount = 2;
+		header.programHeaderCount = 3;
 		header.flags = 0;
 
 		header.entry = 0;
@@ -228,13 +239,24 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		Elf32ProgramHeader data;
 		data.type = 1; // Loadable segment
 		data.flags = 6; // Read write
-		data.offset = header.headerSize + (sizeof(Elf32ProgramHeader) * 2) + codeSection->len;
+		data.offset = header.headerSize + (sizeof(Elf32ProgramHeader) * 3) + codeSection->len;
 		data.virtualAddress = dataStart;
 		data.physicalAddress = data.virtualAddress;
 		data.fileSize = dataSection->len;
 		data.memorySize = data.fileSize;
 		data.align = 0x1000;
 		output->Write(&data, sizeof(data));
+
+		Elf32ProgramHeader stack;
+		stack.type = 0x6474e551; // GNU_STACK
+		stack.flags = 6; // Read write
+		stack.offset = 0;
+		stack.virtualAddress = 0;
+		stack.physicalAddress = 0;
+		stack.fileSize = 0;
+		stack.memorySize = 0;
+		stack.align = 4;
+		output->Write(&stack, sizeof(stack));
 	}
 
 	output->Write(codeSection->code, codeSection->len);
@@ -246,8 +268,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 uint64_t AdjustBaseForElfFile(uint64_t fileBase, const Settings& settings)
 {
 	if (settings.preferredBits == 64)
-		return fileBase + sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf64Header) + (sizeof(Elf64ProgramHeader) * 2);
-	return fileBase + sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf32Header) + (sizeof(Elf32ProgramHeader) * 2);
+		return fileBase + sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf64Header) + (sizeof(Elf64ProgramHeader) * 3);
+	return fileBase + sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf32Header) + (sizeof(Elf32ProgramHeader) * 3);
 }
 
 

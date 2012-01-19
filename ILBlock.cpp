@@ -899,7 +899,7 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 			break;
 		case CODE_RELOC_BASE_RELATIVE_32:
 			if (i->target)
-				diff = i->target->m_addr - (m_addr + i->offset + 4);
+				diff = i->target->m_addr - codeSectionBase;
 			else
 				diff = (m_addr + i->offset + 4) - codeSectionBase;
 			diff += *(int32_t*)((size_t)m_output->code + i->offset);

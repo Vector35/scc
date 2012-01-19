@@ -1386,11 +1386,11 @@ void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType ty
 
 void OUTPUT_CLASS_NAME::UnconditionalJump(OutputBlock* out, ILBlock* block)
 {
-/*	if (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1))
+	if (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1))
 	{
 		// The destination block is the one just after the current one, just fall through
 		return;
-	}*/
+	}
 
 	uint8_t* buffer = (uint8_t*)out->PrepareWrite(2);
 	buffer[0] = 0xeb;

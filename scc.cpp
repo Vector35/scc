@@ -1489,13 +1489,36 @@ int main(int argc, char* argv[])
 		addr += (*i)->GetType()->GetWidth();
 	}
 
-	// Ensure IL blocks have global indexes
-	size_t globalBlockIndex = 0;
+	// Generate list of IL blocks
+	vector<ILBlock*> codeBlocks;
 	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
 	{
 		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
-			(*j)->SetGlobalIndex(globalBlockIndex++);
+			codeBlocks.push_back(*j);
 	}
+
+	if (settings.polymorph)
+	{
+		// Polymorph enabled, randomize block ordering
+		vector<ILBlock*> remaining = codeBlocks;
+
+		// Ensure starting block is always at start (it is the entry point)
+		codeBlocks.clear();
+		codeBlocks.push_back(remaining[0]);
+		remaining.erase(remaining.begin());
+
+		while (remaining.size() > 0)
+		{
+			size_t choice = rand() % remaining.size();
+			codeBlocks.push_back(remaining[choice]);
+			remaining.erase(remaining.begin() + choice);
+		}
+	}
+
+	// Ensure IL blocks have global indexes
+	size_t globalBlockIndex = 0;
+	for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+		(*i)->SetGlobalIndex(globalBlockIndex++);
 
 	// Generate code for each block
 	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
@@ -1509,13 +1532,10 @@ int main(int argc, char* argv[])
 	{
 		// Lay out address space for code
 		addr = settings.base;
-		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 		{
-			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
-			{
-				(*j)->SetAddress(addr);
-				addr += (*j)->GetOutputBlock()->len;
-			}
+			(*i)->SetAddress(addr);
+			addr += (*i)->GetOutputBlock()->len;
 		}
 
 		settings.dataSectionBase = addr;
@@ -1524,13 +1544,10 @@ int main(int argc, char* argv[])
 
 		// Check relocations and gather the overflow list
 		vector<RelocationReference> overflows;
-		for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+		for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 		{
-			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
-			{
-				if (!(*j)->CheckRelocations(settings.base, settings.dataSectionBase, overflows))
-					return 1;
-			}
+			if (!(*i)->CheckRelocations(settings.base, settings.dataSectionBase, overflows))
+				return 1;
 		}
 
 		if (overflows.size() == 0)
@@ -1556,13 +1573,10 @@ int main(int argc, char* argv[])
 	}
 
 	// Resolve relocations
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 	{
-		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
-		{
-			if (!(*j)->ResolveRelocations(settings.base, settings.dataSectionBase))
-				return 1;
-		}
+		if (!(*i)->ResolveRelocations(settings.base, settings.dataSectionBase))
+			return 1;
 	}
 
 	// Generate code section
@@ -1571,14 +1585,11 @@ int main(int argc, char* argv[])
 	codeSection->len = 0;
 	codeSection->maxLen = 0;
 
-	for (vector< Ref<Function> >::iterator i = functions.begin(); i != functions.end(); i++)
+	for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 	{
-		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
-		{
-			OutputBlock* block = (*j)->GetOutputBlock();
-			memcpy(codeSection->PrepareWrite(block->len), block->code, block->len);
-			codeSection->FinishWrite(block->len);
-		}
+		OutputBlock* block = (*i)->GetOutputBlock();
+		memcpy(codeSection->PrepareWrite(block->len), block->code, block->len);
+		codeSection->FinishWrite(block->len);
 	}
 
 	// Generate final binary

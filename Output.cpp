@@ -101,6 +101,8 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 		{
 			// This instruction's relocation
 			i->offset = offset + newRelocOffset;
+			i->start += newLen - origLen;
+			i->end += newLen - origLen;
 		}
 		else
 		{

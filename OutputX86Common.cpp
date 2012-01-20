@@ -5045,8 +5045,6 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		m_stackPointer = GetRegisterOfSize(GetRegisterByName(m_settings.stackReg), 8);
 	if (m_settings.frameReg.size() != 0)
 		m_framePointer = GetRegisterOfSize(GetRegisterByName(m_settings.frameReg), 8);
-	if ((m_settings.baseReg.size() != 0) && m_settings.positionIndependent)
-		m_basePointer = GetRegisterOfSize(GetRegisterByName(m_settings.baseReg), 8);
 #endif
 
 	if (m_stackPointer == NONE)
@@ -5306,10 +5304,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				}
 			}
 
+#ifdef OUTPUT32
 			if (m_settings.positionIndependent && (func->GetName() == "_start"))
 			{
 				// Capture base of code at start
-#ifdef OUTPUT32
 				size_t leaOffset = GetInstructionPointer(out, m_basePointer);
 				Relocation reloc;
 				reloc.type = CODE_RELOC_RELATIVE_8;
@@ -5318,15 +5316,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				reloc.offset = out->len - 1;
 				reloc.target = func->GetIL()[0];
 				out->relocs.push_back(reloc);
-#else
-				EMIT_RM(lea_64, m_basePointer, X86_MEM(REG_RIP, 0));
-				Relocation reloc;
-				reloc.type = CODE_RELOC_RELATIVE_32;
-				reloc.offset = out->len - 4;
-				reloc.target = func->GetIL()[0];
-				out->relocs.push_back(reloc);
-#endif
 			}
+#endif
 
 			first = false;
 		}

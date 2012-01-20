@@ -678,20 +678,28 @@ int main(int argc, char* argv[])
 	if (settings.format != FORMAT_BIN)
 		settings.assumeSafeStack = true;
 
-	// Set base address of executable if not provided
-	if ((!settings.staticBase) && (settings.format == FORMAT_ELF) && (!settings.sharedLibrary))
+	// Adjust base address for executables
+	if (settings.format == FORMAT_ELF)
 	{
-		settings.staticBase = true;
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
-		settings.base = AdjustBaseForElfFile(0x8040000, settings);
+		if (!settings.positionIndependent)
+		{
+			settings.staticBase = true;
+			settings.base = 0x8040000;
+		}
+		settings.base = AdjustBaseForElfFile(settings.base, settings);
 	}
-	if ((!settings.staticBase) && (settings.format == FORMAT_PE) && (!settings.sharedLibrary))
+	if (settings.format == FORMAT_PE)
 	{
-		settings.staticBase = true;
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
-		settings.base = 0x1001000;
+		if (!settings.positionIndependent)
+		{
+			settings.staticBase = true;
+			settings.base = 0x1000000;
+		}
+		settings.base += 0x1000;
 	}
 
 	// Set pointer size

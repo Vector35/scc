@@ -103,6 +103,20 @@ struct Elf64SectionHeader
 };
 
 
+static const char* GetInterpreterName(const Settings& settings)
+{
+	if (settings.os == OS_LINUX)
+	{
+		if (settings.preferredBits == 64)
+			return "/lib64/ld-linux-x86-64.so.2";
+		else
+			return "/lib/ld-linux.so.2";
+	}
+
+	return "";
+}
+
+
 bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection, OutputBlock* dataSection)
 {
 	// Output file identification header
@@ -128,7 +142,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 	// Write out part of header that is common between 32-bit and 64-bit
 	ElfCommonHeader commonHeader;
 	commonHeader.type = 2; // Executable
-	if (settings.sharedLibrary)
+	if (settings.positionIndependent)
 		commonHeader.type = 3; // Shared library
 
 	switch (settings.architecture)
@@ -156,14 +170,37 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.stringTable = 0;
 		header.programHeaderOffset = header.headerSize;
 		header.programHeaderSize = sizeof(Elf64ProgramHeader);
-		header.programHeaderCount = 3;
+		header.programHeaderCount = settings.positionIndependent ? 6 : 3;
 		header.flags = 0;
-
-		header.entry = 0;
-		if (settings.staticBase)
-			header.entry = settings.base;
+		header.entry = settings.base;
 
 		output->Write(&header, sizeof(header));
+
+		if (settings.positionIndependent)
+		{
+			Elf64ProgramHeader phdr;
+			phdr.type = 6; // PHDR
+			phdr.flags = 5; // Read execute
+			phdr.offset = header.programHeaderOffset;
+			phdr.virtualAddress = phdr.offset;
+			phdr.physicalAddress = phdr.offset;
+			phdr.fileSize = header.programHeaderSize * header.programHeaderCount;
+			phdr.memorySize = phdr.fileSize;
+			phdr.align = 8;
+			output->Write(&phdr, sizeof(phdr));
+
+			const char* interpName = GetInterpreterName(settings);
+			Elf64ProgramHeader interp;
+			interp.type = 3; // INTERP
+			interp.flags = 4; // Read
+			interp.offset = header.headerSize + (sizeof(Elf64ProgramHeader) * header.programHeaderCount);
+			interp.virtualAddress = interp.offset;
+			interp.physicalAddress = interp.offset;
+			interp.fileSize = strlen(interpName) + 1;
+			interp.memorySize = interp.fileSize;
+			interp.align = 1;
+			output->Write(&interp, sizeof(interp));
+		}
 
 		Elf64ProgramHeader code;
 		code.type = 1; // Loadable segment
@@ -180,10 +217,30 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (dataStart & 0xfff)
 			dataStart += 0x1000;
 
+		if (settings.positionIndependent)
+		{
+			static const char pad[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+			if ((dataStart + dataSection->len) & 7)
+				dataSection->Write(pad, 8 - ((dataStart + dataSection->len) & 7));
+
+			uint64_t dynEntries[10];
+			dynEntries[0] = 5; // STRTAB;
+			dynEntries[1] = 0;
+			dynEntries[2] = 6; // SYMTAB;
+			dynEntries[3] = 0;
+			dynEntries[4] = 0xa; // STRSZ;
+			dynEntries[5] = 0;
+			dynEntries[6] = 0xb; // SYMENT;
+			dynEntries[7] = 16;
+			dynEntries[8] = 0; // NULL
+			dynEntries[9] = 0;
+			dataSection->Write(dynEntries, sizeof(dynEntries));
+		}
+
 		Elf64ProgramHeader data;
 		data.type = 1; // Loadable segment
 		data.flags = 6; // Read write
-		data.offset = header.headerSize + (sizeof(Elf64ProgramHeader) * 3) + codeSection->len;
+		data.offset = (header.entry & 0xfff) + codeSection->len;
 		data.virtualAddress = dataStart;
 		data.physicalAddress = data.virtualAddress;
 		data.fileSize = dataSection->len;
@@ -201,6 +258,23 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		stack.memorySize = 0;
 		stack.align = 8;
 		output->Write(&stack, sizeof(stack));
+
+		if (settings.positionIndependent)
+		{
+			Elf64ProgramHeader dynamic;
+			dynamic.type = 2; // DYNAMIC
+			dynamic.flags = 4; // Read
+			dynamic.offset = data.offset + dataSection->len - 80;
+			dynamic.virtualAddress = data.virtualAddress + dataSection->len - 80;
+			dynamic.physicalAddress = data.physicalAddress + dataSection->len - 80;
+			dynamic.fileSize = 80;
+			dynamic.memorySize = 80;
+			dynamic.align = 8;
+			output->Write(&dynamic, sizeof(dynamic));
+
+			const char* interpName = GetInterpreterName(settings);
+			output->Write(interpName, strlen(interpName) + 1);
+		}
 	}
 	else
 	{
@@ -212,14 +286,37 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.stringTable = 0;
 		header.programHeaderOffset = header.headerSize;
 		header.programHeaderSize = sizeof(Elf32ProgramHeader);
-		header.programHeaderCount = 3;
+		header.programHeaderCount = settings.positionIndependent ? 6 : 3;
 		header.flags = 0;
-
-		header.entry = 0;
-		if (settings.staticBase)
-			header.entry = (uint32_t)settings.base;
+		header.entry = (uint32_t)settings.base;
 
 		output->Write(&header, sizeof(header));
+
+		if (settings.positionIndependent)
+		{
+			Elf32ProgramHeader phdr;
+			phdr.type = 6; // PHDR
+			phdr.flags = 5; // Read execute
+			phdr.offset = header.programHeaderOffset;
+			phdr.virtualAddress = phdr.offset;
+			phdr.physicalAddress = phdr.offset;
+			phdr.fileSize = header.programHeaderSize * header.programHeaderCount;
+			phdr.memorySize = phdr.fileSize;
+			phdr.align = 4;
+			output->Write(&phdr, sizeof(phdr));
+
+			const char* interpName = GetInterpreterName(settings);
+			Elf32ProgramHeader interp;
+			interp.type = 3; // INTERP
+			interp.flags = 4; // Read
+			interp.offset = header.headerSize + (sizeof(Elf32ProgramHeader) * header.programHeaderCount);
+			interp.virtualAddress = interp.offset;
+			interp.physicalAddress = interp.offset;
+			interp.fileSize = strlen(interpName) + 1;
+			interp.memorySize = interp.fileSize;
+			interp.align = 1;
+			output->Write(&interp, sizeof(interp));
+		}
 
 		Elf32ProgramHeader code;
 		code.type = 1; // Loadable segment
@@ -236,10 +333,30 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (dataStart & 0xfff)
 			dataStart += 0x1000;
 
+		if (settings.positionIndependent)
+		{
+			static const char pad[4] = {0, 0, 0, 0};
+			if ((dataStart + dataSection->len) & 3)
+				dataSection->Write(pad, 4 - ((dataStart + dataSection->len) & 3));
+
+			uint32_t dynEntries[10];
+			dynEntries[0] = 5; // STRTAB;
+			dynEntries[1] = 0;
+			dynEntries[2] = 6; // SYMTAB;
+			dynEntries[3] = 0;
+			dynEntries[4] = 0xa; // STRSZ;
+			dynEntries[5] = 0;
+			dynEntries[6] = 0xb; // SYMENT;
+			dynEntries[7] = 16;
+			dynEntries[8] = 0; // NULL
+			dynEntries[9] = 0;
+			dataSection->Write(dynEntries, sizeof(dynEntries));
+		}
+
 		Elf32ProgramHeader data;
 		data.type = 1; // Loadable segment
 		data.flags = 6; // Read write
-		data.offset = header.headerSize + (sizeof(Elf32ProgramHeader) * 3) + codeSection->len;
+		data.offset = (header.entry & 0xfff) + codeSection->len;
 		data.virtualAddress = dataStart;
 		data.physicalAddress = data.virtualAddress;
 		data.fileSize = dataSection->len;
@@ -257,6 +374,23 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		stack.memorySize = 0;
 		stack.align = 4;
 		output->Write(&stack, sizeof(stack));
+
+		if (settings.positionIndependent)
+		{
+			Elf32ProgramHeader dynamic;
+			dynamic.type = 2; // DYNAMIC
+			dynamic.flags = 4; // Read
+			dynamic.offset = data.offset + dataSection->len - 40;
+			dynamic.virtualAddress = data.virtualAddress + dataSection->len - 40;
+			dynamic.physicalAddress = data.physicalAddress + dataSection->len - 40;
+			dynamic.fileSize = 40;
+			dynamic.memorySize = 40;
+			dynamic.align = 4;
+			output->Write(&dynamic, sizeof(dynamic));
+
+			const char* interpName = GetInterpreterName(settings);
+			output->Write(interpName, strlen(interpName) + 1);
+		}
 	}
 
 	output->Write(codeSection->code, codeSection->len);
@@ -267,9 +401,28 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 uint64_t AdjustBaseForElfFile(uint64_t fileBase, const Settings& settings)
 {
+	uint64_t base = fileBase;
 	if (settings.preferredBits == 64)
-		return fileBase + sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf64Header) + (sizeof(Elf64ProgramHeader) * 3);
-	return fileBase + sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf32Header) + (sizeof(Elf32ProgramHeader) * 3);
+	{
+		base += sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf64Header);
+		base += sizeof(Elf64ProgramHeader) * 3;
+		if (settings.positionIndependent)
+		{
+			base += sizeof(Elf64ProgramHeader) * 3;
+			base += strlen(GetInterpreterName(settings)) + 1;
+		}
+	}
+	else
+	{
+		base += sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf32Header);
+		base += sizeof(Elf32ProgramHeader) * 3;
+		if (settings.positionIndependent)
+		{
+			base += sizeof(Elf32ProgramHeader) * 3;
+			base += strlen(GetInterpreterName(settings)) + 1;
+		}
+	}
+	return base;
 }
 
 

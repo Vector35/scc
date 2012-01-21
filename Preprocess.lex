@@ -139,7 +139,7 @@
 [0-9]+([eE][-+]?[0-9]+)				TOKSTR(TOKEN, yytext)
 
 \"([^\"\r\n]*(\\\")?)*\"			TOKSTR(TOKEN, yytext)
-\'([^\"\r\n]*(\\\")?)*\'			TOKSTR(TOKEN, yytext)
+\'([^\'\r\n]*(\\\')?)*\'			TOKSTR(TOKEN, yytext)
 [[:alpha:]_][[:alnum:]_]*	{
 					if (PARSERSTATE->IsDefined(yytext))
 						TOKSTR(MACRO, yytext)

@@ -1,0 +1,111 @@
+int8_t add_two_8(int8_t a, int8_t b)
+{
+	return a + b;
+}
+
+int16_t add_two_16(int16_t a, int16_t b)
+{
+	return a + b;
+}
+
+int32_t add_two_32(int32_t a, int32_t b)
+{
+	return a + b;
+}
+
+int64_t add_two_64(int64_t a, int64_t b)
+{
+	return a + b;
+}
+
+int8_t add_var_8(int8_t a, ...)
+{
+	int8_t result = a;
+	int8_t val;
+	va_list va;
+	va_start(va, a);
+	do
+	{
+		val = va_arg(va, int8_t);
+		result += val;
+	} while (val != 0);
+	return result;
+}
+
+int16_t add_var_16(int16_t a, ...)
+{
+	int16_t result = a;
+	int16_t val;
+	va_list va;
+	va_start(va, a);
+	do
+	{
+		val = va_arg(va, int16_t);
+		result += val;
+	} while (val != 0);
+	return result;
+}
+
+int32_t add_var_32(int32_t a, ...)
+{
+	int32_t result = a;
+	int32_t val;
+	va_list va;
+	va_start(va, a);
+	do
+	{
+		val = va_arg(va, int32_t);
+		result += val;
+	} while (val != 0);
+	return result;
+}
+
+int64_t add_var_64(int64_t a, ...)
+{
+	int64_t result = a;
+	int64_t val;
+	va_list va;
+	va_start(va, a);
+	do
+	{
+		val = va_arg(va, int64_t);
+		result += val;
+	} while (val != 0);
+	return result;
+}
+
+void show_8(int8_t a)
+{
+	printf("%d\n", a);
+}
+
+void show_16(int16_t a)
+{
+	printf("%d\n", a);
+}
+
+void show_32(int32_t a)
+{
+	printf("%d\n", a);
+}
+
+void show_64(int64_t a)
+{
+	uint32_t reduce = (uint32_t)a;
+	reduce ^= (uint32_t)(a >> 32);
+	printf("%d\n", reduce);
+}
+
+int main()
+{
+	show_8(add_two_8(17, 42));
+	show_16(add_two_16(14859, 3928));
+	show_32(add_two_32(283211239, 321821391));
+	show_64(add_two_64(248294892348923894, 2348234832984983294));
+	show_8(add_var_8(17, 42, -8, -1, 29, 0));
+	show_16(add_var_16(14859, 3928, -13123, 2838, 0));
+	show_32(add_var_32(283211239, 321821391, -1238123, 82347, -23423489, 0));
+	show_64(add_var_64(248294892348923894, 2348234832984983294, -2349832892498398, 3284984, 0));
+	return 0;
+}
+

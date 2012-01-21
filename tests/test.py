@@ -2,9 +2,11 @@ import subprocess
 import sys
 import os
 
+args_testcase = {"source": "tests/args.c", "inputfile": None, "outputfile": "tests/args_output"}
 fortress_testcase = {"source": "tests/fortress.c", "inputfile": "tests/fortress_input", "outputfile": "tests/fortress_output"}
 
 tests = [
+	["args.c, normal", args_testcase, []],
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],
@@ -30,8 +32,14 @@ def test(arch_name, name, testcase, arch_options, options):
 		sys.stdout.write("\n")
 		return False
 
-	input_contents = open(testcase["inputfile"], "r").read()
-	output_contents = open(testcase["outputfile"], "r").read()
+	if testcase["inputfile"]:
+		input_contents = open(testcase["inputfile"], "r").read()
+	else:
+		input_contents = ""
+	if testcase["outputfile"]:
+		output_contents = open(testcase["outputfile"], "r").read()
+	else:
+		output_contents = ""
 
 	os.chmod("Obj/test", 0o700)
 
@@ -51,8 +59,10 @@ def test(arch_name, name, testcase, arch_options, options):
 		sys.stdout.write("\033[01;31mFAILED\033[00m\n")
 		sys.stdout.write("Output does not match what was expected\n")
 		sys.stdout.write("Compiler command line: " + (" ".join(compile_cmd)) + "\n")
-		sys.stdout.write("Input in " + testcase["inputfile"] + "\n")
-		sys.stdout.write("Expected output in " + testcase["outputfile"] + "\n")
+		if testcase["inputfile"]:
+			sys.stdout.write("Input in " + testcase["inputfile"] + "\n")
+		if testcase["outputfile"]:
+			sys.stdout.write("Expected output in " + testcase["outputfile"] + "\n")
 		out_file = ("Obj/testoutput " + arch_name + " " + name).replace(" ", "_")
 		sys.stdout.write("Actual output in " + out_file + "\n\n")
 		open(out_file, "w").write(output)

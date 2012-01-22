@@ -60,10 +60,10 @@ def test(arch_name, name, testcase, arch_options, options):
 
 	return True
 
-def all(arch_name, arch_options):
+def test_all(arch_name, arch_options):
 	sys.stdout.write("\033[01;33m" + arch_name + "\033[00m\n")
 
-	failed = False
+	failed = 0
 	for t in tests:
 		padded_name = t[0] + (" " * (60 - len(t[0])))
 		sys.stdout.write("\033[01;34m" + padded_name + "\033[00m")
@@ -79,7 +79,7 @@ def all(arch_name, arch_options):
 					break
 				
 			if this_failed:
-				failed = True
+				failed += 1
 			else:
 				sys.stdout.write("\033[01;32mPASSED\033[00m\n")
 				sys.stdout.flush()
@@ -88,17 +88,18 @@ def all(arch_name, arch_options):
 				sys.stdout.write("\033[01;32mPASSED\033[00m\n")
 				sys.stdout.flush()
 			else:
-				failed = True
+				failed += 1
 
-	return not failed
+	return failed
 
-failed = False
-if not all("Linux x86", ["--platform", "linux", "--arch", "x86"]):
-	failed = True
-if not all("Linux x64", ["--platform", "linux", "--arch", "x64"]):
-	failed = True
+failed = 0
+failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
+failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"])
 
-if failed:
+if failed != 0:
+	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)
 	sys.exit(1)
+
+sys.stdout.write("\033[01;32mAll tests passed\033[00m\n")
 sys.exit(0)
 

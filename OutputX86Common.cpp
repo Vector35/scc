@@ -1384,9 +1384,9 @@ void OUTPUT_CLASS_NAME::ConditionalJump(OutputBlock* out, ConditionalJumpType ty
 }
 
 
-void OUTPUT_CLASS_NAME::UnconditionalJump(OutputBlock* out, ILBlock* block)
+void OUTPUT_CLASS_NAME::UnconditionalJump(OutputBlock* out, ILBlock* block, bool canOmit)
 {
-	if (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1))
+	if (canOmit && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
 	{
 		// The destination block is the one just after the current one, just fall through
 		return;
@@ -2039,7 +2039,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction
 bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
-	ReserveRegisters(out, REG_EAX, REG_EDX);
+	ReserveRegisters(out, REG_EAX, REG_EDX, NONE);
 
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
@@ -3264,7 +3264,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 #endif
 			}
 
-			UnconditionalJump(out, instr.params[1].function->GetIL()[0]);
+			UnconditionalJump(out, instr.params[1].function->GetIL()[0], false);
 
 			// Fix up relocation to point to return address
 			size_t afterLen = out->len;
@@ -4143,7 +4143,11 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(OutputBlock* out, const ILInstruction
 			EMIT(leave);
 		else if (m_normalStack)
 		{
+#ifdef OUTPUT32
 			EMIT_RR(mov_32, m_stackPointer, m_framePointer);
+#else
+			EMIT_RR(mov_64, m_stackPointer, m_framePointer);
+#endif
 			EMIT_R(pop, m_framePointer);
 		}
 		else
@@ -4524,6 +4528,14 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 		ReserveRegisters(NULL, REG_ESP, REG_EBP, NONE);
 
+#ifdef OUTPUT64
+		if (m_framePointer == REG_RCX)
+		{
+			EMIT_RR(xchg_64, m_framePointer, REG_RBP);
+			m_framePointer = REG_RBP;
+		}
+#endif
+
 		size_t regIndex = 0;
 		for (size_t i = 1; i < instr.params.size(); i++)
 		{
@@ -4665,6 +4677,11 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 			EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
 #endif
 		}
+
+#ifdef OUTPUT64
+		if (m_framePointer == REG_RCX)
+			EMIT_RR(xchg_64, m_framePointer, REG_RBP);
+#endif
 
 		OperandReference dest, result;
 		if (!PrepareStore(out, instr.params[0], dest))

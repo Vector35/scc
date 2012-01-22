@@ -113,7 +113,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool Increment(OutputBlock* out, const OperandReference& dest);
 	bool Decrement(OutputBlock* out, const OperandReference& dest);
 	void ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
-	void UnconditionalJump(OutputBlock* out, ILBlock* block);
+	void UnconditionalJump(OutputBlock* out, ILBlock* block, bool canOmit = true);
 
 	bool GenerateAssign(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(OutputBlock* out, const ILInstruction& instr);

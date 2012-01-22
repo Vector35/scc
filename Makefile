@@ -18,7 +18,7 @@ RUNTIME_OBJS := $(patsubst %.lib,Obj/Obj/%.o,$(RUNTIME_LIBS))
 
 # Default targets
 all : scc
-.PHONY : all clean
+.PHONY : all clean test
 
 # Object directories
 Obj/:
@@ -169,4 +169,7 @@ clean :
 	rm -rf Obj
 	rm -f asmx86/asmx86str.h
 	rm -f asmx86/makeopstr
+
+test: scc
+	python tests/test.py
 

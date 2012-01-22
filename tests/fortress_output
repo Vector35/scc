@@ -1,0 +1,225 @@
+FORTRESS Property Management Server
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+No properties are currently for sale
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+No properties have been sold
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property type:
+1) Residential
+2) Commercial
+Selection: 
+Property name: Address line 1: Address line 2: Square footage: Number of bedrooms: Number of bathrooms:
+1) 1 bath
+2) 1.5 bath
+3) 2 bath
+4) 2.5 bath
+5) 3 bath
+6) 3.5 bath
+7) 4 bath
+Selection: 
+Asking price: 
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+    Property name                      Asking price
+ 1) Smith                                     78000
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property number to view: 
+Residential property: Smith
+Address:
+1337 Leet Ave
+Pwnville, NC
+
+Square footage: 1337
+Number of bedrooms: 2
+Number of bathrooms: 1.5
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property type:
+1) Residential
+2) Commercial
+Selection: 
+Property name: Address line 1: Address line 2: Square footage: 
+Asking price: 
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+    Property name                      Asking price
+ 1) Acme ROP Gadgets, Inc.                   235198
+ 2) Smith                                     78000
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property number to view: 
+Residential property: Smith
+Address:
+1337 Leet Ave
+Pwnville, NC
+
+Square footage: 1337
+Number of bedrooms: 2
+Number of bathrooms: 1.5
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property number to change: New asking price: 
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+    Property name                      Asking price
+ 1) Acme ROP Gadgets, Inc.                   223123
+ 2) Smith                                     78000
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property number to sell: Selling price: 
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+    Property name                      Asking price  Selling price
+ 1) Acme ROP Gadgets, Inc.                   223123         209887
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+    Property name                      Asking price
+ 1) Smith                                     78000
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+Property number to sell: Selling price: 
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+    Property name                      Asking price  Selling price
+ 1) Smith                                     78000          77121
+ 2) Acme ROP Gadgets, Inc.                   223123         209887
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 
+No properties are currently for sale
+
+Main menu:
+1) Show properties for sale
+2) Show property details
+3) Put a property up for sale
+4) Change asking price
+5) Log a new sale
+6) Show transaction report
+7) Log off
+Selection: 

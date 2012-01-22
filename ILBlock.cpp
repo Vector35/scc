@@ -433,7 +433,7 @@ void ILParameter::Print() const
 	switch (cls)
 	{
 	case ILPARAM_VOID:  fprintf(stderr, "void"); break;
-	case ILPARAM_INT:  fprintf(stderr, "%lld", (long long)integerValue); break;
+	case ILPARAM_INT:  fprintf(stderr, "%lld {%d}", (long long)integerValue, (int)GetWidth()); break;
 	case ILPARAM_FLOAT:  fprintf(stderr, "%f", floatValue); break;
 	case ILPARAM_STRING:  fprintf(stderr, "\"%s\"", stringValue.c_str()); break;
 	case ILPARAM_FIELD:  fprintf(stderr, "%s::%s", structure->GetName().c_str(), stringValue.c_str()); break;

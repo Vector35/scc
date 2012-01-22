@@ -4090,7 +4090,7 @@ bool OUTPUT_CLASS_NAME::GenerateReturn(OutputBlock* out, const ILInstruction& in
 	if (dest.width == 8)
 	{
 		dest.reg = REG_EAX;
-		dest.reg = REG_EDX;
+		dest.highReg = REG_EDX;
 	}
 	else
 	{

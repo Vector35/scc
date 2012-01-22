@@ -152,10 +152,12 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_type = Type::VoidType();
 		break;
 	case EXPR_INT:
-		m_type = Type::IntType(0, true);
+		if (!m_type)
+			m_type = Type::IntType(0, true);
 		break;
 	case EXPR_FLOAT:
-		m_type = Type::FloatType(0);
+		if (!m_type)
+			m_type = Type::FloatType(0);
 		break;
 	case EXPR_STRING:
 		m_type = Type::ArrayType(Type::IntType(1, true), m_stringValue.size() + 1); // const char[]
@@ -951,6 +953,25 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			}
 			m_children[i + 1] = m_children[i + 1]->ConvertToType(state, m_children[0]->GetType()->GetParams()[i]);
 		}
+		if (m_children[0]->GetType()->HasVariableArguments())
+		{
+			// Promote variable argument integer parameters to their native size, and promote floating point
+			// parameters to double
+			for (size_t i = m_children[0]->GetType()->GetParams().size(); i < (m_children.size() - 1); i++)
+			{
+				if ((m_children[i + 1]->GetType()->GetClass() == TYPE_INT) &&
+					(m_children[i + 1]->GetType()->GetWidth() < GetTargetPointerSize()))
+				{
+					m_children[i + 1] = m_children[i + 1]->ConvertToType(state,
+						Type::IntType(GetTargetPointerSize(), true));
+				}
+				else if ((m_children[i + 1]->GetType()->GetClass() == TYPE_FLOAT) &&
+					(m_children[i + 1]->GetType()->GetWidth() < 8))
+				{
+					m_children[i + 1] = m_children[i + 1]->ConvertToType(state, Type::FloatType(8));
+				}
+			}
+		}
 		if (((m_children.size() - 1) > m_children[0]->GetType()->GetParams().size()) &&
 			(!m_children[0]->GetType()->HasVariableArguments()))
 		{
@@ -1114,6 +1135,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			state->Error();
 			fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(), m_location.lineNumber);
 		}
+		m_children[0] = m_children[0]->ConvertToType(state, m_type);
 		break;
 	case EXPR_RETURN:
 		if (func->GetReturnValue()->GetClass() == TYPE_INT)
@@ -3221,7 +3243,7 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, "}");
 		break;
-	case EXPR_INT:  fprintf(stderr, "%lld", (long long)m_intValue); break;
+	case EXPR_INT:  fprintf(stderr, "%lld {%d}", (long long)m_intValue, (int)m_type->GetWidth()); break;
 	case EXPR_FLOAT:  fprintf(stderr, "%f", m_floatValue); break;
 	case EXPR_STRING:  fprintf(stderr, "\"%s\"", m_stringValue.c_str()); break;
 	case EXPR_TRUE:  fprintf(stderr, "true"); break;

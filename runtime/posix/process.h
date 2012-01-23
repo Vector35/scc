@@ -10,5 +10,7 @@ int execve(const char* filename, const char** argv, const char** envp);
 pid_t wait(int* status);
 pid_t waitpid(pid_t pid, int* status, int options);
 
+unsigned int alarm(unsigned int seconds);
+
 #endif
 

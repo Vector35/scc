@@ -13,3 +13,8 @@ int execve(const char* filename, const char** argv, const char** envp)
 	__syscall(SYS_execve, filename, argv, envp);
 }
 
+unsigned int alarm(unsigned int seconds)
+{
+	return __syscall(SYS_alarm, seconds);
+}
+

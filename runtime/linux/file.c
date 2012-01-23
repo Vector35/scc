@@ -8,6 +8,16 @@ int close(int fd)
 	return __syscall(SYS_close, fd);
 }
 
+int dup(int fd)
+{
+	return __syscall(SYS_dup, fd);
+}
+
+int dup2(int oldFd, int newFd)
+{
+	return __syscall(SYS_dup2, oldFd, newFd);
+}
+
 ssize_t read(int fd, void* buf, size_t count)
 {
 	return __syscall(SYS_read, fd, buf, count);

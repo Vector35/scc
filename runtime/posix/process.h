@@ -2,6 +2,7 @@
 #define __LIBC__PROCESS_H__
 
 typedef int pid_t;
+typedef int uid_t;
 
 void exit(int result);
 

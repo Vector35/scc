@@ -29,6 +29,24 @@ size_t strlen(const char* str)
 	return result;
 }
 
+int strcmp(const char* a, const char* b)
+{
+	for (size_t i = 0; ; i++)
+	{
+		int diff = a[i] - b[i];
+		if (diff != 0)
+			return diff;
+		if (a[i] == 0)
+			return 0;
+	}
+}
+
+char* strcat(char* dest, const char* src)
+{
+	strcpy(dest + strlen(dest), src);
+	return dest;
+}
+
 static void sprintf_output(void* ctxt, char ch)
 {
 	sprintf_output_context* out = (sprintf_output_context*)ctxt;

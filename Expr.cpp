@@ -1272,6 +1272,23 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		}
 		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
+	case EXPR_BYTESWAP:
+		m_type = m_children[0]->GetType();
+		if (m_type->GetClass() != TYPE_INT)
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: expected integer in __byteswap\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		else if (m_type->GetWidth() == 0)
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: unknown size in __byteswap\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n", m_location.fileName.c_str(),
@@ -1588,6 +1605,13 @@ Expr* Expr::Simplify(ParserState* state)
 				result->SetType(m_type);
 				return result;
 			}
+		}
+		return this;
+	case EXPR_BYTESWAP:
+		if (m_children[0]->GetType() && (m_children[0]->GetType()->GetWidth() == 1))
+		{
+			// Byte swap for a single byte integer is a no-op
+			return m_children[0];
 		}
 		return this;
 	default:
@@ -2890,6 +2914,11 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		b = m_children[1]->GenerateIL(state, func, block);
 		block->AddInstruction(ILOP_PREV_ARG, result, a, b);
 		break;
+	case EXPR_BYTESWAP:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_BYTESWAP, result, a);
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in IL generation\n", m_location.fileName.c_str(),
@@ -3540,18 +3569,21 @@ void Expr::Print(size_t indent)
 	case EXPR_RDTSC:  fprintf(stderr, "__rdtsc()"); break;
 	case EXPR_RDTSC_LOW:  fprintf(stderr, "__rdtsc_low()"); break;
 	case EXPR_RDTSC_HIGH:  fprintf(stderr, "__rdtsc_high()"); break;
-	case EXPR_NEXT_ARG:  fprintf(stderr, "__next_arg(");
+	case EXPR_NEXT_ARG:
+		fprintf(stderr, "__next_arg(");
 		m_children[0]->Print(indent);
 		fprintf(stderr, ", ");
 		m_children[1]->Print(indent);
 		fprintf(stderr, ")");
 		break;
-	case EXPR_PREV_ARG:  fprintf(stderr, "__prev_arg(");
+	case EXPR_PREV_ARG:
+		fprintf(stderr, "__prev_arg(");
 		m_children[0]->Print(indent);
 		fprintf(stderr, ", ");
 		m_children[1]->Print(indent);
 		fprintf(stderr, ")");
 		break;
+	case EXPR_BYTESWAP:  fprintf(stderr, "__byteswap("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
 	default:
 		fprintf(stderr, "<invalid_expr>");
 		break;

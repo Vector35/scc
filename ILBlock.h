@@ -54,7 +54,8 @@ typedef enum
 	ILOP_RDTSC_LOW,
 	ILOP_RDTSC_HIGH,
 	ILOP_NEXT_ARG,
-	ILOP_PREV_ARG
+	ILOP_PREV_ARG,
+	ILOP_BYTESWAP
 } ILOperation;
 
 typedef enum

@@ -12,6 +12,7 @@
 	Type* type;
 	std::vector< std::pair< Ref<Type>, std::string > >* params;
 	std::vector< Ref<Expr> >* args;
+	std::vector<std::string>* ids;
 	EnumMember* enumMember;
 	Expr* expr;
 	VarInitInfo* varInit;
@@ -108,6 +109,7 @@ void Code_error(ParserState* state, const char* msg)
 %token SYSCALL_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
 %token NEXT_ARG PREV_ARG
+%token BYTESWAP
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
@@ -117,6 +119,7 @@ void Code_error(ParserState* state, const char* msg)
 %destructor { delete $$; } enum_member
 %destructor { delete $$; } param_list param_list_nonempty param
 %destructor { delete $$; } arg_list arg_list_nonempty
+%destructor { delete $$; } id_list
 %destructor { $$->Release(); } expression expression_with_comma optional_expression for_initializer
 %destructor { $$->Release(); } stmt_list stmt_list_nonempty stmt
 %destructor { $$->Release(); } var_declaration initializer initializer_list initializer_list_nonempty
@@ -131,6 +134,7 @@ void Code_error(ParserState* state, const char* msg)
 %type <intval> ptr_decorator calling_convention
 %type <params> param_list param_list_nonempty param
 %type <args> arg_list arg_list_nonempty
+%type <ids> id_list
 %type <expr> expression expression_with_comma optional_expression for_initializer
 %type <expr> stmt_list stmt_list_nonempty stmt
 %type <expr> var_declaration initializer initializer_list initializer_list_nonempty
@@ -863,7 +867,16 @@ union_member_list:	union_member_list struct_member
 			}
 		;
 
-struct_member:	var_type ID SEMICOLON  { $$ = Type::StructMemberType($1, $2); $$->AddRef(); $1->Release(); free($2); }
+struct_member:	var_type id_list SEMICOLON
+		{
+			Struct* s = new Struct();
+			for (std::vector<std::string>::iterator i = $2->begin(); i != $2->end(); i++)
+				s->AddMember(NULL, $1, *i);
+			$$ = Type::StructType(s);
+			$$->AddRef();
+			$1->Release();
+			delete $2;
+		}
 	|	var_type ID COLON INT_VAL SEMICOLON
 		{
 			Code_error(state, "bit fields not yet supported");
@@ -1327,6 +1340,7 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$3->Release();
 			$5->Release();
 		}
+	|	BYTESWAP LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_BYTESWAP, $3); $$->AddRef(); $3->Release(); }
 	;
 
 expression_with_comma:	expression_with_comma COMMA expression  { $$ = $1; $$->AddChild($3); $3->Release(); }
@@ -1340,6 +1354,10 @@ arg_list:	arg_list_nonempty  { $$ = $1; }
 arg_list_nonempty:	arg_list_nonempty COMMA expression  { $$ = $1; $$->push_back($3); $3->Release(); }
 		|	expression  { $$ = new vector< Ref<Expr> >(); $$->push_back($1); $1->Release(); }
 		;
+
+id_list:	id_list COMMA ID  { $$ = $1; $$->push_back($3); free($3); }
+	|	ID  { $$ = new std::vector<std::string>(); $$->push_back($1); free($1); }
+	;
 
 %%
 

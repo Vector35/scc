@@ -4907,6 +4907,70 @@ bool OUTPUT_CLASS_NAME::GeneratePrevArg(OutputBlock* out, const ILInstruction& i
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateByteSwap(OutputBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+
+	OperandReference temp = dest;
+	if (dest.type != OPERANDREF_REG)
+	{
+		temp.type = OPERANDREF_REG;
+		temp.width = dest.width;
+#ifdef OUTPUT32
+		if (temp.width == 8)
+		{
+			temp.reg = AllocateTemporaryRegister(out, 4);
+			temp.highReg = AllocateTemporaryRegister(out, 4);
+		}
+		else
+		{
+			temp.reg = AllocateTemporaryRegister(out, temp.width);
+		}
+#else
+		temp.reg = AllocateTemporaryRegister(out, temp.width);
+#endif
+	}
+
+	if (!Move(out, temp, src))
+		return false;
+
+	switch (dest.width)
+	{
+	case 1:
+		break;
+	case 2:
+		EMIT_RI(rol_16, temp.reg, 8);
+		break;
+	case 4:
+		EMIT_R(bswap_32, temp.reg);
+		break;
+	case 8:
+#ifdef OUTPUT32
+		EMIT_RR(xchg_32, temp.reg, temp.highReg);
+		EMIT_R(bswap_32, temp.reg);
+		EMIT_R(bswap_32, temp.highReg);
+#else
+		EMIT_R(bswap_64, temp.reg);
+#endif
+		break;
+	default:
+		return false;
+	}
+
+	if (dest.type != OPERANDREF_REG)
+	{
+		if (!Move(out, dest, temp))
+			return false;
+	}
+
+	return true;
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 {
 	m_currentBlock = block;
@@ -5123,6 +5187,10 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			break;
 		case ILOP_PREV_ARG:
 			if (!GeneratePrevArg(out, *i))
+				goto fail;
+			break;
+		case ILOP_BYTESWAP:
+			if (!GenerateByteSwap(out, *i))
 				goto fail;
 			break;
 		default:

@@ -6,6 +6,8 @@
 char* strcpy(char* dest, const char* src);
 char* strncpy(char* dest, const char* src, size_t len);
 size_t strlen(const char* str);
+int strcmp(const char* a, const char* b);
+char* strcat(char* dest, const char* src);
 
 int sprintf(char* out, const char* fmt, ...);
 int snprintf(char* out, size_t len, const char* fmt, ...);

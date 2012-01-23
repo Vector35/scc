@@ -164,6 +164,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateRdtscHigh(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateNextArg(OutputBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateByteSwap(OutputBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(OutputBlock* out, ILBlock* block);
 

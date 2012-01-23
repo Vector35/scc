@@ -3150,7 +3150,18 @@ bool OUTPUT_CLASS_NAME::GenerateCall(OutputBlock* out, const ILInstruction& inst
 			dest.mem.base = m_stackPointer;
 			dest.mem.index = NONE;
 			dest.mem.scale = 1;
-			dest.mem.offset = 0;
+			if (m_settings.stackGrowsUp)
+			{
+#ifdef OUTPUT32
+				dest.mem.offset = 4 - paramSize;
+#else
+				dest.mem.offset = 8 - paramSize;
+#endif
+			}
+			else
+			{
+				dest.mem.offset = 0;
+			}
 
 			if (!Move(out, dest, param))
 				return false;
@@ -5337,7 +5348,16 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #endif
 
 		if (m_settings.stackGrowsUp)
+		{
 			m_stackFrame[*var] = -m_stackFrame[*var];
+#ifdef OUTPUT32
+			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
+			m_stackFrame[*var] += 4 - paramSize;
+#else
+			size_t paramSize = ((*var)->GetType()->GetWidth() + 7) & (~7);
+			m_stackFrame[*var] += 8 - paramSize;
+#endif
+		}
 
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();

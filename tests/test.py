@@ -3,10 +3,12 @@ import sys
 import os
 
 args_testcase = {"source": "tests/args.c", "inputfile": None, "outputfile": "tests/args_output"}
+shift_testcase = {"source": "tests/shift.c", "inputfile": None, "outputfile": "tests/shift_output"}
 fortress_testcase = {"source": "tests/fortress.c", "inputfile": "tests/fortress_input", "outputfile": "tests/fortress_output"}
 
 tests = [
 	["args.c, normal", args_testcase, []],
+	["shift.c, normal", shift_testcase, []],
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],

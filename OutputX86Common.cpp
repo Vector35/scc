@@ -1032,7 +1032,7 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 
 
 #ifdef OUTPUT32
-#define IMPLEMENT_SHIFT_OP_64(operation, right) \
+#define IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
 	if (dest.type == OPERANDREF_REG) \
 	{ \
 		switch (src.type) \
@@ -1040,11 +1040,28 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 		case OPERANDREF_REG: \
 			if (right) \
 			{ \
+				OperandType temp = AllocateTemporaryRegister(out, 1); \
+				OperandType temp32 = GetRegisterOfSize(temp, 4); \
+				EMIT_RR(xor_32, temp32, temp32); \
+				if (sign) \
+				{ \
+					EMIT_RR(test_32, dest.highReg, dest.highReg); \
+					EMIT_R(sets, temp); \
+					EMIT_R(neg_32, temp32); \
+				} \
+				EMIT_RI(test_8, src.reg, 32); \
+				EMIT_RR(cmovnz_32, dest.reg, dest.highReg); \
+				EMIT_RR(cmovnz_32, dest.highReg, temp32); \
 				EMIT_RRR(shrd_32, dest.reg, dest.highReg, src.reg); \
 				EMIT_RR(operation ## _32, dest.highReg, src.reg); \
 			} \
 			else \
 			{ \
+				OperandType temp = AllocateTemporaryRegister(out, 4); \
+				EMIT_RR(xor_32, temp, temp); \
+				EMIT_RI(test_8, src.reg, 32); \
+				EMIT_RR(cmovnz_32, dest.highReg, dest.reg); \
+				EMIT_RR(cmovnz_32, dest.reg, temp); \
 				EMIT_RRR(shld_32, dest.highReg, dest.reg, src.reg); \
 				EMIT_RR(operation ## _32, dest.reg, src.reg); \
 			} \
@@ -1052,13 +1069,43 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 		case OPERANDREF_IMMED: \
 			if (right) \
 			{ \
-				EMIT_RRI(shrd_32, dest.reg, dest.highReg, src.immed); \
-				EMIT_RI(operation ## _32, dest.highReg, src.immed); \
+				if ((src.immed & 63) >= 32) \
+				{ \
+					EMIT_RR(mov_32, dest.reg, dest.highReg); \
+					if (src.immed & 31) \
+						EMIT_RI(operation ## _32, dest.reg, (src.immed & 31)); \
+					if (sign) \
+					{ \
+						if ((dest.reg == REG_EAX) && (dest.highReg == REG_EDX)) \
+							EMIT(cdq); \
+						else \
+							EMIT_RI(operation ## _32, dest.highReg, 31); \
+					} \
+					else \
+					{ \
+						EMIT_RR(xor_32, dest.highReg, dest.highReg); \
+					} \
+				} \
+				else \
+				{ \
+					EMIT_RRI(shrd_32, dest.reg, dest.highReg, src.immed); \
+					EMIT_RI(operation ## _32, dest.highReg, src.immed); \
+				} \
 			} \
 			else \
 			{ \
-				EMIT_RRI(shld_32, dest.highReg, dest.reg, src.immed); \
-				EMIT_RI(operation ## _32, dest.reg, src.immed); \
+				if ((src.immed & 63) >= 32) \
+				{ \
+					EMIT_RR(mov_32, dest.highReg, dest.reg); \
+					EMIT_RR(xor_32, dest.reg, dest.reg); \
+					if (src.immed & 31) \
+						EMIT_RI(operation ## _32, dest.highReg, (src.immed & 31)); \
+				} \
+				else \
+				{ \
+					EMIT_RRI(shld_32, dest.highReg, dest.reg, src.immed); \
+					EMIT_RI(operation ## _32, dest.reg, src.immed); \
+				} \
 			} \
 			return true; \
 		default: \
@@ -1073,29 +1120,79 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 		case OPERANDREF_REG: \
 			if (right) \
 			{ \
+				OperandType high = AllocateTemporaryRegister(out, 1); \
+				OperandType high32 = GetRegisterOfSize(high, 4); \
 				EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-				EMIT_MRR(shrd_32, X86_MEM_REF(dest.mem), temp, src.reg); \
-				EMIT_MR(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.reg); \
+				EMIT_RR(xor_32, high32, high32); \
+				if (sign) \
+				{ \
+					EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(dest.mem, 4), high32); \
+					EMIT_R(sets, high); \
+					EMIT_R(neg_32, high32); \
+				} \
+				EMIT_RI(test_8, src.reg, 32); \
+				EMIT_RR(cmovnz_32, temp, high32); \
+				OperandType low = high32; \
+				EMIT_RM(mov_32, low, X86_MEM_REF(dest.mem)); \
+				EMIT_RM(cmovnz_32, low, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+				EMIT_RRR(shrd_32, low, temp, src.reg); \
+				EMIT_RR(operation ## _32, temp, src.reg); \
+				EMIT_MR(mov_32, X86_MEM_REF(dest.mem), low); \
+				EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
 			} \
 			else \
 			{ \
+				OperandType low = AllocateTemporaryRegister(out, 4); \
 				EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
-				EMIT_MRR(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.reg); \
-				EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), src.reg); \
+				EMIT_RR(xor_32, low, low); \
+				EMIT_RI(test_8, src.reg, 32); \
+				EMIT_RR(cmovnz_32, temp, low); \
+				OperandType high = low; \
+				EMIT_RM(mov_32, high, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+				EMIT_RM(cmovnz_32, high, X86_MEM_REF(dest.mem)); \
+				EMIT_RRR(shld_32, high, temp, src.reg); \
+				EMIT_RR(operation ## _32, temp, src.reg); \
+				EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp); \
+				EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), high); \
 			} \
 			return true; \
 		case OPERANDREF_IMMED: \
 			if (right) \
 			{ \
-				EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-				EMIT_MRI(shrd_32, X86_MEM_REF(dest.mem), temp, src.immed); \
-				EMIT_MI(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.immed); \
+				if ((src.immed & 63) >= 32) \
+				{ \
+					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+					if (src.immed & 31) \
+						EMIT_RI(operation ## _32, temp, (src.immed & 31)); \
+					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp); \
+					if (sign) \
+						EMIT_MI(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), 31); \
+					else \
+						EMIT_MI(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0); \
+				} \
+				else \
+				{ \
+					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+					EMIT_MRI(shrd_32, X86_MEM_REF(dest.mem), temp, src.immed); \
+					EMIT_MI(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.immed); \
+				} \
 			} \
 			else \
 			{ \
-				EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
-				EMIT_MRI(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.immed); \
-				EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), src.immed); \
+				if ((src.immed & 63) >= 32) \
+				{ \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+					if (src.immed & 31) \
+						EMIT_RI(operation ## _32, temp, (src.immed & 31)); \
+					EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
+					EMIT_MI(mov_32, X86_MEM_REF(dest.mem), 0); \
+				} \
+				else \
+				{ \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+					EMIT_MRI(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.immed); \
+					EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), src.immed); \
+				} \
 			} \
 			return true; \
 		default: \
@@ -1103,7 +1200,7 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 		} \
 	}
 #else
-#define IMPLEMENT_SHIFT_OP_64(operation, right) \
+#define IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
 	if (dest.type == OPERANDREF_REG) \
 	{ \
 		switch (src.type) \
@@ -1124,7 +1221,7 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 	}
 #endif
 
-#define IMPLEMENT_SHIFT_OP(operation, right) \
+#define IMPLEMENT_SHIFT_OP(operation, right, sign) \
 	if (dest.width == 1) \
 	{ \
 		if (dest.type == OPERANDREF_REG) \
@@ -1190,26 +1287,26 @@ bool OUTPUT_CLASS_NAME::Xor(OutputBlock* out, const OperandReference& dest, cons
 	} \
 	else if (dest.width == 8) \
 	{ \
-		IMPLEMENT_SHIFT_OP_64(operation, right) \
+		IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
 	} \
 	return false;
 
 
 bool OUTPUT_CLASS_NAME::ShiftLeft(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
 {
-	IMPLEMENT_SHIFT_OP(shl, false);
+	IMPLEMENT_SHIFT_OP(shl, false, false);
 }
 
 
 bool OUTPUT_CLASS_NAME::ShiftRightUnsigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
 {
-	IMPLEMENT_SHIFT_OP(shr, true);
+	IMPLEMENT_SHIFT_OP(shr, true, false);
 }
 
 
 bool OUTPUT_CLASS_NAME::ShiftRightSigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src)
 {
-	IMPLEMENT_SHIFT_OP(sar, true);
+	IMPLEMENT_SHIFT_OP(sar, true, true);
 }
 
 

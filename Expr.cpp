@@ -2767,6 +2767,11 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 	case EXPR_CAST:
 		if (ILParameter::ReduceType(m_type) == ILParameter::ReduceType(m_children[0]->GetType()))
 			result = m_children[0]->GenerateIL(state, func, block);
+		else if (m_children[0]->GetClass() == EXPR_INT)
+		{
+			result = m_children[0]->GenerateIL(state, func, block);
+			result.type = ILParameter::ReduceType(m_type);
+		}
 		else
 		{
 			result = func->CreateTempVariable(m_type);

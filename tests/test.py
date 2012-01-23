@@ -8,6 +8,7 @@ fortress_testcase = {"source": "tests/fortress.c", "inputfile": "tests/fortress_
 
 tests = [
 	["args.c, normal", args_testcase, []],
+	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
 	["shift.c, normal", shift_testcase, []],
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],

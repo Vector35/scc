@@ -21,7 +21,7 @@ char* strncpy(char* dest, const char* src, size_t len)
 	return dest;
 }
 
-size_t strlen(const char* str)
+size_t __strlen(const char* str)
 {
 	size_t result;
 	for (result = 0; *str; str++)

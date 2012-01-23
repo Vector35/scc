@@ -158,6 +158,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateAlloca(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateMemcpy(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateMemset(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateStrlen(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateSyscall(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateRdtsc(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscLow(OutputBlock* out, const ILInstruction& instr);

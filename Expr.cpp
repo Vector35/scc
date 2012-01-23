@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "Expr.h"
 #include "Struct.h"
 #include "ParserState.h"
@@ -1098,6 +1099,16 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(1, false));
 		m_children[2] = m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
+	case EXPR_STRLEN:
+		m_type = Type::IntType(GetTargetPointerSize(), false);
+		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: expected pointer to string in 'strlen'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+		}
+		break;
 	case EXPR_CAST:
 		if (m_type->GetClass() == TYPE_INT)
 		{
@@ -1607,11 +1618,43 @@ Expr* Expr::Simplify(ParserState* state)
 			}
 		}
 		return this;
+	case EXPR_STRLEN:
+		if (m_children[0]->GetClass() == EXPR_STRING)
+		{
+			Expr* result = Expr::IntExpr(m_location, strlen(m_children[0]->GetStringValue().c_str()));
+			result->SetType(Type::IntType(GetTargetPointerSize(), false));
+			return result;
+		}
+		return this;
 	case EXPR_BYTESWAP:
-		if (m_children[0]->GetType() && (m_children[0]->GetType()->GetWidth() == 1))
+		if (m_type && (m_type->GetWidth() == 1))
 		{
 			// Byte swap for a single byte integer is a no-op
 			return m_children[0];
+		}
+		else if ((m_children[0]->GetClass() == EXPR_INT) && m_type && (m_type->GetWidth() == 2))
+		{
+			uint16_t value = (uint16_t)m_children[0]->GetIntValue();
+			value = (value << 8) | (value >> 8);
+			Expr* result = Expr::IntExpr(m_location, value);
+			result->SetType(m_type);
+			return result;
+		}
+		else if ((m_children[0]->GetClass() == EXPR_INT) && m_type && (m_type->GetWidth() == 4))
+		{
+			uint32_t value = (uint32_t)m_children[0]->GetIntValue();
+			value = __builtin_bswap32(value);
+			Expr* result = Expr::IntExpr(m_location, value);
+			result->SetType(m_type);
+			return result;
+		}
+		else if ((m_children[0]->GetClass() == EXPR_INT) && m_type && (m_type->GetWidth() == 8))
+		{
+			uint64_t value = (uint64_t)m_children[0]->GetIntValue();
+			value = __builtin_bswap64(value);
+			Expr* result = Expr::IntExpr(m_location, value);
+			result->SetType(m_type);
+			return result;
 		}
 		return this;
 	default:
@@ -2764,6 +2807,11 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		block->AddInstruction(ILOP_MEMSET, a, b, c);
 		result = a;
 		break;
+	case EXPR_STRLEN:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_STRLEN, result, a);
+		break;
 	case EXPR_CAST:
 		if (ILParameter::ReduceType(m_type) == ILParameter::ReduceType(m_children[0]->GetType()))
 			result = m_children[0]->GenerateIL(state, func, block);
@@ -3543,6 +3591,7 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, ")");
 		break;
+	case EXPR_STRLEN:  fprintf(stderr, "strlen("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
 	case EXPR_CAST:  fprintf(stderr, "cast<"); m_type->Print(); fprintf(stderr, ">("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
 	case EXPR_RETURN:  fprintf(stderr, "return "); m_children[0]->Print(indent); break;
 	case EXPR_RETURN_VOID:  fprintf(stderr, "return void"); break;

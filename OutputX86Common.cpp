@@ -4611,6 +4611,79 @@ bool OUTPUT_CLASS_NAME::GenerateMemset(OutputBlock* out, const ILInstruction& in
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateStrlen(OutputBlock* out, const ILInstruction& instr)
+{
+	ReserveRegisters(out, REG_EAX, REG_EDI, REG_ECX, NONE);
+
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!PrepareLoad(out, instr.params[1], src))
+		return false;
+
+#ifdef OUTPUT32
+	switch (src.type)
+	{
+	case OPERANDREF_REG:
+		if (src.reg != REG_EDI)
+			EMIT_RR(mov_32, REG_EDI, src.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_32, REG_EDI, X86_MEM_REF(src.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_32, REG_EDI, src.immed);
+		break;
+	default:
+		return false;
+	}
+#else
+	switch (src.type)
+	{
+	case OPERANDREF_REG:
+		if (src.reg != REG_RDI)
+			EMIT_RR(mov_64, REG_RDI, src.reg);
+		break;
+	case OPERANDREF_MEM:
+		EMIT_RM(mov_64, REG_RDI, X86_MEM_REF(src.mem));
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_RI(mov_64, REG_RDI, src.immed);
+		break;
+	default:
+		return false;
+	}
+#endif
+
+	EMIT_RR(xor_8, REG_AL, REG_AL);
+	EMIT_RR(xor_32, REG_ECX, REG_ECX);
+#ifdef OUTPUT32
+	EMIT_R(dec_32, REG_ECX);
+#else
+	EMIT_R(dec_64, REG_RCX);
+#endif
+
+	EMIT(repne);
+	EMIT(scasb);
+
+	OperandReference ecx;
+	ecx.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+	EMIT_R(not_32, REG_ECX);
+	EMIT_R(dec_32, REG_ECX);
+	ecx.width = 4;
+	ecx.reg = REG_ECX;
+#else
+	EMIT_R(not_64, REG_RCX);
+	EMIT_R(dec_64, REG_RCX);
+	ecx.width = 8;
+	ecx.reg = REG_RCX;
+#endif
+
+	return Move(out, dest, ecx);
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& instr)
 {
 	if (m_settings.os == OS_LINUX)
@@ -5163,6 +5236,10 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			break;
 		case ILOP_MEMSET:
 			if (!GenerateMemset(out, *i))
+				goto fail;
+			break;
+		case ILOP_STRLEN:
+			if (!GenerateStrlen(out, *i))
 				goto fail;
 			break;
 		case ILOP_SYSCALL:

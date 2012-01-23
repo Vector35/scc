@@ -99,7 +99,7 @@ void Code_error(ParserState* state, const char* msg)
 %token SWITCH CASE DEFAULT
 %token VOID_TOK
 %token MIN MAX ABS
-%token ALLOCA MEMCPY MEMSET
+%token ALLOCA MEMCPY MEMSET STRLEN
 %token SIZEOF
 %token TYPEDEF
 %token STATIC_TOK EXTERN_TOK
@@ -1307,6 +1307,7 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$5->Release();
 			$7->Release();
 		}
+	|	STRLEN LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_STRLEN, $3); $$->AddRef(); $3->Release(); }
 	|	SIZEOF LPAREN var_type RPAREN  { $$ = state->IntExpr($3->GetWidth()); $$->AddRef(); $3->Release(); }
 	|	SIZEOF LPAREN expression RPAREN
 		{

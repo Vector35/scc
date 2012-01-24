@@ -50,6 +50,7 @@ struct Settings
 
 	bool allowReturn;
 	bool assumeSafeStack;
+	bool execStack;
 	bool concat;
 	bool sharedLibrary;
 

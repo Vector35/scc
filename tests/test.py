@@ -5,11 +5,15 @@ import os
 args_testcase = {"source": "tests/args.c", "inputfile": None, "outputfile": "tests/args_output"}
 shift_testcase = {"source": "tests/shift.c", "inputfile": None, "outputfile": "tests/shift_output"}
 fortress_testcase = {"source": "tests/fortress.c", "inputfile": "tests/fortress_input", "outputfile": "tests/fortress_output"}
+shellcode_mmap_testcase = {"source": "tests/shellcode.c", "inputfile": None, "outputfile": "tests/shellcode_output", "target": "tests/sploit_mmap.c"}
+shellcode_stack_testcase = {"source": "tests/shellcode.c", "inputfile": None, "outputfile": "tests/shellcode_output", "target": "tests/sploit_stack.c", "targetoptions": ["-O0", "--exec-stack"]}
 
 tests = [
 	["args.c, normal", args_testcase, []],
 	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
 	["shift.c, normal", shift_testcase, []],
+	["shellcode, mmap buffer", shellcode_mmap_testcase, []],
+	["shellcode, stack buffer", shellcode_stack_testcase, []],
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],
@@ -24,7 +28,26 @@ tests = [
 seeds = [17, 42, 1024, 1337, 4096, 4141, 7331, 31337, 65536, 1048576]
 
 def test(arch_name, name, testcase, arch_options, options):
-	compile_cmd = ["./scc", "-o", "Obj/test", "-f", "elf", testcase["source"]] + arch_options + options
+	if "target" in testcase:
+		compile_cmd = ["./scc", "-o", "Obj/target", "-f", "elf", testcase["target"]] + arch_options
+		if "targetoptions" in testcase:
+			compile_cmd += testcase["targetoptions"]
+		proc = subprocess.Popen(compile_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		output = proc.communicate()[0]
+		if proc.returncode != 0:
+			sys.stdout.write("\033[01;31mFAILED\033[00m\n")
+			sys.stdout.write("Compiler command line: " + (" ".join(compile_cmd)) + "\n")
+			sys.stdout.write("Target compilation failed with exit code %d:\n" % proc.returncode)
+			sys.stdout.write(output)
+			sys.stdout.write("\n")
+			return False
+
+		os.chmod("Obj/target", 0o700)
+
+	if "target" in testcase:
+		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "bin", testcase["source"]] + arch_options + options
+	else:
+		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "elf", testcase["source"]] + arch_options + options
 	proc = subprocess.Popen(compile_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	output = proc.communicate()[0]
 	if proc.returncode != 0:
@@ -35,18 +58,24 @@ def test(arch_name, name, testcase, arch_options, options):
 		sys.stdout.write("\n")
 		return False
 
-	if testcase["inputfile"]:
-		input_contents = open(testcase["inputfile"], "r").read()
-	else:
-		input_contents = ""
 	if testcase["outputfile"]:
 		output_contents = open(testcase["outputfile"], "r").read()
 	else:
 		output_contents = ""
 
-	os.chmod("Obj/test", 0o700)
+	if "target" in testcase:
+		input_contents = open("Obj/test", "r").read()
+		cmd = ["Obj/target"]
+		if "targetparams" in testcase:
+			cmd += testcase["targetparams"]
+	else:
+		if testcase["inputfile"]:
+			input_contents = open(testcase["inputfile"], "r").read()
+		else:
+			input_contents = ""
+		os.chmod("Obj/test", 0o700)
+		cmd = ["Obj/test"]
 
-	cmd = ["Obj/test"]
 	proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	output = proc.communicate(input_contents)[0]
 	if proc.returncode != 0:

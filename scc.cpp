@@ -165,6 +165,7 @@ void Usage()
 	fprintf(stderr, "    --encoder <source>                Use encoder to encode shellcode\n");
 	fprintf(stderr, "    --exec                            Execute shellcode after generation (does not write\n");
 	fprintf(stderr, "                                      output to a file)\n");
+	fprintf(stderr, "    --exec-stack                      When outputting an executable, make stack executable\n");
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe\n");
 	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
@@ -229,6 +230,7 @@ int main(int argc, char* argv[])
 	settings.preferredBits = 32;
 	settings.allowReturn = false;
 	settings.assumeSafeStack = false;
+	settings.execStack = false;
 	settings.concat = false;
 	settings.encodePointers = false;
 	settings.stackGrowsUp = false;
@@ -370,6 +372,11 @@ int main(int argc, char* argv[])
 			}
 
 			execute = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--exec-stack"))
+		{
+			settings.execStack = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--frame-reg"))

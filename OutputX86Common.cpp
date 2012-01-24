@@ -9,6 +9,8 @@
 #include "Function.h"
 #include "asmx86.h"
 
+#define UNSAFE_STACK_PIVOT 0x10000
+
 #define X86_MEM_REF(ref) X86_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).offset)
 #define X86_MEM_REF_OFFSET(ref, ofs) X86_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).offset + (ofs))
 
@@ -3104,7 +3106,37 @@ bool OUTPUT_CLASS_NAME::GenerateIfEqual(OutputBlock* out, const ILInstruction& i
 bool OUTPUT_CLASS_NAME::GenerateGoto(OutputBlock* out, const ILInstruction& instr)
 {
 	if (instr.params[0].cls != ILPARAM_BLOCK)
-		return false;
+	{
+		OperandReference target;
+		if (!PrepareLoad(out, instr.params[0], target))
+			return false;
+
+		OperandType temp;
+		switch (target.type)
+		{
+		case OPERANDREF_REG:
+			EMIT_R(jmpn, target.reg);
+			break;
+		case OPERANDREF_MEM:
+			EMIT_M(jmpn, X86_MEM_REF(target.mem));
+			break;
+		case OPERANDREF_IMMED:
+#ifdef OUTPUT32
+			temp = AllocateTemporaryRegister(out, 4);
+			EMIT_RI(mov_32, temp, target.immed);
+#else
+			temp = AllocateTemporaryRegister(out, 8);
+			EMIT_RI(mov_64, temp, target.immed);
+#endif
+			EMIT_R(jmpn, temp);
+			break;
+		default:
+			return false;
+		}
+
+		return true;
+	}
+
 	UnconditionalJump(out, instr.params[0].block);
 	return true;
 }
@@ -5460,6 +5492,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 	// Generate parameter offsets
 	offset = 0;
+
+	if ((func->GetName() == "_start") && (!m_settings.assumeSafeStack))
+		offset += UNSAFE_STACK_PIVOT;
+
 	for (size_t i = 0; i < func->GetParameters().size(); i++)
 	{
 		// Find variable object for this parameter
@@ -5525,6 +5561,17 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 		if (first)
 		{
+			if ((func->GetName() == "_start") && (!m_settings.assumeSafeStack))
+			{
+				// This is the start function, and we can't assume we have a safe stack (the code may be
+				// at or near the stack pointer), pivot the stack to make it safe
+#ifdef OUTPUT32
+				EMIT_RI(sub_32, m_stackPointer, UNSAFE_STACK_PIVOT);
+#else
+				EMIT_RI(sub_64, m_stackPointer, UNSAFE_STACK_PIVOT);
+#endif
+			}
+
 			// Generate function prologue
 			if ((!m_normalStack) && (func->GetName() == "_start"))
 			{

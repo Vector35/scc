@@ -250,7 +250,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 		Elf64ProgramHeader stack;
 		stack.type = 0x6474e551; // GNU_STACK
-		stack.flags = 6; // Read write
+		stack.flags = settings.execStack ? 7 : 6;
 		stack.offset = 0;
 		stack.virtualAddress = 0;
 		stack.physicalAddress = 0;
@@ -366,7 +366,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 		Elf32ProgramHeader stack;
 		stack.type = 0x6474e551; // GNU_STACK
-		stack.flags = 6; // Read write
+		stack.flags = settings.execStack ? 7 : 6;
 		stack.offset = 0;
 		stack.virtualAddress = 0;
 		stack.physicalAddress = 0;

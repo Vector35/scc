@@ -650,7 +650,7 @@ int main(int argc, char* argv[])
 			FILE* fp = fopen("/dev/urandom", "rb");
 			fread(&settings.seed, sizeof(settings.seed), 1, fp);
 			fclose(fp);
-			printf("Seed is %u\n", settings.seed);
+			fprintf(stderr, "Seed is %u\n", settings.seed);
 		}
 
 		srand(settings.seed);

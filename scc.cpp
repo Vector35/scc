@@ -882,7 +882,7 @@ int main(int argc, char* argv[])
 			// Read source over stdin
 			long max = 512;
 			size = 0;
-			data = new char[max + 1];
+			data = new char[max + 2];
 			while (!feof(stdin))
 			{
 				char ch;
@@ -892,7 +892,7 @@ int main(int argc, char* argv[])
 				if (size >= max)
 				{
 					max = (size + 1) * 2;
-					char* newData = new char[max + 1];
+					char* newData = new char[max + 2];
 					memcpy(newData, data, size);
 					if (data)
 						delete[] data;
@@ -902,6 +902,7 @@ int main(int argc, char* argv[])
 				data[size++] = ch;
 			}
 
+			data[size++] = '\n';
 			data[size] = 0;
 		}
 		else
@@ -917,8 +918,9 @@ int main(int argc, char* argv[])
 			size = ftell(fp);
 			fseek(fp, 0, SEEK_SET);
 
-			data = new char[size + 1];
+			data = new char[size + 2];
 			fread(data, 1, size, fp);
+			data[size++] = '\n';
 			data[size] = 0;
 			fclose(fp);
 

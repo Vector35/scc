@@ -192,8 +192,9 @@ void PreprocessState::IncludeFile(const string& name)
 	long size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
-	char* data = new char[size + 1];
+	char* data = new char[size + 2];
 	fread(data, 1, size, fp);
+	data[size++] = '\n';
 	data[size] = 0;
 	fclose(fp);
 

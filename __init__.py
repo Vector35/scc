@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 
 NormalOptimization = 0
@@ -9,7 +10,11 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, additional_options=None):
-	cmd = [os.path.abspath(os.path.join(os.path.dirname(__file__), "scc")), "--stdin", "--stdout", "-f", "bin",
+	if sys.executable.lower().find('python') == -1:
+		base_path = os.path.dirname(sys.executable)
+	else:
+		base_path = os.path.dirname(__file__)
+	cmd = [os.path.abspath(os.path.join(base_path, "scc")), "--stdin", "--stdout", "-f", "bin",
 		"--platform", platform, "--arch", arch]
 	if blacklist:
 		for byte in blacklist:

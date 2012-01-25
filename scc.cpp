@@ -154,7 +154,6 @@ void Usage()
 	fprintf(stderr, "    --arch <value>                    Specify processor architecture\n");
 	fprintf(stderr, "                                      Can be: x86 (default), x64\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
-	fprintf(stderr, "    --assume-safe-stack               Assume the stack pointer is not near the code\n");
 	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
 	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
 	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
@@ -184,6 +183,7 @@ void Usage()
 	fprintf(stderr, "                                      Can be: linux (default), freebsd, mach, windows, none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
+	fprintf(stderr, "    --unsafe-stack                    Stack pointer may be near the code\n");
 	fprintf(stderr, "    --return-reg <reg>                Use alternate register as the return value\n");
 	fprintf(stderr, "    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return\n");
 	fprintf(stderr, "                                      value (32-bit output only)\n");
@@ -229,7 +229,7 @@ int main(int argc, char* argv[])
 	settings.optimization = OPTIMIZE_NORMAL;
 	settings.preferredBits = 32;
 	settings.allowReturn = false;
-	settings.assumeSafeStack = false;
+	settings.unsafeStack = false;
 	settings.execStack = false;
 	settings.concat = false;
 	settings.encodePointers = false;
@@ -285,11 +285,6 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--allow-return"))
 		{
 			settings.allowReturn = true;
-			continue;
-		}
-		else if (!strcmp(argv[i], "--assume-safe-stack"))
-		{
-			settings.assumeSafeStack = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--concat"))
@@ -557,6 +552,11 @@ int main(int argc, char* argv[])
 			settings.preservedRegs.push_back(argv[i]);
 			continue;
 		}
+		else if (!strcmp(argv[i], "--unsafe-stack"))
+		{
+			settings.unsafeStack = true;
+			continue;
+		}
 		else if (!strcmp(argv[i], "--return-reg"))
 		{
 			if ((i + 1) >= argc)
@@ -680,10 +680,6 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "error: output filename expected for library output\n");
 		return 1;
 	}
-
-	// Normal executables always have a normal stack
-	if (settings.format != FORMAT_BIN)
-		settings.assumeSafeStack = true;
 
 	// Adjust base address for executables
 	if (settings.format == FORMAT_ELF)

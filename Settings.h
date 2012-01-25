@@ -49,7 +49,7 @@ struct Settings
 	uint32_t preferredBits;
 
 	bool allowReturn;
-	bool assumeSafeStack;
+	bool unsafeStack;
 	bool execStack;
 	bool concat;
 	bool sharedLibrary;

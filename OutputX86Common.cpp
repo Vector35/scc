@@ -9,7 +9,7 @@
 #include "Function.h"
 #include "asmx86.h"
 
-#define UNSAFE_STACK_PIVOT 0x10000
+#define UNSAFE_STACK_PIVOT 0x1000
 
 #define X86_MEM_REF(ref) X86_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).offset)
 #define X86_MEM_REF_OFFSET(ref, ofs) X86_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).offset + (ofs))
@@ -5493,7 +5493,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	// Generate parameter offsets
 	offset = 0;
 
-	if ((func->GetName() == "_start") && (!m_settings.assumeSafeStack))
+	if ((func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
 
 	for (size_t i = 0; i < func->GetParameters().size(); i++)
@@ -5561,7 +5561,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 		if (first)
 		{
-			if ((func->GetName() == "_start") && (!m_settings.assumeSafeStack))
+			if ((func->GetName() == "_start") && m_settings.unsafeStack)
 			{
 				// This is the start function, and we can't assume we have a safe stack (the code may be
 				// at or near the stack pointer), pivot the stack to make it safe

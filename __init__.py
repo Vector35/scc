@@ -5,7 +5,7 @@ NormalOptimization = 0
 Unoptimized = 1
 SizeOptimization = 2
 
-def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, assume_safe_stack=False,
+def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
 	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, additional_options=None):
@@ -15,9 +15,7 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 		for byte in blacklist:
 			cmd += ["--blacklist", str(byte)]
 	if allow_return:
-		cmd += ["--alow-return"]
-	if assume_safe_stack:
-		cmd += ["--assume-safe-stack"]
+		cmd += ["--allow-return"]
 	if base:
 		cmd += ["--base", base]
 	if base_reg:
@@ -27,7 +25,7 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	if encode_pointers:
 		cmd += ["--encode-pointers"]
 	if frame_reg:
-		cmd += ["--frame_reg", frame_reg]
+		cmd += ["--frame-reg", frame_reg]
 	if max_length:
 		cmd += ["--max-length", str(max_length)]
 	if optimization == Unoptimized:
@@ -41,6 +39,8 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	if preserve_regs:
 		for reg in preserve_regs:
 			cmd += ["--preserve", reg]
+	if unsafe_stack:
+		cmd += ["--unsafe-stack"]
 	if return_reg:
 		cmd += ["--return-reg", return_reg]
 	if return_high_reg:

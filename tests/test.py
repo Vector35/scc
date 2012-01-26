@@ -13,7 +13,7 @@ tests = [
 	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
 	["shift.c, normal", shift_testcase, []],
 	["shellcode, mmap buffer", shellcode_mmap_testcase, []],
-	["shellcode, stack buffer", shellcode_stack_testcase, []],
+	["shellcode, stack buffer", shellcode_stack_testcase, ["--unsafe-stack"]],
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],

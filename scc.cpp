@@ -58,6 +58,9 @@ unsigned int __attribute__((weak)) Obj_windows_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_windows_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_windows_x64_lib_len = 0;
 
+// Create weak symbol for version
+const char* __attribute__((weak)) g_versionString = "git";
+
 
 extern int Code_parse(ParserState* state);
 extern void Code_set_lineno(int line, void* yyscanner);
@@ -143,7 +146,7 @@ bool ImportLibrary(InputBlock* input, vector< Ref<Function> >& functions, map< s
 void Usage()
 {
 	fprintf(stderr, "scc [options] <input files> [...]\n\n");
-	fprintf(stderr, "Shellcode Compiler\n");
+	fprintf(stderr, "Shellcode Compiler version %s\n", g_versionString);
 	fprintf(stderr, "Copyright (C) 2011-2012 Rusty Wagner\n");
 	fprintf(stderr, "EARLY PREVIEW RELEASE - NOT ALL OPTIONS ARE IMPLEMENTED\n\n");
 	fprintf(stderr, "This software is released under the terms of the MIT open source license.\n\n");
@@ -626,6 +629,11 @@ int main(int argc, char* argv[])
 			outputFile = "";
 			hexOutput = false;
 			continue;
+		}
+		else if (!strcmp(argv[i], "--version"))
+		{
+			fprintf(stderr, "%s\n", g_versionString);
+			return 0;
 		}
 		else if (argv[i][0] == '-')
 		{

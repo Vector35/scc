@@ -1,7 +1,12 @@
 # Global defines
 GCC := gcc
 GXX := g++
+PYTHON := python
+ifeq ($(CONFIG),release)
+COMMON_CPPFLAGS := -O3 -fno-strict-aliasing -march=nocona
+else
 COMMON_CPPFLAGS := -g3 -fno-strict-aliasing -march=nocona
+endif
 CPPFLAGS := -Wall $(COMMON_CPPFLAGS)
 PARSER_CPPFLAGS := $(COMMON_CPPFLAGS)
 
@@ -15,6 +20,16 @@ ASMX86_HEADERS := asmx86/asmx86.h asmx86/asmx86str.h
 RUNTIME_LIBS := linux_x86.lib linux_x64.lib freebsd_x86.lib freebsd_x64.lib mach_x86.lib mach_x64.lib windows_x86.lib windows_x64.lib x86.lib x64.lib
 RUNTIME_SOURCES := $(patsubst %.lib,Obj/%.cpp,$(RUNTIME_LIBS))
 RUNTIME_OBJS := $(patsubst %.lib,Obj/Obj/%.o,$(RUNTIME_LIBS))
+
+ifeq ($(CONFIG),release)
+REV := $(shell git describe --tags HEAD)
+MAJOR := $(shell $(PYTHON) -c "print '$(REV)'[1:].replace('-','.').split('.')[0]")
+MINOR := $(shell $(PYTHON) -c "print '$(REV)'[1:].replace('-','.').split('.')[1]")
+BUILD := $(shell $(PYTHON) -c "print '$(REV)'[1:].replace('-','.').split('.')[2]")
+VERSION_OBJ := Obj/Obj/Version.o
+else
+VERSION_OBJ :=
+endif
 
 # Default targets
 all : scc
@@ -160,8 +175,19 @@ $(SCC_PARSE_OBJS): Obj/%Parser.o: %.y $(ASMX86_HEADERS) Makefile | Obj/
 Obj/scc-bootstrap: $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) Makefile
 	$(GXX) -o Obj/scc-bootstrap $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS)
 
-scc: $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) Makefile
-	$(GXX) -o scc $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS)
+ifeq ($(CONFIG),release)
+Obj/Version.cpp: Makefile | Obj/
+	echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+
+$(VERSION_OBJ): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
+	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)
+endif
+
+scc: $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
+	$(GXX) -o scc $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
+ifeq ($(CONFIG),release)
+	strip scc
+endif
 
 # Cleaning rule
 clean :

@@ -1,3 +1,8 @@
+size_t lseek(int fd, size_t offset, int whence)
+{
+	return __syscall(SYS_lseek, fd, offset, whence);
+}
+
 int open(const char* file, int flags, int mode)
 {
 	return __syscall(SYS_open, file, flags, mode);

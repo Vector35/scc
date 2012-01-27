@@ -7,6 +7,10 @@
 
 #define EOF    -1
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 typedef void* FILE;
 
 int open(const char* file, int flags, int mode);
@@ -14,6 +18,7 @@ int close(int fd);
 int dup(int fd);
 int dup2(int oldFd, int newFd);
 
+size_t lseek(int fd, size_t offset, int whence);
 ssize_t read(int fd, void* buf, size_t count);
 ssize_t write(int fd, const void* buf, size_t count);
 

@@ -14,7 +14,11 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 		base_path = os.path.dirname(sys.executable)
 	else:
 		base_path = os.path.dirname(__file__)
-	cmd = [os.path.abspath(os.path.join(base_path, "scc")), "--stdin", "--stdout", "-f", "bin",
+	if os.name == "nt":
+		exe_name = "scc.exe"
+	else:
+		exe_name = "scc"
+	cmd = [os.path.abspath(os.path.join(base_path, exe_name)), "--stdin", "--stdout", "-f", "bin",
 		"--platform", platform, "--arch", arch]
 	if blacklist:
 		for byte in blacklist:

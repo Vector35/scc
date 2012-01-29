@@ -10,6 +10,19 @@ endif
 CPPFLAGS := -Wall $(COMMON_CPPFLAGS)
 PARSER_CPPFLAGS := $(COMMON_CPPFLAGS)
 
+ifeq ($(HOST),Linux)
+	TARGET := scc
+	BOOTSTRAP := Obj/scc-bootstrap
+else
+ifeq ($(HOST),Darwin)
+	TARGET := scc
+	BOOTSTRAP := Obj/scc-bootstrap
+else
+	TARGET := scc.exe
+	BOOTSTRAP := Obj/scc-bootstrap.exe
+endif
+endif
+
 # Defines for Core
 SCC_OBJS := $(patsubst %.cpp,Obj/%.o,$(wildcard *.cpp))
 SCC_LEX_OBJS := $(patsubst %.lex,Obj/%Lexer.o,$(wildcard *.lex))
@@ -32,7 +45,7 @@ VERSION_OBJ :=
 endif
 
 # Default targets
-all : scc
+all : $(TARGET)
 .PHONY : all clean test
 
 # Object directories
@@ -140,26 +153,26 @@ $(RUNTIME_SOURCES): %.cpp: %.lib Makefile | Obj/
 $(RUNTIME_OBJS): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)
 
-Obj/x86.lib: Obj/scc-bootstrap $(X86_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(X86_RUNTIME) $(COMMON_RUNTIME) --arch x86 --platform none -f lib -o $@
-Obj/x64.lib: Obj/scc-bootstrap $(X64_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(X64_RUNTIME) $(COMMON_RUNTIME) --arch x64 --platform none -f lib -o $@
-Obj/linux_x86.lib: Obj/scc-bootstrap $(LINUX_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(LINUX_X86_RUNTIME) --arch x86 --platform linux -f lib -o $@
-Obj/linux_x64.lib: Obj/scc-bootstrap $(LINUX_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(LINUX_X64_RUNTIME) --arch x64 --platform linux -f lib -o $@
-Obj/freebsd_x86.lib: Obj/scc-bootstrap $(FREEBSD_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(FREEBSD_X86_RUNTIME) --arch x86 --platform freebsd -f lib -o $@
-Obj/freebsd_x64.lib: Obj/scc-bootstrap $(FREEBSD_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(FREEBSD_X64_RUNTIME) --arch x64 --platform freebsd -f lib -o $@
-Obj/mach_x86.lib: Obj/scc-bootstrap $(MACH_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(MACH_X86_RUNTIME) --arch x86 --platform mach -f lib -o $@
-Obj/mach_x64.lib: Obj/scc-bootstrap $(MACH_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(MACH_X64_RUNTIME) --arch x64 --platform mach -f lib -o $@
-Obj/windows_x86.lib: Obj/scc-bootstrap $(WINDOWS_X86_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(WINDOWS_X86_RUNTIME) --arch x86 --platform windows -f lib -o $@
-Obj/windows_x64.lib: Obj/scc-bootstrap $(WINDOWS_X64_RUNTIME_SRC) Makefile | Obj/
-	Obj/scc-bootstrap $(WINDOWS_X64_RUNTIME) --arch x64 --platform windows -f lib -o $@
+Obj/x86.lib: $(BOOTSTRAP) $(X86_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(X86_RUNTIME) $(COMMON_RUNTIME) --arch x86 --platform none -f lib -o $@
+Obj/x64.lib: $(BOOTSTRAP) $(X64_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(X64_RUNTIME) $(COMMON_RUNTIME) --arch x64 --platform none -f lib -o $@
+Obj/linux_x86.lib: $(BOOTSTRAP) $(LINUX_X86_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(LINUX_X86_RUNTIME) --arch x86 --platform linux -f lib -o $@
+Obj/linux_x64.lib: $(BOOTSTRAP) $(LINUX_X64_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(LINUX_X64_RUNTIME) --arch x64 --platform linux -f lib -o $@
+Obj/freebsd_x86.lib: $(BOOTSTRAP) $(FREEBSD_X86_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(FREEBSD_X86_RUNTIME) --arch x86 --platform freebsd -f lib -o $@
+Obj/freebsd_x64.lib: $(BOOTSTRAP) $(FREEBSD_X64_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(FREEBSD_X64_RUNTIME) --arch x64 --platform freebsd -f lib -o $@
+Obj/mach_x86.lib: $(BOOTSTRAP) $(MACH_X86_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(MACH_X86_RUNTIME) --arch x86 --platform mach -f lib -o $@
+Obj/mach_x64.lib: $(BOOTSTRAP) $(MACH_X64_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(MACH_X64_RUNTIME) --arch x64 --platform mach -f lib -o $@
+Obj/windows_x86.lib: $(BOOTSTRAP) $(WINDOWS_X86_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(WINDOWS_X86_RUNTIME) --arch x86 --platform windows -f lib -o $@
+Obj/windows_x64.lib: $(BOOTSTRAP) $(WINDOWS_X64_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(WINDOWS_X64_RUNTIME) --arch x64 --platform windows -f lib -o $@
 
 $(ASMX86_OBJS): Obj/%.o: %.c $(ASMX86_HEADERS) Makefile | Obj/asmx86/
 	$(call COMPILE,$(GCC),$(CPPFLAGS) -std=gnu99,$<,$*)
@@ -172,26 +185,26 @@ $(SCC_PARSE_OBJS): Obj/%Parser.o: %.y $(ASMX86_HEADERS) Makefile | Obj/
 	bison --name-prefix=$(lastword $(subst /, ,$*))_ -o Obj/$*Parser.cpp --defines=Obj/$*Parser.h $<
 	$(call COMPILE,$(GXX),$(PARSER_CPPFLAGS) -I. -IObj -Iasmx86,Obj/$*Parser.cpp,$*Parser)
 
-Obj/scc-bootstrap: $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) Makefile
-	$(GXX) -o Obj/scc-bootstrap $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS)
+$(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) Makefile
+	$(GXX) -o $(BOOTSTRAP) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS)
 
 ifeq ($(CONFIG),release)
 Obj/Version.cpp: Makefile | Obj/
-	echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 
 $(VERSION_OBJ): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)
 endif
 
-scc: $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
-	$(GXX) -o scc $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
+$(TARGET): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
+	$(GXX) -o $(TARGET) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
 ifeq ($(CONFIG),release)
-	strip scc
+	strip $(TARGET)
 endif
 
 # Cleaning rule
 clean :
-	rm -f scc
+	rm -f $(TARGET)
 	rm -rf Obj
 	rm -f asmx86/asmx86str.h
 	rm -f asmx86/makeopstr

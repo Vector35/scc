@@ -1,10 +1,12 @@
-#include "asmx86.h"
 #include <string>
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef WIN32
 #include <sys/mman.h>
+#endif
+#include "asmx86.h"
 #include "Linker.h"
 #include "ElfOutput.h"
 
@@ -44,7 +46,6 @@ void Usage()
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe\n");
 	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
-	fprintf(stderr, "    --internal-debug                  Enable internal debugging output\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
@@ -682,7 +683,7 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			FILE* fp = fopen(i->c_str(), "r");
+			FILE* fp = fopen(i->c_str(), "rb");
 			if (!fp)
 			{
 				fprintf(stderr, "%s: error: file not found\n", i->c_str());
@@ -797,11 +798,15 @@ int main(int argc, char* argv[])
 
 	if (execute)
 	{
+#ifdef WIN32
+		fprintf(stderr, "error: --exec not yet supported on Windows\n");
+#else
 		// User wants to execute the code
 		void* buffer = mmap(NULL, (finalBinary.len + 4095) & (~4095), PROT_READ | PROT_WRITE | PROT_EXEC,
 			MAP_PRIVATE | MAP_ANON, -1, 0);
 		memcpy(buffer, finalBinary.code, finalBinary.len);
 		((void (*)())buffer)();
+#endif
 
 		// Don't trust the stack after that
 		_exit(0);

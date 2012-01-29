@@ -438,6 +438,7 @@ Type* Type::Deserialize(InputBlock* input)
 }
 
 
+#ifndef WIN32
 void Type::Print()
 {
 	if (m_const)
@@ -512,6 +513,7 @@ void Type::Print()
 		break;
 	}
 }
+#endif
 
 
 size_t GetTargetPointerSize()

@@ -1,4 +1,5 @@
 %{
+#define YY_NO_UNISTD_H
 #include "PreprocessState.h"
 #include "PreprocessParser.h"
 
@@ -50,11 +51,11 @@
 \\\r\n		yylineno++;
 \\\n\r		yylineno++;
 
-#[\ \t]*include[\ \t]*<[^<>\n]*>	{
+#[\ \t]*include[\ \t]*<[^<>\r\n]*>	{
 						char* name = strchr(yytext, '<') + 1;
 						PARSERSTATE->IncludeFile(std::string(name, strlen(name) - 1));
 					}
-#[\ \t]*include[\ \t]*\"[^\"\n]*\"	{
+#[\ \t]*include[\ \t]*\"[^\"\r\n]*\"	{
 						char* name = strchr(yytext, '\"') + 1;
 						PARSERSTATE->IncludeFile(std::string(name, strlen(name) - 1));
 					}

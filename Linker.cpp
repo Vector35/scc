@@ -749,12 +749,14 @@ bool Linker::FinalizeLink()
 		}
 	}
 
+#ifndef WIN32
 	if (m_settings.internalDebug)
 	{
 		fprintf(stderr, "Functions:\n");
 		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 			(*i)->Print();
 	}
+#endif
 
 	// Generate errors for undefined references
 	size_t errors = 0;
@@ -951,7 +953,11 @@ bool Linker::WriteMapFile(const string& filename)
 	{
 		if ((*i)->GetName().size() == 0)
 			continue;
+#ifdef WIN32
+		fprintf(outFP, "%I64x %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(), (*i)->GetName().c_str());
+#else
 		fprintf(outFP, "%llx %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(), (*i)->GetName().c_str());
+#endif
 	}
 
 	for (vector< Ref<Variable> >::iterator i = m_variables.begin(); i != m_variables.end(); i++)
@@ -960,8 +966,13 @@ bool Linker::WriteMapFile(const string& filename)
 			continue;
 		if ((*i)->GetName()[0] == '$')
 			continue;
+#ifdef WIN32
+		fprintf(outFP, "%I64x %s\n", (unsigned long long)(m_settings.dataSectionBase +
+			(*i)->GetDataSectionOffset()), (*i)->GetName().c_str());
+#else
 		fprintf(outFP, "%llx %s\n", (unsigned long long)(m_settings.dataSectionBase +
 			(*i)->GetDataSectionOffset()), (*i)->GetName().c_str());
+#endif
 	}
 
 	fclose(outFP);

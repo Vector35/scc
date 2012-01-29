@@ -1,4 +1,5 @@
 %{
+#define YY_NO_UNISTD_H
 #include "ParserState.h"
 #include "CodeParser.h"
 

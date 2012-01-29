@@ -132,7 +132,9 @@ public:
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
 
+#ifndef WIN32
 	void Print();
+#endif
 };
 
 

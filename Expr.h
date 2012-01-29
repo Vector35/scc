@@ -181,7 +181,10 @@ public:
 
 	void Serialize(OutputBlock* output);
 	static Expr* Deserialize(InputBlock* input);
+
+#ifndef WIN32
 	void Print(size_t indent);
+#endif
 };
 
 

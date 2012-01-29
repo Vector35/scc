@@ -172,7 +172,7 @@ void PreprocessState::IncludeFile(const string& name)
 	if (m_ifFailCount > 0)
 		return;
 
-	FILE* fp = fopen(name.c_str(), "r");
+	FILE* fp = fopen(name.c_str(), "rb");
 	if (!fp)
 	{
 		if (m_scanner)

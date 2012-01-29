@@ -483,6 +483,7 @@ Function* Function::Deserialize(InputBlock* input)
 }
 
 
+#ifndef WIN32
 void Function::Print()
 {
 	m_returnValue->Print();
@@ -547,4 +548,5 @@ void Function::Print()
 
 	fprintf(stderr, "\n\n");
 }
+#endif
 

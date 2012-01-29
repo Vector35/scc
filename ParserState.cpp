@@ -669,6 +669,7 @@ bool ParserState::Deserialize(InputBlock* input)
 }
 
 
+#ifndef WIN32
 void ParserState::Print()
 {
 	fprintf(stderr, "Global variables:\n");
@@ -686,4 +687,5 @@ void ParserState::Print()
 	for (map< string, Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		i->second->Print();
 }
+#endif
 

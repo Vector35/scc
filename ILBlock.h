@@ -173,7 +173,7 @@ class ILBlock
 	size_t m_index, m_globalIndex;
 	std::vector<ILInstruction> m_instrs;
 	OutputBlock* m_output;
-	size_t m_addr;
+	uint64_t m_addr;
 
 	static std::map<size_t, ILBlock*> m_serializationMapping;
 
@@ -210,7 +210,7 @@ public:
 	OutputBlock* GetOutputBlock() const { return m_output; }
 	void SetOutputBlock(OutputBlock* output);
 	uint64_t GetAddress() const { return m_addr; }
-	void SetAddress(size_t addr) { m_addr = addr; }
+	void SetAddress(uint64_t addr) { m_addr = addr; }
 	bool CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase, std::vector<RelocationReference>& overflows);
 	bool ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase);
 

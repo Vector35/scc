@@ -103,7 +103,10 @@ public:
 
 	void Serialize(OutputBlock* output);
 	static Type* Deserialize(InputBlock* input);
+
+#ifndef WIN32
 	void Print();
+#endif
 };
 
 

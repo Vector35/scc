@@ -3282,6 +3282,7 @@ Expr* Expr::Deserialize(InputBlock* input)
 }
 
 
+#ifndef WIN32
 static void PrintIndent(size_t indent)
 {
 	for (size_t i = 0; i < indent; i++)
@@ -3643,4 +3644,5 @@ void Expr::Print(size_t indent)
 		break;
 	}
 }
+#endif
 

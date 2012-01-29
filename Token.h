@@ -6,7 +6,7 @@
 #include "Output.h"
 
 
-enum TokenType
+enum TokenClass
 {
 	TOKEN_BASIC,
 	TOKEN_ID,
@@ -17,15 +17,15 @@ enum TokenType
 
 class Token: public RefCountObject
 {
-	TokenType m_type;
+	TokenClass m_type;
 	std::string m_string;
 
 public:
-	Token(TokenType type);
-	Token(TokenType type, const std::string& str);
+	Token(TokenClass type);
+	Token(TokenClass type, const std::string& str);
 	virtual ~Token();
 
-	TokenType GetType() const { return m_type; }
+	TokenClass GetType() const { return m_type; }
 	const std::string& GetString() const { return m_string; }
 
 	void Serialize(OutputBlock* output);

@@ -20,5 +20,7 @@
 #define O_NOATIME   0x40000
 #define O_CLOEXEC   0x80000
 
+ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
+
 #endif
 

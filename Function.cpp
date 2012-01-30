@@ -583,12 +583,44 @@ void Function::Print()
 		m_params[i].type->Print();
 		if (m_params[i].name.size() != 0)
 			fprintf(stderr, " %s", m_params[i].name.c_str());
+
+		if (i < m_paramLocations.size())
+		{
+			switch (m_paramLocations[i].type)
+			{
+			case PARAM_STACK:
+				fprintf(stderr, " {stack}");
+				break;
+			case PARAM_REG:
+				fprintf(stderr, " {reg %d}", m_paramLocations[i].reg);
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	if (m_variableArguments)
 		fprintf(stderr, ", ...");
 
-	fprintf(stderr, ")\n");
+	fprintf(stderr, ")");
+
+	if (!m_returns)
+		fprintf(stderr, " __noreturn");
+
+	switch (m_subarch)
+	{
+	case SUBARCH_X86:
+		fprintf(stderr, " __subarch(x86)");
+		break;
+	case SUBARCH_X64:
+		fprintf(stderr, " __subarch(x64)");
+		break;
+	default:
+		break;
+	}
+
+	fprintf(stderr, "\n");
 
 	if (!m_body)
 	{

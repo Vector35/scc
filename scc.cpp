@@ -50,6 +50,7 @@ void Usage()
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
 	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
+	fprintf(stderr, "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
 	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
 	fprintf(stderr, "    -O0                               Do not run the optimizer\n");
 	fprintf(stderr, "    -Os                               Try to generate the smallest code possible\n");
@@ -111,6 +112,7 @@ int main(int argc, char* argv[])
 	settings.stackGrowsUp = false;
 	settings.sharedLibrary = false;
 	settings.polymorph = false;
+	settings.mixedMode = false;
 	settings.seed = 0;
 	settings.staticBase = false;
 	settings.positionIndependent = true;
@@ -350,6 +352,11 @@ int main(int argc, char* argv[])
 			maxLength = strtoul(argv[i], NULL, 0);
 			continue;
 		}
+		else if (!strcmp(argv[i], "--mixed-mode"))
+		{
+			settings.mixedMode = true;
+			continue;
+		}
 		else if (!strcmp(argv[i], "--pad"))
 		{
 			pad = true;
@@ -524,7 +531,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize random seed if one is needed
-	if (settings.polymorph || pad)
+	if (settings.polymorph || settings.mixedMode || pad)
 	{
 		if (!useSpecificSeed)
 		{

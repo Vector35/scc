@@ -178,6 +178,8 @@ __undefined     TOK(UNDEFINED)
 __cdecl		TOK(CDECL_TOK)
 __stdcall	TOK(STDCALL_TOK)
 __fastcall	TOK(FASTCALL_TOK)
+__subarch	TOK(SUBARCH_TOK)
+__noreturn	TOK(NORETURN_TOK)
 
 __syscall	TOK(SYSCALL_TOK)
 

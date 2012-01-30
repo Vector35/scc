@@ -8,13 +8,24 @@
 #include "Variable.h"
 
 
+enum SubarchitectureType
+{
+	SUBARCH_DEFAULT,
+	SUBARCH_X86,
+	SUBARCH_X64
+};
+
 struct FunctionInfo
 {
 	Ref<Type> returnValue;
 	CallingConvention callingConvention;
 	std::string name;
 	std::vector< std::pair< Ref<Type>, std::string > > params;
+	SubarchitectureType subarch;
+	bool noReturn;
 	Location location;
+
+	void CombineFunctionAttributes(const FunctionInfo& other);
 };
 
 struct FunctionParameter
@@ -30,11 +41,26 @@ struct LabelFixup
 	Location location;
 };
 
+enum ParameterLocationType
+{
+	PARAM_STACK,
+	PARAM_REG
+};
+
+struct ParameterLocation
+{
+	ParameterLocationType type;
+	uint32_t reg;
+};
+
 
 class Function: public RefCountObject
 {
 	Ref<Type> m_returnValue;
 	CallingConvention m_callingConvention;
+	SubarchitectureType m_subarch;
+	std::vector<ParameterLocation> m_paramLocations;
+	bool m_returns;
 	std::string m_name;
 	std::vector<FunctionParameter> m_params;
 	bool m_variableArguments;
@@ -73,8 +99,15 @@ public:
 	void SetBody(Expr* body) { m_body = body; }
 	void SetLocation(const Location& loc) { m_location = loc; }
 
+	void SetSubarchitecture(SubarchitectureType type) { m_subarch = type; }
+	void SetDoesReturn(bool returns) { m_returns = returns; }
+
 	Type* GetReturnValue() const { return m_returnValue; }
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }
+	SubarchitectureType GetSubarchitecture() const { return m_subarch; }
+	void SetParameterLocations(const std::vector<ParameterLocation>& locs) { m_paramLocations = locs; }
+	ParameterLocation GetParameterLocation(size_t i) const;
+	bool DoesReturn() const { return m_returns; }
 	const std::string& GetName() const { return m_name; }
 	const std::vector<FunctionParameter>& GetParameters() const { return m_params; }
 	bool HasVariableArguments() const { return m_variableArguments; }

@@ -771,14 +771,16 @@ bool Linker::FinalizeLink()
 
 bool Linker::OutputCode(OutputBlock* finalBinary)
 {
-	// Create output class for the requested architecture
-	Output* out;
+	// Create output classes for the requested architecture
+	map<SubarchitectureType, Output*> out;
 	if (m_settings.architecture == ARCH_X86)
 	{
+		out[SUBARCH_X86] = new OutputX86(m_settings);
+		out[SUBARCH_X64] = new OutputX64(m_settings);
 		if (m_settings.preferredBits == 32)
-			out = new OutputX86(m_settings);
+			out[SUBARCH_DEFAULT] = out[SUBARCH_X86];
 		else
-			out = new OutputX64(m_settings);
+			out[SUBARCH_DEFAULT] = out[SUBARCH_X64];
 	}
 	else
 	{
@@ -843,10 +845,38 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 		(*i)->SetGlobalIndex(globalBlockIndex++);
 
+	if (m_settings.mixedMode)
+	{
+		// Mixed mode enabled, choose random subarchitecture for any function that does not
+		// have a subarchitecture explicitly defined.  Be sure to skip the _start function,
+		// which has to be the default subarchitecture.
+		for (vector< Ref<Function> >::iterator i = m_functions.begin() + 1; i != m_functions.end(); i++)
+		{
+			if ((*i)->GetSubarchitecture() != SUBARCH_DEFAULT)
+				continue;
+
+			if (m_settings.architecture == ARCH_X86)
+			{
+				if (rand() & 1)
+					(*i)->SetSubarchitecture(SUBARCH_X86);
+				else
+					(*i)->SetSubarchitecture(SUBARCH_X64);
+			}
+		}
+	}
+
 	// Generate code for each block
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
-		if (!out->GenerateCode(*i))
+		map<SubarchitectureType, Output*>::iterator j = out.find((*i)->GetSubarchitecture());
+		if (j == out.end())
+		{
+			fprintf(stderr, "error: invalid subarchitecture in function '%s'\n",
+				(*i)->GetName().c_str());
+			return false;
+		}
+
+		if (!j->second->GenerateCode(*i))
 			return false;
 	}
 

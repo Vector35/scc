@@ -58,7 +58,7 @@ struct Settings
 	bool encodePointers;
 	Ref<Variable> encodePointerKey;
 
-	bool polymorph;
+	bool polymorph, mixedMode;
 	uint32_t seed;
 
 	bool positionIndependent;

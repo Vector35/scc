@@ -1,5 +1,6 @@
 %{
 #include <stdio.h>
+#include <string.h>
 #include "ParserState.h"
 %}
 
@@ -105,7 +106,7 @@ void Code_error(ParserState* state, const char* msg)
 %token STATIC_TOK EXTERN_TOK
 %token UNDEFINED
 
-%token CDECL_TOK STDCALL_TOK FASTCALL_TOK
+%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK
 %token SYSCALL_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
 %token NEXT_ARG PREV_ARG
@@ -124,7 +125,7 @@ void Code_error(ParserState* state, const char* msg)
 %destructor { $$->Release(); } stmt_list stmt_list_nonempty stmt
 %destructor { $$->Release(); } var_declaration initializer initializer_list initializer_list_nonempty
 %destructor { delete $$; } var_init_list var_init
-%destructor { delete $$; } func_type
+%destructor { delete $$; } func_type func_attr_list func_attr_list_nonempty func_attr
 
 %type <type> var_type return_type primitive_type
 %type <type> struct_member_list union_member_list struct_member
@@ -140,7 +141,7 @@ void Code_error(ParserState* state, const char* msg)
 %type <expr> var_declaration initializer initializer_list initializer_list_nonempty
 %type <varInit> var_init
 %type <varInitList> var_init_list
-%type <function> func_type
+%type <function> func_type func_attr_list func_attr_list_nonempty func_attr
 
 %nonassoc IF_WITHOUT_ELSE
 %nonassoc ELSE
@@ -536,32 +537,112 @@ initializer_list_nonempty:	initializer_list_nonempty COMMA initializer  { $$ = $
 			|	initializer  { $$ = state->UnaryExpr(EXPR_INITIALIZER, $1); $$->AddRef(); $1->Release(); }
 			;
 
-func_prototype:	func_type SEMICOLON  { state->DefineFunctionPrototype(*$1, false); delete $1; }
-	|	STATIC_TOK func_type SEMICOLON  { state->DefineFunctionPrototype(*$2, true); delete $2; }
-	|	EXTERN_TOK func_type SEMICOLON  { state->DefineFunctionPrototype(*$2, false); delete $2; }
+func_prototype:	func_type func_attr_list SEMICOLON
+		{
+			if ($2)
+			{
+				$1->CombineFunctionAttributes(*$2);
+				delete $2;
+			}
+			state->DefineFunctionPrototype(*$1, false);
+			delete $1;
+		}
+	|	STATIC_TOK func_type func_attr_list SEMICOLON
+		{
+			if ($3)
+			{
+				$2->CombineFunctionAttributes(*$3);
+				delete $3;
+			}
+			state->DefineFunctionPrototype(*$2, true);
+			delete $2;
+		}
+	|	EXTERN_TOK func_type func_attr_list SEMICOLON
+		{
+			if ($3)
+			{
+				$2->CombineFunctionAttributes(*$3);
+				delete $3;
+			}
+			state->DefineFunctionPrototype(*$2, false);
+			delete $2;
+		}
 	;
 
-func_declaration:	func_type LBRACE { state->BeginFunctionScope(*$1); } stmt_list RBRACE
+func_declaration:	func_type func_attr_list LBRACE { state->BeginFunctionScope(*$1); } stmt_list RBRACE
 			{
-				state->DefineFunction(*$1, $4, false);
+				if ($2)
+				{
+					$1->CombineFunctionAttributes(*$2);
+					delete $2;
+				}
+				state->DefineFunction(*$1, $5, false);
 				state->PopScope();
 				delete $1;
-				$4->Release();
-			}
-		|	STATIC_TOK func_type LBRACE { state->BeginFunctionScope(*$2); } stmt_list RBRACE
-			{
-				state->DefineFunction(*$2, $5, true);
-				state->PopScope();
-				delete $2;
 				$5->Release();
 			}
+		|	STATIC_TOK func_type func_attr_list LBRACE { state->BeginFunctionScope(*$2); } stmt_list RBRACE
+			{
+				if ($3)
+				{
+					$2->CombineFunctionAttributes(*$3);
+					delete $3;
+				}
+				state->DefineFunction(*$2, $6, true);
+				state->PopScope();
+				delete $2;
+				$6->Release();
+			}
 		;
+
+func_attr_list:	func_attr_list_nonempty  { $$ = $1; }
+	|	{ $$ = NULL; }
+	;
+
+func_attr_list_nonempty:	func_attr_list_nonempty func_attr
+				{
+					$$ = $1;
+					$$->CombineFunctionAttributes(*$2);
+					delete $2;
+				}
+			|	func_attr  { $$ = $1; }
+			;
+
+func_attr:	SUBARCH_TOK LPAREN ID RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
+			$$->noReturn = false;
+			if (!strcmp($3, "x86"))
+				$$->subarch = SUBARCH_X86;
+			else if (!strcmp($3, "i386"))
+				$$->subarch = SUBARCH_X86;
+			else if (!strcmp($3, "x64"))
+				$$->subarch = SUBARCH_X64;
+			else if (!strcmp($3, "x86_64"))
+				$$->subarch = SUBARCH_X64;
+			else if (!strcmp($3, "amd64"))
+				$$->subarch = SUBARCH_X64;
+			else
+				Code_error(state, "invalid subarchitecture");
+			free($3);
+		}
+	|	NORETURN_TOK
+		{
+			$$ = new FunctionInfo;
+			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = true;
+		}
+	;
 
 func_type:	var_type ID LPAREN param_list RPAREN
 		{
 			$$ = new FunctionInfo;
 			$$->returnValue = $1;
 			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $2;
 			$$->params = *$4;
 			$$->location = state->GetLocation();
@@ -574,6 +655,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = $1;
 			$$->callingConvention = CALLING_CONVENTION_CDECL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -586,6 +669,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = $1;
 			$$->callingConvention = CALLING_CONVENTION_STDCALL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -598,6 +683,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = $1;
 			$$->callingConvention = CALLING_CONVENTION_FASTCALL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -610,6 +697,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = Type::VoidType();
 			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $2;
 			$$->params = *$4;
 			$$->location = state->GetLocation();
@@ -621,6 +710,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = Type::VoidType();
 			$$->callingConvention = CALLING_CONVENTION_CDECL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -632,6 +723,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = Type::VoidType();
 			$$->callingConvention = CALLING_CONVENTION_STDCALL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -643,6 +736,8 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = Type::VoidType();
 			$$->callingConvention = CALLING_CONVENTION_FASTCALL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();

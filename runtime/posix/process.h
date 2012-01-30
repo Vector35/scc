@@ -4,7 +4,7 @@
 typedef int pid_t;
 typedef int uid_t;
 
-void exit(int result);
+void exit(int result) __noreturn;
 
 pid_t fork(void);
 int execve(const char* filename, const char** argv, const char** envp);

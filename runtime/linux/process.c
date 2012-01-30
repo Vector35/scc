@@ -1,4 +1,4 @@
-void exit(int result)
+void exit(int result) __noreturn
 {
 	__syscall(SYS_exit, result);
 }

@@ -11,9 +11,22 @@ size_t Function::m_nextSerializationIndex;
 map< size_t, Ref<Function> > Function::m_serializationMap;
 
 
+void FunctionInfo::CombineFunctionAttributes(const FunctionInfo& other)
+{
+	if (other.callingConvention != CALLING_CONVENTION_DEFAULT)
+		callingConvention = other.callingConvention;
+	if (other.subarch != SUBARCH_DEFAULT)
+		subarch = other.subarch;
+	if (other.noReturn)
+		noReturn = other.noReturn;
+}
+
+
 Function::Function()
 {
 	m_callingConvention = CALLING_CONVENTION_DEFAULT;
+	m_subarch = SUBARCH_DEFAULT;
+	m_returns = true;
 	m_variableArguments = false;
 	m_location.lineNumber = 0;
 	m_nextTempId = 0;
@@ -28,6 +41,8 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 {
 	m_returnValue = info.returnValue;
 	m_callingConvention = info.callingConvention;
+	m_subarch = info.subarch;
+	m_returns = !info.noReturn;
 	m_name = info.name;
 	m_variableArguments = false;
 	m_location = info.location;
@@ -56,6 +71,8 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 {
 	m_returnValue = info.returnValue;
 	m_callingConvention = info.callingConvention;
+	m_subarch = info.subarch;
+	m_returns = !info.noReturn;
 	m_name = info.name;
 	m_variableArguments = false;
 	m_location = info.location;
@@ -99,6 +116,9 @@ Function* Function::Duplicate(DuplicateContext& dup)
 
 	func->m_returnValue = m_returnValue->Duplicate(dup);
 	func->m_callingConvention = m_callingConvention;
+	func->m_subarch = m_subarch;
+	func->m_paramLocations = m_paramLocations;
+	func->m_returns = m_returns;
 	func->m_name = m_name;
 	func->m_variableArguments = m_variableArguments;
 	func->m_location = m_location;
@@ -316,6 +336,19 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 }
 
 
+ParameterLocation Function::GetParameterLocation(size_t i) const
+{
+	if (i >= m_paramLocations.size())
+	{
+		ParameterLocation loc;
+		loc.type = PARAM_STACK;
+		return loc;
+	}
+
+	return m_paramLocations[i];
+}
+
+
 void Function::TagReferences()
 {
 	// Mark self as referenced
@@ -346,8 +379,18 @@ void Function::Serialize(OutputBlock* output)
 
 	m_returnValue->Serialize(output);
 	output->WriteInteger(m_callingConvention);
+	output->WriteInteger(m_subarch);
+	output->WriteInteger(m_returns ? 1 : 0);
 	output->WriteString(m_name);
 	output->WriteInteger(m_variableArguments ? 1 : 0);
+
+	output->WriteInteger(m_paramLocations.size());
+	for (vector<ParameterLocation>::iterator i = m_paramLocations.begin(); i != m_paramLocations.end(); i++)
+	{
+		output->WriteInteger(i->type);
+		if (i->type == PARAM_REG)
+			output->WriteInteger(i->reg);
+	}
 
 	output->WriteInteger(m_params.size());
 	for (vector<FunctionParameter>::iterator i = m_params.begin(); i != m_params.end(); i++)
@@ -388,10 +431,37 @@ bool Function::DeserializeInternal(InputBlock* input)
 		return false;
 	m_callingConvention = (CallingConvention)convention;
 
+	uint32_t subarch;
+	if (!input->ReadUInt32(subarch))
+		return false;
+	m_subarch = (SubarchitectureType)subarch;
+
+	if (!input->ReadBool(m_returns))
+		return false;
 	if (!input->ReadString(m_name))
 		return false;
 	if (!input->ReadBool(m_variableArguments))
 		return false;
+
+	size_t paramLocationCount;
+	if (!input->ReadNativeInteger(paramLocationCount))
+		return false;
+	for (size_t i = 0; i < paramLocationCount; i++)
+	{
+		ParameterLocation loc;
+		uint32_t type;
+		if (!input->ReadUInt32(type))
+			return false;
+		loc.type = (ParameterLocationType)type;
+
+		if (loc.type == PARAM_REG)
+		{
+			if (!input->ReadUInt32(loc.reg))
+				return false;
+		}
+
+		m_paramLocations.push_back(loc);
+	}
 
 	size_t paramCount;
 	if (!input->ReadNativeInteger(paramCount))

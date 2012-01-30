@@ -10,6 +10,7 @@ endif
 CPPFLAGS := -Wall $(COMMON_CPPFLAGS)
 PARSER_CPPFLAGS := $(COMMON_CPPFLAGS)
 
+HOST := $(shell uname)
 ifeq ($(HOST),Linux)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap

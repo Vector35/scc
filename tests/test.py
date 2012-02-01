@@ -135,8 +135,10 @@ def test_all(arch_name, arch_options):
 	return failed
 
 failed = 0
-failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
-failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"])
+if os.name != "nt":
+	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
+	if os.uname()[0] != "FreeBSD":
+		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"])
 
 if failed != 0:
 	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)

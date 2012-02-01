@@ -1643,7 +1643,7 @@ Expr* Expr::Simplify(ParserState* state)
 		else if ((m_children[0]->GetClass() == EXPR_INT) && m_type && (m_type->GetWidth() == 4))
 		{
 			uint32_t value = (uint32_t)m_children[0]->GetIntValue();
-			value = __builtin_bswap32(value);
+			value = (value << 24) | ((value << 8) & 0xff0000) | ((value >> 8) & 0xff00) | (value >> 24);
 			Expr* result = Expr::IntExpr(m_location, value);
 			result->SetType(m_type);
 			return result;
@@ -1651,7 +1651,9 @@ Expr* Expr::Simplify(ParserState* state)
 		else if ((m_children[0]->GetClass() == EXPR_INT) && m_type && (m_type->GetWidth() == 8))
 		{
 			uint64_t value = (uint64_t)m_children[0]->GetIntValue();
-			value = __builtin_bswap64(value);
+			value = (value << 56) | ((value << 40) & 0xff000000000000LL) | ((value << 24) & 0xff0000000000LL) |
+				((value << 8) & 0xff00000000LL) | ((value >> 8) & 0xff000000LL) | ((value >> 24) & 0xff0000LL) |
+				((value >> 40) & 0xff00LL) | (value >> 56);
 			Expr* result = Expr::IntExpr(m_location, value);
 			result->SetType(m_type);
 			return result;

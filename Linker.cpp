@@ -621,6 +621,8 @@ bool Linker::FinalizeLink()
 	startInfo.returnValue = mainFunc->GetReturnValue();
 	startInfo.callingConvention = mainFunc->GetCallingConvention();
 	startInfo.name = "_start";
+	startInfo.subarch = SUBARCH_DEFAULT;
+	startInfo.noReturn = !m_settings.allowReturn;
 	startInfo.location = mainFunc->GetLocation();
 
 	// Set up _start parameters to mirror main

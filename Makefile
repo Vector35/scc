@@ -15,12 +15,17 @@ ifeq ($(HOST),Linux)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
 else
+ifeq ($(HOST),FreeBSD)
+	TARGET := scc
+	BOOTSTRAP := Obj/scc-bootstrap
+else
 ifeq ($(HOST),Darwin)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
 else
 	TARGET := scc.exe
 	BOOTSTRAP := Obj/scc-bootstrap.exe
+endif
 endif
 endif
 

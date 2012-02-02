@@ -4991,7 +4991,10 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #ifdef OUTPUT32
 	EMIT_I(int, 0x80);
 #else
-	EMIT(syscall);
+	if (m_settings.os == OS_FREEBSD)
+		EMIT_I(int, 0x80);
+	else
+		EMIT(syscall);
 #endif
 
 	m_framePointer = m_origFramePointer;

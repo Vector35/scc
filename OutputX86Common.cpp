@@ -4718,183 +4718,126 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(OutputBlock* out, const ILInstruction& in
 
 bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& instr)
 {
-	if (m_settings.os == OS_LINUX)
+#ifdef OUTPUT32
+	if (m_settings.os == OS_FREEBSD)
 	{
-#ifdef OUTPUT32
-		static const OperandType linuxRegs[] = {REG_EAX, REG_EBX, REG_ECX, REG_EDX, REG_ESI, REG_EDI, REG_EBP, NONE};
-#else
-		static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
-#endif
-		OperandType savedRegs[2];
-		size_t savedRegCount = 0;
-		bool savedFramePointer = false;
-		bool savedBasePointer = false;
+		// FreeBSD expects syscall parameters on a normal stack
+		if (!m_normalStack)
+			return false;
 
-		if (m_stackPointer != DEFAULT_STACK_POINTER)
+		size_t pushSize = 0;
+		ReserveRegisters(out, REG_EAX, NONE);
+
+		// Push parameters from right to left
+		for (size_t i = instr.params.size() - 1; i >= 2; i--)
 		{
-#ifdef OUTPUT32
-			EMIT_RR(xchg_32, m_stackPointer, REG_ESP);
-#else
-			EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
-#endif
-		}
+			memset(m_alloc, 0, sizeof(m_alloc));
+			ClearReservedRegisters(out);
 
-		ReserveRegisters(NULL, REG_ESP, REG_EBP, NONE);
-
-#ifdef OUTPUT64
-		if (m_framePointer == REG_RCX)
-		{
-			EMIT_RR(xchg_64, m_framePointer, REG_RBP);
-			m_framePointer = REG_RBP;
-		}
-#endif
-
-		size_t regIndex = 0;
-		for (size_t i = 1; i < instr.params.size(); i++)
-		{
-			if (linuxRegs[regIndex] == NONE)
+			OperandReference param;
+			if (!PrepareLoad(out, instr.params[i], param))
 				return false;
-			ReserveRegisters(NULL, linuxRegs[regIndex], NONE);
 
-			if (instr.params[i].cls == ILPARAM_UNDEFINED)
-				continue;
-
-#ifdef OUTPUT32
-			if (instr.params[i].GetWidth() == 8)
+			if (param.width == 0)
 			{
-				if (linuxRegs[regIndex] == NONE)
+				// Indefinite width (used for immediates, for example), use native size
+				param.width = 4;
+			}
+
+			// Check for native size parameters
+			if (param.width == 4)
+			{
+				switch (param.type)
+				{
+				case OPERANDREF_REG:
+					EMIT_R(push, param.reg);
+					break;
+				case OPERANDREF_MEM:
+					EMIT_M(push, X86_MEM_REF(param.mem));
+					break;
+				case OPERANDREF_IMMED:
+					EMIT_I(push, (int32_t)param.immed);
+					break;
+				default:
 					return false;
-				ReserveRegisters(NULL, linuxRegs[regIndex], NONE);
+				}
+
+				pushSize += 4;
+				continue;
 			}
-#endif
-
-			if ((linuxRegs[regIndex] == m_framePointer) && (!savedFramePointer))
+			else if (param.width == 8)
 			{
-				if (m_settings.stackGrowsUp)
+				switch (param.type)
 				{
-#ifdef OUTPUT32
-					EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 4));
-					EMIT_MR(mov_32, X86_MEM(DEFAULT_STACK_POINTER, 0), m_framePointer);
-#else
-					EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 8));
-					EMIT_MR(mov_64, X86_MEM(DEFAULT_STACK_POINTER, 0), m_framePointer);
-#endif
-				}
-				else
-				{
-					EMIT_R(push, m_framePointer);
+				case OPERANDREF_REG:
+					EMIT_R(push, param.highReg);
+					EMIT_R(push, param.reg);
+					break;
+				case OPERANDREF_MEM:
+					EMIT_M(push, X86_MEM_REF_OFFSET(param.mem, 4));
+					EMIT_M(push, X86_MEM_REF(param.mem));
+					break;
+				case OPERANDREF_IMMED:
+					EMIT_I(push, (int32_t)(param.immed >> 32));
+					EMIT_I(push, (int32_t)param.immed);
+					break;
+				default:
+					return false;
 				}
 
-				savedRegs[savedRegCount++] = m_framePointer;
-				savedFramePointer = true;
-
-				if (m_framePointer != DEFAULT_FRAME_POINTER)
-				{
-#ifdef OUTPUT32
-					EMIT_RR(mov_32, DEFAULT_FRAME_POINTER, m_framePointer);
-#else
-					EMIT_RR(mov_64, DEFAULT_FRAME_POINTER, m_framePointer);
-#endif
-					m_framePointer = DEFAULT_FRAME_POINTER;
-				}
+				pushSize += 8;
+				continue;
 			}
 
-			if ((linuxRegs[regIndex] == m_basePointer) && (!savedBasePointer))
+			// Not native size
+			if (param.type == OPERANDREF_REG)
 			{
-				if (m_settings.stackGrowsUp)
-				{
-#ifdef OUTPUT32
-					EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 4));
-					EMIT_MR(mov_32, X86_MEM(DEFAULT_STACK_POINTER, 0), m_basePointer);
-#else
-					EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 8));
-					EMIT_MR(mov_64, X86_MEM(DEFAULT_STACK_POINTER, 0), m_basePointer);
-#endif
-				}
-				else
-				{
-					EMIT_R(push, m_basePointer);
-				}
-
-				savedRegs[savedRegCount++] = m_basePointer;
-				savedBasePointer = true;
-				m_basePointer = NONE;
+				// Push native size (upper bits are ignored)
+				OperandType pushReg = GetRegisterOfSize(param.reg, 4);
+				EMIT_R(push, pushReg);
 			}
-
-			OperandReference cur;
-			if (!PrepareLoad(out, instr.params[i], cur))
-				return false;
-
-#ifdef OUTPUT32
-			OperandType reg, highReg;
-			if (instr.params[i].GetWidth() == 8)
+			else if (param.type == OPERANDREF_IMMED)
 			{
-				reg = GetRegisterOfSize(linuxRegs[regIndex++], 4);
-				highReg = GetRegisterOfSize(linuxRegs[regIndex++], 4);
+				EMIT_I(push, (int32_t)param.immed);
 			}
 			else
 			{
-				reg = GetRegisterOfSize(linuxRegs[regIndex++], cur.width);
-				highReg = NONE;
+				// Load into register and then push native size
+				OperandReference temp;
+				temp.type = OPERANDREF_REG;
+				temp.width = param.width;
+				temp.reg = AllocateTemporaryRegister(out, param.width);
+				if (!Move(out, temp, param))
+					return false;
+
+				OperandType pushReg = GetRegisterOfSize(temp.reg, 4);
+				EMIT_R(push, pushReg);
 			}
-#else
-			OperandType reg = GetRegisterOfSize(linuxRegs[regIndex++], cur.width);
-#endif
 
-			OperandReference dest;
-			dest.type = OPERANDREF_REG;
-			dest.width = cur.width;
-			dest.reg = reg;
-#ifdef OUTPUT32
-			dest.highReg = highReg;
-#endif
-
-			if (!Move(out, dest, cur))
-				return false;
+			pushSize += 4;
 		}
 
-#ifdef OUTPUT32
+		// Place syscall number into EAX
+		OperandReference syscallNum;
+		if (!PrepareLoad(out, instr.params[1], syscallNum))
+			return false;
+
+		OperandReference eax;
+		eax.type = OPERANDREF_REG;
+		eax.width = 4;
+		eax.reg = REG_EAX;
+		if (!Move(out, eax, syscallNum))
+			return false;
+
+		// An extra parameter needs to be pushed (it is ignored)
+		EMIT_R(push, REG_EAX);
+		pushSize += 4;
+
 		EMIT_I(int, 0x80);
-#else
-		EMIT(syscall);
-#endif
 
-		m_framePointer = m_origFramePointer;
-		m_basePointer = m_origBasePointer;
-
-		for (size_t i = 0; i < savedRegCount; i++)
-		{
-			OperandType reg = savedRegs[(savedRegCount - 1) - i];
-
-			if (m_settings.stackGrowsUp)
-			{
-#ifdef OUTPUT32
-				EMIT_RM(mov_32, reg, X86_MEM(DEFAULT_STACK_POINTER, 0));
-				EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -4));
-#else
-				EMIT_RM(mov_64, reg, X86_MEM(DEFAULT_STACK_POINTER, 0));
-				EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -8));
-#endif
-			}
-			else
-			{
-				EMIT_R(pop, reg);
-			}
-		}
-
-		if (m_stackPointer != DEFAULT_STACK_POINTER)
-		{
-#ifdef OUTPUT32
-			EMIT_RR(xchg_32, m_stackPointer, REG_ESP);
-#else
-			EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
-#endif
-		}
-
-#ifdef OUTPUT64
-		if (m_framePointer == REG_RCX)
-			EMIT_RR(xchg_64, m_framePointer, REG_RBP);
-#endif
+		// Adjust stack pointer to pop off parameters
+		if (pushSize != 0)
+			EMIT_RI(add_32, m_stackPointer, pushSize);
 
 		OperandReference dest, result;
 		if (!PrepareStore(out, instr.params[0], dest))
@@ -4904,8 +4847,197 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 		result.reg = GetRegisterOfSize(REG_EAX, result.width);
 		return Move(out, dest, result);
 	}
+#endif
 
-	return false;
+	if ((m_settings.os != OS_LINUX) && (m_settings.os != OS_FREEBSD))
+		return false;
+
+#ifdef OUTPUT32
+	static const OperandType linuxRegs[] = {REG_EAX, REG_EBX, REG_ECX, REG_EDX, REG_ESI, REG_EDI, REG_EBP, NONE};
+	const OperandType* regs = linuxRegs;
+#else
+	static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
+	static const OperandType freeBsdRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9, NONE};
+	const OperandType* regs = (m_settings.os == OS_LINUX) ? linuxRegs : freeBsdRegs;
+#endif
+	OperandType savedRegs[2];
+	size_t savedRegCount = 0;
+	bool savedFramePointer = false;
+	bool savedBasePointer = false;
+
+	if (m_stackPointer != DEFAULT_STACK_POINTER)
+	{
+#ifdef OUTPUT32
+		EMIT_RR(xchg_32, m_stackPointer, REG_ESP);
+#else
+		EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
+#endif
+	}
+
+	ReserveRegisters(NULL, REG_ESP, REG_EBP, NONE);
+
+#ifdef OUTPUT64
+	if (m_framePointer == REG_RCX)
+	{
+		EMIT_RR(xchg_64, m_framePointer, REG_RBP);
+		m_framePointer = REG_RBP;
+	}
+#endif
+
+	size_t regIndex = 0;
+	for (size_t i = 1; i < instr.params.size(); i++)
+	{
+		if (regs[regIndex] == NONE)
+			return false;
+		ReserveRegisters(NULL, regs[regIndex], NONE);
+
+		if (instr.params[i].cls == ILPARAM_UNDEFINED)
+			continue;
+
+#ifdef OUTPUT32
+		if (instr.params[i].GetWidth() == 8)
+		{
+			if (regs[regIndex] == NONE)
+				return false;
+			ReserveRegisters(NULL, regs[regIndex], NONE);
+		}
+#endif
+
+		if ((regs[regIndex] == m_framePointer) && (!savedFramePointer))
+		{
+			if (m_settings.stackGrowsUp)
+			{
+#ifdef OUTPUT32
+				EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 4));
+				EMIT_MR(mov_32, X86_MEM(DEFAULT_STACK_POINTER, 0), m_framePointer);
+#else
+				EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 8));
+				EMIT_MR(mov_64, X86_MEM(DEFAULT_STACK_POINTER, 0), m_framePointer);
+#endif
+			}
+			else
+			{
+				EMIT_R(push, m_framePointer);
+			}
+
+			savedRegs[savedRegCount++] = m_framePointer;
+			savedFramePointer = true;
+
+			if (m_framePointer != DEFAULT_FRAME_POINTER)
+			{
+#ifdef OUTPUT32
+				EMIT_RR(mov_32, DEFAULT_FRAME_POINTER, m_framePointer);
+#else
+				EMIT_RR(mov_64, DEFAULT_FRAME_POINTER, m_framePointer);
+#endif
+				m_framePointer = DEFAULT_FRAME_POINTER;
+			}
+		}
+
+		if ((regs[regIndex] == m_basePointer) && (!savedBasePointer))
+		{
+			if (m_settings.stackGrowsUp)
+			{
+#ifdef OUTPUT32
+				EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 4));
+				EMIT_MR(mov_32, X86_MEM(DEFAULT_STACK_POINTER, 0), m_basePointer);
+#else
+				EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, 8));
+				EMIT_MR(mov_64, X86_MEM(DEFAULT_STACK_POINTER, 0), m_basePointer);
+#endif
+			}
+			else
+			{
+				EMIT_R(push, m_basePointer);
+			}
+
+			savedRegs[savedRegCount++] = m_basePointer;
+			savedBasePointer = true;
+			m_basePointer = NONE;
+		}
+
+		OperandReference cur;
+		if (!PrepareLoad(out, instr.params[i], cur))
+			return false;
+
+#ifdef OUTPUT32
+		OperandType reg, highReg;
+		if (instr.params[i].GetWidth() == 8)
+		{
+			reg = GetRegisterOfSize(regs[regIndex++], 4);
+			highReg = GetRegisterOfSize(regs[regIndex++], 4);
+		}
+		else
+		{
+			reg = GetRegisterOfSize(regs[regIndex++], cur.width);
+			highReg = NONE;
+		}
+#else
+		OperandType reg = GetRegisterOfSize(regs[regIndex++], cur.width);
+#endif
+
+		OperandReference dest;
+		dest.type = OPERANDREF_REG;
+		dest.width = cur.width;
+		dest.reg = reg;
+#ifdef OUTPUT32
+		dest.highReg = highReg;
+#endif
+
+		if (!Move(out, dest, cur))
+			return false;
+	}
+
+#ifdef OUTPUT32
+	EMIT_I(int, 0x80);
+#else
+	EMIT(syscall);
+#endif
+
+	m_framePointer = m_origFramePointer;
+	m_basePointer = m_origBasePointer;
+
+	for (size_t i = 0; i < savedRegCount; i++)
+	{
+		OperandType reg = savedRegs[(savedRegCount - 1) - i];
+
+		if (m_settings.stackGrowsUp)
+		{
+#ifdef OUTPUT32
+			EMIT_RM(mov_32, reg, X86_MEM(DEFAULT_STACK_POINTER, 0));
+			EMIT_RM(lea_32, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -4));
+#else
+			EMIT_RM(mov_64, reg, X86_MEM(DEFAULT_STACK_POINTER, 0));
+			EMIT_RM(lea_64, DEFAULT_STACK_POINTER, X86_MEM(DEFAULT_STACK_POINTER, -8));
+#endif
+		}
+		else
+		{
+			EMIT_R(pop, reg);
+		}
+	}
+
+	if (m_stackPointer != DEFAULT_STACK_POINTER)
+	{
+#ifdef OUTPUT32
+		EMIT_RR(xchg_32, m_stackPointer, REG_ESP);
+#else
+		EMIT_RR(xchg_64, m_stackPointer, REG_RSP);
+#endif
+	}
+
+#ifdef OUTPUT64
+	if (m_framePointer == REG_RCX)
+		EMIT_RR(xchg_64, m_framePointer, REG_RBP);
+#endif
+
+	OperandReference dest, result;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	result.type = OPERANDREF_REG;
+	result.width = dest.width;
+	result.reg = GetRegisterOfSize(REG_EAX, result.width);
+	return Move(out, dest, result);
 }
 
 

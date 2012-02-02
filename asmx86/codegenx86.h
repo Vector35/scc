@@ -416,8 +416,8 @@ namespace asmx86
 		}
 		else
 		{
-			__WRITE_BUF_8(0, op + reg);
-			return 1;
+			__WRITE_BUF_8_8(0, __REX(__REX_64), op + reg);
+			return 2;
 		}
 	}
 

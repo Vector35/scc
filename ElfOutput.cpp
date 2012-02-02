@@ -113,6 +113,9 @@ static const char* GetInterpreterName(const Settings& settings)
 			return "/lib/ld-linux.so.2";
 	}
 
+	if (settings.os == OS_FREEBSD)
+		return "/libexec/ld-elf.so.1";
+
 	return "";
 }
 

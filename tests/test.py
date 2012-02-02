@@ -137,7 +137,10 @@ def test_all(arch_name, arch_options):
 failed = 0
 if os.name != "nt":
 	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
-	if os.uname()[0] != "FreeBSD":
+	if os.uname()[0] == "FreeBSD":
+		failed += test_all("FreeBSD x86", ["--platform", "freebsd", "--arch", "x86"])
+		failed += test_all("FreeBSD x64", ["--platform", "freebsd", "--arch", "x64"])
+	else:
 		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"])
 
 if failed != 0:

@@ -196,7 +196,7 @@ $(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) Makef
 
 ifeq ($(CONFIG),release)
 Obj/Version.cpp: Makefile | Obj/
-	echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 
 $(VERSION_OBJ): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)

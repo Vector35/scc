@@ -14,17 +14,21 @@ HOST := $(shell uname)
 ifeq ($(HOST),Linux)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
+	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),FreeBSD)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
+	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),Darwin)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
+	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 	TARGET := scc.exe
 	BOOTSTRAP := Obj/scc-bootstrap.exe
+	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 endif
 endif
 endif
@@ -196,7 +200,7 @@ $(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) Makef
 
 ifeq ($(CONFIG),release)
 Obj/Version.cpp: Makefile | Obj/
-	echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	$(MAKE_VERSION)
 
 $(VERSION_OBJ): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)

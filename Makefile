@@ -24,7 +24,7 @@ else
 ifeq ($(HOST),Darwin)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
-	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 	TARGET := scc.exe
 	BOOTSTRAP := Obj/scc-bootstrap.exe

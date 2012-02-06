@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "asmx86.h"
 #include "Linker.h"
 #include "CodeParser.h"
 #include "CodeLexer.h"

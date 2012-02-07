@@ -474,9 +474,9 @@ void Type::Print()
 		break;
 	case TYPE_INT:
 		if (m_signed)
-			fprintf(stderr, "int%ld_t", m_width * 8);
+			fprintf(stderr, "int%d_t", (int)(m_width * 8));
 		else
-			fprintf(stderr, "uint%ld_t", m_width * 8);
+			fprintf(stderr, "uint%d_t", (int)(m_width * 8));
 		break;
 	case TYPE_FLOAT:
 		if (m_width == 4)
@@ -498,7 +498,7 @@ void Type::Print()
 		break;
 	case TYPE_ARRAY:
 		m_childType->Print();
-		fprintf(stderr, "[%ld]", m_elements);
+		fprintf(stderr, "[%d]", (int)m_elements);
 		break;
 	case TYPE_FUNCTION:
 		m_childType->Print();

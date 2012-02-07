@@ -144,7 +144,8 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 		}
 		return value;
 	case EXPR_ABS:
-		return abs(m_children[0]->ComputeIntegerValue(state));
+		value = m_children[0]->ComputeIntegerValue(state);
+		return (value < 0) ? (-value) : value;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: expected constant integer expression\n", m_location.fileName.c_str(),

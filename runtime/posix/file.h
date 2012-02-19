@@ -54,5 +54,7 @@ int fprintf(FILE* fp, const char* fmt, ...);
 int vprintf(const char* fmt, va_list va);
 int vfprintf(FILE* fp, const char* fmt, va_list va);
 
+ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
+
 #endif
 

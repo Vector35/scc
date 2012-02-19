@@ -18,43 +18,30 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-size_t lseek(int fd, size_t offset, int whence)
-{
-	return __syscall(SYS_lseek, fd, offset, whence);
-}
+#ifndef __LIBC__MACH_FILE_H__
+#define __LIBC__MACH_FILE_H__
 
-int open(const char* file, int flags, int mode)
-{
-	return __syscall(SYS_open, file, flags, mode);
-}
+#define O_RDONLY    0
+#define O_WRONLY    1
+#define O_RDWR      2
+#define O_ACCMODE   3
+#define O_NONBLOCK  4
+#define O_APPEND    8
+#define O_SHLOCK    0x10
+#define O_EXLOCK    0x20
+#define O_ASYNC     0x40
+#define O_FSYNC     0x80
+#define O_SYNC      0x80
+#define O_NOFOLLOW  0x100
+#define O_CREAT     0x200
+#define O_TRUNC     0x400
+#define O_EXCL      0x800
+#define O_EVTONLY   0x8000
+#define O_NOCTTY    0x20000
+#define O_DIRECTORY 0x100000
+#define O_SYMLINK   0x200000
+#define O_DSYNC     0x400000
+#define O_CLOEXEC   0x1000000
 
-int close(int fd)
-{
-	return __syscall(SYS_close, fd);
-}
-
-int dup(int fd)
-{
-	return __syscall(SYS_dup, fd);
-}
-
-int dup2(int oldFd, int newFd)
-{
-	return __syscall(SYS_dup2, oldFd, newFd);
-}
-
-ssize_t read(int fd, void* buf, size_t count)
-{
-	return __syscall(SYS_read, fd, buf, count);
-}
-
-ssize_t write(int fd, const void* buf, size_t count)
-{
-	return __syscall(SYS_write, fd, buf, count);
-}
-
-ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
-{
-	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
-}
+#endif
 

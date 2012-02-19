@@ -49,7 +49,10 @@ seeds = [17, 42, 1024, 1337, 4096, 4141, 7331, 31337, 65536, 1048576]
 
 def test(arch_name, name, testcase, arch_options, options):
 	if "target" in testcase:
-		compile_cmd = ["./scc", "-o", "Obj/target", "-f", "elf", testcase["target"]] + arch_options
+		if os.uname()[0] == "Darwin":
+			compile_cmd = ["./scc", "-o", "Obj/target", "-f", "macho", testcase["target"]] + arch_options
+		else:
+			compile_cmd = ["./scc", "-o", "Obj/target", "-f", "elf", testcase["target"]] + arch_options
 		if "targetoptions" in testcase:
 			compile_cmd += testcase["targetoptions"]
 		proc = subprocess.Popen(compile_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -66,6 +69,8 @@ def test(arch_name, name, testcase, arch_options, options):
 
 	if "target" in testcase:
 		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "bin", testcase["source"]] + arch_options + options
+	elif os.uname()[0] == "Darwin":
+		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "macho", testcase["source"]] + arch_options + options
 	else:
 		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "elf", testcase["source"]] + arch_options + options
 	proc = subprocess.Popen(compile_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -155,7 +160,9 @@ def test_all(arch_name, arch_options):
 	return failed
 
 failed = 0
-if os.name != "nt":
+if os.uname()[0] == "Darwin":
+	failed += test_all("Mac OS X x64", ["--platform", "mach", "--arch", "x64"])
+elif os.name != "nt":
 	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
 	if os.uname()[0] == "FreeBSD":
 		failed += test_all("FreeBSD x86", ["--platform", "freebsd", "--arch", "x86"])

@@ -44,6 +44,7 @@ enum OutputFormat
 	FORMAT_BIN,
 	FORMAT_ELF,
 	FORMAT_PE,
+	FORMAT_MACHO,
 	FORMAT_LIB
 };
 

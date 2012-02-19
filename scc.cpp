@@ -63,7 +63,7 @@ void Usage()
 	fprintf(stderr, "                                      output to a file)\n");
 	fprintf(stderr, "    --exec-stack                      When outputting an executable, make stack executable\n");
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
-	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe\n");
+	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe, macho\n");
 	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
@@ -299,6 +299,8 @@ int main(int argc, char* argv[])
 				settings.format = FORMAT_ELF;
 			else if (!strcmp(argv[i], "pe"))
 				settings.format = FORMAT_PE;
+			else if (!strcmp(argv[i], "macho"))
+				settings.format = FORMAT_MACHO;
 			else if (!strcmp(argv[i], "lib"))
 				settings.format = FORMAT_LIB;
 			else

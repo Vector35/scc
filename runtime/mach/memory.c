@@ -18,43 +18,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-size_t lseek(int fd, size_t offset, int whence)
+void* mmap(void* addr, size_t len, int prot, int flags, int fd, uint64_t offset)
 {
-	return __syscall(SYS_lseek, fd, offset, whence);
+	size_t shiftedOffset = (size_t)(offset >> 12);
+	return (void*)__syscall(SYS_mmap, addr, len, prot, flags, fd, shiftedOffset);
 }
 
-int open(const char* file, int flags, int mode)
+void* munmap(void* addr, size_t len)
 {
-	return __syscall(SYS_open, file, flags, mode);
-}
-
-int close(int fd)
-{
-	return __syscall(SYS_close, fd);
-}
-
-int dup(int fd)
-{
-	return __syscall(SYS_dup, fd);
-}
-
-int dup2(int oldFd, int newFd)
-{
-	return __syscall(SYS_dup2, oldFd, newFd);
-}
-
-ssize_t read(int fd, void* buf, size_t count)
-{
-	return __syscall(SYS_read, fd, buf, count);
-}
-
-ssize_t write(int fd, const void* buf, size_t count)
-{
-	return __syscall(SYS_write, fd, buf, count);
-}
-
-ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
-{
-	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
+	return (void*)__syscall(SYS_munmap, addr, len);
 }
 

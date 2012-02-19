@@ -4739,7 +4739,7 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(OutputBlock* out, const ILInstruction& in
 bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& instr)
 {
 #ifdef OUTPUT32
-	if (m_settings.os == OS_FREEBSD)
+	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MACH))
 	{
 		// FreeBSD expects syscall parameters on a normal stack
 		if (!m_normalStack)
@@ -4869,7 +4869,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	}
 #endif
 
-	if ((m_settings.os != OS_LINUX) && (m_settings.os != OS_FREEBSD))
+	if ((m_settings.os != OS_LINUX) && (m_settings.os != OS_FREEBSD) && (m_settings.os != OS_MACH))
 		return false;
 
 #ifdef OUTPUT32

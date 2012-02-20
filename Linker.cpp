@@ -736,17 +736,6 @@ bool Linker::FinalizeLink()
 	if (startState.HasErrors())
 		return false;
 
-	// Make string constants into global const character arrays
-	map< string, Ref<Variable> > stringMap;
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
-	{
-		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
-			(*j)->ConvertStringsToVariables(stringMap);
-	}
-
-	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
-		m_variables.push_back(i->second);
-
 	// Remove all functions that aren't referenced
 	Optimize optimize(this);
 	optimize.RemoveUnreferencedSymbols();
@@ -774,6 +763,17 @@ bool Linker::FinalizeLink()
 			(*i)->Print();
 	}
 #endif
+
+	// Make string constants into global const character arrays
+	map< string, Ref<Variable> > stringMap;
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	{
+		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+			(*j)->ConvertStringsToVariables(stringMap);
+	}
+
+	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
+		m_variables.push_back(i->second);
 
 	return true;
 }

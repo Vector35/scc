@@ -226,10 +226,9 @@ void Optimize::InlineFunction(Function* func, Function* target)
 			}
 		}
 
-		// If there is a return value, create a temporary variable to hold it
-		ILParameter returnValue;
-		if (target->GetReturnValue()->GetClass() != TYPE_VOID)
-			returnValue = func->CreateTempVariable(target->GetReturnValue());
+		// Let the inlined function write the return value directly to the variable which
+		// was going to hold it
+		ILParameter returnValue = instr.params[0];
 
 		// Copy the variables (excluding the parameters, which have already been mapped)
 		for (vector< Ref<Variable> >::const_iterator j = target->GetVariables().begin();
@@ -262,7 +261,8 @@ void Optimize::InlineFunction(Function* func, Function* target)
 					newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
 				else if (instr.operation == ILOP_RETURN)
 				{
-					newBlock->AddInstruction(ILOP_ASSIGN, returnValue, instr.params[0]);
+					if (returnValue.cls != ILPARAM_VOID)
+						newBlock->AddInstruction(ILOP_ASSIGN, returnValue, instr.params[0]);
 					newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
 				}
 				else
@@ -418,7 +418,7 @@ void Optimize::PerformGlobalOptimizations()
 		{
 			Function* target = *i;
 			Function* caller = functionCaller[*i];
-//			InlineFunction(caller, target);
+			InlineFunction(caller, target);
 
 			// Once a function is inlined, remove it from the list
 			functionCaller.erase(target);

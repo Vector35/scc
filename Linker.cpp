@@ -781,7 +781,11 @@ bool Linker::FinalizeLink()
 		return false;
 
 	// Perform analysis on the code and optimize using settings
-	Optimize optimize(m_settings);
+	// IMPORTANT: The call to the optimizer must be made, even if optimization is disabled, so that
+	// control and data flow analysis is performed (needed for code generation).  No actual optimization
+	// will be done if optimization is disabled.
+	Optimize optimize(this);
+	optimize.PerformGlobalOptimizations();
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		optimize.OptimizeFunction(*i);
 

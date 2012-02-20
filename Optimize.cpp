@@ -1,11 +1,12 @@
 #include <queue>
+#include <list>
 #include "Optimize.h"
 #include "Struct.h"
 
 using namespace std;
 
 
-Optimize::Optimize(const Settings& settings): m_settings(settings)
+Optimize::Optimize(Linker* linker): m_linker(linker), m_settings(linker->GetSettings())
 {
 }
 
@@ -58,14 +59,14 @@ bool Optimize::ConsolidateBasicBlocks(Function* func)
 	bool changed = false;
 
 	// Remove unused blocks (don't process first block, this has an implicit entry)
-	vector<ILBlock*> toRemove;
+	list<ILBlock*> toRemove;
 	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin() + 1; i != func->GetIL().end(); i++)
 	{
 		if ((*i)->GetEntryBlocks().size() == 0)
 			toRemove.push_back(*i);
 	}
 
-	for (vector<ILBlock*>::iterator i = toRemove.begin(); i != toRemove.end(); i++)
+	for (list<ILBlock*>::iterator i = toRemove.begin(); i != toRemove.end(); i++)
 	{
 		func->RemoveILBlock(*i);
 		changed = true;
@@ -167,6 +168,108 @@ bool Optimize::ConsolidateBasicBlocks(Function* func)
 	}
 
 	return changed;
+}
+
+
+void Optimize::InlineFunction(Function* func, Function* target)
+{
+}
+
+
+void Optimize::PerformGlobalOptimizations()
+{
+	if (m_settings.optimization == OPTIMIZE_DISABLE)
+		return;
+
+	// Collect function inlining candidates.  Any function that is only called once, and is not
+	// referenced using a pointer, will be inlined into the calling function.
+	map<Function*, Function*> functionCaller;
+	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
+		functionCaller[*i] = NULL;
+
+	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
+	{
+		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+		{
+			for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
+				k != (*j)->GetInstructions().end(); k++)
+			{
+				for (size_t p = 0; p < k->params.size(); p++)
+				{
+					if (k->params[p].cls != ILPARAM_FUNC)
+						continue;
+
+					if (functionCaller.find(k->params[p].function) == functionCaller.end())
+					{
+						// Function has already been found to not be an inline candidate
+						continue;
+					}
+
+					if ((k->operation != ILOP_CALL) || (p != 1))
+					{
+						// Function referenced outside call target, this function cannot
+						// be inlined
+						functionCaller.erase(k->params[p].function);
+						continue;
+					}
+
+					if (functionCaller[k->params[p].function] != NULL)
+					{
+						// Function has been called elsewhere, don't inline it
+						functionCaller.erase(k->params[p].function);
+						continue;
+					}
+
+					// Record caller for possible inlining later
+					functionCaller[k->params[p].function] = *i;
+				}
+			}
+		}
+	}
+
+	// Remove functions that aren't called
+	list<Function*> toRemove;
+	for (map<Function*, Function*>::iterator i = functionCaller.begin(); i != functionCaller.end(); i++)
+	{
+		if (i->second == NULL)
+			toRemove.push_back(i->first);
+	}
+	for (list<Function*>::iterator i = toRemove.begin(); i != toRemove.end(); i++)
+		functionCaller.erase(*i);
+
+	// Inline any candidate functions, ensuring that leaf nodes get inlined first, so that the inlining results
+	// get included if that function gets inlined elsewhere
+	while (functionCaller.size() > 0)
+	{
+		set<Function*> toInline;
+		for (map<Function*, Function*>::iterator i = functionCaller.begin(); i != functionCaller.end(); i++)
+			toInline.insert(i->first);
+		for (map<Function*, Function*>::iterator i = functionCaller.begin(); i != functionCaller.end(); i++)
+		{
+			// Remove functions that aren't leaf nodes for this iteration
+			if (toInline.find(i->second) == toInline.end())
+				continue;
+			toInline.erase(i->second);
+		}
+
+		// Perform inlining
+		for (set<Function*>::iterator i = toInline.begin(); i != toInline.end(); i++)
+		{
+			Function* target = *i;
+			Function* caller = functionCaller[*i];
+			InlineFunction(caller, target);
+
+			// Once a function is inlined, remove it from the list
+			functionCaller.erase(target);
+		}
+
+		// Sanity check to ensure forward progress
+		if ((toInline.size() == 0) && (functionCaller.size() != 0))
+		{
+			fprintf(stderr, "warning: function inlining is stuck in a loop\n");
+			break;
+		}
+	}
 }
 
 

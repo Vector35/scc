@@ -55,6 +55,12 @@ public:
 	bool OutputLibrary(OutputBlock* output);
 	bool OutputCode(OutputBlock* finalBinary);
 	bool WriteMapFile(const std::string& filename);
+
+	const Settings& GetSettings() { return m_settings; }
+	std::vector< Ref<Function> >& GetFunctions() { return m_functions; }
+	std::map< std::string, Ref<Function> >& GetFunctionsByName() { return m_functionsByName; }
+	std::vector< Ref<Variable> >& GetVariables() { return m_variables; }
+	std::map< std::string, Ref<Variable> >& GetVariablesByName() { return m_variablesByName; }
 };
 
 

@@ -2,17 +2,22 @@
 #define __OPTIMIZE_H__
 
 #include "Function.h"
+#include "Linker.h"
 
 class Optimize
 {
+	Linker* m_linker;
 	Settings m_settings;
 
 public:
-	Optimize(const Settings& settings);
+	Optimize(Linker* linker);
 
 	void PerformControlFlowAnalysis(Function* func);
 	bool ConsolidateBasicBlocks(Function* func);
 
+	void InlineFunction(Function* func, Function* target);
+
+	void PerformGlobalOptimizations();
 	void OptimizeFunction(Function* func);
 };
 

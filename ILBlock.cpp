@@ -695,6 +695,7 @@ ILBlock::ILBlock()
 {
 	m_index = 0;
 	m_output = NULL;
+	m_blockEnded = false;
 }
 
 
@@ -702,6 +703,7 @@ ILBlock::ILBlock(size_t i)
 {
 	m_index = i;
 	m_output = NULL;
+	m_blockEnded = false;
 }
 
 
@@ -717,6 +719,12 @@ ILBlock::~ILBlock()
 
 void ILBlock::AddInstruction(const ILInstruction& instr)
 {
+	if (m_blockEnded)
+	{
+		// A block ending instruction has already been emitted, just ignore anything after it
+		return;
+	}
+
 	// For instructions that use the special __undefined value, the output is considered
 	// a "don't care".  For conditions, always take the false case.  For returns, convert
 	// to a return of void (which ignores the return value).  For calls, leave the
@@ -749,6 +757,31 @@ void ILBlock::AddInstruction(const ILInstruction& instr)
 		// Normal instruction, add to list
 		m_instrs.push_back(instr);
 	}
+
+	// Check for block ending instructions
+	switch (instr.operation)
+	{
+	case ILOP_IF_TRUE:
+	case ILOP_IF_LESS_THAN:
+	case ILOP_IF_LESS_EQUAL:
+	case ILOP_IF_BELOW:
+	case ILOP_IF_BELOW_EQUAL:
+	case ILOP_IF_EQUAL:
+	case ILOP_GOTO:
+	case ILOP_RETURN:
+	case ILOP_RETURN_VOID:
+		m_blockEnded = true;
+		break;
+	default:
+		break;
+	}
+}
+
+
+void ILBlock::RemoveLastInstruction()
+{
+	m_instrs.erase(m_instrs.end() - 1);
+	m_blockEnded = false;
 }
 
 
@@ -1021,6 +1054,13 @@ void ILBlock::TagReferences()
 {
 	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
 		i->TagReferences();
+}
+
+
+void ILBlock::ClearEntryAndExitBlocks()
+{
+	m_entryBlocks.clear();
+	m_exitBlocks.clear();
 }
 
 

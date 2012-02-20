@@ -24,6 +24,7 @@
 #include "Linker.h"
 #include "CodeParser.h"
 #include "CodeLexer.h"
+#include "Optimize.h"
 #include "OutputX86.h"
 #include "OutputX64.h"
 #include "ElfOutput.h"
@@ -772,6 +773,18 @@ bool Linker::FinalizeLink()
 		}
 	}
 
+	// Generate errors for undefined references
+	size_t errors = 0;
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		(*i)->CheckForUndefinedReferences(errors);
+	if (errors > 0)
+		return false;
+
+	// Perform analysis on the code and optimize using settings
+	Optimize optimize(m_settings);
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		optimize.OptimizeFunction(*i);
+
 #ifndef WIN32
 	if (m_settings.internalDebug)
 	{
@@ -780,13 +793,6 @@ bool Linker::FinalizeLink()
 			(*i)->Print();
 	}
 #endif
-
-	// Generate errors for undefined references
-	size_t errors = 0;
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
-		(*i)->CheckForUndefinedReferences(errors);
-	if (errors > 0)
-		return false;
 
 	return true;
 }

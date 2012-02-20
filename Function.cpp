@@ -230,6 +230,26 @@ ILBlock* Function::CreateILBlock()
 }
 
 
+void Function::RemoveILBlock(ILBlock* block)
+{
+	// Remove block from block list
+	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
+	{
+		if ((*i) == block)
+		{
+			for (vector<ILBlock*>::iterator j = i + 1; j != m_ilBlocks.end(); j++)
+				(*j)->SetIndex((*j)->GetIndex() - 1);
+			m_ilBlocks.erase(i);
+			break;
+		}
+	}
+
+	// Remove block from exit blocks
+	if (m_exitBlocks.count(block) != 0)
+		m_exitBlocks.erase(block);
+}
+
+
 ILParameter Function::CreateTempVariable(Type* type)
 {
 	char tempStr[32];
@@ -664,7 +684,35 @@ void Function::Print()
 
 	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
 	{
-		fprintf(stderr, "%d:\n", (int)(*i)->GetIndex());
+		fprintf(stderr, "%d: ", (int)(*i)->GetIndex());
+
+		if ((*i)->GetEntryBlocks().size() != 0)
+		{
+			fprintf(stderr, "[entry ");
+			for (set<ILBlock*>::const_iterator j = (*i)->GetEntryBlocks().begin();
+				j != (*i)->GetEntryBlocks().end(); j++)
+			{
+				if (j != (*i)->GetEntryBlocks().begin())
+					fprintf(stderr, ", ");
+				fprintf(stderr, "%d", (int)(*j)->GetIndex());
+			}
+			fprintf(stderr, "] ");
+		}
+
+		if ((*i)->GetExitBlocks().size() != 0)
+		{
+			fprintf(stderr, "[exit ");
+			for (set<ILBlock*>::const_iterator j = (*i)->GetExitBlocks().begin();
+				j != (*i)->GetExitBlocks().end(); j++)
+			{
+				if (j != (*i)->GetExitBlocks().begin())
+					fprintf(stderr, ", ");
+				fprintf(stderr, "%d", (int)(*j)->GetIndex());
+			}
+			fprintf(stderr, "] ");
+		}
+
+		fprintf(stderr, "\n");
 		(*i)->Print();
 	}
 

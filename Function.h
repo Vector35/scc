@@ -98,6 +98,8 @@ class Function: public RefCountObject
 	bool m_localScope;
 	bool m_variableSizedStackFrame;
 
+	std::set<ILBlock*> m_exitBlocks;
+
 	size_t m_tagCount;
 
 	size_t m_serializationIndex;
@@ -147,6 +149,7 @@ public:
 	const std::vector<ILBlock*>& GetIL() const { return m_ilBlocks; }
 	void GenerateIL(ParserState* state);
 	ILBlock* CreateILBlock();
+	void RemoveILBlock(ILBlock* block);
 	ILParameter CreateTempVariable(Type* type);
 
 	bool IsVariableSizedStackFrame() const { return m_variableSizedStackFrame; }
@@ -176,6 +179,11 @@ public:
 	void ReplaceVariable(Variable* from, Variable* to);
 
 	void CheckForUndefinedReferences(size_t& errors);
+
+	void ClearExitBlocks() { m_exitBlocks.clear(); }
+	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }
+	void RemoveExitBlock(ILBlock* block) { m_exitBlocks.erase(block); }
+	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
 
 	void ResetTagCount() { m_tagCount = 0; }
 	size_t GetTagCount() const { return m_tagCount; }

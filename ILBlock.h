@@ -21,6 +21,7 @@
 #ifndef __ILBLOCK_H__
 #define __ILBLOCK_H__
 
+#include <set>
 #include "Type.h"
 
 
@@ -194,6 +195,9 @@ class ILBlock
 	std::vector<ILInstruction> m_instrs;
 	OutputBlock* m_output;
 	uint64_t m_addr;
+	bool m_blockEnded;
+
+	std::set<ILBlock*> m_entryBlocks, m_exitBlocks;
 
 	static std::map<size_t, ILBlock*> m_serializationMapping;
 
@@ -221,6 +225,7 @@ public:
 		const ILParameter& d) { AddInstruction(ILInstruction(op, a, b, c, d)); }
 	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list) { AddInstruction(ILInstruction(op, list)); }
 	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value) { m_instrs[i].params[param] = value; }
+	void RemoveLastInstruction();
 
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
@@ -237,6 +242,14 @@ public:
 	bool EndsWithReturn() const;
 
 	void TagReferences();
+
+	void ClearEntryAndExitBlocks();
+	void AddEntryBlock(ILBlock* block) { m_entryBlocks.insert(block); }
+	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }
+	void RemoveEntryBlock(ILBlock* block) { m_entryBlocks.erase(block); }
+	void RemoveExitBlock(ILBlock* block) { m_exitBlocks.erase(block); }
+	const std::set<ILBlock*>& GetEntryBlocks() { return m_entryBlocks; }
+	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
 
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);

@@ -4909,10 +4909,9 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	{
 		if (regs[regIndex] == NONE)
 			return false;
-		ReserveRegisters(NULL, regs[regIndex], NONE);
-
 		if (instr.params[i].cls == ILPARAM_UNDEFINED)
 			continue;
+		ReserveRegisters(NULL, regs[regIndex], NONE);
 
 #ifdef OUTPUT32
 		if (instr.params[i].GetWidth() == 8)

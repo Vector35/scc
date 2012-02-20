@@ -575,6 +575,83 @@ void ILInstruction::TagReferences()
 }
 
 
+void ILInstruction::MarkWrittenVariables()
+{
+	switch (operation)
+	{
+	case ILOP_ASSIGN:
+	case ILOP_ADDRESS_OF_MEMBER:
+	case ILOP_DEREF:
+	case ILOP_DEREF_MEMBER:
+	case ILOP_DEREF_ASSIGN:
+	case ILOP_DEREF_MEMBER_ASSIGN:
+	case ILOP_ARRAY_INDEX:
+	case ILOP_ARRAY_INDEX_ASSIGN:
+	case ILOP_PTR_ADD:
+	case ILOP_PTR_SUB:
+	case ILOP_PTR_DIFF:
+	case ILOP_ADD:
+	case ILOP_SUB:
+	case ILOP_SMULT:
+	case ILOP_UMULT:
+	case ILOP_SDIV:
+	case ILOP_UDIV:
+	case ILOP_SMOD:
+	case ILOP_UMOD:
+	case ILOP_AND:
+	case ILOP_OR:
+	case ILOP_XOR:
+	case ILOP_SHL:
+	case ILOP_SHR:
+	case ILOP_SAR:
+	case ILOP_NEG:
+	case ILOP_NOT:
+	case ILOP_CALL:
+	case ILOP_SCONVERT:
+	case ILOP_UCONVERT:
+	case ILOP_ALLOCA:
+	case ILOP_STRLEN:
+	case ILOP_SYSCALL:
+	case ILOP_RDTSC:
+	case ILOP_RDTSC_LOW:
+	case ILOP_RDTSC_HIGH:
+	case ILOP_NEXT_ARG:
+	case ILOP_PREV_ARG:
+	case ILOP_BYTESWAP:
+		// These instructions write to the first parameter
+		if (params[0].cls == ILPARAM_VAR)
+			params[0].variable->SetWritten(true);
+		break;
+	case ILOP_ADDRESS_OF:
+		// This technically isn't a write to the source parameter itself, but this
+		// creates an alias, which could lead to an indirect write.  Proper alias analysis
+		// could resolve some of these and determine if there is actually a write.  Since
+		// the primary use of this function is to do simple optimizations on the inlining
+		// process, we can optimize any unnecessary aliased copies later.
+		if (params[0].cls == ILPARAM_VAR)
+			params[0].variable->SetWritten(true);
+		if (params[1].cls == ILPARAM_VAR)
+			params[1].variable->SetWritten(true);
+		break;
+	case ILOP_IF_TRUE:
+	case ILOP_IF_LESS_THAN:
+	case ILOP_IF_LESS_EQUAL:
+	case ILOP_IF_BELOW:
+	case ILOP_IF_BELOW_EQUAL:
+	case ILOP_IF_EQUAL:
+	case ILOP_GOTO:
+	case ILOP_RETURN:
+	case ILOP_RETURN_VOID:
+	case ILOP_MEMCPY:
+	case ILOP_MEMSET:
+		// These instructions do not write to any variables, default is avoided here
+		// to make the compiler spit out warnings if instructions are added but they
+		// aren't handled here (which could lead to well hidden bugs)
+		break;
+	}
+}
+
+
 void ILInstruction::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(operation);
@@ -747,6 +824,8 @@ void ILBlock::AddInstruction(const ILInstruction& instr)
 			AddInstruction(ILOP_RETURN_VOID);
 		else if (instr.operation == ILOP_CALL)
 			m_instrs.push_back(instr);
+		else if (instr.operation == ILOP_SYSCALL)
+			m_instrs.push_back(instr);
 		else if ((instr.operation == ILOP_IF_TRUE) || (instr.operation == ILOP_IF_LESS_THAN) ||
 			(instr.operation == ILOP_IF_LESS_EQUAL) || (instr.operation == ILOP_IF_BELOW) ||
 			(instr.operation == ILOP_IF_BELOW_EQUAL) || (instr.operation == ILOP_IF_EQUAL))
@@ -781,6 +860,15 @@ void ILBlock::AddInstruction(const ILInstruction& instr)
 void ILBlock::RemoveLastInstruction()
 {
 	m_instrs.erase(m_instrs.end() - 1);
+	m_blockEnded = false;
+}
+
+
+void ILBlock::SplitBlock(size_t firstToMove, ILBlock* target)
+{
+	target->m_instrs.insert(target->m_instrs.begin(), m_instrs.begin() + firstToMove, m_instrs.end());
+	m_instrs.erase(m_instrs.begin() + firstToMove, m_instrs.end());
+	target->m_blockEnded = m_blockEnded;
 	m_blockEnded = false;
 }
 

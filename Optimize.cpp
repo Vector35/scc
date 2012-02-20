@@ -173,6 +173,155 @@ bool Optimize::ConsolidateBasicBlocks(Function* func)
 
 void Optimize::InlineFunction(Function* func, Function* target)
 {
+	// Find all the calls to the target function
+	list< pair<ILBlock*, size_t> > calls;
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+		{
+			if ((*i)->GetInstructions()[j].operation != ILOP_CALL)
+				continue;
+			if ((*i)->GetInstructions()[j].params[1].cls != ILPARAM_FUNC)
+				continue;
+			if ((*i)->GetInstructions()[j].params[1].function != target)
+				continue;
+			calls.push_back(pair<ILBlock*, size_t>(*i, j));
+		}
+	}
+
+	// Perform inlining on each call
+	for (list< pair<ILBlock*, size_t> >::iterator i = calls.begin(); i != calls.end(); i++)
+	{
+		// Make a copy of the instruction, as it is going away but information from it is needed
+		ILInstruction instr = i->first->GetInstructions()[i->second];
+
+		// Split the basic block at the call instruction.  It will be recombined into a single
+		// block if possible later in the optimization process.
+		ILBlock* endBlock = func->CreateILBlock();
+		i->first->SplitBlock(i->second + 1, endBlock);
+		i->first->RemoveLastInstruction();
+
+		// Copy parameters that aren't read only to ensure the target function doesn't corrupt
+		// the parent function's context.  For read only parameters, use the caller's value
+		// directly in the inlined function.
+		std::map< Ref<Variable>, ILParameter > varMapping;
+		for (vector< Ref<Variable> >::const_iterator j = target->GetVariables().begin();
+			j != target->GetVariables().end(); j++)
+		{
+			if (!(*j)->IsParameter())
+				continue;
+
+			ILParameter param = instr.params[2 + (*j)->GetParameterIndex()];
+			if ((*j)->IsWritten())
+			{
+				// Parameter is written, make a copy
+				ILParameter copy = func->CreateTempVariable((*j)->GetType());
+				i->first->AddInstruction(ILOP_ASSIGN, copy, param);
+				varMapping[*j] = copy;
+			}
+			else
+			{
+				// Parameter is read only, map directly
+				varMapping[*j] = param;
+			}
+		}
+
+		// If there is a return value, create a temporary variable to hold it
+		ILParameter returnValue;
+		if (target->GetReturnValue()->GetClass() != TYPE_VOID)
+			returnValue = func->CreateTempVariable(target->GetReturnValue());
+
+		// Copy the variables (excluding the parameters, which have already been mapped)
+		for (vector< Ref<Variable> >::const_iterator j = target->GetVariables().begin();
+			j != target->GetVariables().end(); j++)
+		{
+			if (!(*j)->IsParameter())
+				func->AddVariable(*j);
+		}
+
+		// Create block objects for every block that will be added to the parent function, and
+		// keep a mapping of blocks from the target function to the parent function
+		map<ILBlock*, ILBlock*> blockMapping;
+		for (vector<ILBlock*>::const_iterator j = target->GetIL().begin(); j != target->GetIL().end(); j++)
+		{
+			ILBlock* newBlock = func->CreateILBlock();
+			blockMapping[*j] = newBlock;
+		}
+
+		// Copy over the basic blocks, replacing parameter variables along the way, as well as
+		// converting return instructions into a store and goto.
+		for (vector<ILBlock*>::const_iterator j = target->GetIL().begin(); j != target->GetIL().end(); j++)
+		{
+			ILBlock* newBlock = blockMapping[*j];
+
+			for (vector<ILInstruction>::iterator k = (*j)->GetInstructions().begin();
+				k != (*j)->GetInstructions().end(); k++)
+			{
+				ILInstruction instr = *k;
+				if (instr.operation == ILOP_RETURN_VOID)
+					newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
+				else if (instr.operation == ILOP_RETURN)
+				{
+					newBlock->AddInstruction(ILOP_ASSIGN, returnValue, instr.params[0]);
+					newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
+				}
+				else
+				{
+					// Normal instruction, replace parameter variables and block references
+					for (size_t p = 0; p < instr.params.size(); p++)
+					{
+						if (instr.params[p].cls == ILPARAM_VAR)
+						{
+							if (varMapping.find(instr.params[p].variable) == varMapping.end())
+								continue;
+							instr.params[p] = varMapping[instr.params[p].variable];
+						}
+						else if (instr.params[p].cls == ILPARAM_BLOCK)
+						{
+							if (blockMapping.find(instr.params[p].block) == blockMapping.end())
+								continue;
+							instr.params[p].block = blockMapping[instr.params[p].block];
+						}
+					}
+
+					newBlock->AddInstruction(instr);
+				}
+			}
+		}
+
+		// Jump to the inlined function at the start
+		i->first->AddInstruction(ILOP_GOTO, ILParameter(blockMapping[target->GetIL()[0]]));
+	}
+}
+
+
+void Optimize::RemoveUnreferencedSymbols()
+{
+	// Tag everything referenced from the main function
+	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
+		(*i)->ResetTagCount();
+	for (vector< Ref<Variable> >::iterator i = m_linker->GetVariables().begin(); i != m_linker->GetVariables().end(); i++)
+		(*i)->ResetTagCount();
+	m_linker->GetFunctions()[0]->TagReferences();
+
+	// Remove anything not referenced
+	for (size_t i = 0; i < m_linker->GetFunctions().size(); i++)
+	{
+		if (m_linker->GetFunctions()[i]->GetTagCount() == 0)
+		{
+			m_linker->GetFunctions().erase(m_linker->GetFunctions().begin() + i);
+			i--;
+		}
+	}
+
+	for (size_t i = 0; i < m_linker->GetVariables().size(); i++)
+	{
+		if (m_linker->GetVariables()[i]->GetTagCount() == 0)
+		{
+			m_linker->GetVariables().erase(m_linker->GetVariables().begin() + i);
+			i--;
+		}
+	}
 }
 
 
@@ -181,11 +330,23 @@ void Optimize::PerformGlobalOptimizations()
 	if (m_settings.optimization == OPTIMIZE_DISABLE)
 		return;
 
+	// For each function, determine which variables are written to.  This information is used during
+	// the inlining process to figure out which parameters need to be copied into a temporary variable
+	// and which can be passed directly to the inlined code.
+	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
+		(*i)->CheckForVariableWrites();
+
 	// Collect function inlining candidates.  Any function that is only called once, and is not
 	// referenced using a pointer, will be inlined into the calling function.
 	map<Function*, Function*> functionCaller;
 	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
+	{
+		// Don't try to inline functions with variable arguments (it won't work)
+		if ((*i)->HasVariableArguments())
+			continue;
+
 		functionCaller[*i] = NULL;
+	}
 
 	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
 	{
@@ -257,7 +418,7 @@ void Optimize::PerformGlobalOptimizations()
 		{
 			Function* target = *i;
 			Function* caller = functionCaller[*i];
-			InlineFunction(caller, target);
+//			InlineFunction(caller, target);
 
 			// Once a function is inlined, remove it from the list
 			functionCaller.erase(target);
@@ -280,6 +441,8 @@ void Optimize::OptimizeFunction(Function* func)
 	while (changed)
 	{
 		changed = false;
+
+		RemoveUnreferencedSymbols();
 
 		PerformControlFlowAnalysis(func);
 		if ((m_settings.optimization != OPTIMIZE_DISABLE) && ConsolidateBasicBlocks(func))

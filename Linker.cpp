@@ -747,31 +747,9 @@ bool Linker::FinalizeLink()
 	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
 		m_variables.push_back(i->second);
 
-	// Tag everything referenced from the main function
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
-		(*i)->ResetTagCount();
-	for (vector< Ref<Variable> >::iterator i = m_variables.begin(); i != m_variables.end(); i++)
-		(*i)->ResetTagCount();
-	m_functions[0]->TagReferences();
-
-	// Remove anything not referenced
-	for (size_t i = 0; i < m_functions.size(); i++)
-	{
-		if (m_functions[i]->GetTagCount() == 0)
-		{
-			m_functions.erase(m_functions.begin() + i);
-			i--;
-		}
-	}
-
-	for (size_t i = 0; i < m_variables.size(); i++)
-	{
-		if (m_variables[i]->GetTagCount() == 0)
-		{
-			m_variables.erase(m_variables.begin() + i);
-			i--;
-		}
-	}
+	// Remove all functions that aren't referenced
+	Optimize optimize(this);
+	optimize.RemoveUnreferencedSymbols();
 
 	// Generate errors for undefined references
 	size_t errors = 0;
@@ -784,7 +762,6 @@ bool Linker::FinalizeLink()
 	// IMPORTANT: The call to the optimizer must be made, even if optimization is disabled, so that
 	// control and data flow analysis is performed (needed for code generation).  No actual optimization
 	// will be done if optimization is disabled.
-	Optimize optimize(this);
 	optimize.PerformGlobalOptimizations();
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		optimize.OptimizeFunction(*i);

@@ -151,6 +151,7 @@ public:
 	ILBlock* CreateILBlock();
 	void RemoveILBlock(ILBlock* block);
 	ILParameter CreateTempVariable(Type* type);
+	void AddVariable(Variable* var) { m_vars.push_back(var); }
 
 	bool IsVariableSizedStackFrame() const { return m_variableSizedStackFrame; }
 	void MarkVariableSizedStackFrame() { m_variableSizedStackFrame = true; }
@@ -179,6 +180,7 @@ public:
 	void ReplaceVariable(Variable* from, Variable* to);
 
 	void CheckForUndefinedReferences(size_t& errors);
+	void CheckForVariableWrites();
 
 	void ClearExitBlocks() { m_exitBlocks.clear(); }
 	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }

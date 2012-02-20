@@ -17,6 +17,7 @@ public:
 
 	void InlineFunction(Function* func, Function* target);
 
+	void RemoveUnreferencedSymbols();
 	void PerformGlobalOptimizations();
 	void OptimizeFunction(Function* func);
 };

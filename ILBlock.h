@@ -181,6 +181,7 @@ struct ILInstruction
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
 	void TagReferences();
+	void MarkWrittenVariables();
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
 	void Print() const;
@@ -225,7 +226,9 @@ public:
 		const ILParameter& d) { AddInstruction(ILInstruction(op, a, b, c, d)); }
 	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list) { AddInstruction(ILInstruction(op, list)); }
 	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value) { m_instrs[i].params[param] = value; }
+
 	void RemoveLastInstruction();
+	void SplitBlock(size_t firstToMove, ILBlock* target);
 
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);

@@ -376,6 +376,20 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 }
 
 
+void Function::CheckForVariableWrites()
+{
+	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+		(*i)->SetWritten(false);
+
+	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
+	{
+		for (vector<ILInstruction>::iterator j = (*i)->GetInstructions().begin();
+			j != (*i)->GetInstructions().end(); j++)
+			j->MarkWrittenVariables();
+	}
+}
+
+
 ParameterLocation Function::GetParameterLocation(size_t i) const
 {
 	if (i >= m_paramLocations.size())
@@ -673,6 +687,8 @@ void Function::Print()
 		fprintf(stderr, "\t");
 		if ((*i)->IsParameter())
 			fprintf(stderr, "[param %d] ", (int)(*i)->GetParameterIndex());
+		if (!(*i)->IsWritten())
+			fprintf(stderr, "[readonly] ");
 		(*i)->GetType()->Print();
 		if ((*i)->GetName().size() != 0)
 			fprintf(stderr, " %s (size %d)", (*i)->GetName().c_str(), (int)(*i)->GetType()->GetWidth());

@@ -53,11 +53,6 @@ ssize_t write(int fd, const void* buf, size_t count)
 	return __syscall(SYS_write, fd, buf, count);
 }
 
-ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
-{
-	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
-}
-
 int fputc(int ch, FILE* fp)
 {
 	return write((int)fp, &ch, 1);

@@ -366,6 +366,10 @@ void Optimize::PerformGlobalOptimizations()
 		if ((*i)->HasVariableArguments())
 			continue;
 
+		// Don't inline functions with a variable sized stack frame (i.e. functions that call alloca)
+		if ((*i)->IsVariableSizedStackFrame())
+			continue;
+
 		functionCaller[*i] = NULL;
 	}
 
@@ -398,6 +402,14 @@ void Optimize::PerformGlobalOptimizations()
 					if (functionCaller[k->params[p].function] != NULL)
 					{
 						// Function has been called elsewhere, don't inline it
+						functionCaller.erase(k->params[p].function);
+						continue;
+					}
+
+					if (((*i)->GetApproxStackFrameSize() + k->params[p].function->GetApproxStackFrameSize()) >= 0x80)
+					{
+						// Combined functions would have a large stack frame, don't inline as it could
+						// actually make the code larger
 						functionCaller.erase(k->params[p].function);
 						continue;
 					}

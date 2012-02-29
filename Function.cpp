@@ -275,6 +275,19 @@ void Function::SetLabel(const std::string& name, ILBlock* block)
 }
 
 
+size_t Function::GetApproxStackFrameSize()
+{
+	size_t result = 0;
+	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	{
+		if (result & ((*i)->GetType()->GetAlignment() - 1))
+			result += (*i)->GetType()->GetAlignment() - (result & ((*i)->GetType()->GetAlignment() - 1));
+		result += (*i)->GetType()->GetWidth();
+	}
+	return result;
+}
+
+
 ILBlock* Function::GetLabel(const string& name) const
 {
 	map<string, ILBlock*>::const_iterator i = m_labels.find(name);

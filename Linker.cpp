@@ -747,10 +747,16 @@ bool Linker::FinalizeLink()
 	if (errors > 0)
 		return false;
 
-	// Perform analysis on the code and optimize using settings
+	// Perform analysis on the code and optimize using settings.  First, run an initial optimization
+	// stage (this will optimize each function individually).  Then, perform global optimizations,
+	// including function inlining (this is done after an initial optimization phase so that the
+	// approximate stack size is more accurate).  Finally, run another optimization pass now that
+	// functions have been inlined.
 	// IMPORTANT: The call to the optimizer must be made, even if optimization is disabled, so that
 	// control and data flow analysis is performed (needed for code generation).  No actual optimization
 	// will be done if optimization is disabled.
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		optimize.OptimizeFunction(*i);
 	optimize.PerformGlobalOptimizations();
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		optimize.OptimizeFunction(*i);

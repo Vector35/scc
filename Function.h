@@ -155,6 +155,7 @@ public:
 
 	bool IsVariableSizedStackFrame() const { return m_variableSizedStackFrame; }
 	void MarkVariableSizedStackFrame() { m_variableSizedStackFrame = true; }
+	size_t GetApproxStackFrameSize();
 
 	void SetLabel(const std::string& name, ILBlock* block);
 	ILBlock* GetLabel(const std::string& name) const;

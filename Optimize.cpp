@@ -542,6 +542,9 @@ void Optimize::PerformGlobalOptimizations()
 			break;
 		}
 	}
+
+	// If there are functions that are no longer referenced, remove them
+	RemoveUnreferencedSymbols();
 }
 
 
@@ -553,8 +556,6 @@ bool Optimize::OptimizeFunction(Function* func)
 	while (changed)
 	{
 		changed = false;
-
-		RemoveUnreferencedSymbols();
 
 		PerformControlFlowAnalysis(func);
 		if ((m_settings.optimization != OPTIMIZE_DISABLE) && ConsolidateBasicBlocks(func))

@@ -63,6 +63,7 @@ typedef enum
 	ILOP_IF_EQUAL,
 	ILOP_GOTO,
 	ILOP_CALL,
+	ILOP_NORETURN,
 	ILOP_SCONVERT,
 	ILOP_UCONVERT,
 	ILOP_RETURN,
@@ -247,6 +248,7 @@ public:
 	void TagReferences();
 
 	void ClearEntryAndExitBlocks();
+	void ClearExitBlocks();
 	void AddEntryBlock(ILBlock* block) { m_entryBlocks.insert(block); }
 	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }
 	void RemoveEntryBlock(ILBlock* block) { m_entryBlocks.erase(block); }

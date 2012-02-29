@@ -5394,6 +5394,9 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			if (!GenerateCall(out, *i))
 				goto fail;
 			break;
+		case ILOP_NORETURN:
+			end = true;
+			break;
 		case ILOP_SCONVERT:
 			if (!GenerateSignedConvert(out, *i))
 				goto fail;

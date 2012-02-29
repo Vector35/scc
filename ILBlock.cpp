@@ -640,6 +640,7 @@ void ILInstruction::MarkWrittenVariables()
 	case ILOP_IF_BELOW_EQUAL:
 	case ILOP_IF_EQUAL:
 	case ILOP_GOTO:
+	case ILOP_NORETURN:
 	case ILOP_RETURN:
 	case ILOP_RETURN_VOID:
 	case ILOP_MEMCPY:
@@ -722,6 +723,7 @@ void ILInstruction::Print() const
 	case ILOP_IF_BELOW_EQUAL:  fprintf(stderr, "if unsigned "); params[0].Print(); fprintf(stderr, " <= "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
 	case ILOP_IF_EQUAL:  fprintf(stderr, "if "); params[0].Print(); fprintf(stderr, " == "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
 	case ILOP_GOTO:  fprintf(stderr, "goto "); params[0].Print(); break;
+	case ILOP_NORETURN:  fprintf(stderr, "noreturn"); break;
 	case ILOP_SCONVERT:  params[0].Print(); fprintf(stderr, " = sconvert "); params[1].Print(); break;
 	case ILOP_UCONVERT:  params[0].Print(); fprintf(stderr, " = uconvert "); params[1].Print(); break;
 	case ILOP_RETURN:  fprintf(stderr, "return "); params[0].Print(); break;
@@ -847,6 +849,7 @@ void ILBlock::AddInstruction(const ILInstruction& instr)
 	case ILOP_IF_BELOW_EQUAL:
 	case ILOP_IF_EQUAL:
 	case ILOP_GOTO:
+	case ILOP_NORETURN:
 	case ILOP_RETURN:
 	case ILOP_RETURN_VOID:
 		m_blockEnded = true;
@@ -866,9 +869,11 @@ void ILBlock::RemoveLastInstruction()
 
 void ILBlock::SplitBlock(size_t firstToMove, ILBlock* target)
 {
-	target->m_instrs.insert(target->m_instrs.begin(), m_instrs.begin() + firstToMove, m_instrs.end());
+	if (target)
+		target->m_instrs.insert(target->m_instrs.begin(), m_instrs.begin() + firstToMove, m_instrs.end());
 	m_instrs.erase(m_instrs.begin() + firstToMove, m_instrs.end());
-	target->m_blockEnded = m_blockEnded;
+	if (target)
+		target->m_blockEnded = m_blockEnded;
 	m_blockEnded = false;
 }
 
@@ -1148,6 +1153,12 @@ void ILBlock::TagReferences()
 void ILBlock::ClearEntryAndExitBlocks()
 {
 	m_entryBlocks.clear();
+	m_exitBlocks.clear();
+}
+
+
+void ILBlock::ClearExitBlocks()
+{
 	m_exitBlocks.clear();
 }
 

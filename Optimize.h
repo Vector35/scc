@@ -14,12 +14,13 @@ public:
 
 	void PerformControlFlowAnalysis(Function* func);
 	bool ConsolidateBasicBlocks(Function* func);
+	bool OptimizeForNoReturnCalls(Function* func);
 
 	void InlineFunction(Function* func, Function* target);
 
 	void RemoveUnreferencedSymbols();
 	void PerformGlobalOptimizations();
-	void OptimizeFunction(Function* func);
+	bool OptimizeFunction(Function* func);
 };
 
 #endif

@@ -192,6 +192,72 @@ bool Optimize::ConsolidateBasicBlocks(Function* func)
 }
 
 
+bool Optimize::OptimizeForNoReturnCalls(Function* func)
+{
+	bool changed = false;
+	bool canReturn = false;
+	
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		bool blockCanExit = true;
+
+		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+		{
+			const ILInstruction& instr = (*i)->GetInstructions()[j];
+			if (instr.operation != ILOP_CALL)
+				continue;
+			if (instr.params[1].cls != ILPARAM_FUNC)
+				continue;
+			if (instr.params[1].function->DoesReturn())
+				continue;
+
+			blockCanExit = false;
+
+			if (((j + 1) < (*i)->GetInstructions().size()) && ((*i)->GetInstructions()[j + 1].operation == ILOP_NORETURN))
+			{
+				// Already marked as no return
+				break;
+			}
+
+			// Calling function that does not return, eliminate return value
+			(*i)->SetInstructionParameter(j, 0, ILParameter());
+
+			// Eliminate any IL instructions after this one
+			(*i)->SplitBlock(j + 1, NULL);
+
+			// Add a "no return" IL instruction to tell the code generator that no code should follow the call
+			(*i)->AddInstruction(ILOP_NORETURN);
+
+			// Update control flow information to reflect that this block is now an "exit" block.  This may eliminate
+			// blocks on the next call to basic block consolidation.
+			for (set<ILBlock*>::const_iterator k = (*i)->GetExitBlocks().begin();
+				k != (*i)->GetExitBlocks().end(); k++)
+				(*k)->RemoveEntryBlock(*i);
+			(*i)->ClearExitBlocks();
+			if (func->GetExitBlocks().count(*i) == 0)
+				func->AddExitBlock(*i);
+
+			changed = true;
+			break;
+		}
+
+		if (blockCanExit && (func->GetExitBlocks().count(*i) != 0))
+		{
+			// Block can cause exit of function
+			canReturn = true;
+		}
+	}
+
+	if (!canReturn)
+	{
+		// Function cannot return, ensure function is marked to reflect this
+		func->SetDoesReturn(false);
+	}
+
+	return changed;
+}
+
+
 void Optimize::InlineFunction(Function* func, Function* target)
 {
 	// Find all the calls to the target function
@@ -279,12 +345,24 @@ void Optimize::InlineFunction(Function* func, Function* target)
 			{
 				ILInstruction instr = *k;
 				if (instr.operation == ILOP_RETURN_VOID)
-					newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
+				{
+					if (target->DoesReturn())
+						newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
+					else
+						newBlock->AddInstruction(ILOP_NORETURN);
+				}
 				else if (instr.operation == ILOP_RETURN)
 				{
-					if (returnValue.cls != ILPARAM_VOID)
-						newBlock->AddInstruction(ILOP_ASSIGN, returnValue, instr.params[0]);
-					newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
+					if (target->DoesReturn())
+					{
+						if (returnValue.cls != ILPARAM_VOID)
+							newBlock->AddInstruction(ILOP_ASSIGN, returnValue, instr.params[0]);
+						newBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
+					}
+					else
+					{
+						newBlock->AddInstruction(ILOP_NORETURN);
+					}
 				}
 				else
 				{
@@ -467,9 +545,10 @@ void Optimize::PerformGlobalOptimizations()
 }
 
 
-void Optimize::OptimizeFunction(Function* func)
+bool Optimize::OptimizeFunction(Function* func)
 {
 	// Run optimization until nothing more can be done
+	bool result = false;
 	bool changed = true;
 	while (changed)
 	{
@@ -480,12 +559,20 @@ void Optimize::OptimizeFunction(Function* func)
 		PerformControlFlowAnalysis(func);
 		if ((m_settings.optimization != OPTIMIZE_DISABLE) && ConsolidateBasicBlocks(func))
 			changed = true;
+		if ((m_settings.optimization != OPTIMIZE_DISABLE) && OptimizeForNoReturnCalls(func))
+			changed = true;
 
 //		PerformDataFlowAnalysis(func);
 //		if ((m_settings.optimization != OPTIMIZE_DISABLE) && RemoveDeadCode(func))
 //			changed = true;
+
+		if (changed)
+			result = true;
 	}
 
-//	RemoveUnusedVariables(func);
+//	if (RemoveUnusedVariables(func))
+//		result = true;
+
+	return result;
 }
 

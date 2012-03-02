@@ -77,7 +77,7 @@ void Usage()
 	fprintf(stderr, "    --pad                             Pad output to be exactly the maximum length\n");
 	fprintf(stderr, "    --pie                             Always generate position independent code\n");
 	fprintf(stderr, "    --platform <value>                Specify operating system\n");
-	fprintf(stderr, "                                      Can be: linux (default), freebsd, mach, windows, none\n");
+	fprintf(stderr, "                                      Can be: linux (default), freebsd, mac, windows, none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
 	fprintf(stderr, "    --unsafe-stack                    Stack pointer may be near the code\n");
@@ -254,7 +254,7 @@ int main(int argc, char* argv[])
 			{
 				// Use current OS
 #ifdef __APPLE__
-				settings.os = OS_MACH;
+				settings.os = OS_MAC;
 #elif defined(WIN32)
 				settings.os = OS_WINDOWS;
 #elif defined(linux)
@@ -426,8 +426,9 @@ int main(int argc, char* argv[])
 				settings.os = OS_LINUX;
 			else if (!strcmp(argv[i], "freebsd"))
 				settings.os = OS_FREEBSD;
-			else if ((!strcmp(argv[i], "mach")) || (!strcmp(argv[i], "macos")) || (!strcmp(argv[i], "macosx")))
-				settings.os = OS_MACH;
+			else if ((!strcmp(argv[i], "mac")) || (!strcmp(argv[i], "macos")) ||
+				(!strcmp(argv[i], "macosx")) || (!strcmp(argv[i], "darwin")))
+				settings.os = OS_MAC;
 			else if ((!strcmp(argv[i], "win32")) || (!strcmp(argv[i], "windows")))
 				settings.os = OS_WINDOWS;
 			else if (!strcmp(argv[i], "none"))

@@ -18,8 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__MACH_FILE_H__
-#define __LIBC__MACH_FILE_H__
+#ifndef __LIBC__MAC_FILE_H__
+#define __LIBC__MAC_FILE_H__
 
 #define O_RDONLY    0
 #define O_WRONLY    1

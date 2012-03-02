@@ -40,7 +40,7 @@ SCC_PARSE_OBJS := $(patsubst %.y,Obj/%Parser.o,$(wildcard *.y))
 ASMX86_OBJS := Obj/asmx86/asmx86.o
 ASMX86_HEADERS := asmx86/asmx86.h asmx86/asmx86str.h
 
-RUNTIME_LIBS := linux_x86.lib linux_x64.lib freebsd_x86.lib freebsd_x64.lib mach_x86.lib mach_x64.lib windows_x86.lib windows_x64.lib x86.lib x64.lib
+RUNTIME_LIBS := linux_x86.lib linux_x64.lib freebsd_x86.lib freebsd_x64.lib mac_x86.lib mac_x64.lib windows_x86.lib windows_x64.lib x86.lib x64.lib
 RUNTIME_SOURCES := $(patsubst %.lib,Obj/%.cpp,$(RUNTIME_LIBS))
 RUNTIME_OBJS := $(patsubst %.lib,Obj/Obj/%.o,$(RUNTIME_LIBS))
 
@@ -97,12 +97,12 @@ FREEBSD_X86_RUNTIME_C := $(wildcard runtime/freebsd/x86/*.c)
 FREEBSD_X86_RUNTIME_H := $(wildcard runtime/freebsd/x86/*.h)
 FREEBSD_X64_RUNTIME_C := $(wildcard runtime/freebsd/x64/*.c)
 FREEBSD_X64_RUNTIME_H := $(wildcard runtime/freebsd/x64/*.h)
-MACH_COMMON_RUNTIME_C := $(wildcard runtime/mach/*.c)
-MACH_COMMON_RUNTIME_H := $(wildcard runtime/mach/*.h)
-MACH_X86_RUNTIME_C := $(wildcard runtime/mach/x86/*.c)
-MACH_X86_RUNTIME_H := $(wildcard runtime/mach/x86/*.h)
-MACH_X64_RUNTIME_C := $(wildcard runtime/mach/x64/*.c)
-MACH_X64_RUNTIME_H := $(wildcard runtime/mach/x64/*.h)
+MAC_COMMON_RUNTIME_C := $(wildcard runtime/mac/*.c)
+MAC_COMMON_RUNTIME_H := $(wildcard runtime/mac/*.h)
+MAC_X86_RUNTIME_C := $(wildcard runtime/mac/x86/*.c)
+MAC_X86_RUNTIME_H := $(wildcard runtime/mac/x86/*.h)
+MAC_X64_RUNTIME_C := $(wildcard runtime/mac/x64/*.c)
+MAC_X64_RUNTIME_H := $(wildcard runtime/mac/x64/*.h)
 WINDOWS_COMMON_RUNTIME_C := $(wildcard runtime/windows/*.c)
 WINDOWS_COMMON_RUNTIME_H := $(wildcard runtime/windows/*.h)
 WINDOWS_X86_RUNTIME_C := $(wildcard runtime/windows/x86/*.c)
@@ -120,9 +120,9 @@ LINUX_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_
 FREEBSD_COMMON_RUNTIME_SRC := $(POSIX_RUNTIME_SRC) $(FREEBSD_COMMON_RUNTIME_H) $(FREEBSD_COMMON_RUNTIME_C)
 FREEBSD_X86_RUNTIME_SRC := $(X86_RUNTIME_SRC) $(FREEBSD_COMMON_RUNTIME_SRC) $(FREEBSD_X86_RUNTIME_H) $(FREEBSD_X86_RUNTIME_C)
 FREEBSD_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(FREEBSD_COMMON_RUNTIME_SRC) $(FREEBSD_X64_RUNTIME_H) $(FREEBSD_X64_RUNTIME_C)
-MACH_COMMON_RUNTIME_SRC := $(POSIX_RUNTIME_SRC) $(MACH_COMMON_RUNTIME_H) $(MACH_COMMON_RUNTIME_C)
-MACH_X86_RUNTIME_SRC := $(X86_RUNTIME_SRC) $(MACH_COMMON_RUNTIME_SRC) $(MACH_X86_RUNTIME_H) $(MACH_X86_RUNTIME_C)
-MACH_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(MACH_COMMON_RUNTIME_SRC) $(MACH_X64_RUNTIME_H) $(MACH_X64_RUNTIME_C)
+MAC_COMMON_RUNTIME_SRC := $(POSIX_RUNTIME_SRC) $(MAC_COMMON_RUNTIME_H) $(MAC_COMMON_RUNTIME_C)
+MAC_X86_RUNTIME_SRC := $(X86_RUNTIME_SRC) $(MAC_COMMON_RUNTIME_SRC) $(MAC_X86_RUNTIME_H) $(MAC_X86_RUNTIME_C)
+MAC_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(MAC_COMMON_RUNTIME_SRC) $(MAC_X64_RUNTIME_H) $(MAC_X64_RUNTIME_C)
 WINDOWS_COMMON_RUNTIME_SRC := $(COMMON_RUNTIME_SRC) $(WINDOWS_COMMON_RUNTIME_H) $(WINDOWS_COMMON_RUNTIME_C)
 WINDOWS_X86_RUNTIME_SRC := $(X86_RUNTIME_SRC) $(WINDOWS_COMMON_RUNTIME_SRC) $(WINDOWS_X86_RUNTIME_H) $(WINDOWS_X86_RUNTIME_C)
 WINDOWS_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(WINDOWS_COMMON_RUNTIME_SRC) $(WINDOWS_X64_RUNTIME_H) $(WINDOWS_X64_RUNTIME_C)
@@ -137,9 +137,9 @@ LINUX_X64_RUNTIME := $(X64_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(L
 FREEBSD_COMMON_RUNTIME := $(POSIX_RUNTIME) $(foreach header,$(FREEBSD_COMMON_RUNTIME_H),--header $(header)) $(FREEBSD_COMMON_RUNTIME_C)
 FREEBSD_X86_RUNTIME := $(X86_RUNTIME) $(FREEBSD_COMMON_RUNTIME) $(foreach header,$(FREEBSD_X86_RUNTIME_H),--header $(header)) $(FREEBSD_X86_RUNTIME_C)
 FREEBSD_X64_RUNTIME := $(X64_RUNTIME) $(FREEBSD_COMMON_RUNTIME) $(foreach header,$(FREEBSD_X64_RUNTIME_H),--header $(header)) $(FREEBSD_X64_RUNTIME_C)
-MACH_COMMON_RUNTIME := $(POSIX_RUNTIME) $(foreach header,$(MACH_COMMON_RUNTIME_H),--header $(header)) $(MACH_COMMON_RUNTIME_C)
-MACH_X86_RUNTIME := $(X86_RUNTIME) $(MACH_COMMON_RUNTIME) $(foreach header,$(MACH_X86_RUNTIME_H),--header $(header)) $(MACH_X86_RUNTIME_C)
-MACH_X64_RUNTIME := $(X64_RUNTIME) $(MACH_COMMON_RUNTIME) $(foreach header,$(MACH_X64_RUNTIME_H),--header $(header)) $(MACH_X64_RUNTIME_C)
+MAC_COMMON_RUNTIME := $(POSIX_RUNTIME) $(foreach header,$(MAC_COMMON_RUNTIME_H),--header $(header)) $(MAC_COMMON_RUNTIME_C)
+MAC_X86_RUNTIME := $(X86_RUNTIME) $(MAC_COMMON_RUNTIME) $(foreach header,$(MAC_X86_RUNTIME_H),--header $(header)) $(MAC_X86_RUNTIME_C)
+MAC_X64_RUNTIME := $(X64_RUNTIME) $(MAC_COMMON_RUNTIME) $(foreach header,$(MAC_X64_RUNTIME_H),--header $(header)) $(MAC_X64_RUNTIME_C)
 WINDOWS_COMMON_RUNTIME := $(COMMON_RUNTIME) $(foreach header,$(WINDOWS_COMMON_RUNTIME_H),--header $(header)) $(WINDOWS_COMMON_RUNTIME_C)
 WINDOWS_X86_RUNTIME := $(X86_RUNTIME) $(WINDOWS_COMMON_RUNTIME) $(foreach header,$(WINDOWS_X86_RUNTIME_H),--header $(header)) $(WINDOWS_X86_RUNTIME_C)
 WINDOWS_X64_RUNTIME := $(X64_RUNTIME) $(WINDOWS_COMMON_RUNTIME) $(foreach header,$(WINDOWS_X64_RUNTIME_H),--header $(header)) $(WINDOWS_X64_RUNTIME_C)
@@ -175,10 +175,10 @@ Obj/freebsd_x86.lib: $(BOOTSTRAP) $(FREEBSD_X86_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(FREEBSD_X86_RUNTIME) --arch x86 --platform freebsd -f lib -o $@
 Obj/freebsd_x64.lib: $(BOOTSTRAP) $(FREEBSD_X64_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(FREEBSD_X64_RUNTIME) --arch x64 --platform freebsd -f lib -o $@
-Obj/mach_x86.lib: $(BOOTSTRAP) $(MACH_X86_RUNTIME_SRC) Makefile | Obj/
-	$(BOOTSTRAP) $(MACH_X86_RUNTIME) --arch x86 --platform mach -f lib -o $@
-Obj/mach_x64.lib: $(BOOTSTRAP) $(MACH_X64_RUNTIME_SRC) Makefile | Obj/
-	$(BOOTSTRAP) $(MACH_X64_RUNTIME) --arch x64 --platform mach -f lib -o $@
+Obj/mac_x86.lib: $(BOOTSTRAP) $(MAC_X86_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(MAC_X86_RUNTIME) --arch x86 --platform mac -f lib -o $@
+Obj/mac_x64.lib: $(BOOTSTRAP) $(MAC_X64_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(MAC_X64_RUNTIME) --arch x64 --platform mac -f lib -o $@
 Obj/windows_x86.lib: $(BOOTSTRAP) $(WINDOWS_X86_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(WINDOWS_X86_RUNTIME) --arch x86 --platform windows -f lib -o $@
 Obj/windows_x64.lib: $(BOOTSTRAP) $(WINDOWS_X64_RUNTIME_SRC) Makefile | Obj/

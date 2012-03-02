@@ -35,7 +35,7 @@ enum OperatingSystem
 	OS_NONE,
 	OS_LINUX,
 	OS_FREEBSD,
-	OS_MACH,
+	OS_MAC,
 	OS_WINDOWS
 };
 

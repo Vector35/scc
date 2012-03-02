@@ -161,7 +161,7 @@ def test_all(arch_name, arch_options):
 
 failed = 0
 if os.uname()[0] == "Darwin":
-	failed += test_all("Mac OS X x64", ["--platform", "mach", "--arch", "x64"])
+	failed += test_all("Mac OS X x64", ["--platform", "mac", "--arch", "x64"])
 elif os.name != "nt":
 	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
 	if os.uname()[0] == "FreeBSD":

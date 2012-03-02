@@ -45,10 +45,10 @@ extern unsigned char Obj_freebsd_x86_lib[];
 extern unsigned int Obj_freebsd_x86_lib_len;
 extern unsigned char Obj_freebsd_x64_lib[];
 extern unsigned int Obj_freebsd_x64_lib_len;
-extern unsigned char Obj_mach_x86_lib[];
-extern unsigned int Obj_mach_x86_lib_len;
-extern unsigned char Obj_mach_x64_lib[];
-extern unsigned int Obj_mach_x64_lib_len;
+extern unsigned char Obj_mac_x86_lib[];
+extern unsigned int Obj_mac_x86_lib_len;
+extern unsigned char Obj_mac_x64_lib[];
+extern unsigned int Obj_mac_x64_lib_len;
 extern unsigned char Obj_windows_x86_lib[];
 extern unsigned int Obj_windows_x86_lib_len;
 extern unsigned char Obj_windows_x64_lib[];
@@ -67,10 +67,10 @@ unsigned char __attribute__((weak)) Obj_freebsd_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_freebsd_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_freebsd_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_freebsd_x64_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_mach_x86_lib[] = {};
-unsigned int __attribute__((weak)) Obj_mach_x86_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_mach_x64_lib[] = {};
-unsigned int __attribute__((weak)) Obj_mach_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_mac_x86_lib[] = {};
+unsigned int __attribute__((weak)) Obj_mac_x86_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_mac_x64_lib[] = {};
+unsigned int __attribute__((weak)) Obj_mac_x64_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_windows_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_windows_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_windows_x64_lib[] = {};
@@ -198,16 +198,16 @@ bool Linker::ImportStandardLibrary()
 			len = Obj_freebsd_x64_lib_len;
 		}
 		break;
-	case OS_MACH:
+	case OS_MAC:
 		if (m_settings.preferredBits == 32)
 		{
-			lib = Obj_mach_x86_lib;
-			len = Obj_mach_x86_lib_len;
+			lib = Obj_mac_x86_lib;
+			len = Obj_mac_x86_lib_len;
 		}
 		else
 		{
-			lib = Obj_mach_x64_lib;
-			len = Obj_mach_x64_lib_len;
+			lib = Obj_mac_x64_lib;
+			len = Obj_mac_x64_lib_len;
 		}
 		break;
 	case OS_WINDOWS:

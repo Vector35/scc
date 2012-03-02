@@ -186,8 +186,8 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 		data.memorySize = dataSection->len;
 		data.fileOffset = data.virtualAddress - code.virtualAddress;
 		data.fileSize = data.memorySize;
-		data.maxProtect = 6; // Read write
-		data.initProtect = 6; // Read write
+		data.maxProtect = 3; // Read write
+		data.initProtect = 3; // Read write
 		output->Write(&data, sizeof(data));
 
 		MachThreadX64 thread;
@@ -195,7 +195,7 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 		thread.header.cmd = 5; // UNIXTHREAD
 		thread.header.size = sizeof(thread);
 		thread.flavor = 4; // x86_THREAD_STATE64
-		thread.count = 21;
+		thread.count = 42;
 		thread.rip = settings.base;
 		output->Write(&thread, sizeof(thread));
 	}

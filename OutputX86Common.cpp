@@ -4878,7 +4878,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #else
 	static const OperandType linuxRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_R10, REG_R8, REG_R9, NONE};
 	static const OperandType freeBsdRegs[] = {REG_RAX, REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9, NONE};
-	const OperandType* regs = (m_settings.os == OS_LINUX) ? linuxRegs : freeBsdRegs;
+	const OperandType* regs = (m_settings.os == OS_FREEBSD) ? freeBsdRegs : linuxRegs;
 #endif
 	OperandType savedRegs[2];
 	size_t savedRegCount = 0;

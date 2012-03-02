@@ -29,6 +29,7 @@
 #include "asmx86.h"
 #include "Linker.h"
 #include "ElfOutput.h"
+#include "MachOOutput.h"
 
 using namespace std;
 
@@ -603,6 +604,17 @@ int main(int argc, char* argv[])
 			settings.base = 0x8040000;
 		}
 		settings.base = AdjustBaseForElfFile(settings.base, settings);
+	}
+	if (settings.format == FORMAT_MACHO)
+	{
+		if (!positionIndependentExplicit)
+			settings.positionIndependent = false;
+		if (!settings.positionIndependent)
+		{
+			settings.staticBase = true;
+			settings.base = 0x8040000;
+		}
+		settings.base = AdjustBaseForMachOFile(settings.base, settings);
 	}
 	if (settings.format == FORMAT_PE)
 	{

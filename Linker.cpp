@@ -28,6 +28,7 @@
 #include "OutputX86.h"
 #include "OutputX64.h"
 #include "ElfOutput.h"
+#include "MachOOutput.h"
 
 using namespace std;
 
@@ -913,6 +914,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		m_settings.dataSectionBase = addr;
 		if (m_settings.format == FORMAT_ELF)
 			m_settings.dataSectionBase = AdjustDataSectionBaseForElfFile(m_settings.dataSectionBase);
+		else if (m_settings.format == FORMAT_MACHO)
+			m_settings.dataSectionBase = AdjustDataSectionBaseForMachOFile(m_settings.dataSectionBase);
 
 		// Check relocations and gather the overflow list
 		vector<RelocationReference> overflows;
@@ -977,6 +980,13 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		if (!GenerateElfFile(finalBinary, m_settings, &codeSection, &dataSection))
 		{
 			fprintf(stderr, "error: failed to output ELF format\n");
+			return false;
+		}
+		break;
+	case FORMAT_MACHO:
+		if (!GenerateMachOFile(finalBinary, m_settings, &codeSection, &dataSection))
+		{
+			fprintf(stderr, "error: failed to output Mach-O format\n");
 			return false;
 		}
 		break;

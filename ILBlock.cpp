@@ -575,16 +575,15 @@ void ILInstruction::TagReferences()
 }
 
 
-void ILInstruction::MarkWrittenVariables()
+bool ILInstruction::WritesToFirstParameter() const
 {
 	switch (operation)
 	{
 	case ILOP_ASSIGN:
+	case ILOP_ADDRESS_OF:
 	case ILOP_ADDRESS_OF_MEMBER:
 	case ILOP_DEREF:
 	case ILOP_DEREF_MEMBER:
-	case ILOP_DEREF_ASSIGN:
-	case ILOP_DEREF_MEMBER_ASSIGN:
 	case ILOP_ARRAY_INDEX:
 	case ILOP_ARRAY_INDEX_ASSIGN:
 	case ILOP_PTR_ADD:
@@ -619,20 +618,9 @@ void ILInstruction::MarkWrittenVariables()
 	case ILOP_PREV_ARG:
 	case ILOP_BYTESWAP:
 		// These instructions write to the first parameter
-		if (params[0].cls == ILPARAM_VAR)
-			params[0].variable->SetWritten(true);
-		break;
-	case ILOP_ADDRESS_OF:
-		// This technically isn't a write to the source parameter itself, but this
-		// creates an alias, which could lead to an indirect write.  Proper alias analysis
-		// could resolve some of these and determine if there is actually a write.  Since
-		// the primary use of this function is to do simple optimizations on the inlining
-		// process, we can optimize any unnecessary aliased copies later.
-		if (params[0].cls == ILPARAM_VAR)
-			params[0].variable->SetWritten(true);
-		if (params[1].cls == ILPARAM_VAR)
-			params[1].variable->SetWritten(true);
-		break;
+		return true;
+	case ILOP_DEREF_ASSIGN:
+	case ILOP_DEREF_MEMBER_ASSIGN:
 	case ILOP_IF_TRUE:
 	case ILOP_IF_LESS_THAN:
 	case ILOP_IF_LESS_EQUAL:
@@ -649,6 +637,32 @@ void ILInstruction::MarkWrittenVariables()
 		// to make the compiler spit out warnings if instructions are added but they
 		// aren't handled here (which could lead to well hidden bugs)
 		break;
+	}
+
+	return false;
+}
+
+
+void ILInstruction::MarkWrittenVariables()
+{
+	if (operation == ILOP_ADDRESS_OF)
+	{
+		// This technically isn't a write to the source parameter itself, but this
+		// creates an alias, which could lead to an indirect write.  Proper alias analysis
+		// could resolve some of these and determine if there is actually a write.  Since
+		// the primary use of this function is to do simple optimizations on the inlining
+		// process, we can optimize any unnecessary aliased copies later.
+		if (params[0].cls == ILPARAM_VAR)
+			params[0].variable->SetWritten(true);
+		if (params[1].cls == ILPARAM_VAR)
+			params[1].variable->SetWritten(true);
+		return;
+	}
+
+	if (WritesToFirstParameter())
+	{
+		if (params[0].cls == ILPARAM_VAR)
+			params[0].variable->SetWritten(true);
 	}
 }
 
@@ -1160,6 +1174,19 @@ void ILBlock::ClearEntryAndExitBlocks()
 void ILBlock::ClearExitBlocks()
 {
 	m_exitBlocks.clear();
+}
+
+
+void ILBlock::ResetDataFlowInfo(size_t bits)
+{
+	m_defPreserve.Reset(bits, true);
+	m_defGenerate.Reset(bits, false);
+	m_defReachIn.Reset(bits, false);
+	m_defReachOut.Reset(bits, false);
+	m_useDefChains.clear();
+	m_useDefChains.resize(m_instrs.size());
+	m_defUseChains.clear();
+	m_defUseChains.resize(m_instrs.size());
 }
 
 

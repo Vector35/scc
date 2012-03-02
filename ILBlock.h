@@ -23,6 +23,7 @@
 
 #include <set>
 #include "Type.h"
+#include "BitVector.h"
 
 
 typedef enum
@@ -166,6 +167,7 @@ struct ILInstruction
 {
 	ILOperation operation;
 	std::vector<ILParameter> params;
+	size_t dataFlowBit;
 
 	ILInstruction();
 	ILInstruction(ILOperation op);
@@ -182,6 +184,7 @@ struct ILInstruction
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
 	void TagReferences();
+	bool WritesToFirstParameter() const;
 	void MarkWrittenVariables();
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
@@ -200,6 +203,9 @@ class ILBlock
 	bool m_blockEnded;
 
 	std::set<ILBlock*> m_entryBlocks, m_exitBlocks;
+	BitVector m_defPreserve, m_defGenerate, m_defReachIn, m_defReachOut;
+	std::vector< std::vector< std::pair<ILBlock*, size_t> > > m_useDefChains;
+	std::vector< std::vector< std::pair<ILBlock*, size_t> > > m_defUseChains;
 
 	static std::map<size_t, ILBlock*> m_serializationMapping;
 
@@ -227,6 +233,7 @@ public:
 		const ILParameter& d) { AddInstruction(ILInstruction(op, a, b, c, d)); }
 	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list) { AddInstruction(ILInstruction(op, list)); }
 	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value) { m_instrs[i].params[param] = value; }
+	void SetInstructionDataFlowBit(size_t i, size_t bit) { m_instrs[i].dataFlowBit = bit; }
 
 	void RemoveLastInstruction();
 	void SplitBlock(size_t firstToMove, ILBlock* target);
@@ -255,6 +262,14 @@ public:
 	void RemoveExitBlock(ILBlock* block) { m_exitBlocks.erase(block); }
 	const std::set<ILBlock*>& GetEntryBlocks() { return m_entryBlocks; }
 	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
+
+	void ResetDataFlowInfo(size_t bits);
+	BitVector& GetPreservedDefinitions() { return m_defPreserve; }
+	BitVector& GetGeneratedDefinitions() { return m_defGenerate; }
+	BitVector& GetReachingDefinitionsInput() { return m_defReachIn; }
+	BitVector& GetReachingDefinitionsOutput() { return m_defReachOut; }
+	std::vector< std::vector< std::pair<ILBlock*, size_t> > >& GetUseDefinitionChains() { return m_useDefChains; }
+	std::vector< std::vector< std::pair<ILBlock*, size_t> > >& GetDefinitionUseChains() { return m_defUseChains; }
 
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);

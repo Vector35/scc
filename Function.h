@@ -26,6 +26,7 @@
 #include "Type.h"
 #include "Expr.h"
 #include "Variable.h"
+#include "BitVector.h"
 
 
 enum SubarchitectureType
@@ -99,6 +100,9 @@ class Function: public RefCountObject
 	bool m_variableSizedStackFrame;
 
 	std::set<ILBlock*> m_exitBlocks;
+	BitVector m_exitReachingDefs;
+	std::map< Ref<Variable>, std::vector<size_t> > m_varDefs;
+	std::vector< std::pair<ILBlock*, size_t> > m_defLocs;
 
 	size_t m_tagCount;
 
@@ -187,6 +191,12 @@ public:
 	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }
 	void RemoveExitBlock(ILBlock* block) { m_exitBlocks.erase(block); }
 	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
+
+	BitVector& GetExitReachingDefinitions() { return m_exitReachingDefs; }
+	const std::map< Ref<Variable>, std::vector<size_t> >& GetLocalVariableDefinitions() const { return m_varDefs; }
+	const std::vector< std::pair<ILBlock*, size_t> >& GetDefinitionLocations() const { return m_defLocs; }
+	void SetDefinitions(const std::map< Ref<Variable>, std::vector<size_t> >& varDefs,
+		const std::vector< std::pair<ILBlock*, size_t> >& defLocs);
 
 	void ResetTagCount() { m_tagCount = 0; }
 	size_t GetTagCount() const { return m_tagCount; }

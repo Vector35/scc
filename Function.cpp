@@ -416,6 +416,13 @@ ParameterLocation Function::GetParameterLocation(size_t i) const
 }
 
 
+void Function::SetDefinitions(const map< Ref<Variable>, vector<size_t> >& varDefs, const vector< pair<ILBlock*, size_t> >& defLocs)
+{
+	m_varDefs = varDefs;
+	m_defLocs = defLocs;
+}
+
+
 void Function::TagReferences()
 {
 	// Mark self as referenced

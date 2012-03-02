@@ -75,6 +75,201 @@ void Optimize::PerformControlFlowAnalysis(Function* func)
 }
 
 
+void Optimize::PerformDataFlowAnalysis(Function* func)
+{
+	// Find all definitions of all variables and organize them by variable
+	map< Ref<Variable>, vector<size_t> > varDefs;
+	vector< pair<ILBlock*, size_t> > defs;
+	size_t bitCount = 0;
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+		{
+			if (!(*i)->GetInstructions()[j].WritesToFirstParameter())
+				continue;
+
+			const ILParameter* param = &(*i)->GetInstructions()[j].params[0];
+			while (param->cls == ILPARAM_MEMBER)
+				param = param->parent;
+
+			if (param->cls != ILPARAM_VAR)
+				continue;
+
+			// Global variables are not analyzed with data flow, these are assumed to be read/written directly
+			if (param->variable->IsGlobal())
+				continue;
+
+			varDefs[param->variable].push_back(bitCount);
+			defs.push_back(pair<ILBlock*, size_t>(*i, j));
+			(*i)->SetInstructionDataFlowBit(j, bitCount++);
+		}
+	}
+
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+		(*i)->ResetDataFlowInfo(bitCount);
+	func->GetExitReachingDefinitions().Reset(bitCount, false);
+
+	// Populate definition preservation and generation information
+	map< Ref<Variable>, size_t > varDef;
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		for (vector<ILInstruction>::const_iterator j = (*i)->GetInstructions().begin();
+			j != (*i)->GetInstructions().end(); j++)
+		{
+			// Ignore instructions that aren't definitions of a local variable
+			if (!j->WritesToFirstParameter())
+				continue;
+			const ILParameter* param = &j->params[0];
+			bool full = (j->operation != ILOP_ARRAY_INDEX_ASSIGN);
+			while (param->cls == ILPARAM_MEMBER)
+			{
+				param = param->parent;
+				full = false;
+			}
+
+			if (param->cls != ILPARAM_VAR)
+				continue;
+			if (param->variable->IsGlobal())
+				continue;
+
+			// Kill other definitions of this variable, if it is a complete overwrite
+			if (full)
+			{
+				if (varDef.find(param->variable) != varDef.end())
+				{
+					// Variable already defined in this block, kill the old definition
+					(*i)->GetGeneratedDefinitions().SetBit(varDef[param->variable], false);
+				}
+
+				for (vector<size_t>::iterator k = varDefs[param->variable].begin(); k != varDefs[param->variable].end(); k++)
+					(*i)->GetPreservedDefinitions().SetBit(*k, false);
+			}
+
+			varDef[param->variable] = j->dataFlowBit;
+			(*i)->GetGeneratedDefinitions().SetBit(j->dataFlowBit, true);
+		}
+	}
+
+	// Iteratively compute reaching definitions at the block level
+	BitVector tempVector;
+	tempVector.Reset(bitCount, false);
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+
+		for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+		{
+			// Add definitions from output of all predecessor blocks to the input of the current block
+			tempVector = (*i)->GetReachingDefinitionsInput();
+			for (set<ILBlock*>::const_iterator j = (*i)->GetEntryBlocks().begin();
+				j != (*i)->GetEntryBlocks().end(); j++)
+				tempVector.Union((*j)->GetReachingDefinitionsOutput());
+			if (tempVector != (*i)->GetReachingDefinitionsInput())
+			{
+				changed = true;
+				(*i)->GetReachingDefinitionsInput() = tempVector;
+			}
+
+			// Compute reaching definitions output for this block (generate | (input & preserved))
+			tempVector = (*i)->GetReachingDefinitionsInput();
+			tempVector.Intersection((*i)->GetPreservedDefinitions());
+			tempVector.Union((*i)->GetGeneratedDefinitions());
+			if (tempVector != (*i)->GetReachingDefinitionsOutput())
+			{
+				changed = true;
+				(*i)->GetReachingDefinitionsOutput() = tempVector;
+			}
+		}
+
+		// Update reaching definitions information for exit block
+		tempVector = func->GetExitReachingDefinitions();
+		for (set<ILBlock*>::const_iterator i = func->GetExitBlocks().begin(); i != func->GetExitBlocks().end(); i++)
+			tempVector.Union((*i)->GetReachingDefinitionsOutput());
+		if (tempVector != func->GetExitReachingDefinitions())
+		{
+			changed = true;
+			func->GetExitReachingDefinitions() = tempVector;
+		}
+	}
+
+	// Use reaching definitions information to generate definition->use and use->definition chains
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		// Copy reaching definitions into temporary vector, as it will be updated per-instruction to generate
+		// localized information
+		tempVector = (*i)->GetReachingDefinitionsInput();
+
+		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+		{
+			// For each instruction, iterate over all variable uses and update information
+			size_t startParam = 0;
+			if ((*i)->GetInstructions()[j].WritesToFirstParameter())
+			{
+				// Instruction is a definition, ignore first parameter
+				startParam = 1;
+			}
+
+			for (size_t k = startParam; k < (*i)->GetInstructions()[j].params.size(); k++)
+			{
+				const ILParameter* param = &(*i)->GetInstructions()[j].params[k];
+				bool full = ((*i)->GetInstructions()[j].operation != ILOP_ARRAY_INDEX_ASSIGN);
+				while (param->cls == ILPARAM_MEMBER)
+				{
+					param = param->parent;
+					full = false;
+				}
+
+				if (param->cls != ILPARAM_VAR)
+					continue;
+				if (param->variable->IsGlobal())
+					continue;
+
+				// Add reachable definitions to the use->definition and definition->use chains
+				for (vector<size_t>::iterator n = varDefs[param->variable].begin(); n != varDefs[param->variable].end(); n++)
+				{
+					if (tempVector.GetBit(*n))
+					{
+						// Definition is reachable
+						(*i)->GetUseDefinitionChains()[j].push_back(defs[*n]);
+						defs[*n].first->GetDefinitionUseChains()[defs[*n].second].push_back(
+							pair<ILBlock*, size_t>(*i, j));
+					}
+				}
+			}
+
+			if ((*i)->GetInstructions()[j].WritesToFirstParameter())
+			{
+				// Instruction is a definition, update reaching definitions information according to the
+				// variable being written
+				const ILParameter* param = &(*i)->GetInstructions()[j].params[0];
+				bool full = ((*i)->GetInstructions()[j].operation != ILOP_ARRAY_INDEX_ASSIGN);
+				while (param->cls== ILPARAM_MEMBER)
+				{
+					param = param->parent;
+					full = false;
+				}
+
+				if ((param->cls == ILPARAM_VAR) && (!param->variable->IsGlobal()))
+				{
+					// If instruction is performing a complete overwrite, kill any other definitions
+					if (full)
+					{
+						for (vector<size_t>::iterator k = varDefs[param->variable].begin(); k != varDefs[param->variable].end(); k++)
+							tempVector.SetBit(*k, false);
+					}
+
+					// Set the bit for this definition
+					tempVector.SetBit((*i)->GetInstructions()[j].dataFlowBit, true);
+				}
+			}
+		}
+	}
+
+	func->SetDefinitions(varDefs, defs);
+}
+
+
 bool Optimize::ConsolidateBasicBlocks(Function* func)
 {
 	bool changed = false;
@@ -563,7 +758,7 @@ bool Optimize::OptimizeFunction(Function* func)
 		if ((m_settings.optimization != OPTIMIZE_DISABLE) && OptimizeForNoReturnCalls(func))
 			changed = true;
 
-//		PerformDataFlowAnalysis(func);
+		PerformDataFlowAnalysis(func);
 //		if ((m_settings.optimization != OPTIMIZE_DISABLE) && RemoveDeadCode(func))
 //			changed = true;
 

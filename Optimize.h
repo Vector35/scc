@@ -13,6 +13,7 @@ public:
 	Optimize(Linker* linker);
 
 	void PerformControlFlowAnalysis(Function* func);
+	void PerformDataFlowAnalysis(Function* func);
 	bool ConsolidateBasicBlocks(Function* func);
 	bool OptimizeForNoReturnCalls(Function* func);
 

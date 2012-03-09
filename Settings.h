@@ -83,7 +83,6 @@ struct Settings
 	uint32_t seed;
 
 	bool positionIndependent;
-	bool staticBase;
 	uint64_t base;
 	uint64_t dataSectionBase;
 

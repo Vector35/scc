@@ -206,7 +206,7 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 		pageZero.header.cmd = 1; // SEGMENT
 		pageZero.header.size = sizeof(pageZero);
 		strcpy(pageZero.name, "__PAGE_ZERO");
-		pageZero.memorySize = 0x100000;
+		pageZero.memorySize = 0x1000;
 		output->Write(&pageZero, sizeof(pageZero));
 
 		MachSegment32 code;

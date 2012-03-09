@@ -99,7 +99,10 @@ def test(arch_name, name, testcase, arch_options, options):
 		else:
 			input_contents = ""
 		os.chmod("Obj/test", 0o700)
-		cmd = ["Obj/test"]
+		if os.uname()[0] == "Darwin":
+			cmd = ["/bin/bash", "-c", "Obj/test"]
+		else:
+			cmd = ["Obj/test"]
 
 	proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	output = proc.communicate(input_contents)[0]

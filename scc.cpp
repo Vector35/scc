@@ -135,7 +135,6 @@ int main(int argc, char* argv[])
 	settings.polymorph = false;
 	settings.mixedMode = false;
 	settings.seed = 0;
-	settings.staticBase = false;
 	settings.positionIndependent = true;
 	settings.base = 0;
 	settings.internalDebug = false;
@@ -599,21 +598,14 @@ int main(int argc, char* argv[])
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
 		if (!settings.positionIndependent)
-		{
-			settings.staticBase = true;
 			settings.base = 0x8040000;
-		}
 		settings.base = AdjustBaseForElfFile(settings.base, settings);
 	}
 	if (settings.format == FORMAT_MACHO)
 	{
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
-		if (!settings.positionIndependent)
-		{
-			settings.staticBase = true;
-			settings.base = 0x8040000;
-		}
+		settings.base = (settings.preferredBits == 32) ? 0x1000 : 0x100000000LL;
 		settings.base = AdjustBaseForMachOFile(settings.base, settings);
 	}
 	if (settings.format == FORMAT_PE)
@@ -621,10 +613,7 @@ int main(int argc, char* argv[])
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
 		if (!settings.positionIndependent)
-		{
-			settings.staticBase = true;
 			settings.base = 0x1000000;
-		}
 		settings.base += 0x1000;
 	}
 

@@ -668,6 +668,7 @@ bool Linker::FinalizeLink()
 	}
 
 	Ref<Function> startFunction = new Function(startInfo, false);
+	startFunction->SetVariables(paramVars);
 	m_functions.insert(m_functions.begin(), startFunction);
 	m_functionsByName["_start"] = startFunction;
 

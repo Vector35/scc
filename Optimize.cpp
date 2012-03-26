@@ -539,6 +539,24 @@ void Optimize::InlineFunction(Function* func, Function* target)
 				k != (*j)->GetInstructions().end(); k++)
 			{
 				ILInstruction instr = *k;
+
+				// Replace parameter variables and block references
+				for (size_t p = 0; p < instr.params.size(); p++)
+				{
+					if (instr.params[p].cls == ILPARAM_VAR)
+					{
+						if (varMapping.find(instr.params[p].variable) == varMapping.end())
+							continue;
+						instr.params[p] = varMapping[instr.params[p].variable];
+					}
+					else if (instr.params[p].cls == ILPARAM_BLOCK)
+					{
+						if (blockMapping.find(instr.params[p].block) == blockMapping.end())
+							continue;
+						instr.params[p].block = blockMapping[instr.params[p].block];
+					}
+				}
+
 				if (instr.operation == ILOP_RETURN_VOID)
 				{
 					if (target->DoesReturn())
@@ -561,23 +579,6 @@ void Optimize::InlineFunction(Function* func, Function* target)
 				}
 				else
 				{
-					// Normal instruction, replace parameter variables and block references
-					for (size_t p = 0; p < instr.params.size(); p++)
-					{
-						if (instr.params[p].cls == ILPARAM_VAR)
-						{
-							if (varMapping.find(instr.params[p].variable) == varMapping.end())
-								continue;
-							instr.params[p] = varMapping[instr.params[p].variable];
-						}
-						else if (instr.params[p].cls == ILPARAM_BLOCK)
-						{
-							if (blockMapping.find(instr.params[p].block) == blockMapping.end())
-								continue;
-							instr.params[p].block = blockMapping[instr.params[p].block];
-						}
-					}
-
 					newBlock->AddInstruction(instr);
 				}
 			}

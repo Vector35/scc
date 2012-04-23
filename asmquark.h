@@ -196,84 +196,95 @@ static uint32_t __inline __QUARK_NAME(or, i) (int ra, int rb, int32_t imm) { ret
 static uint32_t __inline __QUARK_NAME(or, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(37, ra, rb, rc, s); }
 static uint32_t __inline __QUARK_NAME(xor, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(38, ra, rb, imm); }
 static uint32_t __inline __QUARK_NAME(xor, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(38, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(sar, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(39, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(sar, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(39, ra, rb, rc, s); }
 static uint32_t __inline __QUARK_NAME(shl, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(40, ra, rb, imm); }
 static uint32_t __inline __QUARK_NAME(shl, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(40, ra, rb, rc, s); }
 static uint32_t __inline __QUARK_NAME(shr, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(41, ra, rb, imm); }
 static uint32_t __inline __QUARK_NAME(shr, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(41, ra, rb, rc, s); }
-static uint32_t __inline __QUARK_NAME(sar, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(42, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(sar, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(42, ra, rb, rc, s); }
-static uint32_t __inline __QUARK_NAME(rol, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(44, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(rol, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(44, ra, rb, rc, s); }
-static uint32_t __inline __QUARK_NAME(ror, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(45, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(ror, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(45, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(rol, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(42, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(rol, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(42, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(ror, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(43, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(ror, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(43, ra, rb, rc, s); }
 
-static uint32_t __inline __QUARK_NAME(ldfs, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(46, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(ldfs, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(46, ra, rb, rc, s); }
-static uint32_t __inline __QUARK_NAME(ldfd, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(47, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(ldfd, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(47, ra, rb, rc, s); }
-static uint32_t __inline __QUARK_NAME(stfs, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(48, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(stfs, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(48, ra, rb, rc, s); }
-static uint32_t __inline __QUARK_NAME(stfd, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(49, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(stfd, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(49, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(ldfs, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(44, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(ldfs, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(44, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(ldfd, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(45, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(ldfd, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(45, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(stfs, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(46, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(stfs, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(46, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(stfd, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(47, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(stfd, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(47, ra, rb, rc, s); }
 
-static uint32_t __inline __QUARK_NAME(ldfi, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 0, imm); }
-static uint32_t __inline __QUARK_NAME(ldfi, r) (int ra, int rb, int s) { return __QUARK_INSTR(50, ra, 0, rb, s); }
-static uint32_t __inline __QUARK_PREFIX(stfi) (int ra, int rb) { return __QUARK_INSTR(50, ra, 1, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fldpi) (int ra) { return __QUARK_INSTR(50, ra, 2, 0, 0); }
-static uint32_t __inline __QUARK_PREFIX(flde) (int ra) { return __QUARK_INSTR(50, ra, 3, 0, 0); }
-static uint32_t __inline __QUARK_NAME(fex, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 4, imm); }
-static uint32_t __inline __QUARK_NAME(fex, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 4, rb, 0); }
-static uint32_t __inline __QUARK_NAME(f2x, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 5, imm); }
-static uint32_t __inline __QUARK_NAME(f2x, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 5, rb, 0); }
-static uint32_t __inline __QUARK_NAME(f10x, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 6, imm); }
-static uint32_t __inline __QUARK_NAME(f10x, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 6, rb, 0); }
-static uint32_t __inline __QUARK_NAME(fsqrt, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 8, imm); }
-static uint32_t __inline __QUARK_NAME(fsqrt, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 8, rb, 0); }
-static uint32_t __inline __QUARK_NAME(frcp, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 9, imm); }
-static uint32_t __inline __QUARK_NAME(frcp, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 9, rb, 0); }
-static uint32_t __inline __QUARK_NAME(frsqrt, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 10, imm); }
-static uint32_t __inline __QUARK_NAME(frsqrt, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 10, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fneg) (int ra, int rb) { return __QUARK_INSTR(50, ra, 11, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fsin) (int ra, int rb) { return __QUARK_INSTR(50, ra, 12, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fcos) (int ra, int rb) { return __QUARK_INSTR(50, ra, 13, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(ftan) (int ra, int rb) { return __QUARK_INSTR(50, ra, 14, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(ffloor) (int ra, int rb) { return __QUARK_INSTR(50, ra, 15, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fasin) (int ra, int rb) { return __QUARK_INSTR(50, ra, 16, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(facos) (int ra, int rb) { return __QUARK_INSTR(50, ra, 17, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fatan) (int ra, int rb) { return __QUARK_INSTR(50, ra, 18, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fceil) (int ra, int rb) { return __QUARK_INSTR(50, ra, 19, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fsinh) (int ra, int rb) { return __QUARK_INSTR(50, ra, 20, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fcosh) (int ra, int rb) { return __QUARK_INSTR(50, ra, 21, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(ftanh) (int ra, int rb) { return __QUARK_INSTR(50, ra, 22, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fasinh) (int ra, int rb) { return __QUARK_INSTR(50, ra, 24, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(facosh) (int ra, int rb) { return __QUARK_INSTR(50, ra, 25, rb, 0); }
-static uint32_t __inline __QUARK_PREFIX(fatanh) (int ra, int rb) { return __QUARK_INSTR(50, ra, 26, rb, 0); }
-static uint32_t __inline __QUARK_NAME(fln, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 28, imm); }
-static uint32_t __inline __QUARK_NAME(fln, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 28, rb, 0); }
-static uint32_t __inline __QUARK_NAME(flog2, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 29, imm); }
-static uint32_t __inline __QUARK_NAME(flog2, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 29, rb, 0); }
-static uint32_t __inline __QUARK_NAME(flog10, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 30, imm); }
-static uint32_t __inline __QUARK_NAME(flog10, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 30, rb, 0); }
-static uint32_t __inline __QUARK_NAME(fmov, i) (int ra, int32_t imm) { return __QUARK_IMM11(50, ra, 31, imm); }
-static uint32_t __inline __QUARK_NAME(fmov, f) (int ra, int rb) { return __QUARK_INSTR(50, ra, 31, rb, 0); }
+static uint32_t __inline __QUARK_NAME(ldfsu, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(48, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(ldfsu, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(48, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(ldfdu, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(49, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(ldfdu, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(49, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(stfsu, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(50, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(stfsu, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(50, ra, rb, rc, s); }
+static uint32_t __inline __QUARK_NAME(stfdu, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(51, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(stfdu, r) (int ra, int rb, int rc, int s) { return __QUARK_INSTR(51, ra, rb, rc, s); }
 
-static uint32_t __inline __QUARK_NAME(fadd, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(52, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(fadd, f) (int ra, int rb, int rc) { return __QUARK_INSTR(52, ra, rb, rc, 0); }
-static uint32_t __inline __QUARK_NAME(fsub, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(53, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(fsub, f) (int ra, int rb, int rc) { return __QUARK_INSTR(53, ra, rb, rc, 0); }
-static uint32_t __inline __QUARK_NAME(fmul, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(54, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(fmul, f) (int ra, int rb, int rc) { return __QUARK_INSTR(54, ra, rb, rc, 0); }
-static uint32_t __inline __QUARK_NAME(fdiv, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(55, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(fdiv, f) (int ra, int rb, int rc) { return __QUARK_INSTR(55, ra, rb, rc, 0); }
-static uint32_t __inline __QUARK_NAME(fmod, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(56, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(fmod, f) (int ra, int rb, int rc) { return __QUARK_INSTR(56, ra, rb, rc, 0); }
-static uint32_t __inline __QUARK_NAME(fpow, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(58, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(fpow, f) (int ra, int rb, int rc) { return __QUARK_INSTR(58, ra, rb, rc, 0); }
-static uint32_t __inline __QUARK_NAME(flog, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(59, ra, rb, imm); }
-static uint32_t __inline __QUARK_NAME(flog, f) (int ra, int rb, int rc) { return __QUARK_INSTR(59, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(ldfi, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 0, imm); }
+static uint32_t __inline __QUARK_NAME(ldfi, r) (int ra, int rb, int s) { return __QUARK_INSTR(52, ra, 0, rb, s); }
+static uint32_t __inline __QUARK_PREFIX(stfi) (int ra, int rb) { return __QUARK_INSTR(52, ra, 1, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fldpi) (int ra) { return __QUARK_INSTR(52, ra, 2, 0, 0); }
+static uint32_t __inline __QUARK_PREFIX(flde) (int ra) { return __QUARK_INSTR(52, ra, 3, 0, 0); }
+static uint32_t __inline __QUARK_NAME(fex, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 4, imm); }
+static uint32_t __inline __QUARK_NAME(fex, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 4, rb, 0); }
+static uint32_t __inline __QUARK_NAME(f2x, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 5, imm); }
+static uint32_t __inline __QUARK_NAME(f2x, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 5, rb, 0); }
+static uint32_t __inline __QUARK_NAME(f10x, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 6, imm); }
+static uint32_t __inline __QUARK_NAME(f10x, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 6, rb, 0); }
+static uint32_t __inline __QUARK_NAME(fsqrt, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 8, imm); }
+static uint32_t __inline __QUARK_NAME(fsqrt, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 8, rb, 0); }
+static uint32_t __inline __QUARK_NAME(frcp, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 9, imm); }
+static uint32_t __inline __QUARK_NAME(frcp, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 9, rb, 0); }
+static uint32_t __inline __QUARK_NAME(frsqrt, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 10, imm); }
+static uint32_t __inline __QUARK_NAME(frsqrt, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 10, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fneg) (int ra, int rb) { return __QUARK_INSTR(52, ra, 11, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fsin) (int ra, int rb) { return __QUARK_INSTR(52, ra, 12, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fcos) (int ra, int rb) { return __QUARK_INSTR(52, ra, 13, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(ftan) (int ra, int rb) { return __QUARK_INSTR(52, ra, 14, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(ffloor) (int ra, int rb) { return __QUARK_INSTR(52, ra, 15, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fasin) (int ra, int rb) { return __QUARK_INSTR(52, ra, 16, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(facos) (int ra, int rb) { return __QUARK_INSTR(52, ra, 17, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fatan) (int ra, int rb) { return __QUARK_INSTR(52, ra, 18, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fceil) (int ra, int rb) { return __QUARK_INSTR(52, ra, 19, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fsinh) (int ra, int rb) { return __QUARK_INSTR(52, ra, 20, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fcosh) (int ra, int rb) { return __QUARK_INSTR(52, ra, 21, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(ftanh) (int ra, int rb) { return __QUARK_INSTR(52, ra, 22, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fround) (int ra, int rb) { return __QUARK_INSTR(52, ra, 23, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fasinh) (int ra, int rb) { return __QUARK_INSTR(52, ra, 24, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(facosh) (int ra, int rb) { return __QUARK_INSTR(52, ra, 25, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fatanh) (int ra, int rb) { return __QUARK_INSTR(52, ra, 26, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(fabs) (int ra, int rb) { return __QUARK_INSTR(52, ra, 27, rb, 0); }
+static uint32_t __inline __QUARK_NAME(fln, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 28, imm); }
+static uint32_t __inline __QUARK_NAME(fln, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 28, rb, 0); }
+static uint32_t __inline __QUARK_NAME(flog2, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 29, imm); }
+static uint32_t __inline __QUARK_NAME(flog2, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 29, rb, 0); }
+static uint32_t __inline __QUARK_NAME(flog10, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 30, imm); }
+static uint32_t __inline __QUARK_NAME(flog10, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 30, rb, 0); }
+static uint32_t __inline __QUARK_NAME(fmov, i) (int ra, int32_t imm) { return __QUARK_IMM11(52, ra, 31, imm); }
+static uint32_t __inline __QUARK_NAME(fmov, f) (int ra, int rb) { return __QUARK_INSTR(52, ra, 31, rb, 0); }
 
-static uint32_t __inline __QUARK_NAME(fcmp, i) (int cond, int ra, int32_t imm) { return __QUARK_IMM11(60, ra, cond, imm); }
-static uint32_t __inline __QUARK_NAME(fcmp, f) (int cond, int ra, int rb) { return __QUARK_INSTR(60, ra, cond, rb, 0); }
+static uint32_t __inline __QUARK_NAME(fadd, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(54, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(fadd, f) (int ra, int rb, int rc) { return __QUARK_INSTR(54, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(fsub, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(55, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(fsub, f) (int ra, int rb, int rc) { return __QUARK_INSTR(55, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(fmul, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(56, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(fmul, f) (int ra, int rb, int rc) { return __QUARK_INSTR(56, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(fdiv, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(57, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(fdiv, f) (int ra, int rb, int rc) { return __QUARK_INSTR(57, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(fmod, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(58, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(fmod, f) (int ra, int rb, int rc) { return __QUARK_INSTR(58, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(fpow, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(59, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(fpow, f) (int ra, int rb, int rc) { return __QUARK_INSTR(59, ra, rb, rc, 0); }
+static uint32_t __inline __QUARK_NAME(flog, i) (int ra, int rb, int32_t imm) { return __QUARK_IMM11(60, ra, rb, imm); }
+static uint32_t __inline __QUARK_NAME(flog, f) (int ra, int rb, int rc) { return __QUARK_INSTR(60, ra, rb, rc, 0); }
+
+static uint32_t __inline __QUARK_NAME(fcmp, i) (int cond, int ra, int32_t imm) { return __QUARK_IMM11(61, ra, cond, imm); }
+static uint32_t __inline __QUARK_NAME(fcmp, f) (int cond, int ra, int rb) { return __QUARK_INSTR(61, ra, cond, rb, 0); }
 
 static uint32_t __inline __QUARK_NAME(syscall, i) (int32_t imm) { return __QUARK_IMM17(62, 0, imm); }
 static uint32_t __inline __QUARK_PREFIX(bp) () { return __QUARK_INSTR(63, 0, 0, 0, 0); }

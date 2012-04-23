@@ -27,6 +27,7 @@
 #include "Optimize.h"
 #include "OutputX86.h"
 #include "OutputX64.h"
+#include "OutputQuark.h"
 #include "ElfOutput.h"
 #include "MachOOutput.h"
 
@@ -170,71 +171,74 @@ bool Linker::ImportLibrary(InputBlock* input)
 
 bool Linker::ImportStandardLibrary()
 {
-	unsigned char* lib;
-	unsigned int len;
+	unsigned char* lib = NULL;
+	unsigned int len = 0;
 
-	switch (m_settings.os)
+	if (m_settings.architecture == ARCH_X86)
 	{
-	case OS_LINUX:
-		if (m_settings.preferredBits == 32)
+		switch (m_settings.os)
 		{
-			lib = Obj_linux_x86_lib;
-			len = Obj_linux_x86_lib_len;
+		case OS_LINUX:
+			if (m_settings.preferredBits == 32)
+			{
+				lib = Obj_linux_x86_lib;
+				len = Obj_linux_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_linux_x64_lib;
+				len = Obj_linux_x64_lib_len;
+			}
+			break;
+		case OS_FREEBSD:
+			if (m_settings.preferredBits == 32)
+			{
+				lib = Obj_freebsd_x86_lib;
+				len = Obj_freebsd_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_freebsd_x64_lib;
+				len = Obj_freebsd_x64_lib_len;
+			}
+			break;
+		case OS_MAC:
+			if (m_settings.preferredBits == 32)
+			{
+				lib = Obj_mac_x86_lib;
+				len = Obj_mac_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_mac_x64_lib;
+				len = Obj_mac_x64_lib_len;
+			}
+			break;
+		case OS_WINDOWS:
+			if (m_settings.preferredBits == 32)
+			{
+				lib = Obj_windows_x86_lib;
+				len = Obj_windows_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_windows_x64_lib;
+				len = Obj_windows_x64_lib_len;
+			}
+			break;
+		default:
+			if (m_settings.preferredBits == 32)
+			{
+				lib = Obj_x86_lib;
+				len = Obj_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_x64_lib;
+				len = Obj_x64_lib_len;
+			}
+			break;
 		}
-		else
-		{
-			lib = Obj_linux_x64_lib;
-			len = Obj_linux_x64_lib_len;
-		}
-		break;
-	case OS_FREEBSD:
-		if (m_settings.preferredBits == 32)
-		{
-			lib = Obj_freebsd_x86_lib;
-			len = Obj_freebsd_x86_lib_len;
-		}
-		else
-		{
-			lib = Obj_freebsd_x64_lib;
-			len = Obj_freebsd_x64_lib_len;
-		}
-		break;
-	case OS_MAC:
-		if (m_settings.preferredBits == 32)
-		{
-			lib = Obj_mac_x86_lib;
-			len = Obj_mac_x86_lib_len;
-		}
-		else
-		{
-			lib = Obj_mac_x64_lib;
-			len = Obj_mac_x64_lib_len;
-		}
-		break;
-	case OS_WINDOWS:
-		if (m_settings.preferredBits == 32)
-		{
-			lib = Obj_windows_x86_lib;
-			len = Obj_windows_x86_lib_len;
-		}
-		else
-		{
-			lib = Obj_windows_x64_lib;
-			len = Obj_windows_x64_lib_len;
-		}
-		break;
-	default:
-		if (m_settings.preferredBits == 32)
-		{
-			lib = Obj_x86_lib;
-			len = Obj_x86_lib_len;
-		}
-		else
-		{
-			lib = Obj_x64_lib;
-			len = Obj_x64_lib_len;
-		}
-		break;
 	}
 
 	if (len != 0)
@@ -802,6 +806,10 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 			out[SUBARCH_DEFAULT] = out[SUBARCH_X86];
 		else
 			out[SUBARCH_DEFAULT] = out[SUBARCH_X64];
+	}
+	else if (m_settings.architecture == ARCH_QUARK)
+	{
+		out[SUBARCH_DEFAULT] = new OutputQuark(m_settings);
 	}
 	else
 	{

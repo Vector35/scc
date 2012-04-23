@@ -66,6 +66,15 @@ struct OutputBlock
 	void WriteInteger(int64_t i);
 	void WriteString(const std::string& str);
 
+	void WriteInt8(int8_t value);
+	void WriteInt16(int16_t value);
+	void WriteInt32(int32_t value);
+	void WriteInt64(int64_t value);
+	void WriteUInt8(uint8_t value);
+	void WriteUInt16(uint16_t value);
+	void WriteUInt32(uint32_t value);
+	void WriteUInt64(uint64_t value);
+
 	void ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset);
 };
 

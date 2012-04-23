@@ -160,6 +160,11 @@ int main(int argc, char* argv[])
 				settings.architecture = ARCH_X86;
 				settings.preferredBits = 64;
 			}
+			else if (!strcmp(argv[i], "quark"))
+			{
+				settings.architecture = ARCH_QUARK;
+				settings.preferredBits = 32;
+			}
 			else
 			{
 				fprintf(stderr, "error: unsupported architecture '%s'\n", argv[i]);
@@ -589,6 +594,12 @@ int main(int argc, char* argv[])
 	if ((settings.format == FORMAT_LIB) && hexOutput)
 	{
 		fprintf(stderr, "error: output filename expected for library output\n");
+		return 1;
+	}
+
+	if ((settings.architecture == ARCH_QUARK) && (settings.preferredBits != 32))
+	{
+		fprintf(stderr, "error: invalid architecture settings\n");
 		return 1;
 	}
 

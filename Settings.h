@@ -27,7 +27,8 @@
 
 enum Architecture
 {
-	ARCH_X86
+	ARCH_X86,
+	ARCH_QUARK
 };
 
 enum OperatingSystem

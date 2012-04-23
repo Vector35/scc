@@ -170,6 +170,54 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 }
 
 
+void OutputBlock::WriteInt8(int8_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteInt16(int16_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteInt32(int32_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteInt64(int64_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteUInt8(uint8_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteUInt16(uint16_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteUInt32(uint32_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteUInt64(uint64_t value)
+{
+	Write(&value, sizeof(value));
+}
+
+
 bool InputBlock::Read(void* data, size_t readLen)
 {
 	if ((offset + readLen) > len)

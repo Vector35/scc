@@ -51,6 +51,12 @@ class OutputQuark: public Output
 		bool operator!=(const OperandReference& ref) const;
 	};
 
+	struct MemoryReference
+	{
+		int base;
+		int32_t offset;
+	};
+
 	std::map<Variable*, int32_t> m_stackFrame;
 	uint32_t m_stackFrameSize;
 	bool m_framePointerEnabled;
@@ -68,15 +74,19 @@ class OutputQuark: public Output
 	void ClearReservedRegisters(OutputBlock* out);
 	int GetRegisterByName(const std::string& name);
 
-	bool IsSigned10Bit(int32_t imm);
-	bool IsSigned16Bit(int32_t imm);
+	bool IsSigned11Bit(int32_t imm);
+	bool IsSigned17Bit(int32_t imm);
 
 	void LoadImm(OutputBlock* out, int dest, int32_t imm);
 	void AddImm(OutputBlock* out, int dest, int src, int32_t imm);
 	void SubImm(OutputBlock* out, int dest, int src, int32_t imm);
 
+	static void AbsoluteLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+	static void RelativeLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+
+	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, MemoryReference& ref);
 	bool Load(OutputBlock* out, const ILParameter& param, OperandReference& ref);
-	bool Store(OutputBlock* out, const ILParameter& param, const OperandReference& ref);
+	bool Store(OutputBlock* out, const ILParameter& param, OperandReference ref);
 	bool Move(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
 
 	bool GenerateAssign(OutputBlock* out, const ILInstruction& instr);

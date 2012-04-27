@@ -172,21 +172,21 @@ int OutputQuark::GetRegisterByName(const std::string& name)
 }
 
 
-bool OutputQuark::IsSigned10Bit(int32_t imm)
+bool OutputQuark::IsSigned11Bit(int32_t imm)
 {
-	if (imm < -512)
+	if (imm < -1024)
 		return false;
-	if (imm > 511)
+	if (imm > 1023)
 		return false;
 	return true;
 }
 
 
-bool OutputQuark::IsSigned16Bit(int32_t imm)
+bool OutputQuark::IsSigned17Bit(int32_t imm)
 {
-	if (imm < -32768)
+	if (imm < -65536)
 		return false;
-	if (imm > 32767)
+	if (imm > 65535)
 		return false;
 	return true;
 }
@@ -194,7 +194,7 @@ bool OutputQuark::IsSigned16Bit(int32_t imm)
 
 void OutputQuark::LoadImm(OutputBlock* out, int dest, int32_t imm)
 {
-	if (IsSigned16Bit(imm))
+	if (IsSigned17Bit(imm))
 	{
 		EMIT_2(ldi, dest, imm);
 	}
@@ -211,7 +211,7 @@ void OutputQuark::AddImm(OutputBlock* out, int dest, int src, int32_t imm)
 	if ((imm == 0) && (dest == src))
 		return;
 
-	if (IsSigned10Bit(imm))
+	if (IsSigned11Bit(imm))
 	{
 		EMIT_3I(add, dest, src, imm);
 	}
@@ -229,7 +229,7 @@ void OutputQuark::SubImm(OutputBlock* out, int dest, int src, int32_t imm)
 	if ((imm == 0) && (dest == src))
 		return;
 
-	if (IsSigned10Bit(imm))
+	if (IsSigned11Bit(imm))
 	{
 		EMIT_3I(sub, dest, src, imm);
 	}
@@ -242,16 +242,131 @@ void OutputQuark::SubImm(OutputBlock* out, int dest, int src, int32_t imm)
 }
 
 
+void OutputQuark::AbsoluteLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+{
+}
+
+
+void OutputQuark::RelativeLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+{
+}
+
+
+bool OutputQuark::AccessVariableStorage(OutputBlock* out, const ILParameter& param, MemoryReference& ref)
+{
+	if (param.cls == ILPARAM_MEMBER)
+	{
+		if (!AccessVariableStorage(out, *param.parent, ref))
+			return false;
+		if (!param.structure)
+			return false;
+
+		const StructMember* member = param.structure->GetMember(param.stringValue);
+		if (!member)
+			return false;
+
+		ref.offset += member->offset;
+		return true;
+	}
+
+	if (param.cls != ILPARAM_VAR)
+		return false;
+
+	if (param.variable->IsGlobal())
+	{
+		ref.base = AllocateTemporaryRegister(out);
+		ref.offset = 0;
+
+		if (!m_settings.positionIndependent)
+		{
+			EMIT_2(ldi, ref.base, 0);
+			Relocation reloc;
+			reloc.type = DATA_RELOC_ABSOLUTE_32_FIELD;
+			reloc.bitOffset = 0;
+			reloc.bitSize = 17;
+			reloc.offset = out->len - 4;
+			reloc.instruction = reloc.offset;
+			reloc.dataOffset = param.variable->GetDataSectionOffset();
+			reloc.overflow = AbsoluteLoadOverflowHandler;
+			out->relocs.push_back(reloc);
+			return true;
+		}
+
+		EMIT_3I(add, ref.base, IP, 0);
+		Relocation reloc;
+		reloc.type = DATA_RELOC_RELATIVE_32_FIELD;
+		reloc.bitOffset = 0;
+		reloc.bitSize = 11;
+		reloc.offset = out->len - 4;
+		reloc.instruction = reloc.offset;
+		reloc.dataOffset = param.variable->GetDataSectionOffset();
+		reloc.overflow = RelativeLoadOverflowHandler;
+		out->relocs.push_back(reloc);
+		return true;
+	}
+
+	map<Variable*, int32_t>::iterator i = m_stackFrame.find(param.variable);
+	if (i == m_stackFrame.end())
+		return false;
+	if (m_framePointerEnabled)
+	{
+		ref.base = m_framePointer;
+		ref.offset = i->second;
+	}
+	else
+	{
+		ref.base = m_stackPointer;
+		ref.offset = i->second;
+	}
+	return true;
+}
+
+
 bool OutputQuark::Load(OutputBlock* out, const ILParameter& param, OperandReference& ref)
 {
+	MemoryReference mem;
 	ref.width = param.GetWidth();
 
 	switch (param.cls)
 	{
 	case ILPARAM_VAR:
-		return false;
 	case ILPARAM_MEMBER:
-		return false;
+		ref.type = OPERANDREF_REG;
+		ref.width = param.GetWidth();
+		ref.reg = AllocateTemporaryRegister(out);
+		if (ref.width == 8)
+			ref.highReg = AllocateTemporaryRegister(out);
+
+		if (!AccessVariableStorage(out, param, mem))
+			return false;
+
+		if ((!IsSigned11Bit(mem.offset)) || (!IsSigned11Bit(mem.offset + ref.width - 1)))
+		{
+			int addr = AllocateTemporaryRegister(out);
+			AddImm(out, addr, mem.base, mem.offset);
+			mem.base = addr;
+			mem.offset = 0;
+		}
+
+		switch (ref.width)
+		{
+		case 1:
+			EMIT_3I(ldb, ref.reg, mem.base, mem.offset);
+			break;
+		case 2:
+			EMIT_3I(ldh, ref.reg, mem.base, mem.offset);
+			break;
+		case 4:
+			EMIT_3I(ldw, ref.reg, mem.base, mem.offset);
+			break;
+		case 8:
+			EMIT_3I(ldw, ref.reg, mem.base, mem.offset);
+			EMIT_3I(ldw, ref.highReg, mem.base, mem.offset + 4);
+			break;
+		default:
+			return false;
+		}
+		return true;
 	case ILPARAM_INT:
 		ref.type = OPERANDREF_IMMED;
 		ref.immed = param.integerValue;
@@ -273,15 +388,64 @@ bool OutputQuark::Load(OutputBlock* out, const ILParameter& param, OperandRefere
 }
 
 
-bool OutputQuark::Store(OutputBlock* out, const ILParameter& param, const OperandReference& ref)
+bool OutputQuark::Store(OutputBlock* out, const ILParameter& param, OperandReference ref)
 {
-	return true;
+	MemoryReference mem;
 	switch (param.cls)
 	{
 	case ILPARAM_VAR:
-		return false;
 	case ILPARAM_MEMBER:
-		return false;
+		if (!AccessVariableStorage(out, param, mem))
+			return false;
+
+		if ((!IsSigned11Bit(mem.offset)) || (!IsSigned11Bit(mem.offset + ref.width - 1)))
+		{
+			int addr = AllocateTemporaryRegister(out);
+			AddImm(out, addr, mem.base, mem.offset);
+			mem.base = addr;
+			mem.offset = 0;
+		}
+
+		if (ref.type == OPERANDREF_IMMED)
+		{
+			if (ref.width < 8)
+			{
+				int reg = AllocateTemporaryRegister(out);
+				LoadImm(out, reg, (int32_t)ref.immed);
+				ref.type = OPERANDREF_REG;
+				ref.reg = reg;
+			}
+			else
+			{
+				int reg = AllocateTemporaryRegister(out);
+				int highReg = AllocateTemporaryRegister(out);
+				LoadImm(out, reg, (int32_t)ref.immed);
+				LoadImm(out, highReg, (int32_t)(ref.immed >> 32));
+				ref.type = OPERANDREF_REG;
+				ref.reg = reg;
+				ref.highReg = highReg;
+			}
+		}
+
+		switch (ref.width)
+		{
+		case 1:
+			EMIT_3I(stb, ref.reg, mem.base, mem.offset);
+			break;
+		case 2:
+			EMIT_3I(sth, ref.reg, mem.base, mem.offset);
+			break;
+		case 4:
+			EMIT_3I(stw, ref.reg, mem.base, mem.offset);
+			break;
+		case 8:
+			EMIT_3I(stw, ref.reg, mem.base, mem.offset);
+			EMIT_3I(stw, ref.highReg, mem.base, mem.offset + 4);
+			break;
+		default:
+			return false;
+		}
+		return true;
 	default:
 		return false;
 	}
@@ -309,13 +473,25 @@ bool OutputQuark::Move(OutputBlock* out, const OperandReference& dest, const Ope
 
 bool OutputQuark::GenerateAssign(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference src;
+	if (!Load(out, instr.params[1], src))
+		return false;
+	return Store(out, instr.params[0], src);
 }
 
 
 bool OutputQuark::GenerateAddressOf(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	MemoryReference ref;
+	if (!AccessVariableStorage(out, instr.params[1], ref))
+		return false;
+
+	OperandReference addr;
+	addr.type = OPERANDREF_REG;
+	addr.width = 4;
+	addr.reg = AllocateTemporaryRegister(out);
+	AddImm(out, addr.reg, ref.base, ref.offset);
+	return Store(out, instr.params[0], addr);
 }
 
 

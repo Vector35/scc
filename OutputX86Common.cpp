@@ -500,8 +500,10 @@ OperandType OUTPUT_CLASS_NAME::GetRegisterByName(const string& name)
 }
 
 
-void OUTPUT_CLASS_NAME::LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+void OUTPUT_CLASS_NAME::LeaOverflowHandler(OutputBlock* out, Relocation& reloc)
 {
+	size_t start = reloc.instruction;
+	size_t offset = reloc.offset;
 	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
 
 #ifdef OUTPUT64
@@ -523,11 +525,18 @@ void OUTPUT_CLASS_NAME::LeaOverflowHandler(OutputBlock* out, size_t start, size_
 	*(uint32_t*)&newInstr[offset - start] = instr[offset - start] + 3;
 
 	out->ReplaceInstruction(start, (offset - start) + 1, newInstr, (offset - start) + 4, offset - start);
+
+	if (reloc.type == CODE_RELOC_RELATIVE_8)
+		reloc.type = CODE_RELOC_RELATIVE_32;
+	else if (reloc.type == DATA_RELOC_RELATIVE_8)
+		reloc.type = DATA_RELOC_RELATIVE_32;
 }
 
 
-void OUTPUT_CLASS_NAME::BaseRelativeLeaOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+void OUTPUT_CLASS_NAME::BaseRelativeLeaOverflowHandler(OutputBlock* out, Relocation& reloc)
 {
+	size_t start = reloc.instruction;
+	size_t offset = reloc.offset;
 	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
 
 #ifdef OUTPUT64
@@ -549,27 +558,38 @@ void OUTPUT_CLASS_NAME::BaseRelativeLeaOverflowHandler(OutputBlock* out, size_t 
 	*(uint32_t*)&newInstr[offset - start] = instr[offset - start];
 
 	out->ReplaceInstruction(start, (offset - start) + 1, newInstr, (offset - start) + 4, offset - start);
+
+	if (reloc.type == CODE_RELOC_BASE_RELATIVE_8)
+		reloc.type = CODE_RELOC_BASE_RELATIVE_32;
+	else if (reloc.type == DATA_RELOC_BASE_RELATIVE_8)
+		reloc.type = DATA_RELOC_BASE_RELATIVE_32;
 }
 
 
-void OUTPUT_CLASS_NAME::ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+void OUTPUT_CLASS_NAME::ConditionalJumpOverflowHandler(OutputBlock* out, Relocation& reloc)
 {
+	size_t start = reloc.instruction;
 	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
 	uint8_t newInstr[6];
 	newInstr[0] = 0x0f;
 	newInstr[1] = 0x80 + (instr[0] & 0x0f);
 	*(uint32_t*)&newInstr[2] = instr[1];
 	out->ReplaceInstruction(start, 2, newInstr, 6, 2);
+
+	reloc.type = CODE_RELOC_RELATIVE_32;
 }
 
 
-void OUTPUT_CLASS_NAME::UnconditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+void OUTPUT_CLASS_NAME::UnconditionalJumpOverflowHandler(OutputBlock* out, Relocation& reloc)
 {
+	size_t start = reloc.instruction;
 	uint8_t* instr = (uint8_t*)((size_t)out->code + start);
 	uint8_t newInstr[5];
 	newInstr[0] = 0xe9;
 	*(uint32_t*)&newInstr[1] = instr[1];
 	out->ReplaceInstruction(start, 2, newInstr, 5, 1);
+
+	reloc.type = CODE_RELOC_RELATIVE_32;
 }
 
 

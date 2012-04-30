@@ -108,10 +108,10 @@ class OUTPUT_CLASS_NAME: public Output
 	void ClearReservedRegisters(OutputBlock* out);
 	asmx86::OperandType GetRegisterByName(const std::string& name);
 
-	static void LeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);
-	static void BaseRelativeLeaOverflowHandler(OutputBlock* out, size_t start, size_t offset);
-	static void ConditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);
-	static void UnconditionalJumpOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+	static void LeaOverflowHandler(OutputBlock* out, Relocation& reloc);
+	static void BaseRelativeLeaOverflowHandler(OutputBlock* out, Relocation& reloc);
+	static void ConditionalJumpOverflowHandler(OutputBlock* out, Relocation& reloc);
+	static void UnconditionalJumpOverflowHandler(OutputBlock* out, Relocation& reloc);
 
 	size_t GetInstructionPointer(OutputBlock* out, asmx86::OperandType reg);
 	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref);

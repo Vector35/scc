@@ -172,7 +172,7 @@ int OutputQuark::GetRegisterByName(const std::string& name)
 }
 
 
-bool OutputQuark::IsSigned11Bit(int32_t imm)
+bool OutputQuark::IsSigned11Bit(int64_t imm)
 {
 	if (imm < -1024)
 		return false;
@@ -182,13 +182,24 @@ bool OutputQuark::IsSigned11Bit(int32_t imm)
 }
 
 
-bool OutputQuark::IsSigned17Bit(int32_t imm)
+bool OutputQuark::IsSigned17Bit(int64_t imm)
 {
 	if (imm < -65536)
 		return false;
 	if (imm > 65535)
 		return false;
 	return true;
+}
+
+
+bool OutputQuark::IsPowerOfTwo(int32_t imm, uint32_t& shiftCount)
+{
+	for (shiftCount = 0; shiftCount < 32; shiftCount++)
+	{
+		if (imm == (1 << shiftCount))
+			return true;
+	}
+	return false;
 }
 
 
@@ -242,13 +253,48 @@ void OutputQuark::SubImm(OutputBlock* out, int dest, int src, int32_t imm)
 }
 
 
-void OutputQuark::AbsoluteLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset)
+void OutputQuark::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc)
 {
-}
+	size_t start = reloc.instruction;
+	uint32_t* oldInstr = (uint32_t*)((size_t)out->code + start);
 
+	if (reloc.bitSize == 17)
+	{
+		// Was a 17-bit immediate, use a full 32-bit immediate
+		uint32_t instrs[3];
+		int32_t oldOffset = oldInstr[0] & 0x1ffff;
+		int oldReg = (oldInstr[1] >> 17) & 31;
+		if (oldOffset & 0x10000)
+			oldOffset |= 0xfffe0000;
 
-void OutputQuark::RelativeLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset)
-{
+		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
+		instrs[1] = QUARK_EMIT_2(ldih, reloc.extra, (oldOffset < 0) ? -1 : 0);
+		instrs[2] = QUARK_EMIT_3R(add, oldReg, IP, reloc.extra, 0);
+
+		out->ReplaceInstruction(start, 8, instrs, 12, 4);
+
+		reloc.type = DATA_RELOC_RELATIVE_64_SPLIT_FIELD;
+		reloc.bitSize = 16;
+		reloc.secondBitOffset = 0;
+		reloc.secondBitSize = 16;
+		reloc.secondBitShift = 16;
+	}
+	else
+	{
+		// Was an 11-bit immediate, extend to a 17-bit immediate
+		uint32_t instrs[2];
+		int32_t oldOffset = oldInstr[0] & 0x7ff;
+		int oldReg = (oldInstr[0] >> 17) & 31;
+		if (oldOffset & 0x400)
+			oldOffset |= 0xfffff800;
+
+		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
+		instrs[1] = QUARK_EMIT_3R(add, oldReg, IP, reloc.extra, 0);
+
+		out->ReplaceInstruction(start, 4, instrs, 8, 4);
+
+		reloc.bitSize = 17;
+	}
 }
 
 
@@ -277,27 +323,14 @@ bool OutputQuark::AccessVariableStorage(OutputBlock* out, const ILParameter& par
 		ref.base = AllocateTemporaryRegister(out);
 		ref.offset = 0;
 
-		if (!m_settings.positionIndependent)
-		{
-			EMIT_2(ldi, ref.base, 0);
-			Relocation reloc;
-			reloc.type = DATA_RELOC_ABSOLUTE_32_FIELD;
-			reloc.bitOffset = 0;
-			reloc.bitSize = 17;
-			reloc.offset = out->len - 4;
-			reloc.instruction = reloc.offset;
-			reloc.dataOffset = param.variable->GetDataSectionOffset();
-			reloc.overflow = AbsoluteLoadOverflowHandler;
-			out->relocs.push_back(reloc);
-			return true;
-		}
-
 		EMIT_3I(add, ref.base, IP, 0);
 		Relocation reloc;
 		reloc.type = DATA_RELOC_RELATIVE_32_FIELD;
 		reloc.bitOffset = 0;
 		reloc.bitSize = 11;
+		reloc.bitShift = 0;
 		reloc.offset = out->len - 4;
+		reloc.extra = AllocateTemporaryRegister(out);
 		reloc.instruction = reloc.offset;
 		reloc.dataOffset = param.variable->GetDataSectionOffset();
 		reloc.overflow = RelativeLoadOverflowHandler;
@@ -322,7 +355,7 @@ bool OutputQuark::AccessVariableStorage(OutputBlock* out, const ILParameter& par
 }
 
 
-bool OutputQuark::Load(OutputBlock* out, const ILParameter& param, OperandReference& ref)
+bool OutputQuark::Load(OutputBlock* out, const ILParameter& param, OperandReference& ref, bool forceReg)
 {
 	MemoryReference mem;
 	ref.width = param.GetWidth();
@@ -368,12 +401,32 @@ bool OutputQuark::Load(OutputBlock* out, const ILParameter& param, OperandRefere
 		}
 		return true;
 	case ILPARAM_INT:
-		ref.type = OPERANDREF_IMMED;
-		ref.immed = param.integerValue;
+		if ((!forceReg) && IsSigned11Bit(param.integerValue))
+		{
+			ref.type = OPERANDREF_IMMED;
+			ref.immed = param.integerValue;
+			return true;
+		}
+
+		ref.type = OPERANDREF_REG;
+		ref.reg = AllocateTemporaryRegister(out);
+		if (ref.width == 8)
+			ref.highReg = AllocateTemporaryRegister(out);
+
+		LoadImm(out, ref.reg, (int32_t)param.integerValue);
+		if (ref.width == 8)
+			LoadImm(out, ref.highReg, (int32_t)(param.integerValue >> 32));
 		return true;
 	case ILPARAM_BOOL:
-		ref.type = OPERANDREF_IMMED;
-		ref.immed = param.boolValue ? 1 : 0;
+		if (!forceReg)
+		{
+			ref.type = OPERANDREF_IMMED;
+			ref.immed = param.boolValue ? 1 : 0;
+			return true;
+		}
+		ref.type = OPERANDREF_REG;
+		ref.reg = AllocateTemporaryRegister(out);
+		LoadImm(out, ref.reg, param.boolValue ? 1 : 0);
 		return true;
 	case ILPARAM_FUNC:
 		return false;
@@ -471,6 +524,49 @@ bool OutputQuark::Move(OutputBlock* out, const OperandReference& dest, const Ope
 }
 
 
+void OutputQuark::ConditionalJump(OutputBlock* out, ILBlock* block, int cond, bool value)
+{
+	if (value)
+		EMIT_COND_1(jmp, QUARK_IF_TRUE(cond), 0);
+	else
+		EMIT_COND_1(jmp, QUARK_IF_FALSE(cond), 0);
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+	reloc.overflow = NULL;
+	reloc.instruction = out->len - 4;
+	reloc.offset = out->len - 4;
+	reloc.target = block;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 22;
+	reloc.bitShift = 2;
+	out->relocs.push_back(reloc);
+}
+
+
+void OutputQuark::UnconditionalJump(OutputBlock* out, ILBlock* block, bool canOmit)
+{
+	if (canOmit && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
+	{
+		// The destination block is the one just after the current one, just fall through
+		return;
+	}
+
+	EMIT_1(jmp, 0);
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+	reloc.overflow = NULL;
+	reloc.instruction = out->len - 4;
+	reloc.offset = out->len - 4;
+	reloc.target = block;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 22;
+	reloc.bitShift = 2;
+	out->relocs.push_back(reloc);
+}
+
+
 bool OutputQuark::GenerateAssign(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference src;
@@ -497,31 +593,186 @@ bool OutputQuark::GenerateAddressOf(OutputBlock* out, const ILInstruction& instr
 
 bool OutputQuark::GenerateAddressOfMember(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	MemoryReference ref;
+	if (!AccessVariableStorage(out, instr.params[1], ref))
+		return false;
+
+	if (!instr.params[2].structure)
+		return false;
+
+	const StructMember* member = instr.params[2].structure->GetMember(instr.params[2].stringValue);
+	if (!member)
+		return false;
+
+	OperandReference addr;
+	addr.type = OPERANDREF_REG;
+	addr.width = 4;
+	addr.reg = AllocateTemporaryRegister(out);
+	AddImm(out, addr.reg, ref.base, ref.offset + member->offset);
+	return Store(out, instr.params[0], addr);
 }
 
 
 bool OutputQuark::GenerateDeref(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference addr;
+	if (!Load(out, instr.params[1], addr, true))
+		return false;
+
+	OperandReference value;
+	value.type = OPERANDREF_REG;
+	value.width = instr.params[0].GetWidth();
+	value.reg = AllocateTemporaryRegister(out);
+	if (value.width == 8)
+		value.highReg = AllocateTemporaryRegister(out);
+
+	switch (value.width)
+	{
+	case 1:
+		EMIT_3I(ldb, value.reg, addr.reg, 0);
+		break;
+	case 2:
+		EMIT_3I(ldh, value.reg, addr.reg, 0);
+		break;
+	case 4:
+		EMIT_3I(ldw, value.reg, addr.reg, 0);
+		break;
+	case 8:
+		EMIT_3I(ldw, value.reg, addr.reg, 0);
+		EMIT_3I(ldw, value.highReg, addr.reg, 4);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], value);
 }
 
 
 bool OutputQuark::GenerateDerefMember(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference addr;
+	if (!Load(out, instr.params[1], addr, true))
+		return false;
+
+	OperandReference value;
+	value.type = OPERANDREF_REG;
+	value.width = instr.params[0].GetWidth();
+	value.reg = AllocateTemporaryRegister(out);
+	if (value.width == 8)
+		value.highReg = AllocateTemporaryRegister(out);
+
+	if (!instr.params[2].structure)
+		return false;
+
+	const StructMember* member = instr.params[2].structure->GetMember(instr.params[2].stringValue);
+	if (!member)
+		return false;
+
+	int32_t offset = member->offset;
+	if ((!IsSigned11Bit(offset)) || (!IsSigned11Bit(offset + value.width - 1)))
+	{
+		int reg = AllocateTemporaryRegister(out);
+		LoadImm(out, reg, offset);
+		EMIT_3R(add, addr.reg, addr.reg, reg, 0);
+		offset = 0;
+	}
+
+	switch (value.width)
+	{
+	case 1:
+		EMIT_3I(ldb, value.reg, addr.reg, offset);
+		break;
+	case 2:
+		EMIT_3I(ldh, value.reg, addr.reg, offset);
+		break;
+	case 4:
+		EMIT_3I(ldw, value.reg, addr.reg, offset);
+		break;
+	case 8:
+		EMIT_3I(ldw, value.reg, addr.reg, offset);
+		EMIT_3I(ldw, value.highReg, addr.reg, offset + 4);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], value);
 }
 
 
 bool OutputQuark::GenerateDerefAssign(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference addr, value;
+	if (!Load(out, instr.params[0], addr, true))
+		return false;
+	if (!Load(out, instr.params[1], value, true))
+		return false;
+
+	switch (value.width)
+	{
+	case 1:
+		EMIT_3I(stb, value.reg, addr.reg, 0);
+		break;
+	case 2:
+		EMIT_3I(sth, value.reg, addr.reg, 0);
+		break;
+	case 4:
+		EMIT_3I(stw, value.reg, addr.reg, 0);
+		break;
+	case 8:
+		EMIT_3I(stw, value.reg, addr.reg, 0);
+		EMIT_3I(stw, value.highReg, addr.reg, 4);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
 }
 
 
 bool OutputQuark::GenerateDerefMemberAssign(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference addr, value;
+	if (!Load(out, instr.params[0], addr, true))
+		return false;
+	if (!Load(out, instr.params[1], value, true))
+		return false;
+
+	const StructMember* member = instr.params[2].structure->GetMember(instr.params[2].stringValue);
+	if (!member)
+		return false;
+
+	int32_t offset = member->offset;
+	if ((!IsSigned11Bit(offset)) || (!IsSigned11Bit(offset + value.width - 1)))
+	{
+		int reg = AllocateTemporaryRegister(out);
+		LoadImm(out, reg, offset);
+		EMIT_3R(add, addr.reg, addr.reg, reg, 0);
+		offset = 0;
+	}
+
+	switch (value.width)
+	{
+	case 1:
+		EMIT_3I(stb, value.reg, addr.reg, offset);
+		break;
+	case 2:
+		EMIT_3I(sth, value.reg, addr.reg, offset);
+		break;
+	case 4:
+		EMIT_3I(stw, value.reg, addr.reg, offset);
+		break;
+	case 8:
+		EMIT_3I(stw, value.reg, addr.reg, offset);
+		EMIT_3I(stw, value.highReg, addr.reg, offset + 4);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
 }
 
 
@@ -539,13 +790,99 @@ bool OutputQuark::GenerateArrayIndexAssign(OutputBlock* out, const ILInstruction
 
 bool OutputQuark::GeneratePtrAdd(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	uint32_t shiftCount;
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (IsPowerOfTwo(instr.params[3].integerValue, shiftCount))
+			EMIT_3R(add, result.reg, left.reg, right.reg, shiftCount);
+		else if (IsSigned11Bit(instr.params[3].integerValue))
+		{
+			EMIT_3I(mul, right.reg, right.reg, (int32_t)instr.params[3].integerValue);
+			EMIT_3R(add, result.reg, left.reg, right.reg, 0);
+		}
+		else
+		{
+			int reg = AllocateTemporaryRegister(out);
+			LoadImm(out, reg, (int32_t)instr.params[3].integerValue);
+			EMIT_3R(mul, right.reg, right.reg, reg, 0);
+			EMIT_3R(add, result.reg, left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (IsSigned11Bit(instr.params[3].integerValue * right.immed))
+			EMIT_3I(add, result.reg, left.reg, (int32_t)(instr.params[3].integerValue * right.immed));
+		else
+		{
+			int reg = AllocateTemporaryRegister(out);
+			LoadImm(out, reg, (int32_t)(instr.params[3].integerValue * right.immed));
+			EMIT_3R(add, result.reg, left.reg, reg, 0);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GeneratePtrSub(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	uint32_t shiftCount;
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (IsPowerOfTwo(instr.params[3].integerValue, shiftCount))
+			EMIT_3R(sub, result.reg, left.reg, right.reg, shiftCount);
+		else if (IsSigned11Bit(instr.params[3].integerValue))
+		{
+			EMIT_3I(mul, right.reg, right.reg, (int32_t)instr.params[3].integerValue);
+			EMIT_3R(sub, result.reg, left.reg, right.reg, 0);
+		}
+		else
+		{
+			int reg = AllocateTemporaryRegister(out);
+			LoadImm(out, reg, (int32_t)instr.params[3].integerValue);
+			EMIT_3R(mul, right.reg, right.reg, reg, 0);
+			EMIT_3R(sub, result.reg, left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (IsSigned11Bit(instr.params[3].integerValue * right.immed))
+			EMIT_3I(sub, result.reg, left.reg, (int32_t)(instr.params[3].integerValue * right.immed));
+		else
+		{
+			int reg = AllocateTemporaryRegister(out);
+			LoadImm(out, reg, (int32_t)(instr.params[3].integerValue * right.immed));
+			EMIT_3R(sub, result.reg, left.reg, reg, 0);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
@@ -557,191 +894,1125 @@ bool OutputQuark::GeneratePtrDiff(OutputBlock* out, const ILInstruction& instr)
 
 bool OutputQuark::GenerateAdd(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+	if (result.width == 8)
+		result.highReg = AllocateTemporaryRegister(out);
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (result.width == 8)
+		{
+			EMIT_1(clrcc, 3);
+			EMIT_3R(addx, result.reg, left.reg, right.reg, 0);
+			EMIT_3R(addx, result.highReg, left.highReg, right.highReg, 0);
+		}
+		else
+		{
+			EMIT_3R(add, result.reg, left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (result.width == 8)
+		{
+			EMIT_1(clrcc, 3);
+			EMIT_3I(addx, result.reg, left.reg, (int32_t)right.immed);
+			EMIT_3I(addx, result.highReg, left.highReg, (int32_t)(right.immed >> 32));
+		}
+		else
+		{
+			EMIT_3I(add, result.reg, left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateSub(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+	if (result.width == 8)
+		result.highReg = AllocateTemporaryRegister(out);
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (result.width == 8)
+		{
+			EMIT_1(clrcc, 3);
+			EMIT_3R(subx, result.reg, left.reg, right.reg, 0);
+			EMIT_3R(subx, result.highReg, left.highReg, right.highReg, 0);
+		}
+		else
+		{
+			EMIT_3R(sub, result.reg, left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (result.width == 8)
+		{
+			EMIT_1(clrcc, 3);
+			EMIT_3I(subx, result.reg, left.reg, (int32_t)right.immed);
+			EMIT_3I(subx, result.highReg, left.highReg, (int32_t)(right.immed >> 32));
+		}
+		else
+		{
+			EMIT_3I(sub, result.reg, left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateSignedMult(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(mul, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(mul, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateUnsignedMult(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(mul, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(mul, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateSignedDiv(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(idiv, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(idiv, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateUnsignedDiv(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(div, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(div, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateSignedMod(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(imod, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(imod, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateUnsignedMod(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(mod, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(mod, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateAnd(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+	if (result.width == 8)
+		result.highReg = AllocateTemporaryRegister(out);
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(and, result.reg, left.reg, right.reg, 0);
+		if (result.width == 8)
+			EMIT_3R(and, result.highReg, left.highReg, right.highReg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(and, result.reg, left.reg, (int32_t)right.immed);
+		if (result.width == 8)
+			EMIT_3I(and, result.highReg, left.highReg, (int32_t)(right.immed >> 32));
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateOr(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+	if (result.width == 8)
+		result.highReg = AllocateTemporaryRegister(out);
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(or, result.reg, left.reg, right.reg, 0);
+		if (result.width == 8)
+			EMIT_3R(or, result.highReg, left.highReg, right.highReg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(or, result.reg, left.reg, (int32_t)right.immed);
+		if (result.width == 8)
+			EMIT_3I(or, result.highReg, left.highReg, (int32_t)(right.immed >> 32));
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateXor(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+	if (result.width == 8)
+		result.highReg = AllocateTemporaryRegister(out);
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(xor, result.reg, left.reg, right.reg, 0);
+		if (result.width == 8)
+			EMIT_3R(xor, result.highReg, left.highReg, right.highReg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(xor, result.reg, left.reg, (int32_t)right.immed);
+		if (result.width == 8)
+			EMIT_3I(xor, result.highReg, left.highReg, (int32_t)(right.immed >> 32));
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateShl(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(shl, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(shl, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateShr(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(shr, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(shr, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateSar(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right, result;
+	if (!Load(out, instr.params[1], left, true))
+		return false;
+	if (!Load(out, instr.params[2], right))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = left.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		EMIT_3R(sar, result.reg, left.reg, right.reg, 0);
+		break;
+	case OPERANDREF_IMMED:
+		EMIT_3I(sar, result.reg, left.reg, (int32_t)right.immed);
+		break;
+	default:
+		return false;
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateNeg(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference src, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = src.width;
+	result.reg = AllocateTemporaryRegister(out);
+
+	if (result.width == 8)
+	{
+		result.highReg = AllocateTemporaryRegister(out);
+		EMIT_2(not, result.reg, src.reg);
+		EMIT_2(not, result.highReg, src.highReg);
+		EMIT_1(clrcc, 3);
+		EMIT_3I(addx, result.reg, result.reg, 1);
+		EMIT_3I(addx, result.highReg, result.highReg, 0);
+	}
+	else
+	{
+		EMIT_2(not, result.reg, src.reg);
+	}
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateNot(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference src, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = src.width;
+	result.reg = AllocateTemporaryRegister(out);
+	if (result.width == 8)
+		result.highReg = AllocateTemporaryRegister(out);
+
+	EMIT_2(not, result.reg, src.reg);
+	if (result.width == 8)
+		EMIT_2(not, result.highReg, src.highReg);
+
+	return Store(out, instr.params[0], result);
 }
 
 
 bool OutputQuark::GenerateIfTrue(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference value;
+	if (!Load(out, instr.params[0], value))
+		return false;
+
+	if (value.width == 8)
+	{
+		EMIT_3I(cmp, QUARK_COND(QUARK_COND_NE, 0), value.reg, 0);
+		EMIT_3I(cmp, QUARK_COND(QUARK_COND_NE, 1), value.highReg, 0);
+		EMIT_3(orcc, 0, 0, 1);
+	}
+	else
+	{
+		EMIT_3I(cmp, QUARK_COND(QUARK_COND_NE, 0), value.reg, 0);
+	}
+
+	ConditionalJump(out, instr.params[2].block, 0, true);
+	UnconditionalJump(out, instr.params[3].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateIfLessThan(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!Load(out, instr.params[0], left))
+		return false;
+	if (!Load(out, instr.params[1], right))
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (right.width == 8)
+		{
+			EMIT_3R(icmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, right.reg, 0);
+			EMIT_3R(icmp, QUARK_COND(QUARK_COND_EQ, 1), left.reg, right.reg, 0);
+			EMIT_COND_3R(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LT, 0), left.highReg, right.highReg, 0);
+		}
+		else
+		{
+			EMIT_3R(icmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (right.width == 8)
+		{
+			EMIT_3I(icmp, QUARK_COND(QUARK_COND_LT, 0), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_3I(icmp, QUARK_COND(QUARK_COND_EQ, 1), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_COND_3I(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LT, 0), left.reg, (int32_t)right.immed);
+		}
+		else
+		{
+			EMIT_3I(icmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	ConditionalJump(out, instr.params[2].block, 0, true);
+	UnconditionalJump(out, instr.params[3].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateIfLessThanEqual(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!Load(out, instr.params[0], left))
+		return false;
+	if (!Load(out, instr.params[1], right))
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (right.width == 8)
+		{
+			EMIT_3R(icmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, right.reg, 0);
+			EMIT_3R(icmp, QUARK_COND(QUARK_COND_EQ, 1), left.reg, right.reg, 0);
+			EMIT_COND_3R(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LE, 0), left.highReg, right.highReg, 0);
+		}
+		else
+		{
+			EMIT_3R(icmp, QUARK_COND(QUARK_COND_LE, 0), left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (right.width == 8)
+		{
+			EMIT_3I(icmp, QUARK_COND(QUARK_COND_LT, 0), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_3I(icmp, QUARK_COND(QUARK_COND_EQ, 1), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_COND_3I(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LE, 0), left.reg, (int32_t)right.immed);
+		}
+		else
+		{
+			EMIT_3I(icmp, QUARK_COND(QUARK_COND_LE, 0), left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	ConditionalJump(out, instr.params[2].block, 0, true);
+	UnconditionalJump(out, instr.params[3].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateIfBelow(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!Load(out, instr.params[0], left))
+		return false;
+	if (!Load(out, instr.params[1], right))
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (right.width == 8)
+		{
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, right.reg, 0);
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_EQ, 1), left.reg, right.reg, 0);
+			EMIT_COND_3R(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LT, 0), left.highReg, right.highReg, 0);
+		}
+		else
+		{
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (right.width == 8)
+		{
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_LT, 0), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_EQ, 1), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_COND_3I(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LT, 0), left.reg, (int32_t)right.immed);
+		}
+		else
+		{
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	ConditionalJump(out, instr.params[2].block, 0, true);
+	UnconditionalJump(out, instr.params[3].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateIfBelowEqual(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!Load(out, instr.params[0], left))
+		return false;
+	if (!Load(out, instr.params[1], right))
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (right.width == 8)
+		{
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_LT, 0), left.reg, right.reg, 0);
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_EQ, 1), left.reg, right.reg, 0);
+			EMIT_COND_3R(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LE, 0), left.highReg, right.highReg, 0);
+		}
+		else
+		{
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_LE, 0), left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (right.width == 8)
+		{
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_LT, 0), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_EQ, 1), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_COND_3I(cmp, QUARK_IF_TRUE(1), QUARK_COND(QUARK_COND_LE, 0), left.reg, (int32_t)right.immed);
+		}
+		else
+		{
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_LE, 0), left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	ConditionalJump(out, instr.params[2].block, 0, true);
+	UnconditionalJump(out, instr.params[3].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateIfEqual(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference left, right;
+	if (!Load(out, instr.params[0], left))
+		return false;
+	if (!Load(out, instr.params[1], right))
+		return false;
+
+	switch (right.type)
+	{
+	case OPERANDREF_REG:
+		if (right.width == 8)
+		{
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_EQ, 0), left.reg, right.reg, 0);
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_EQ, 1), left.highReg, right.highReg, 0);
+			EMIT_3(andcc, 0, 0, 1);
+		}
+		else
+		{
+			EMIT_3R(cmp, QUARK_COND(QUARK_COND_EQ, 0), left.reg, right.reg, 0);
+		}
+		break;
+	case OPERANDREF_IMMED:
+		if (right.width == 8)
+		{
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_EQ, 0), left.reg, (int32_t)right.immed);
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_EQ, 1), left.highReg, (int32_t)(right.immed >> 32));
+			EMIT_3(andcc, 0, 0, 1);
+		}
+		else
+		{
+			EMIT_3I(cmp, QUARK_COND(QUARK_COND_EQ, 0), left.reg, (int32_t)right.immed);
+		}
+		break;
+	default:
+		return false;
+	}
+
+	ConditionalJump(out, instr.params[2].block, 0, true);
+	UnconditionalJump(out, instr.params[3].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateGoto(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	if (instr.params[0].cls != ILPARAM_BLOCK)
+	{
+		OperandReference value;
+		if (!Load(out, instr.params[0], value))
+			return false;
+
+		switch (value.type)
+		{
+		case OPERANDREF_REG:
+			EMIT_2R(mov, IP, value.reg, 0);
+			break;
+		case OPERANDREF_IMMED:
+			EMIT_2I(mov, IP, (int32_t)value.immed);
+			break;
+		default:
+			return false;
+		}
+
+		return true;
+	}
+
+	UnconditionalJump(out, instr.params[0].block);
+	return true;
 }
 
 
 bool OutputQuark::GenerateCall(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	size_t pushSize = 0;
+
+	// Push parameters from right to left
+	for (size_t i = instr.params.size() - 1; i >= 2; i--)
+	{
+		memset(m_alloc, 0, sizeof(m_alloc));
+		ClearReservedRegisters(out);
+
+		OperandReference param;
+		if (!Load(out, instr.params[i], param, true))
+			return false;
+
+		if (param.width == 0)
+		{
+			// Indefinite width (used for immediates, for example), use native size
+			param.width = 4;
+		}
+
+		if (m_settings.stackGrowsUp)
+		{
+			switch (param.width)
+			{
+			case 1:
+			case 2:
+			case 4:
+				EMIT_3I(stwu, param.reg, m_stackPointer, 4);
+				pushSize += 4;
+			case 8:
+				EMIT_3I(stw, param.reg, m_stackPointer, 4);
+				EMIT_3I(stwu, param.highReg, m_stackPointer, 8);
+				pushSize += 8;
+				break;
+			default:
+				return false;
+			}
+		}
+		else
+		{
+			switch (param.width)
+			{
+			case 1:
+			case 2:
+			case 4:
+				EMIT_3I(stwu, param.reg, m_stackPointer, -4);
+				pushSize += 4;
+			case 8:
+				EMIT_3I(stw, param.highReg, m_stackPointer, -4);
+				EMIT_3I(stwu, param.reg, m_stackPointer, -8);
+				pushSize += 8;
+				break;
+			default:
+				return false;
+			}
+		}
+	}
+
+	memset(m_alloc, 0, sizeof(m_alloc));
+	ClearReservedRegisters(out);
+
+	// Perform function call
+	if (instr.params[1].cls == ILPARAM_FUNC)
+	{
+		// Direct function call
+		if (m_settings.encodePointers)
+		{
+			// Encoded pointer call, load return address then jump to function
+			EMIT_3I(add, LR, IP, 0);
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+			reloc.bitOffset = 0;
+			reloc.bitSize = 11;
+			reloc.bitShift = 0;
+			reloc.overflow = NULL;
+			reloc.offset = out->len - 4;
+			reloc.target = NULL;
+
+			size_t beforeLen = out->len;
+
+			if (m_settings.encodePointers)
+			{
+				// Generate code to encode pointer
+				ILParameter keyParam(m_settings.encodePointerKey);
+				OperandReference key;
+				if (!Load(out, keyParam, key, true))
+					return false;
+				EMIT_3R(xor, LR, LR, key.reg, 0);
+			}
+
+			// Jump to function
+			UnconditionalJump(out, instr.params[1].function->GetIL()[0], false);
+
+			// Fix up relocation to point to return address
+			size_t afterLen = out->len;
+			reloc.start = beforeLen;
+			reloc.end = afterLen;
+			*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
+			out->relocs.push_back(reloc);
+		}
+		else
+		{
+			// Normal call
+			EMIT_1I(call, 0);
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+			reloc.bitOffset = 0;
+			reloc.bitSize = 22;
+			reloc.bitShift = 2;
+			reloc.overflow = NULL;
+			reloc.offset = out->len - 4;
+			reloc.target = instr.params[1].function->GetIL()[0];
+			out->relocs.push_back(reloc);
+		}
+	}
+	else
+	{
+		// Indirect function call
+		OperandReference func, key;
+		if (!Load(out, instr.params[1], func, true))
+			return false;
+
+		if (m_settings.encodePointers)
+		{
+			// Decode pointer before calling
+			ILParameter keyParam(m_settings.encodePointerKey);
+			if (!Load(out, keyParam, key, true))
+				return false;
+			EMIT_3R(xor, func.reg, func.reg, key.reg, 0);
+
+			// Load return address
+			EMIT_3I(add, LR, IP, 0);
+
+			Relocation reloc;
+			reloc.type = CODE_RELOC_RELATIVE_32;
+			reloc.bitOffset = 0;
+			reloc.bitSize = 11;
+			reloc.bitShift = 0;
+			reloc.overflow = NULL;
+			reloc.offset = out->len - 4;
+			reloc.target = NULL;
+
+			size_t beforeLen = out->len;
+
+			if (m_settings.encodePointers)
+			{
+				// Encode return address
+				EMIT_3R(xor, LR, LR, key.reg, 0);
+			}
+
+			// Jump to function
+			EMIT_2R(mov, IP, func.reg, 0);
+
+			// Fix up relocation to point to return address
+			size_t afterLen = out->len;
+			reloc.start = beforeLen;
+			reloc.end = afterLen;
+			*(int32_t*)((size_t)out->code + reloc.offset) += (int32_t)(afterLen - beforeLen);
+			out->relocs.push_back(reloc);
+		}
+		else
+		{
+			EMIT_1R(call, func.reg);
+		}
+	}
+
+	// Adjust stack pointer to pop off parameters
+	if (pushSize != 0)
+	{
+		if (m_settings.stackGrowsUp)
+			EMIT_3I(sub, m_stackPointer, m_stackPointer, pushSize);
+		else
+			EMIT_3I(add, m_stackPointer, m_stackPointer, pushSize);
+	}
+
+	// Store return value, if there is one
+	if (instr.params[0].cls != ILPARAM_VOID)
+	{
+		if (instr.params[0].GetWidth() > 4)
+			ReserveRegisters(out, 1, 2, NONE);
+		else
+			ReserveRegisters(out, 1, NONE);
+
+		OperandReference retVal;
+		retVal.type = OPERANDREF_REG;
+		retVal.width = instr.params[0].GetWidth();
+		retVal.reg = 1;
+		if (retVal.width == 8)
+			retVal.highReg = 2;
+
+		if (!Store(out, instr.params[0], retVal))
+			return false;
+	}
+
+	return true;
 }
 
 
 bool OutputQuark::GenerateSignedConvert(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference src;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+
+	switch (src.width)
+	{
+	case 1:
+		EMIT_2(sxb, src.reg, src.reg);
+		break;
+	case 2:
+		EMIT_2(sxh, src.reg, src.reg);
+		break;
+	default:
+		break;
+	}
+
+	if (instr.params[0].GetWidth() == 8)
+	{
+		src.highReg = AllocateTemporaryRegister(out);
+		EMIT_3I(sar, src.highReg, src.reg, 31);
+	}
+	src.width = instr.params[0].GetWidth();
+
+	return Store(out, instr.params[0], src);
 }
 
 
 bool OutputQuark::GenerateUnsignedConvert(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference src;
+	if (!Load(out, instr.params[1], src))
+		return false;
+
+	if (instr.params[0].GetWidth() == 8)
+	{
+		src.highReg = AllocateTemporaryRegister(out);
+		EMIT_2(ldi, src.highReg, 0);
+	}
+	src.width = instr.params[0].GetWidth();
+
+	return Store(out, instr.params[0], src);
 }
 
 
 bool OutputQuark::GenerateReturn(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference retVal;
+	if (!Load(out, instr.params[0], retVal))
+		return false;
+
+	switch (retVal.width)
+	{
+	case 1:
+	case 2:
+	case 4:
+		EMIT_2R(mov, 1, retVal.reg, 0);
+		break;
+	case 8:
+		EMIT_2R(mov, 1, retVal.reg, 0);
+		EMIT_2R(mov, 2, retVal.highReg, 0);
+		break;
+	default:
+		return false;
+	}
+
+	return GenerateReturnVoid(out, instr);
 }
 
 
 bool OutputQuark::GenerateReturnVoid(OutputBlock* out, const ILInstruction& instr)
 {
-	return false;
+	ReserveRegisters(out, 1, 2, NONE);
+
+	// Restore frame pointer (if present) and adjust stack
+	if (m_framePointerEnabled)
+	{
+		EMIT_2R(mov, m_stackPointer, m_framePointer, 0);
+		if (m_settings.stackGrowsUp)
+		{
+			EMIT_3I(ldw, m_framePointer, m_stackPointer, 0);
+			EMIT_3I(sub, m_stackPointer, m_stackPointer, 4);
+		}
+		else
+		{
+			EMIT_3I(ldwu, m_framePointer, m_stackPointer, 0);
+		}
+	}
+	else if (m_stackFrameSize != 0)
+	{
+		if (m_settings.stackGrowsUp)
+			SubImm(out, m_stackPointer, m_stackPointer, m_stackFrameSize);
+		else
+			AddImm(out, m_stackPointer, m_stackPointer, m_stackFrameSize);
+	}
+
+	// Pop return address
+	if (m_settings.stackGrowsUp)
+	{
+		EMIT_3I(ldw, LR, m_stackPointer, 0);
+		EMIT_3I(sub, m_stackPointer, m_stackPointer, 4);
+	}
+	else
+	{
+		EMIT_3I(ldwu, LR, m_stackPointer, 0);
+	}
+
+	if (m_settings.encodePointers)
+	{
+		// Using encoded pointers, decode return address before returning
+		OperandReference key;
+		ILParameter keyParam(m_settings.encodePointerKey);
+		if (!Load(out, keyParam, key, true))
+			return false;
+
+		EMIT_3R(xor, LR, LR, key.reg, 0);
+	}
+
+	EMIT_2R(mov, IP, LR, 0);
+	return true;
 }
 
 
 bool OutputQuark::GenerateAlloca(OutputBlock* out, const ILInstruction& instr)
-{
-	return false;
-}
-
-
-bool OutputQuark::GenerateMemcpy(OutputBlock* out, const ILInstruction& instr)
-{
-	return false;
-}
-
-
-bool OutputQuark::GenerateMemset(OutputBlock* out, const ILInstruction& instr)
-{
-	return false;
-}
-
-
-bool OutputQuark::GenerateStrlen(OutputBlock* out, const ILInstruction& instr)
 {
 	return false;
 }
@@ -1067,18 +2338,6 @@ bool OutputQuark::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			if (!GenerateAlloca(out, *i))
 				goto fail;
 			break;
-		case ILOP_MEMCPY:
-			if (!GenerateMemcpy(out, *i))
-				goto fail;
-			break;
-		case ILOP_MEMSET:
-			if (!GenerateMemset(out, *i))
-				goto fail;
-			break;
-		case ILOP_STRLEN:
-			if (!GenerateStrlen(out, *i))
-				goto fail;
-			break;
 		case ILOP_SYSCALL:
 			if (!GenerateSyscall(out, *i))
 				goto fail;
@@ -1289,18 +2548,17 @@ bool OutputQuark::GenerateCode(Function* func)
 			}
 			else if (m_framePointerEnabled)
 			{
+				EMIT_3I(stwu, LR, m_stackPointer, m_settings.stackGrowsUp ? 4 : -4);
+				EMIT_3I(stwu, m_framePointer, m_stackPointer, m_settings.stackGrowsUp ? 4 : -4);
+				EMIT_2R(mov, m_framePointer, m_stackPointer, 0);
 				if (m_settings.stackGrowsUp)
-				{
-					EMIT_3I(stw, m_framePointer, m_stackPointer, 4);
-					EMIT_3I(add, m_framePointer, m_stackPointer, 4);
-					AddImm(out, m_stackPointer, m_stackPointer, 4 + m_stackFrameSize);
-				}
+					AddImm(out, m_stackPointer, m_stackPointer, m_stackFrameSize);
 				else
-				{
-					EMIT_3I(stwu, m_framePointer, m_stackPointer, -4);
-					EMIT_2R(mov, m_framePointer, m_stackPointer, 0);
 					SubImm(out, m_stackPointer, m_stackPointer, m_stackFrameSize);
-				}
+			}
+			else
+			{
+				EMIT_3I(stwu, LR, m_stackPointer, m_settings.stackGrowsUp ? 4 : -4);
 			}
 
 			first = false;

@@ -942,18 +942,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
 		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
-		{
-			i->reloc->overflow(i->block, i->reloc->instruction, i->reloc->offset);
-
-			if (i->reloc->type == CODE_RELOC_RELATIVE_8)
-				i->reloc->type = CODE_RELOC_RELATIVE_32;
-			else if (i->reloc->type == CODE_RELOC_BASE_RELATIVE_8)
-				i->reloc->type = CODE_RELOC_BASE_RELATIVE_32;
-			else if (i->reloc->type == DATA_RELOC_RELATIVE_8)
-				i->reloc->type = DATA_RELOC_RELATIVE_32;
-			else if (i->reloc->type == DATA_RELOC_BASE_RELATIVE_8)
-				i->reloc->type = DATA_RELOC_BASE_RELATIVE_32;
-		}
+			i->reloc->overflow(i->block, *i->reloc);
 	}
 
 	// Resolve relocations

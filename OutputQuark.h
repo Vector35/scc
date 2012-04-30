@@ -74,20 +74,23 @@ class OutputQuark: public Output
 	void ClearReservedRegisters(OutputBlock* out);
 	int GetRegisterByName(const std::string& name);
 
-	bool IsSigned11Bit(int32_t imm);
-	bool IsSigned17Bit(int32_t imm);
+	bool IsSigned11Bit(int64_t imm);
+	bool IsSigned17Bit(int64_t imm);
+	bool IsPowerOfTwo(int32_t imm, uint32_t& shiftCount);
 
 	void LoadImm(OutputBlock* out, int dest, int32_t imm);
 	void AddImm(OutputBlock* out, int dest, int src, int32_t imm);
 	void SubImm(OutputBlock* out, int dest, int src, int32_t imm);
 
-	static void AbsoluteLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset);
-	static void RelativeLoadOverflowHandler(OutputBlock* out, size_t start, size_t offset);
+	static void RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc);
 
 	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, MemoryReference& ref);
-	bool Load(OutputBlock* out, const ILParameter& param, OperandReference& ref);
+	bool Load(OutputBlock* out, const ILParameter& param, OperandReference& ref, bool forceReg = false);
 	bool Store(OutputBlock* out, const ILParameter& param, OperandReference ref);
 	bool Move(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
+
+	void UnconditionalJump(OutputBlock* out, ILBlock* block, bool canOmit = true);
+	void ConditionalJump(OutputBlock* out, ILBlock* block, int cond, bool value);
 
 	bool GenerateAssign(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(OutputBlock* out, const ILInstruction& instr);
@@ -130,9 +133,6 @@ class OutputQuark: public Output
 	bool GenerateReturn(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateReturnVoid(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAlloca(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateMemcpy(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateMemset(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateStrlen(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateSyscall(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateNextArg(OutputBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(OutputBlock* out, const ILInstruction& instr);

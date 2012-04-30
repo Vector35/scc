@@ -24,6 +24,7 @@ import os
 
 args_testcase = {"source": "tests/args.c", "inputfile": None, "outputfile": "tests/args_output"}
 shift_testcase = {"source": "tests/shift.c", "inputfile": None, "outputfile": "tests/shift_output"}
+pi_testcase = {"source": "tests/pi.c", "inputfile": None, "outputfile": "tests/pi_output"}
 fortress_testcase = {"source": "tests/fortress.c", "inputfile": "tests/fortress_input", "outputfile": "tests/fortress_output"}
 shellcode_mmap_testcase = {"source": "tests/shellcode.c", "inputfile": None, "outputfile": "tests/shellcode_output", "target": "tests/sploit_mmap.c"}
 shellcode_stack_testcase = {"source": "tests/shellcode.c", "inputfile": None, "outputfile": "tests/shellcode_output", "target": "tests/sploit_stack.c", "targetoptions": ["-O0", "--exec-stack"]}
@@ -32,6 +33,7 @@ tests = [
 	["args.c, normal", args_testcase, []],
 	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
 	["shift.c, normal", shift_testcase, []],
+	["pi.c, normal", pi_testcase, []],
 	["shellcode, mmap buffer", shellcode_mmap_testcase, []],
 	["shellcode, stack buffer", shellcode_stack_testcase, ["--unsafe-stack"]],
 	["fortress.c, normal", fortress_testcase, []],

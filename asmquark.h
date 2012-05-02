@@ -190,7 +190,7 @@ static uint32_t __inline __QUARK_PREFIX(invall) () { return __QUARK_INSTR(31, 0,
 
 static uint32_t __inline __QUARK_PREFIX(setcc) (int a) { return __QUARK_INSTR(31, a, 24, 0, 0); }
 static uint32_t __inline __QUARK_PREFIX(clrcc) (int a) { return __QUARK_INSTR(31, a, 25, 0, 0); }
-static uint32_t __inline __QUARK_PREFIX(notcc) (int a) { return __QUARK_INSTR(31, a, 26, 0, 0); }
+static uint32_t __inline __QUARK_PREFIX(notcc) (int a, int b) { return __QUARK_INSTR(31, a, 26, b, 0); }
 static uint32_t __inline __QUARK_PREFIX(movcc) (int a, int b) { return __QUARK_INSTR(31, a, 27, b, 0); }
 static uint32_t __inline __QUARK_PREFIX(andcc) (int a, int b, int c) { return __QUARK_INSTR(31, a, 28, b, c); }
 static uint32_t __inline __QUARK_PREFIX(orcc) (int a, int b, int c) { return __QUARK_INSTR(31, a, 29, b, c); }

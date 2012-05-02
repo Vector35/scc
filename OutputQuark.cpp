@@ -267,11 +267,13 @@ void OutputQuark::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& relo
 		if (oldOffset & 0x10000)
 			oldOffset |= 0xfffe0000;
 
+		oldOffset -= 4;
+
 		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
 		instrs[1] = QUARK_EMIT_2(ldih, reloc.extra, (oldOffset < 0) ? -1 : 0);
 		instrs[2] = QUARK_EMIT_3R(add, oldReg, IP, reloc.extra, 0);
 
-		out->ReplaceInstruction(start, 8, instrs, 12, 4);
+		out->ReplaceInstruction(start, 8, instrs, 12, 0);
 
 		reloc.type = DATA_RELOC_RELATIVE_64_SPLIT_FIELD;
 		reloc.bitSize = 16;
@@ -288,10 +290,12 @@ void OutputQuark::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& relo
 		if (oldOffset & 0x400)
 			oldOffset |= 0xfffff800;
 
+		oldOffset -= 4;
+
 		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
 		instrs[1] = QUARK_EMIT_3R(add, oldReg, IP, reloc.extra, 0);
 
-		out->ReplaceInstruction(start, 4, instrs, 8, 4);
+		out->ReplaceInstruction(start, 4, instrs, 8, 0);
 
 		reloc.bitSize = 17;
 	}

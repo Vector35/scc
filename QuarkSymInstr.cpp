@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "QuarkSymInstr.h"
 #include "Struct.h"
 #include "asmquark.h"

@@ -136,7 +136,7 @@ void Code_error(ParserState* state, const char* msg)
 %destructor { free($$); } ID TYPE_ID
 %destructor { $$->Release(); } var_type return_type primitive_type
 %destructor { $$->Release(); } struct_member_list union_member_list struct_member
-%destructor { $$->Release(); } enum_member_list
+%destructor { $$->Release(); } enum_member_list struct_declaration union_declaration enum_declaration
 %destructor { delete $$; } enum_member
 %destructor { delete $$; } param_list param_list_nonempty param
 %destructor { delete $$; } arg_list arg_list_nonempty
@@ -149,7 +149,7 @@ void Code_error(ParserState* state, const char* msg)
 
 %type <type> var_type return_type primitive_type
 %type <type> struct_member_list union_member_list struct_member
-%type <type> enum_member_list
+%type <type> enum_member_list struct_declaration union_declaration enum_declaration
 %type <enumMember> enum_member
 %type <boolean> sign_type
 %type <intval> ptr_decorator calling_convention
@@ -237,7 +237,34 @@ toplevel_stmt:	var_declaration SEMICOLON  { state->AddInitExpression($1); $1->Re
 			delete $12;
 		}
 	|	TYPEDEF var_type ID SEMICOLON  { state->DefineType($3, $2); $2->Release(); free($3); }
+	|	TYPEDEF struct_declaration ID SEMICOLON  { state->DefineType($3, $2); $2->Release(); free($3); }
+	|	TYPEDEF union_declaration ID SEMICOLON  { state->DefineType($3, $2); $2->Release(); free($3); }
+	|	TYPEDEF enum_declaration ID SEMICOLON  { state->DefineType($3, $2); $2->Release(); free($3); }
 	|	TYPEDEF var_type ID LBRACKET expression RBRACKET SEMICOLON
+		{
+			Type* type = Type::ArrayType($2, (size_t)$5->ComputeIntegerValue(state));
+			state->DefineType($3, type);
+			$2->Release();
+			free($3);
+			$5->Release();
+		}
+	|	TYPEDEF struct_declaration ID LBRACKET expression RBRACKET SEMICOLON
+		{
+			Type* type = Type::ArrayType($2, (size_t)$5->ComputeIntegerValue(state));
+			state->DefineType($3, type);
+			$2->Release();
+			free($3);
+			$5->Release();
+		}
+	|	TYPEDEF union_declaration ID LBRACKET expression RBRACKET SEMICOLON
+		{
+			Type* type = Type::ArrayType($2, (size_t)$5->ComputeIntegerValue(state));
+			state->DefineType($3, type);
+			$2->Release();
+			free($3);
+			$5->Release();
+		}
+	|	TYPEDEF enum_declaration ID LBRACKET expression RBRACKET SEMICOLON
 		{
 			Type* type = Type::ArrayType($2, (size_t)$5->ComputeIntegerValue(state));
 			state->DefineType($3, type);
@@ -264,10 +291,40 @@ toplevel_stmt:	var_declaration SEMICOLON  { state->AddInitExpression($1); $1->Re
 			delete $12;
 		}
 	|	STRUCT ID SEMICOLON  { state->DefineStructType($2, Type::StructType(new Struct(true))); free($2); }
+	|	struct_declaration
 	|	UNION ID SEMICOLON  { state->DefineUnionType($2, Type::StructType(new Struct(false))); free($2); }
+	|	union_declaration
 	|	ENUM ID SEMICOLON  { state->DefineEnumType($2, Type::EnumType(new Enum())); free($2); }
+	|	enum_declaration
 	|	SEMICOLON
 	;
+
+struct_declaration: STRUCT ID LBRACE { state->DefineStructType($2, Type::StructType(new Struct(true))); } struct_member_list RBRACE 
+					{
+						$$ = $5;
+						$$->GetStruct()->Complete();
+						state->DefineStructType($2, $5);
+						free($2);
+					}
+				;
+
+union_declaration:	UNION ID LBRACE { state->DefineUnionType($2, Type::StructType(new Struct(false))); } union_member_list RBRACE
+					{
+						$$ = $5;
+						$$->GetStruct()->Complete();
+						state->DefineUnionType($2, $5);
+						free($2);
+					}
+				;
+
+enum_declaration:	ENUM ID LBRACE enum_member_list RBRACE
+					{
+						$$ = $4;
+						$$->GetEnum()->Complete();
+						state->DefineEnumType($2, $4);
+						free($2);
+					}
+				;
 
 var_declaration:	var_type var_init_list
 			{
@@ -880,29 +937,8 @@ var_type:	primitive_type  { $$ = $1; }
 	|	CONST_TOK primitive_type ptr_decorator { $$ = Type::PointerType($2, $3); $$->AddRef(); $$->SetConst(true); }
 	|	CONST_TOK VOID_TOK ptr_decorator { $$ = Type::PointerType(Type::VoidType(), $3); $$->AddRef(); $$->SetConst(true); }
 	|	STRUCT LBRACE struct_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
-	|	STRUCT ID LBRACE { state->DefineStructType($2, Type::StructType(new Struct(true))); } struct_member_list RBRACE
-		{
-			$$ = $5;
-			$$->GetStruct()->Complete();
-			state->DefineStructType($2, $5);
-			free($2);
-		}
 	|	UNION LBRACE union_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
-	|	UNION ID LBRACE { state->DefineUnionType($2, Type::StructType(new Struct(false))); } union_member_list RBRACE
-		{
-			$$ = $5;
-			$$->GetStruct()->Complete();
-			state->DefineUnionType($2, $5);
-			free($2);
-		}
 	|	ENUM LBRACE enum_member_list RBRACE  { $$ = $3; $$->GetEnum()->Complete(); }
-	|	ENUM ID LBRACE enum_member_list RBRACE
-		{
-			$$ = $4;
-			$$->GetEnum()->Complete();
-			state->DefineEnumType($2, $4);
-			free($2);
-		}
 	;
 
 primitive_type:	BOOL_TOK  { $$ = Type::BoolType(); $$->AddRef(); }

@@ -21,6 +21,8 @@
 #ifndef __LIBC__FILE_H__
 #define __LIBC__FILE_H__
 
+#include "runtime/posix/process.h"
+
 #define stdin  (FILE*)0
 #define stdout (FILE*)1
 #define stderr (FILE*)2
@@ -32,6 +34,7 @@
 #define SEEK_END 2
 
 typedef void* FILE;
+typedef int mode_t;
 
 int open(const char* file, int flags, int mode);
 int close(int fd);
@@ -53,6 +56,22 @@ int printf(const char* fmt, ...);
 int fprintf(FILE* fp, const char* fmt, ...);
 int vprintf(const char* fmt, va_list va);
 int vfprintf(FILE* fp, const char* fmt, va_list va);
+
+int chdir(const char* path);
+char* getcwd(char* buf, size_t size);
+int fchdir(int fd);
+int rmdir(const char* path);
+int mkdir(const char* path, mode_t mode);
+int unlink(const char* path);
+int rename(const char* oldpath, const char* newpath);
+
+int chown(const char* path, uid_t owner, gid_t group);
+int fchown(int fd, uid_t owner, gid_t group);
+int lchown(const char* path, uid_t owner, gid_t group);
+int chmod(const char* path, mode_t mode);
+int fchmod(int fd, mode_t mode);
+
+ssize_t readlink(const char* path, char* buf, size_t size);
 
 #endif
 

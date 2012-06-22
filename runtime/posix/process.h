@@ -23,6 +23,7 @@
 
 typedef int pid_t;
 typedef int uid_t;
+typedef int gid_t;
 
 void exit(int result) __noreturn;
 
@@ -32,6 +33,22 @@ pid_t wait(int* status);
 pid_t waitpid(pid_t pid, int* status, int options);
 
 unsigned int alarm(unsigned int seconds);
+
+uid_t getuid(void);
+gid_t getgid(void);
+uid_t geteuid(void);
+gid_t getegid(void);
+int setuid(uid_t id);
+int seteuid(uid_t id);
+int setreuid(uid_t rid, uid_t eid);
+int setgid(gid_t id);
+int setegid(gid_t id);
+int setregid(uid_t rid, uid_t eid);
+
+pid_t getpid(void);
+pid_t getppid(void);
+
+int kill(pid_t pid, int sig);
 
 #endif
 

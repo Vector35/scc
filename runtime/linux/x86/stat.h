@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,13 +18,36 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-unsigned int alarm(unsigned int seconds)
-{
-	return __syscall(SYS_alarm, seconds);
-}
+#ifndef __LIBC__X86_STAT_H__
+#define __LIBC__X86_STAT_H__
 
-int tgkill(int tgid, int tid, int sig)
+struct stat
 {
-	return __syscall(SYS_tgkill, tgid, tid, sig);
-}
+	uint64_t st_dev;
+	uint64_t st_ino;
+	uint32_t st_mode;
+	uint32_t st_nlink;
+	uint32_t st_uid;
+	uint32_t st_gid;
+	uint64_t st_rdev;
+	uint64_t __pad1;
+	int64_t st_size;
+	int32_t st_blksize;
+	int32_t __pad2;
+	int64_t st_blocks;
+	int32_t st_atime;
+	uint32_t st_atime_nsec;
+	int32_t st_mtime;
+	uint32_t st_mtime_nsec;
+	int32_t st_ctime;
+	uint32_t st_ctime_nsec;
+	uint32_t __unused4;
+	uint32_t __unused5;
+};
+
+int fstat(int fd, struct stat* buf);
+int stat(const char* path, struct stat* buf);
+int lstat(const char* path, struct stat* buf);
+
+#endif
 

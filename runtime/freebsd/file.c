@@ -18,13 +18,10 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-unsigned int alarm(unsigned int seconds)
+char* getcwd(char* buf, size_t size)
 {
-	return __syscall(SYS_alarm, seconds);
-}
-
-int tgkill(int tgid, int tid, int sig)
-{
-	return __syscall(SYS_tgkill, tgid, tid, sig);
+	if (__syscall(SYS___getcwd, buf, size) < 0)
+		return NULL;
+	return buf;
 }
 

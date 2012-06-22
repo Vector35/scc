@@ -129,3 +129,63 @@ int vfprintf(FILE* fp, const char* fmt, va_list va)
 	return __vaprintf(fprintf_output, fp, fmt, va);
 }
 
+int chdir(const char* path)
+{
+	return __syscall(SYS_chdir, path);
+}
+
+int fchdir(int fd)
+{
+	return __syscall(SYS_fchdir, fd);
+}
+
+int rmdir(const char* path)
+{
+	return __syscall(SYS_rmdir, path);
+}
+
+int mkdir(const char* path, mode_t mode)
+{
+	return __syscall(SYS_mkdir, path, mode);
+}
+
+int unlink(const char* path)
+{
+	return __syscall(SYS_unlink, path);
+}
+
+int rename(const char* oldpath, const char* newpath)
+{
+	return __syscall(SYS_rename, oldpath, newpath);
+}
+
+int chown(const char* path, uid_t owner, gid_t group)
+{
+	return __syscall(SYS_chown, path, owner, group);
+}
+
+int fchown(int fd, uid_t owner, gid_t group)
+{
+	return __syscall(SYS_fchown, fd, owner, group);
+}
+
+int lchown(const char* path, uid_t owner, gid_t group)
+{
+	return __syscall(SYS_lchown, path, owner, group);
+}
+
+int chmod(const char* path, mode_t mode)
+{
+	return __syscall(SYS_chmod, path, mode);
+}
+
+int fchmod(int fd, mode_t mode)
+{
+	return __syscall(SYS_fchmod, fd, mode);
+}
+
+ssize_t readlink(const char* path, char* buf, size_t size)
+{
+	return __syscall(SYS_readlink, path, buf, size);
+}
+

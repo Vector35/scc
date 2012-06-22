@@ -23,3 +23,10 @@ ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
 	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
 }
 
+char* getcwd(char* buf, size_t size)
+{
+	if (__syscall(SYS_getcwd, buf, size) < 0)
+		return NULL;
+	return buf;
+}
+

@@ -33,3 +33,68 @@ int execve(const char* filename, const char** argv, const char** envp)
 	__syscall(SYS_execve, filename, argv, envp);
 }
 
+uid_t getuid(void)
+{
+	return __syscall(SYS_getuid);
+}
+
+gid_t getgid(void)
+{
+	return __syscall(SYS_getgid);
+}
+
+uid_t geteuid(void)
+{
+	return __syscall(SYS_geteuid);
+}
+
+gid_t getegid(void)
+{
+	return __syscall(SYS_getegid);
+}
+
+int setuid(uid_t id)
+{
+	return __syscall(SYS_setuid, id);
+}
+
+int seteuid(uid_t id)
+{
+	return __syscall(SYS_setreuid, -1, id);
+}
+
+int setreuid(uid_t rid, uid_t eid)
+{
+	return __syscall(SYS_setreuid, rid, eid);
+}
+
+int setgid(gid_t id)
+{
+	return __syscall(SYS_setgid, id);
+}
+
+int setegid(gid_t id)
+{
+	return __syscall(SYS_setregid, -1, id);
+}
+
+int setregid(uid_t rid, uid_t eid)
+{
+	return __syscall(SYS_setregid, rid, eid);
+}
+
+pid_t getpid(void)
+{
+	return __syscall(SYS_getpid);
+}
+
+pid_t getppid(void)
+{
+	return __syscall(SYS_getppid);
+}
+
+int kill(pid_t pid, int sig)
+{
+	return __syscall(SYS_kill, pid, sig);
+}
+

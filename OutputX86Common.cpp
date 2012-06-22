@@ -4242,10 +4242,19 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(OutputBlock* out, const ILInstru
 			}
 			else
 			{
-				src.width = 8;
+				OperandType tmp;
 				if (src.type == OPERANDREF_REG)
-					src.reg = GetRegisterOfSize(src.reg, 8);
-				return Move(out, dest, src);
+				{
+					tmp = src.reg;
+				}
+				else
+				{
+					tmp = AllocateTemporaryRegister(out, 4);
+					EMIT_RM(mov_32, tmp, X86_MEM_REF(src.mem));
+				}
+				tmp = GetRegisterOfSize(tmp, 8);
+				EMIT_MR(mov_64, X86_MEM_REF(dest.mem), tmp);
+				return true;
 			}
 		}
 		else

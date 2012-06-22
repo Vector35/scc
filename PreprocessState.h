@@ -35,6 +35,7 @@ struct Macro
 	std::string name;
 	std::vector<std::string> params;
 	std::vector< Ref<Token> > tokens;
+	Location location;
 };
 
 struct MacroExpansion

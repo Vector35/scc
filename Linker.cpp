@@ -421,13 +421,13 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 					{
 						parser.Error();
 						fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
-							i->second->GetLocation().fileName.c_str(),
-							i->second->GetLocation().lineNumber,
-							i->second->GetName().c_str());
-						fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
 							prev->GetLocation().fileName.c_str(),
 							prev->GetLocation().lineNumber,
 							prev->GetName().c_str());
+						fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
+							i->second->GetLocation().fileName.c_str(),
+							i->second->GetLocation().lineNumber,
+							i->second->GetName().c_str());
 					}
 
 					// Replace references with existing definition
@@ -447,7 +447,7 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 	}
 
 	if (parser.HasErrors())
-		return 1;
+		return false;
 
 	// Add initialization expression to global expression
 	m_initExpression->AddChild(parser.GetInitExpression());

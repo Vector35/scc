@@ -119,9 +119,9 @@ bool Type::operator==(const Type& type) const
 	case TYPE_INT:
 		return m_signed == type.m_signed;
 	case TYPE_STRUCT:
-		return m_struct == type.m_struct;
+		return m_struct->GetName() == type.m_struct->GetName();
 	case TYPE_ENUM:
-		return m_enum == type.m_enum;
+		return m_enum->GetName() == type.m_enum->GetName();
 	case TYPE_POINTER:
 		return (*m_childType) == (*type.m_childType);
 	case TYPE_ARRAY:

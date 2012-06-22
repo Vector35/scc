@@ -2,3 +2,4 @@ scc
 scc.exe
 Obj
 *.pyc
+.gdb_history

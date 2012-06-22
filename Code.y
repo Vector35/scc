@@ -1345,70 +1345,70 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 		}
 	|	expression PLUS_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_PLUS_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_PLUS, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression MINUS_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_MINUS_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_MINUS, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression MULT_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_MULT_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_MULT, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression DIV_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_DIV_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_DIV, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression MOD_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_MOD_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_MOD, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression AND_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_AND_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_AND, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression OR_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_OR_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_OR, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression XOR_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_XOR_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_XOR, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression SHIFT_LEFT_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_SHIFT_LEFT_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_SHIFT_LEFT, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();
 		}
 	|	expression SHIFT_RIGHT_EQ expression
 		{
-			$$ = state->BinaryExpr(EXPR_SHIFT_RIGHT_EQ, $1, $3);
+			$$ = state->BinaryExpr(EXPR_ASSIGN, $1, state->BinaryExpr(EXPR_SHIFT_RIGHT, $1, $3));
 			$$->AddRef();
 			$1->Release();
 			$3->Release();

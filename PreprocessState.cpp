@@ -252,8 +252,11 @@ void PreprocessState::Define(const string& name, const vector<string>& params, c
 
 	if (m_macros.find(name) != m_macros.end())
 	{
+		Macro oldDef = m_macros[name];
 		fprintf(stderr, "%s:%d: error: '%s' redefined\n", GetFileName().c_str(),
 			GetLineNumber(), name.c_str());
+		fprintf(stderr, "%s:%d: error: previous declaration of '%s'\n", oldDef.location.fileName.c_str(),
+			oldDef.location.lineNumber, name.c_str());
 		m_errors++;
 	}
 
@@ -261,6 +264,8 @@ void PreprocessState::Define(const string& name, const vector<string>& params, c
 	macro.name = name;
 	macro.params = params;
 	macro.tokens = tokens;
+	macro.location.fileName = GetFileName();
+	macro.location.lineNumber = GetLineNumber();
 	m_macros[name] = macro;
 }
 
@@ -453,6 +458,9 @@ void PreprocessState::Serialize(OutputBlock* output)
 		output->WriteInteger(i->second.tokens.size());
 		for (vector< Ref<Token> >::iterator j = i->second.tokens.begin(); j != i->second.tokens.end(); j++)
 			(*j)->Serialize(output);
+
+		output->WriteString(i->second.location.fileName);
+		output->WriteInteger(i->second.location.lineNumber);
 	}
 }
 
@@ -491,6 +499,11 @@ bool PreprocessState::Deserialize(InputBlock* input)
 				return false;
 			macro.tokens.push_back(token);
 		}
+
+		if (!input->ReadString(macro.location.fileName))
+			return false;
+		if (!input->ReadInt32(macro.location.lineNumber))
+			return false;
 
 		m_macros[macro.name] = macro;
 	}

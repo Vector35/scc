@@ -772,145 +772,6 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		}
 		m_children[1] = m_children[1]->ConvertToType(state, m_type);
 		break;
-	case EXPR_PLUS_EQ:
-	case EXPR_MINUS_EQ:
-		m_type = m_children[0]->GetType();
-		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
-		{
-			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
-			{
-				if (m_children[1]->GetType()->GetWidth() > m_children[0]->GetType()->GetWidth())
-				{
-					fprintf(stderr, "%s:%d: warning: implicit conversion may truncate bits\n",
-						m_location.fileName.c_str(), m_location.lineNumber);
-				}
-			}
-			else if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
-			{
-				fprintf(stderr, "%s:%d: warning: implicit conversion to integer may lose precision\n",
-					m_location.fileName.c_str(), m_location.lineNumber);
-			}
-			else
-			{
-				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
-			}
-		}
-		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
-		{
-			if ((m_children[1]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[1]->GetType()->GetClass() == TYPE_FLOAT))
-			{
-				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
-			}
-		}
-		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
-		{
-			if (m_children[1]->GetType()->GetClass() != TYPE_INT)
-			{
-				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
-				m_type = Type::VoidType();
-			}
-			m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
-			break;
-		}
-		else
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
-		}
-		m_children[1] = m_children[1]->ConvertToType(state, m_type);
-		break;
-	case EXPR_MULT_EQ:
-	case EXPR_DIV_EQ:
-	case EXPR_MOD_EQ:
-		m_type = m_children[0]->GetType();
-		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
-		{
-			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
-			{
-				if (m_children[1]->GetType()->GetWidth() > m_children[0]->GetType()->GetWidth())
-				{
-					fprintf(stderr, "%s:%d: warning: implicit conversion may truncate bits\n",
-						m_location.fileName.c_str(), m_location.lineNumber);
-				}
-			}
-			else if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
-			{
-				fprintf(stderr, "%s:%d: warning: implicit conversion to integer may lose precision\n",
-					m_location.fileName.c_str(), m_location.lineNumber);
-			}
-			else
-			{
-				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
-			}
-		}
-		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
-		{
-			if ((m_children[1]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[1]->GetType()->GetClass() == TYPE_FLOAT))
-			{
-				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
-			}
-		}
-		else
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
-		}
-		m_children[1] = m_children[1]->ConvertToType(state, m_type);
-		break;
-	case EXPR_AND_EQ:
-	case EXPR_OR_EQ:
-	case EXPR_XOR_EQ:
-		m_type = m_children[0]->GetType();
-		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
-		{
-			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
-			{
-				if (m_children[1]->GetType()->GetWidth() > m_children[0]->GetType()->GetWidth())
-				{
-					fprintf(stderr, "%s:%d: warning: implicit conversion may truncate bits\n",
-						m_location.fileName.c_str(), m_location.lineNumber);
-				}
-			}
-			else
-			{
-				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
-			}
-		}
-		else
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
-		}
-		m_children[1] = m_children[1]->ConvertToType(state, m_type);
-		break;
-	case EXPR_SHIFT_LEFT_EQ:
-	case EXPR_SHIFT_RIGHT_EQ:
-		m_type = m_children[0]->GetType();
-		if ((m_children[0]->GetType()->GetClass() != TYPE_INT) || (m_children[1]->GetType()->GetClass() != TYPE_INT))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
-		}
-		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(1, false));
-		break;
 	case EXPR_IF:
 	case EXPR_IF_ELSE:
 	case EXPR_WHILE:
@@ -2142,7 +2003,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			a = m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
-			c = func->CreateTempVariable(m_children[0]->GetType());
+			if (m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
+				c = func->CreateTempVariable(Type::PointerType(m_children[0]->GetType()->GetChildType(), 1));
+			else
+				c = func->CreateTempVariable(m_children[0]->GetType());
 			block->AddInstruction(ILOP_PTR_ADD, c, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
 				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 			block->AddInstruction(ILOP_DEREF, result, c);
@@ -2457,7 +2321,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			if ((m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
 				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
 			{
-				result = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
+				if (m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
+					result = func->CreateTempVariable(Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
+				else
+					result = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
 				a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_PTR_ADD, result, a, b,
@@ -2522,144 +2389,6 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		}
 		block->AddInstruction(ILOP_ASSIGN, a, b);
 		result = b;
-		break;
-	case EXPR_PLUS_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
-		{
-			block->AddInstruction(ILOP_PTR_ADD, a, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
-		}
-		else
-		{
-			block->AddInstruction(ILOP_ADD, a, a, b);
-		}
-		result = a;
-		break;
-	case EXPR_MINUS_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
-		{
-			block->AddInstruction(ILOP_PTR_SUB, a, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
-		}
-		else
-		{
-			block->AddInstruction(ILOP_SUB, a, a, b);
-		}
-		result = a;
-		break;
-	case EXPR_MULT_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SMULT, a, a, b);
-		else
-			block->AddInstruction(ILOP_UMULT, a, a, b);
-		result = a;
-		break;
-	case EXPR_DIV_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SDIV, a, a, b);
-		else
-			block->AddInstruction(ILOP_UDIV, a, a, b);
-		result = a;
-		break;
-	case EXPR_MOD_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SMOD, a, a, b);
-		else
-			block->AddInstruction(ILOP_UMOD, a, a, b);
-		result = a;
-		break;
-	case EXPR_AND_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		block->AddInstruction(ILOP_AND, a, a, b);
-		result = a;
-		break;
-	case EXPR_OR_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		block->AddInstruction(ILOP_OR, a, a, b);
-		result = a;
-		break;
-	case EXPR_XOR_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		block->AddInstruction(ILOP_XOR, a, a, b);
-		result = a;
-		break;
-	case EXPR_SHIFT_LEFT_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		block->AddInstruction(ILOP_SHL, a, a, b);
-		result = a;
-		break;
-	case EXPR_SHIFT_RIGHT_EQ:
-		a = m_children[0]->GenerateIL(state, func, block);
-		b = m_children[1]->GenerateIL(state, func, block);
-		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
-		{
-			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
-		}
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SAR, a, a, b);
-		else
-			block->AddInstruction(ILOP_SHR, a, a, b);
-		result = a;
 		break;
 	case EXPR_IF:
 		trueBlock = func->CreateILBlock();
@@ -3496,16 +3225,6 @@ void Expr::Print(size_t indent)
 		break;
 	case EXPR_ASSIGN:  m_children[0]->Print(indent); fprintf(stderr, " = "); m_children[1]->Print(indent); break;
 	case EXPR_INIT_ASSIGN:  m_children[0]->Print(indent); fprintf(stderr, " = [init] "); m_children[1]->Print(indent); break;
-	case EXPR_PLUS_EQ:  m_children[0]->Print(indent); fprintf(stderr, " += "); m_children[1]->Print(indent); break;
-	case EXPR_MINUS_EQ:  m_children[0]->Print(indent); fprintf(stderr, " -= "); m_children[1]->Print(indent); break;
-	case EXPR_MULT_EQ:  m_children[0]->Print(indent); fprintf(stderr, " *= "); m_children[1]->Print(indent); break;
-	case EXPR_DIV_EQ:  m_children[0]->Print(indent); fprintf(stderr, " /= "); m_children[1]->Print(indent); break;
-	case EXPR_MOD_EQ:  m_children[0]->Print(indent); fprintf(stderr, " %%= "); m_children[1]->Print(indent); break;
-	case EXPR_AND_EQ:  m_children[0]->Print(indent); fprintf(stderr, " &= "); m_children[1]->Print(indent); break;
-	case EXPR_OR_EQ:  m_children[0]->Print(indent); fprintf(stderr, " |= "); m_children[1]->Print(indent); break;
-	case EXPR_XOR_EQ:  m_children[0]->Print(indent); fprintf(stderr, " ^= "); m_children[1]->Print(indent); break;
-	case EXPR_SHIFT_LEFT_EQ:  m_children[0]->Print(indent); fprintf(stderr, " <<= "); m_children[1]->Print(indent); break;
-	case EXPR_SHIFT_RIGHT_EQ:  m_children[0]->Print(indent); fprintf(stderr, " >>= "); m_children[1]->Print(indent); break;
 	case EXPR_IF:
 		fprintf(stderr, "if (");
 		m_children[0]->Print(indent);

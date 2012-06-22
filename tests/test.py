@@ -24,6 +24,7 @@ import os
 
 args_testcase = {"source": "tests/args.c", "inputfile": None, "outputfile": "tests/args_output"}
 shift_testcase = {"source": "tests/shift.c", "inputfile": None, "outputfile": "tests/shift_output"}
+string_testcase = {"source": "tests/string.c", "inputfile": None, "outputfile": "tests/string_output"}
 pi_testcase = {"source": "tests/pi.c", "inputfile": None, "outputfile": "tests/pi_output"}
 rc4_testcase = {"source": "tests/rc4.c", "inputfile": None, "outputfile": "tests/rc4_output"}
 crc32_testcase = {"source": "tests/crc32.c", "inputfile": None, "outputfile": "tests/crc32_output"}
@@ -35,6 +36,7 @@ tests = [
 	["args.c, normal", args_testcase, []],
 	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
 	["shift.c, normal", shift_testcase, []],
+	["string.c, normal", string_testcase, []],
 	["pi.c, normal", pi_testcase, []],
 	["rc4.c, normal", rc4_testcase, []],
 	["rc4.c, position independent", rc4_testcase, ["--pie"]],

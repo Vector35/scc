@@ -67,6 +67,29 @@ char* strcat(char* dest, const char* src)
 	return dest;
 }
 
+char* strchr(const char* str, char ch)
+{
+	while (*str)
+	{
+		if ((*str) == ch)
+			return str;
+		str++;
+	}
+	return NULL;
+}
+
+char* strrchr(const char* str, char ch)
+{
+	const char* cur = str + strlen(str) - 1;
+	while (cur >= str)
+	{
+		if ((*cur) == ch)
+			return cur;
+		cur--;
+	}
+	return NULL;
+}
+
 static void sprintf_output(void* ctxt, char ch)
 {
 	sprintf_output_context* out = (sprintf_output_context*)ctxt;

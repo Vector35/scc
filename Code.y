@@ -1132,6 +1132,7 @@ stmt_list_nonempty:	stmt_list_nonempty stmt
 stmt:	SEMICOLON  { $$ = state->BasicExpr(EXPR_SEQUENCE); $$->AddRef(); }
 |	var_declaration SEMICOLON  { $$ = $1; }
 |	expression_with_comma SEMICOLON  { $$ = $1; }
+|	LPAREN VOID_TOK RPAREN expression SEMICOLON  { $$ = $4; }
 |	LBRACE { state->PushScope(); } stmt_list RBRACE  { state->PopScope(); $$ = $3; }
 |	IF LPAREN expression_with_comma RPAREN stmt %prec IF_WITHOUT_ELSE
 	{

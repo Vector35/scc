@@ -28,6 +28,8 @@ char* strncpy(char* dest, const char* src, size_t len);
 size_t __strlen(const char* str);
 int strcmp(const char* a, const char* b);
 char* strcat(char* dest, const char* src);
+char* strchr(const char* str, char ch);
+char* strrchr(const char* str, char ch);
 
 int sprintf(char* out, const char* fmt, ...);
 int snprintf(char* out, size_t len, const char* fmt, ...);

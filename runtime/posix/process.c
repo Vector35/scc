@@ -53,6 +53,11 @@ gid_t getegid(void)
 	return __syscall(SYS_getegid);
 }
 
+int getgroups(int size, gid_t* groups)
+{
+	return __syscall(SYS_getgroups, size, groups);
+}
+
 int setuid(uid_t id)
 {
 	return __syscall(SYS_setuid, id);

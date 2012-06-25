@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,20 +18,12 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
+time_t time(time_t* t)
 {
-	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
-}
-
-char* getcwd(char* buf, size_t size)
-{
-	if (__syscall(SYS_getcwd, buf, size) < 0)
-		return NULL;
-	return buf;
-}
-
-int getdents(int fd, struct dirent* dirp, size_t count)
-{
-	return __syscall(SYS_getdents, fd, dirp, count);
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	if (t)
+		*t = tv.tv_sec;
+	return tv.tv_sec;
 }
 

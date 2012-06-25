@@ -906,7 +906,11 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		}
 
 		if (!j->second->GenerateCode(*i))
+		{
+			fprintf(stderr, "error: code generation failed for function '%s'\n",
+				(*i)->GetName().c_str());
 			return false;
+		}
 	}
 
 	// Check relocations and ensure that everything is within bounds, and expand any references that are not

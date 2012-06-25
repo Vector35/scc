@@ -189,3 +189,13 @@ ssize_t readlink(const char* path, char* buf, size_t size)
 	return __syscall(SYS_readlink, path, buf, size);
 }
 
+int link(const char* target, const char* path)
+{
+	return __syscall(SYS_link, target, path);
+}
+
+int symlink(const char* target, const char* path)
+{
+	return __syscall(SYS_symlink, target, path);
+}
+

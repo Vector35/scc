@@ -21,6 +21,8 @@
 #ifndef __LIBC__FREEBSD_FILE_H__
 #define __LIBC__FREEBSD_FILE_H__
 
+#include "runtime/posix/time.h"
+
 #define O_RDONLY    0
 #define O_WRONLY    1
 #define O_RDWR      2
@@ -43,7 +45,47 @@
 #define O_TTY_INIT  0x80000
 #define O_CLOEXEC   0x100000
 
+#define S_ISTXT     0x200
+
+struct stat
+{
+	uint32_t st_dev;
+	uint32_t st_ino;
+	uint16_t st_mode;
+	uint16_t st_nlink;
+	uid_t st_uid;
+	gid_t st_gid;
+	uint32_t st_rdev;
+	struct timespec st_atim;
+	struct timespec st_mtim;
+	struct timespec st_ctim;
+	int64_t st_size;
+	uint64_t st_blocks;
+	uint32_t st_blksize;
+	uint32_t st_flags;
+	uint32_t st_gen;
+	int32_t st_lspare;
+	struct timespec st_birthtim;
+#ifdef i386
+	int32_t __padding1, __padding2;
+#endif
+};
+
+struct dirent
+{
+	uint32_t d_fileno;
+	uint16_t d_reclen;
+	uint8_t d_type;
+	uint8_t d_namlen;
+	char d_name[257];
+};
+
 ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
+int getdents(int fd, struct dirent* dirp, size_t count);
+
+int fstat(int fd, struct stat* buf);
+int stat(const char* path, struct stat* buf);
+int lstat(const char* path, struct stat* buf);
 
 #endif
 

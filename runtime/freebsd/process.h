@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,20 +18,43 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
-{
-	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
-}
+#ifndef __LIBC__FREEBSD_PROCESS_H__
+#define __LIBC__FREEBSD_PROCESS_H__
 
-char* getcwd(char* buf, size_t size)
-{
-	if (__syscall(SYS_getcwd, buf, size) < 0)
-		return NULL;
-	return buf;
-}
+#define SIGHUP     1
+#define SIGINT     2
+#define SIGQUIT    3
+#define SIGILL     4
+#define SIGTRAP    5
+#define SIGABRT    6
+#define SIGIOT     6
+#define SIGEMT     7
+#define SIGFPE     8
+#define SIGKILL    9
+#define SIGBUS     10
+#define SIGSEGV    11
+#define SIGSYS     12
+#define SIGPIPE    13
+#define SIGALRM    14
+#define SIGTERM    15
+#define SIGURG     16
+#define SIGSTOP    17
+#define SIGTSTP    18
+#define SIGCONT    19
+#define SIGCHLD    20
+#define SIGTTIN    21
+#define SIGTTOU    22
+#define SIGIO      23
+#define SIGXCPU    24
+#define SIGXFSZ    25
+#define SIGVTALRM  26
+#define SIGPROF    27
+#define SIGWINCH   28
+#define SIGINFO    29
+#define SIGUSR1    30
+#define SIGUSR2    31
+#define SIGTHR     32
+#define SIGLWP     32
 
-int getdents(int fd, struct dirent* dirp, size_t count)
-{
-	return __syscall(SYS_getdents, fd, dirp, count);
-}
+#endif
 

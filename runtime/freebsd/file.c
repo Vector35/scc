@@ -25,3 +25,23 @@ char* getcwd(char* buf, size_t size)
 	return buf;
 }
 
+int getdents(int fd, struct dirent* dirp, size_t count)
+{
+	return __syscall(SYS_getdents, fd, dirp, count);
+}
+
+int fstat(int fd, struct stat* buf)
+{
+	return __syscall(SYS_fstat, fd, buf);
+}
+
+int stat(const char* path, struct stat* buf)
+{
+	return __syscall(SYS_stat, path, buf);
+}
+
+int lstat(const char* path, struct stat* buf)
+{
+	return __syscall(SYS_lstat, path, buf);
+}
+

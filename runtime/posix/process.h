@@ -38,6 +38,7 @@ uid_t getuid(void);
 gid_t getgid(void);
 uid_t geteuid(void);
 gid_t getegid(void);
+int getgroups(int size, gid_t* groups);
 int setuid(uid_t id);
 int seteuid(uid_t id);
 int setreuid(uid_t rid, uid_t eid);

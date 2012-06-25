@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,20 +18,31 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
-{
-	return __syscall(SYS_sendfile, outFd, inFd, offset, count);
-}
+#ifndef __LIBC__TIME_H__
+#define __LIBC__TIME_H__
 
-char* getcwd(char* buf, size_t size)
-{
-	if (__syscall(SYS_getcwd, buf, size) < 0)
-		return NULL;
-	return buf;
-}
+typedef size_t time_t;
 
-int getdents(int fd, struct dirent* dirp, size_t count)
+struct timespec
 {
-	return __syscall(SYS_getdents, fd, dirp, count);
-}
+	time_t tv_sec;
+	size_t tv_nsec;
+};
+
+struct timeval
+{
+	time_t tv_sec;
+	size_t tv_usec;
+};
+
+struct timezone
+{
+	int tz_minuteswest;
+	int tz_dsttime;
+};
+
+time_t time(time_t* t);
+int gettimeofday(struct timeval* t, struct timezone* tz);
+
+#endif
 

@@ -43,5 +43,30 @@
 #define O_DSYNC     0x400000
 #define O_CLOEXEC   0x1000000
 
+struct stat
+{
+	uint32_t st_dev;
+	uint32_t st_ino;
+	uint16_t st_mode;
+	uint16_t st_nlink;
+	uid_t st_uid;
+	gid_t st_gid;
+	uint32_t st_rdev;
+	struct timespec st_atimespec;
+	struct timespec st_mtimespec;
+	struct timespec st_ctimespec;
+	int64_t st_size;
+	uint64_t st_blocks;
+	uint32_t st_blksize;
+	uint32_t st_flags;
+	uint32_t st_gen;
+	int32_t st_lspare;
+	int64_t st_qspare[2];
+};
+
+int fstat(int fd, struct stat* buf);
+int stat(const char* path, struct stat* buf);
+int lstat(const char* path, struct stat* buf);
+
 #endif
 

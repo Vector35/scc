@@ -1898,8 +1898,6 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(OutputBlock* out, const ILInstruction& in
 	size_t width = (size_t)instr.params[3].integerValue;
 	if (width == 1)
 		return GenerateAdd(out, instr);
-	if ((width != 2) && (width != 4) && (width != 8))
-		return false;
 
 	OperandReference dest, a, b;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -1943,22 +1941,51 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(OutputBlock* out, const ILInstruction& in
 
 	if (dest.type == OPERANDREF_REG)
 	{
+		if ((width != 2) && (width != 4) && (width != 8))
+		{
+			OperandType temp = AllocateTemporaryRegister(out, dest.width);
 #ifdef OUTPUT32
-		EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RRI(imul_32, temp, b.reg, width);
+			EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, temp, 1, 0));
 #else
-		EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RRI(imul_64, temp, b.reg, width);
+			EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, temp, 1, 0));
 #endif
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#else
+			EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#endif
+		}
 	}
 	else
 	{
 		OperandType temp = AllocateTemporaryRegister(out, dest.width);
+		if ((width != 2) && (width != 4) && (width != 8))
+		{
 #ifdef OUTPUT32
-		EMIT_RM(lea_32, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
-		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
+			EMIT_RRI(imul_32, temp, b.reg, width);
+			EMIT_RR(add_32, temp, a.reg);
+			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
 #else
-		EMIT_RM(lea_64, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
-		EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
+			EMIT_RRI(imul_64, temp, b.reg, width);
+			EMIT_RR(add_64, temp, a.reg);
+			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
 #endif
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RM(lea_32, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
+#else
+			EMIT_RM(lea_64, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
+#endif
+		}
 	}
 
 	return true;
@@ -1970,8 +1997,6 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(OutputBlock* out, const ILInstruction& in
 	size_t width = (size_t)instr.params[3].integerValue;
 	if (width == 1)
 		return GenerateSub(out, instr);
-	if ((width != 2) && (width != 4) && (width != 8))
-		return false;
 
 	OperandReference dest, a, b;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -2019,22 +2044,51 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(OutputBlock* out, const ILInstruction& in
 
 	if (dest.type == OPERANDREF_REG)
 	{
+		if ((width != 2) && (width != 4) && (width != 8))
+		{
+			OperandType temp = AllocateTemporaryRegister(out, dest.width);
 #ifdef OUTPUT32
-		EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RRI(imul_32, temp, b.reg, width);
+			EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, temp, 1, 0));
 #else
-		EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RRI(imul_64, temp, b.reg, width);
+			EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, temp, 1, 0));
 #endif
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RM(lea_32, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#else
+			EMIT_RM(lea_64, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+#endif
+		}
 	}
 	else
 	{
 		OperandType temp = AllocateTemporaryRegister(out, dest.width);
+		if ((width != 2) && (width != 4) && (width != 8))
+		{
 #ifdef OUTPUT32
-		EMIT_RM(lea_32, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
-		EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
+			EMIT_RRI(imul_32, temp, b.reg, width);
+			EMIT_RR(add_32, temp, a.reg);
+			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
 #else
-		EMIT_RM(lea_64, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
-		EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
+			EMIT_RRI(imul_64, temp, b.reg, width);
+			EMIT_RR(add_64, temp, a.reg);
+			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
 #endif
+		}
+		else
+		{
+#ifdef OUTPUT32
+			EMIT_RM(lea_32, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
+#else
+			EMIT_RM(lea_64, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
+#endif
+		}
 	}
 
 	return true;

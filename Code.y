@@ -1303,7 +1303,16 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$3->Release();
 			$5->Release();
 		}
-	|	expression DOT ID  { $$ = state->DotExpr($1, $3); $$->AddRef(); $1->Release(); free($3); }
+	|	expression DOT ID
+		{
+			if ($1->GetClass() == EXPR_ARRAY_INDEX)
+				$$ = state->ArrowExpr(state->UnaryExpr(EXPR_ADDRESS_OF, $1), $3);
+			else
+				$$ = state->DotExpr($1, $3);
+			$$->AddRef();
+			$1->Release();
+			free($3);
+		}
 	|	expression ARROW ID  { $$ = state->ArrowExpr($1, $3); $$->AddRef(); $1->Release(); free($3); }
 	|	PLUS expression %prec UNARY_SIGN  { $$ = $2; }
 	|	MINUS expression %prec UNARY_SIGN  { $$ = state->UnaryExpr(EXPR_NEG, $2); $$->AddRef(); $2->Release(); }

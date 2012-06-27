@@ -33,6 +33,7 @@
 struct Macro
 {
 	std::string name;
+	bool hasParams;
 	std::vector<std::string> params;
 	std::vector< Ref<Token> > tokens;
 	Location location;
@@ -90,7 +91,8 @@ public:
 
 	void IncludeFile(const std::string& name);
 
-	void Define(const std::string& name, const std::vector<std::string>& params, const std::vector< Ref<Token> >& tokens);
+	void Define(const std::string& name, const std::vector<std::string>& params,
+		const std::vector< Ref<Token> >& tokens, bool hasParams);
 	void Undefine(const std::string& name);
 	bool IsDefined(const std::string& name);
 

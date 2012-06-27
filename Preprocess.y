@@ -101,36 +101,36 @@ toplevel_stmt:	output_token_list NEWLINE
 	|	ENDIF_TOK NEWLINE  { state->EndIf(); }
 	|	DEFINE_NO_PARAMS NEWLINE
 		{
-			state->Define($1, std::vector<std::string>(), std::vector< Ref<Token> >());
+			state->Define($1, std::vector<std::string>(), std::vector< Ref<Token> >(), false);
 			free($1);
 		}
 	|	DEFINE_NO_PARAMS token_list NEWLINE
 		{
-			state->Define($1, std::vector<std::string>(), *$2);
+			state->Define($1, std::vector<std::string>(), *$2, false);
 			free($1);
 			delete $2;
 		}
 	|	DEFINE_PARAMS RPAREN token_list NEWLINE
 		{
-			state->Define($1, std::vector<std::string>(), *$3);
+			state->Define($1, std::vector<std::string>(), *$3, true);
 			free($1);
 			delete $3;
 		}
 	|	DEFINE_PARAMS RPAREN NEWLINE
 		{
-			state->Define($1, std::vector<std::string>(), std::vector< Ref<Token> >());
+			state->Define($1, std::vector<std::string>(), std::vector< Ref<Token> >(), true);
 			free($1);
 		}
 	|	DEFINE_PARAMS param_list RPAREN token_list NEWLINE
 		{
-			state->Define($1, *$2, *$4);
+			state->Define($1, *$2, *$4, true);
 			free($1);
 			delete $2;
 			delete $4;
 		}
 	|	DEFINE_PARAMS param_list RPAREN NEWLINE
 		{
-			state->Define($1, *$2, std::vector< Ref<Token> >());
+			state->Define($1, *$2, std::vector< Ref<Token> >(), true);
 			free($1);
 			delete $2;
 		}

@@ -244,7 +244,7 @@ void PreprocessState::IncludeFile(const string& name)
 }
 
 
-void PreprocessState::Define(const string& name, const vector<string>& params, const vector< Ref<Token> >& tokens)
+void PreprocessState::Define(const string& name, const vector<string>& params, const vector< Ref<Token> >& tokens, bool hasParams)
 {
 	// Ignore anything inside a failed #ifdef
 	if (m_ifFailCount > 0)
@@ -263,6 +263,7 @@ void PreprocessState::Define(const string& name, const vector<string>& params, c
 	Macro macro;
 	macro.name = name;
 	macro.params = params;
+	macro.hasParams = hasParams;
 	macro.tokens = tokens;
 	macro.location.fileName = GetFileName();
 	macro.location.lineNumber = GetLineNumber();
@@ -314,6 +315,9 @@ void PreprocessState::BeginMacroExpansion(const string& name)
 	m_expansion.parens = 0;
 	m_expansion.params.clear();
 	m_expansion.curParam.clear();
+
+	if (!m_expansion.macro.hasParams)
+		FinishMacroExpansion();
 }
 
 
@@ -451,6 +455,7 @@ void PreprocessState::Serialize(OutputBlock* output)
 	{
 		output->WriteString(i->second.name);
 
+		output->WriteInteger(i->second.hasParams ? 1 : 0);
 		output->WriteInteger(i->second.params.size());
 		for (vector<string>::iterator j = i->second.params.begin(); j != i->second.params.end(); j++)
 			output->WriteString(*j);
@@ -479,6 +484,8 @@ bool PreprocessState::Deserialize(InputBlock* input)
 			return false;
 
 		size_t paramCount;
+		if (!input->ReadBool(macro.hasParams))
+			return false;
 		if (!input->ReadNativeInteger(paramCount))
 			return false;
 		for (size_t j = 0; j < paramCount; j++)

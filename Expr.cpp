@@ -694,7 +694,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 					m_location.lineNumber);
 			}
 		}
-		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		else if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) || (m_children[0]->GetType()->GetClass() == TYPE_FUNCTION))
 		{
 			// Special case NULL, which is simply integer constant zero
 			if ((!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType())) &&

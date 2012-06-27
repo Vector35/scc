@@ -136,6 +136,17 @@ string ParserState::ProcessEscapedString(const string& str)
 			continue;
 		}
 
+		if (((i + 2) < str.length()) && (str[i] >= '0') && (str[i] <= '7') && (str[i + 1] >= '0') && (str[i + 1] <= '7') &&
+			(str[i + 2] >= '0') && (str[i + 2] <= '7'))
+		{
+			char ch = (char)(str[i] - '0') << 6;
+			ch |= (char)(str[i + 1] - '0') << 3;
+			ch |= (char)(str[i + 2] - '0');
+			result += string(1, ch);
+			i += 2;
+			continue;
+		}
+
 		switch (str[i])
 		{
 		case 'r':

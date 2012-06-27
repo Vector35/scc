@@ -64,6 +64,8 @@ struct stat
 	int64_t st_qspare[2];
 };
 
+size_t lseek(int fd, int64_t offset, int whence);
+
 int fstat(int fd, struct stat* buf);
 int stat(const char* path, struct stat* buf);
 int lstat(const char* path, struct stat* buf);

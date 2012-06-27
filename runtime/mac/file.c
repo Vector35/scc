@@ -18,6 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+size_t lseek(int fd, int64_t offset, int whence)
+{
+	return __syscall(SYS_lseek, fd, offset, whence);
+}
+
 int fstat(int fd, struct stat* buf)
 {
 	return __syscall(SYS_fstat, fd, buf);

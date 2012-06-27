@@ -80,6 +80,8 @@ struct dirent
 	char d_name[257];
 };
 
+size_t lseek(int fd, int64_t offset, int whence);
+
 ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
 int getdents(int fd, struct dirent* dirp, size_t count);
 

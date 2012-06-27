@@ -18,6 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+size_t lseek(int fd, ssize_t offset, int whence)
+{
+	return __syscall(SYS_lseek, fd, offset, whence);
+}
+
 ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
 {
 	return __syscall(SYS_sendfile, outFd, inFd, offset, count);

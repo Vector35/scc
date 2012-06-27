@@ -55,5 +55,7 @@
 #define SIGUSR1    30
 #define SIGUSR2    31
 
+int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen);
+
 #endif
 

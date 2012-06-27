@@ -29,6 +29,8 @@ void* malloc(size_t len)
 
 void free(void* ptr)
 {
+	if (ptr == NULL)
+		return;
 	void* block = (void*)((size_t)ptr - sizeof(size_t));
 	size_t len = *(size_t*)block;
 	size_t fullLen = len + sizeof(size_t);

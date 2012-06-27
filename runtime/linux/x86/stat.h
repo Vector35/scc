@@ -24,25 +24,28 @@
 struct stat
 {
 	uint64_t st_dev;
-	uint64_t st_ino;
+	uint32_t __pad0;
+	uint32_t __st_ino;
 	uint32_t st_mode;
 	uint32_t st_nlink;
 	uint32_t st_uid;
 	uint32_t st_gid;
 	uint64_t st_rdev;
-	uint64_t __pad1;
-	int64_t st_size;
-	int32_t st_blksize;
-	int32_t __pad2;
-	int64_t st_blocks;
-	int32_t st_atime;
+	uint32_t __pad3;
+	// FIXME: Linux 32-bit has st_size unaligned here, but we don't support
+	// structure packing.  For now, we are forced to only support 32-bit
+	// file sizes.
+	uint32_t st_size;
+	uint32_t __st_size_high;
+	uint32_t st_blksize;
+	uint64_t st_blocks;
+	uint32_t st_atime;
 	uint32_t st_atime_nsec;
-	int32_t st_mtime;
+	uint32_t st_mtime;
 	uint32_t st_mtime_nsec;
-	int32_t st_ctime;
+	uint32_t st_ctime;
 	uint32_t st_ctime_nsec;
-	uint32_t __unused4;
-	uint32_t __unused5;
+	uint64_t st_ino;
 };
 
 int fstat(int fd, struct stat* buf);

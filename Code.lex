@@ -212,6 +212,7 @@ __prev_arg	TOK(PREV_ARG)
 
 __byteswap	TOK(BYTESWAP)
 
+0[0-7]+						TOKINT(INT_VAL, strtoull(yytext, NULL, 8))
 [0-9]+						TOKINT(INT_VAL, strtoull(yytext, NULL, 10))
 0x[0-9a-fA-F]+					TOKINT(INT_VAL, strtoull(yytext + 2, NULL, 16))
 0b[0-1]+					TOKINT(INT_VAL, strtoull(yytext + 2, NULL, 2))

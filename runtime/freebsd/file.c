@@ -35,6 +35,11 @@ int getdents(int fd, struct dirent* dirp, size_t count)
 	return __syscall(SYS_getdents, fd, dirp, count);
 }
 
+int getdirentries(int fd, struct dirent* dirp, size_t count, ssize_t* basep)
+{
+	return __syscall(SYS_getdirentries, fd, dirp, count, basep);
+}
+
 int fstat(int fd, struct stat* buf)
 {
 	return __syscall(SYS_fstat, fd, buf);

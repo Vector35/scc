@@ -55,3 +55,8 @@ int lstat(const char* path, struct stat* buf)
 	return __syscall(SYS_lstat, path, buf);
 }
 
+int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds, struct timeval* timeout)
+{
+	return __syscall(SYS_select, nfds, readfds, writefds, errorfds, timeout);
+}
+

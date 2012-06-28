@@ -18,48 +18,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-size_t lseek(int fd, int64_t offset, int whence)
-{
-	return __syscall(SYS_lseek, fd, offset, whence);
-}
-
-int getdents(int fd, struct dirent* dirp, size_t count)
-{
-	ssize_t basep;
-	return getdirentries(fd, dirp, count, &basep);
-}
-
-int getdirentries(int fd, struct dirent* dirp, size_t count, ssize_t* basep)
-{
-	return __syscall(SYS_getdirentries, fd, dirp, count, basep);
-}
-
-int fstat(int fd, struct stat* buf)
-{
-	return __syscall(SYS_fstat, fd, buf);
-}
-
-int stat(const char* path, struct stat* buf)
-{
-	return __syscall(SYS_stat, path, buf);
-}
-
-int lstat(const char* path, struct stat* buf)
-{
-	return __syscall(SYS_lstat, path, buf);
-}
-
-char* getcwd(char* buf, size_t size)
-{
-	char tmp[MAXPATHLEN];
-	int fd = open(".", O_RDONLY, 0);
-	if (fd < 0)
-		return NULL;
-	__syscall(SYS_fcntl, fd, F_GETPATH, tmp);
-	strncpy(buf, tmp, size);
-	return buf;
-}
-
 int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds, struct timeval* timeout)
 {
 	return __syscall(SYS_select, nfds, readfds, writefds, errorfds, timeout);

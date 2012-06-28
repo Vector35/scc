@@ -26,6 +26,7 @@ typedef int uid_t;
 typedef int gid_t;
 
 void exit(int result) __noreturn;
+#define _exit(result) exit(result)
 
 pid_t fork(void);
 int execve(const char* filename, const char** argv, const char** envp);

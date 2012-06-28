@@ -602,7 +602,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_type = Type::BoolType();
 		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
 		{
-			if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
+			if ((m_children[1]->GetType()->GetClass() == TYPE_POINTER) || (m_children[1]->GetType()->GetClass() == TYPE_FUNCTION))
 			{
 				if ((m_children[0]->GetClass() != EXPR_INT) ||
 					(m_children[0]->GetIntValue() != 0))
@@ -631,7 +631,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 				m_children[1] = m_children[1]->ConvertToType(state, type);
 			}
 		}
-		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
+		else if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) || (m_children[0]->GetType()->GetClass() == TYPE_FUNCTION))
 		{
 			if ((*m_children[0]->GetType()) != (*m_children[1]->GetType()))
 			{
@@ -827,7 +827,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		for (size_t i = 0; i < m_children[0]->GetType()->GetParams().size(); i++)
 		{
 			if ((!m_children[i + 1]->GetType()->CanAssignTo(*m_children[0]->GetType()->GetParams()[i])) &&
-				((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) ||
+				(((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) &&
+				(m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FUNCTION)) ||
 				(m_children[i + 1]->GetClass() != EXPR_INT) || (m_children[i + 1]->GetIntValue() != 0)))
 			{
 				state->Error();

@@ -4938,6 +4938,14 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 		EMIT_I(int, 0x80);
 
+		// If carry flag is set, syscall failed, so place negative of error code into result
+		uint8_t* errorCode = (uint8_t*)out->PrepareWrite(4);
+		errorCode[0] = 0x73; // jnc noerror
+		errorCode[1] = 0x02;
+		errorCode[2] = 0xf7; // neg eax
+		errorCode[3] = 0xd8;
+		out->FinishWrite(4);
+
 		// Adjust stack pointer to pop off parameters
 		if (pushSize != 0)
 			EMIT_RI(add_32, m_stackPointer, pushSize);
@@ -5098,6 +5106,17 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	else
 		EMIT(syscall);
 #endif
+
+	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MAC))
+	{
+		// If carry flag is set, syscall failed, so place negative of error code into result
+		uint8_t* errorCode = (uint8_t*)out->PrepareWrite(4);
+		errorCode[0] = 0x73; // jnc noerror
+		errorCode[1] = 0x02;
+		errorCode[2] = 0xf7; // neg eax
+		errorCode[3] = 0xd8;
+		out->FinishWrite(4);
+	}
 
 	m_framePointer = m_origFramePointer;
 	m_basePointer = m_origBasePointer;

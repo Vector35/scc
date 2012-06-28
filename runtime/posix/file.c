@@ -194,8 +194,3 @@ int symlink(const char* target, const char* path)
 	return __syscall(SYS_symlink, target, path);
 }
 
-int pipe(int* fds)
-{
-	return __syscall(SYS_pipe, fds);
-}
-

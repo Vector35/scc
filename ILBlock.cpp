@@ -611,6 +611,7 @@ bool ILInstruction::WritesToFirstParameter() const
 	case ILOP_ALLOCA:
 	case ILOP_STRLEN:
 	case ILOP_SYSCALL:
+	case ILOP_SYSCALL2:
 	case ILOP_RDTSC:
 	case ILOP_RDTSC_LOW:
 	case ILOP_RDTSC_HIGH:
@@ -777,6 +778,20 @@ void ILInstruction::Print() const
 		}
 		fprintf(stderr, ")");
 		break;
+	case ILOP_SYSCALL2:
+		params[0].Print();
+		fprintf(stderr, ", ");
+		params[1].Print();
+		fprintf(stderr, " = __syscall2");
+		fprintf(stderr, "(");
+		for (size_t i = 2; i < params.size(); i++)
+		{
+			if (i > 2)
+				fprintf(stderr, ", ");
+			params[i].Print();
+		}
+		fprintf(stderr, ")");
+		break;
 	default:
 		fprintf(stderr, "<invalid>");
 		break;
@@ -840,7 +855,7 @@ void ILBlock::AddInstruction(const ILInstruction& instr)
 			AddInstruction(ILOP_RETURN_VOID);
 		else if (instr.operation == ILOP_CALL)
 			m_instrs.push_back(instr);
-		else if (instr.operation == ILOP_SYSCALL)
+		else if ((instr.operation == ILOP_SYSCALL) || (instr.operation == ILOP_SYSCALL2))
 			m_instrs.push_back(instr);
 		else if ((instr.operation == ILOP_IF_TRUE) || (instr.operation == ILOP_IF_LESS_THAN) ||
 			(instr.operation == ILOP_IF_LESS_EQUAL) || (instr.operation == ILOP_IF_BELOW) ||

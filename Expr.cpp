@@ -1144,6 +1144,29 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		m_type = Type::IntType(GetTargetPointerSize(), false);
 		break;
+	case EXPR_SYSCALL2:
+		if (m_children[1]->GetType()->GetClass() != TYPE_INT)
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: expected syscall number\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+		}
+		for (size_t i = 2; i < m_children.size(); i++)
+		{
+			if ((m_children[i]->GetType()->GetClass() == TYPE_VOID) ||
+				(m_children[i]->GetType()->GetClass() == TYPE_FLOAT) ||
+				(m_children[i]->GetType()->GetClass() == TYPE_STRUCT))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: syscall parameter %d invalid\n", m_location.fileName.c_str(),
+					m_location.lineNumber, (int)i - 1);
+			}
+			if (m_children[i]->GetType()->GetWidth() == 0)
+				m_children[i] = m_children[i]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		}
+		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_type = Type::IntType(GetTargetPointerSize(), false);
+		break;
 	case EXPR_RDTSC:
 		m_type = Type::IntType(8, false);
 		break;
@@ -1848,7 +1871,7 @@ ILParameter Expr::GenerateArrayAccessIL(ParserState* state, Function* func, ILBl
 
 ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block)
 {
-	ILParameter result, a, b, c;
+	ILParameter result, a, b, c, d;
 	vector<ILParameter> params;
 	ILBlock* trueBlock;
 	ILBlock* falseBlock;
@@ -2696,6 +2719,70 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			params.push_back(m_children[i]->GenerateIL(state, func, block));
 		block->AddInstruction(ILOP_SYSCALL, params);
 		break;
+	case EXPR_SYSCALL2:
+		a = func->CreateTempVariable(m_type);
+		b = func->CreateTempVariable(m_type);
+		result = a;
+		params.push_back(a);
+		params.push_back(b);
+		params.push_back(m_children[1]->GenerateIL(state, func, block));
+		for (size_t i = 2; i < m_children.size(); i++)
+			params.push_back(m_children[i]->GenerateIL(state, func, block));
+		block->AddInstruction(ILOP_SYSCALL2, params);
+
+		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
+		{
+			if ((m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
+				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
+			{
+				if (m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
+					a = func->CreateTempVariable(Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
+				else
+					a = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
+				c = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+				d = m_children[0]->m_children[1]->GenerateIL(state, func, block);
+				block->AddInstruction(ILOP_PTR_ADD, a, c, d,
+					ILParameter(Type::IntType(GetTargetPointerSize(), false),
+					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
+				block->AddInstruction(ILOP_DEREF_ASSIGN, a, b);
+			}
+			else
+			{
+				c = m_children[0]->m_children[0]->GenerateArrayAccessIL(state, func, block);
+				d = m_children[0]->m_children[1]->GenerateIL(state, func, block);
+				block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, c, d,
+					ILParameter(Type::IntType(GetTargetPointerSize(), false),
+					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()), b);
+			}
+		}
+		else if (m_children[0]->GetClass() == EXPR_DEREF)
+		{
+			c = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_ASSIGN, c, b);
+		}
+		else if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			c = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, c, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), b);
+		}
+		else
+		{
+			c = m_children[0]->GenerateIL(state, func, block);
+			if ((c.cls != ILPARAM_VAR) && (c.cls != ILPARAM_MEMBER))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+			}
+			if ((c.cls == ILPARAM_VAR) && (c.variable->IsTempVariable()))
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+			}
+			block->AddInstruction(ILOP_ASSIGN, c, b);
+		}
+		break;
 	case EXPR_RDTSC:
 		result = func->CreateTempVariable(m_type);
 		block->AddInstruction(ILOP_RDTSC, result);
@@ -3356,6 +3443,16 @@ void Expr::Print(size_t indent)
 	case EXPR_UNDEFINED:  fprintf(stderr, "__undefined"); break;
 	case EXPR_SYSCALL:
 		fprintf(stderr, "__syscall(");
+		for (size_t i = 0; i < m_children.size(); i++)
+		{
+			if (i > 0)
+				fprintf(stderr, ", ");
+			m_children[i]->Print(indent);
+		}
+		fprintf(stderr, ")");
+		break;
+	case EXPR_SYSCALL2:
+		fprintf(stderr, "__syscall2(");
 		for (size_t i = 0; i < m_children.size(); i++)
 		{
 			if (i > 0)

@@ -179,7 +179,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateMemcpy(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateMemset(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateStrlen(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSyscall(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateSyscall(OutputBlock* out, const ILInstruction& instr, bool twoDest);
 	bool GenerateRdtsc(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscLow(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscHigh(OutputBlock* out, const ILInstruction& instr);

@@ -202,6 +202,7 @@ __subarch	TOK(SUBARCH_TOK)
 __noreturn	TOK(NORETURN_TOK)
 
 __syscall	TOK(SYSCALL_TOK)
+__syscall2	TOK(SYSCALL2_TOK)
 
 __rdtsc		TOK(RDTSC_TOK)
 __rdtsc_low	TOK(RDTSC_LOW)

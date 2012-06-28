@@ -4819,8 +4819,10 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(OutputBlock* out, const ILInstruction& in
 }
 
 
-bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& instr)
+bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& instr, bool twoDest)
 {
+	size_t destCount = twoDest ? 2 : 1;
+
 #ifdef OUTPUT32
 	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MAC))
 	{
@@ -4830,9 +4832,11 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 		size_t pushSize = 0;
 		ReserveRegisters(out, REG_EAX, NONE);
+		if (twoDest)
+			ReserveRegisters(out, REG_EDX, NONE);
 
 		// Push parameters from right to left
-		for (size_t i = instr.params.size() - 1; i >= 2; i--)
+		for (size_t i = instr.params.size() - 1; i >= 1 + destCount; i--)
 		{
 			memset(m_alloc, 0, sizeof(m_alloc));
 			ClearReservedRegisters(out);
@@ -4922,7 +4926,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 		// Place syscall number into EAX
 		OperandReference syscallNum;
-		if (!PrepareLoad(out, instr.params[1], syscallNum))
+		if (!PrepareLoad(out, instr.params[destCount], syscallNum))
 			return false;
 
 		OperandReference eax;
@@ -4949,6 +4953,18 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 		// Adjust stack pointer to pop off parameters
 		if (pushSize != 0)
 			EMIT_RI(add_32, m_stackPointer, pushSize);
+
+		if (twoDest)
+		{
+			OperandReference dest, result;
+			if (!PrepareStore(out, instr.params[1], dest))
+				return false;
+			result.type = OPERANDREF_REG;
+			result.width = dest.width;
+			result.reg = GetRegisterOfSize(REG_EDX, result.width);
+			if (!Move(out, dest, result))
+				return false;
+		}
 
 		OperandReference dest, result;
 		if (!PrepareStore(out, instr.params[0], dest))
@@ -4987,6 +5003,9 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 
 	ReserveRegisters(NULL, REG_ESP, REG_EBP, NONE);
 
+	if (twoDest)
+		ReserveRegisters(NULL, REG_EDX, NONE);
+
 #ifdef OUTPUT64
 	if (m_framePointer == REG_RCX)
 	{
@@ -4996,7 +5015,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 #endif
 
 	size_t regIndex = 0;
-	for (size_t i = 1; i < instr.params.size(); i++)
+	for (size_t i = destCount; i < instr.params.size(); i++)
 	{
 		if (regs[regIndex] == NONE)
 			return false;
@@ -5154,6 +5173,18 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	if (m_framePointer == REG_RCX)
 		EMIT_RR(xchg_64, m_framePointer, REG_RBP);
 #endif
+
+	if (twoDest)
+	{
+		OperandReference dest, result;
+		if (!PrepareStore(out, instr.params[1], dest))
+			return false;
+		result.type = OPERANDREF_REG;
+		result.width = dest.width;
+		result.reg = GetRegisterOfSize(REG_EDX, result.width);
+		if (!Move(out, dest, result))
+			return false;
+	}
 
 	OperandReference dest, result;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -5534,7 +5565,11 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 				goto fail;
 			break;
 		case ILOP_SYSCALL:
-			if (!GenerateSyscall(out, *i))
+			if (!GenerateSyscall(out, *i, false))
+				goto fail;
+			break;
+		case ILOP_SYSCALL2:
+			if (!GenerateSyscall(out, *i, true))
 				goto fail;
 			break;
 		case ILOP_RDTSC:

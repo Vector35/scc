@@ -116,6 +116,39 @@ void show_64(int64_t a)
 	printf("%d\n", reduce);
 }
 
+void const_inline_1(int a)
+{
+	int x = 42;
+	if (a == 0)
+		printf("zero\n");
+	else
+		printf("nonzero\n");
+}
+
+void const_inline_2(int a)
+{
+	int x = 42;
+	if (a == 0)
+		printf("zero\n");
+	else
+		printf("nonzero\n");
+}
+
+void test_const_inline(void)
+{
+	const_inline_1(0);
+	const_inline_2(17);
+}
+
+void test_syscall_error_return(void)
+{
+	int result = open("Obj/this_file_must_not_exist", O_RDONLY, 0);
+	if (result == -ENOENT)
+		printf("ENOENT\n");
+	else
+		printf("%d\n", result);
+}
+
 int main()
 {
 	show_8(add_two_8(17, 42));
@@ -127,6 +160,8 @@ int main()
 	show_32(add_var_32(283211239, 321821391, -1238123, 82347, -23423489, 0));
 	show_64(add_var_64((int64_t)248294892348923894, (int64_t)2348234832984983294, (int64_t)-2349832892498398,
 		(int64_t)3284984, (int64_t)0));
+	test_const_inline();
+	test_syscall_error_return();
 	return 0;
 }
 

@@ -23,3 +23,8 @@ int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const v
 	return __syscall(SYS___sysctl, name, namelen, oldp, oldlenp, newp, newlen);
 }
 
+pid_t waitpid(pid_t pid, int* status, int options)
+{
+	return __syscall(SYS_wait4, pid, status, options, NULL);
+}
+

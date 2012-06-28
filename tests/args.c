@@ -134,10 +134,20 @@ void const_inline_2(int a)
 		printf("nonzero\n");
 }
 
+int const_inline_3(int a, int b)
+{
+	int x = 42;
+	int y = 17;
+	return a + b;
+}
+
 void test_const_inline(void)
 {
 	const_inline_1(0);
 	const_inline_2(17);
+
+	int a = const_inline_3(1, 2);
+	printf("%d\n", a);
 }
 
 void test_syscall_error_return(void)

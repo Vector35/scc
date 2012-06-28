@@ -16,6 +16,7 @@ public:
 	void PerformDataFlowAnalysis(Function* func);
 	bool ConsolidateBasicBlocks(Function* func);
 	bool OptimizeForNoReturnCalls(Function* func);
+	bool FoldConstants(Function* func);
 
 	void InlineFunction(Function* func, Function* target);
 

@@ -21,6 +21,7 @@
 #include <queue>
 #include <list>
 #include <stdio.h>
+#include <math.h>
 #include "Optimize.h"
 #include "Struct.h"
 
@@ -453,6 +454,412 @@ bool Optimize::OptimizeForNoReturnCalls(Function* func)
 }
 
 
+bool Optimize::FoldConstants(Function* func)
+{
+	bool changed = false;
+
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		for (vector<ILInstruction>::iterator j = (*i)->GetInstructions().begin();
+			j != (*i)->GetInstructions().end(); j++)
+		{
+			switch (j->operation)
+			{
+			case ILOP_IF_TRUE:
+				if (j->params[0].IsConstant())
+				{
+					bool taken;
+					switch (j->params[0].cls)
+					{
+					case ILPARAM_INT:
+						taken = (j->params[0].integerValue != 0);
+						break;
+					case ILPARAM_BOOL:
+						taken = j->params[0].boolValue;
+						break;
+					default:
+						taken = true;
+						break;
+					}
+
+					ILBlock* dest;
+					j->operation = ILOP_GOTO;
+					if (taken)
+						dest = j->params[1].block;
+					else
+						dest = j->params[2].block;
+					j->params.clear();
+					j->params.push_back(ILParameter(dest));
+					changed = true;
+				}
+				break;
+			case ILOP_IF_LESS_THAN:
+				if (j->params[0].IsConstant() && j->params[1].IsConstant())
+				{
+					bool taken;
+					switch (j->params[0].cls)
+					{
+					case ILPARAM_INT:
+						taken = (j->params[0].integerValue < j->params[1].integerValue);
+						break;
+					case ILPARAM_FLOAT:
+						taken = (j->params[0].floatValue < j->params[1].floatValue);
+						break;
+					default:
+						taken = false;
+						break;
+					}
+
+					ILBlock* dest;
+					j->operation = ILOP_GOTO;
+					if (taken)
+						dest = j->params[2].block;
+					else
+						dest = j->params[3].block;
+					j->params.clear();
+					j->params.push_back(ILParameter(dest));
+					changed = true;
+				}
+				break;
+			case ILOP_IF_LESS_EQUAL:
+				if (j->params[0].IsConstant() && j->params[1].IsConstant())
+				{
+					bool taken;
+					switch (j->params[0].cls)
+					{
+					case ILPARAM_INT:
+						taken = (j->params[0].integerValue <= j->params[1].integerValue);
+						break;
+					case ILPARAM_FLOAT:
+						taken = (j->params[0].floatValue <= j->params[1].floatValue);
+						break;
+					default:
+						taken = false;
+						break;
+					}
+
+					ILBlock* dest;
+					j->operation = ILOP_GOTO;
+					if (taken)
+						dest = j->params[2].block;
+					else
+						dest = j->params[3].block;
+					j->params.clear();
+					j->params.push_back(ILParameter(dest));
+					changed = true;
+				}
+				break;
+			case ILOP_IF_BELOW:
+				if (j->params[0].IsConstant() && j->params[1].IsConstant())
+				{
+					bool taken;
+					switch (j->params[0].cls)
+					{
+					case ILPARAM_INT:
+						taken = ((uint64_t)j->params[0].integerValue < (uint64_t)j->params[1].integerValue);
+						break;
+					case ILPARAM_FLOAT:
+						taken = (j->params[0].floatValue < j->params[1].floatValue);
+						break;
+					default:
+						taken = false;
+						break;
+					}
+
+					ILBlock* dest;
+					j->operation = ILOP_GOTO;
+					if (taken)
+						dest = j->params[2].block;
+					else
+						dest = j->params[3].block;
+					j->params.clear();
+					j->params.push_back(ILParameter(dest));
+					changed = true;
+				}
+				break;
+			case ILOP_IF_BELOW_EQUAL:
+				if (j->params[0].IsConstant() && j->params[1].IsConstant())
+				{
+					bool taken;
+					switch (j->params[0].cls)
+					{
+					case ILPARAM_INT:
+						taken = ((uint64_t)j->params[0].integerValue <= (uint64_t)j->params[1].integerValue);
+						break;
+					case ILPARAM_FLOAT:
+						taken = (j->params[0].floatValue <= j->params[1].floatValue);
+						break;
+					default:
+						taken = false;
+						break;
+					}
+
+					ILBlock* dest;
+					j->operation = ILOP_GOTO;
+					if (taken)
+						dest = j->params[2].block;
+					else
+						dest = j->params[3].block;
+					j->params.clear();
+					j->params.push_back(ILParameter(dest));
+					changed = true;
+				}
+				break;
+			case ILOP_IF_EQUAL:
+				if (j->params[0].IsConstant() && j->params[1].IsConstant())
+				{
+					bool taken;
+					switch (j->params[0].cls)
+					{
+					case ILPARAM_INT:
+						taken = (j->params[0].integerValue == j->params[1].integerValue);
+						break;
+					case ILPARAM_FLOAT:
+						taken = (j->params[0].floatValue == j->params[1].floatValue);
+						break;
+					case ILPARAM_BOOL:
+						taken = (j->params[0].boolValue == j->params[1].boolValue);
+						break;
+					default:
+						taken = false;
+						break;
+					}
+
+					ILBlock* dest;
+					j->operation = ILOP_GOTO;
+					if (taken)
+						dest = j->params[2].block;
+					else
+						dest = j->params[3].block;
+					j->params.clear();
+					j->params.push_back(ILParameter(dest));
+					changed = true;
+				}
+				break;
+			case ILOP_ADD:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue += j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue += j->params[2].floatValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SUB:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue -= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue -= j->params[2].floatValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SMULT:
+			case ILOP_UMULT:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue *= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue *= j->params[2].floatValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SDIV:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT) && (j->params[2].integerValue != 0))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue /= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue /= j->params[2].floatValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_UDIV:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT) && (j->params[2].integerValue != 0))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = (int64_t)((uint64_t)j->params[1].integerValue / (uint64_t)j->params[2].integerValue);
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue /= j->params[2].floatValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SMOD:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT) && (j->params[2].integerValue != 0))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue %= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue = fmod(j->params[1].floatValue, j->params[2].floatValue);
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_UMOD:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT) && (j->params[2].integerValue != 0))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = (int64_t)((uint64_t)j->params[1].integerValue % (uint64_t)j->params[2].integerValue);
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_FLOAT) && (j->params[2].cls == ILPARAM_FLOAT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].floatValue = fmod(j->params[1].floatValue, j->params[2].floatValue);
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_AND:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue &= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_OR:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue |= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_XOR:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue ^= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SHL:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue <<= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SHR:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = (int64_t)((uint64_t)j->params[1].integerValue >> (uint8_t)j->params[2].integerValue);
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_SAR:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[2].cls == ILPARAM_INT))
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue >>= j->params[2].integerValue;
+					j->params.erase(j->params.begin() + 2);
+					changed = true;
+				}
+				break;
+			case ILOP_NEG:
+				if (j->params[1].cls == ILPARAM_INT)
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = -j->params[1].integerValue;
+					changed = true;
+				}
+				break;
+			case ILOP_NOT:
+				if (j->params[1].cls == ILPARAM_INT)
+				{
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = ~j->params[1].integerValue;
+					changed = true;
+				}
+				break;
+			case ILOP_BYTESWAP:
+				if ((j->params[1].cls == ILPARAM_INT) && (j->params[1].type == ILTYPE_INT16))
+				{
+					uint16_t value = (uint16_t)j->params[1].integerValue;
+					value = (value << 8) | (value >> 8);
+
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = value;
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_INT) && (j->params[1].type == ILTYPE_INT32))
+				{
+					uint32_t value = (uint32_t)j->params[1].integerValue;
+					value = (value << 24) | ((value << 8) & 0xff0000) | ((value >> 8) & 0xff00) | (value >> 24);
+
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = value;
+					changed = true;
+				}
+				else if ((j->params[1].cls == ILPARAM_INT) && (j->params[1].type == ILTYPE_INT64))
+				{
+					uint64_t value = (uint64_t)j->params[1].integerValue;
+					value = (value << 56) | ((value << 40) & 0xff000000000000LL) | ((value << 24) & 0xff0000000000LL) |
+						((value << 8) & 0xff00000000LL) | ((value >> 8) & 0xff000000LL) | ((value >> 24) & 0xff0000LL) |
+						((value >> 40) & 0xff00LL) | (value >> 56);
+
+					j->operation = ILOP_ASSIGN;
+					j->params[1].integerValue = value;
+					changed = true;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return changed;
+}
+
+
 void Optimize::InlineFunction(Function* func, Function* target)
 {
 	// Find all the calls to the target function
@@ -752,6 +1159,8 @@ bool Optimize::OptimizeFunction(Function* func)
 	while (changed)
 	{
 		changed = false;
+
+		FoldConstants(func);
 
 		PerformControlFlowAnalysis(func);
 		if ((m_settings.optimization != OPTIMIZE_DISABLE) && ConsolidateBasicBlocks(func))

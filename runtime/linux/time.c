@@ -23,3 +23,8 @@ time_t time(time_t* t)
 	return __syscall(SYS_time, t);
 }
 
+int gettimeofday(struct timeval* t, struct timezone* tz)
+{
+	return __syscall(SYS_gettimeofday, t, tz);
+}
+

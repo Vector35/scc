@@ -62,6 +62,10 @@ int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds, struct
 
 int pipe(int* fds)
 {
-	fds[0] = (int)__syscall2(fds[1], SYS_pipe);
+	int a, b;
+	a = (int)__syscall2(b, SYS_pipe);
+	fds[0] = a;
+	fds[1] = b;
+	return a;
 }
 

@@ -27,3 +27,16 @@ time_t time(time_t* t)
 	return tv.tv_sec;
 }
 
+int gettimeofday(struct timeval* t, struct timezone* tz)
+{
+	struct timezone tmp;
+	if (!tz)
+	{
+		tmp.tz_minuteswest = 0;
+		tmp.tz_dsttime = 0;
+		tz = &tmp;
+	}
+	t->tv_sec = __syscall2(t->tv_usec, SYS_gettimeofday, tz);
+	return 0;
+}
+

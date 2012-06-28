@@ -322,6 +322,7 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 		i->second->SetBody(i->second->GetBody()->Simplify(&parser));
 		i->second->GetBody()->ComputeType(&parser, i->second);
 		i->second->SetBody(i->second->GetBody()->Simplify(&parser));
+		i->second->GetBody()->ComputeType(&parser, i->second);
 	}
 	if (parser.HasErrors())
 		return false;

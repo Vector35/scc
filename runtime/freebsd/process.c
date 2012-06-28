@@ -28,3 +28,8 @@ pid_t waitpid(pid_t pid, int* status, int options)
 	return __syscall(SYS_wait4, pid, status, options, NULL);
 }
 
+pid_t fork(void)
+{
+	return __syscall(SYS_fork);
+}
+

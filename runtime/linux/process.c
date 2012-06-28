@@ -28,3 +28,8 @@ int tgkill(int tgid, int tid, int sig)
 	return __syscall(SYS_tgkill, tgid, tid, sig);
 }
 
+pid_t fork(void)
+{
+	return __syscall(SYS_fork);
+}
+

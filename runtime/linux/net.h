@@ -214,6 +214,7 @@ struct in6_addr
 {
 	union
 	{
+		uint8_t s6_addr[16];
 		uint8_t s6_addr8[16];
 		uint16_t s6_addr16[8];
 		uint32_t s6_addr32[4];

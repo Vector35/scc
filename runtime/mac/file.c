@@ -56,6 +56,7 @@ char* getcwd(char* buf, size_t size)
 	if (fd < 0)
 		return NULL;
 	__syscall(SYS_fcntl, fd, F_GETPATH, tmp);
+	close(fd);
 	strncpy(buf, tmp, size);
 	return buf;
 }

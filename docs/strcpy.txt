@@ -1,0 +1,16 @@
+strcpy
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+char* strcpy(char* dest, const char* src);
+---------------------------------------------
+
+Copies a null-terminated string from `src` into `dest`.  The maximum length
+of the string is not bounded.  Returns a pointer to the destination string.
+
+See also
+--------
+link:strcat.html[strcat],
+link:strdup.html[strdup],
+link:strncpy.html[strncpy]

@@ -37,3 +37,10 @@ void free(void* ptr)
 	munmap(block, (fullLen + 4095) & (~4095));
 }
 
+char* strdup(const char* str)
+{
+	char* dest = (char*)malloc(strlen(str) + 1);
+	strcpy(dest, str);
+	return dest;
+}
+

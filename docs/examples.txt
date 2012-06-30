@@ -1,5 +1,6 @@
 Shellcode Compiler Examples
 ===========================
+:toc: 
 
 The following are short examples of how to use the Shellcode Compiler to solve
 common shellcoding tasks.
@@ -35,7 +36,7 @@ void main(int sock)
 Staged shellcode
 ----------------
 You can use the computed goto syntax to transition to a new, larger shellcode buffer.
-The following example allocates a new buffer on the heap of arbitrary size.
+The following example allocates a new buffer on the heap for shellcode of an arbitrary size.
 
 ---------------------------------------
 void main(int sock)

@@ -1,5 +1,6 @@
 Shellcode Compiler Runtime
 ==========================
+:toc: 
 
 This document describes the runtime environment provided by the Shellcode
 Compiler.  This runtime is a lightweight library that is designed to
@@ -11,9 +12,8 @@ that are used by the code are included in the output binary.
 Overview
 --------
 The Shellcode Compiler contains a built-in C runtime containing many of the
-standard functions typically used in C programs.  It also includes helper
-functions for common shellcoding tasks, such as connecting over TCP/UDP and
-launching a shell.
+standard functions typically used in C programs.  It also includes <<X1,helper functions>>
+for common shellcoding tasks, such as connecting over TCP/UDP and launching a shell.
 
 CAUTION: No `#include` directives are needed to access runtime functions.  Code
 that contains `#include` directives for C runtime functions may fail to compile.
@@ -28,4 +28,177 @@ CAUTION: The variable `errno` is not available with this runtime.  Runtime
 functions instead return the negation of the error code (i.e. `-ENOENT`), just
 like system calls on Linux.  Be sure to use the comparison `result < 0` rather
 than `result == -1` to check for failure.
+
+Compiler intrinsics
+-------------------
+link:abs.html[abs],
+link:byteswap.html[byteswap],
+link:max.html[max],
+link:min.html[min],
+link:next_arg.html[next_arg],
+link:noreturn.html[noreturn],
+link:prev_arg.html[prev_arg],
+link:rdtsc.html[rdtsc],
+link:rdtsc_low.html[rdtsc_low],
+link:rdtsc_high.html[rdtsc_high],
+link:syscall.html[syscall],
+link:syscall2.html[syscall2],
+link:undefined.html[undefined]
+
+File and directory functions
+----------------------------
+link:chdir.html[chdir],
+link:close.html[close],
+link:dup.html[dup],
+link:dup2.html[dup2],
+link:fchdir.html[fchdir],
+link:fgetc.html[fgetc],
+link:fgets.html[fgets],
+link:fprintf.html[fprintf],
+link:fputc.html[fputc],
+link:fputs.html[fputs],
+link:fstat.html[fstat],
+link:ftruncate.html[ftruncate],
+link:getcwd.html[getcwd],
+link:getdents.html[getdents],
+link:getdirentries.html[getdirentries],
+link:link.html[link],
+link:lseek.html[lseek],
+link:lstat.html[lstat],
+link:mkdir.html[mkdir],
+link:open.html[open],
+link:pipe.html[pipe],
+link:printf.html[printf],
+link:puts.html[puts],
+link:read.html[read],
+link:readlink.html[readlink],
+link:rename.html[rename],
+link:rmdir.html[rmdir],
+link:select.html[select],
+link:sendfile.html[sendfile],
+link:stat.html[stat],
+link:symlink.html[symlink],
+link:truncate.html[truncate],
+link:unlink.html[unlink],
+link:vprintf.html[vprintf],
+link:vfprintf.html[vfprintf],
+link:write.html[write]
+
+File security functions
+-----------------------
+link:chflags.html[chflags],
+link:chmod.html[chmod],
+link:chown.html[chown],
+link:fchflags.html[fchflags],
+link:fchmod.html[fchmod],
+link:fchown.html[fchown],
+link:lchflags.html[lchflags],
+link:lchown.html[lchown]
+
+Hash functions
+--------------
+link:crc32.html[crc32]
+
+[[X1]]
+Helper functions
+----------------
+link:bash.html[bash],
+link:create_tcp4_connection.html[create_tcp4_connection],
+link:create_tcp6_connection.html[create_tcp6_connection],
+link:create_udp4_connection.html[create_udp4_connection],
+link:create_udp6_connection.html[create_udp6_connection],
+link:interactive_bash.html[interactive_bash],
+link:interactive_sh.html[interactive_sh],
+link:recv_all.html[recv_all],
+link:redirect_io.html[redirect_io],
+link:send_all.html[send_all],
+link:send_string.html[send_string],
+link:sh.html[sh]
+
+Memory management functions
+---------------------------
+link:alloca.html[alloca],
+link:free.html[free],
+link:malloc.html[malloc],
+link:memcpy.html[memcpy],
+link:memset.html[memset],
+link:mmap.html[mmap],
+link:munmap.html[munmap]
+
+Process functions
+-----------------
+link:alarm.html[alarm],
+link:execve.html[execve],
+link:exit.html[exit],
+link:fork.html[fork],
+link:getpid.html[getpid],
+link:getppid.html[getppid],
+link:kill.html[kill],
+link:sysctl.html[sysctl],
+link:system.html[system],
+link:tgkill.html[tgkill],
+link:wait.html[wait],
+link:waitpid.html[waitpid]
+
+Process security functions
+--------------------------
+link:getegid.html[getegid],
+link:geteuid.html[geteuid],
+link:getgid.html[getgid],
+link:getgroups.html[getgroups],
+link:getuid.html[getuid],
+link:setegid.html[setegid],
+link:seteuid.html[seteuid],
+link:setgid.html[setgid],
+link:setregid.html[setregid],
+link:setreuid.html[setreuid],
+link:setuid.html[setuid]
+
+RC4 encryption
+--------------
+link:rc4_crypt.html[rc4_crypt],
+link:rc4_init.html[rc4_init],
+link:rc4_output.html[rc4_output]
+
+See the link:rc4_overview.html[RC4 overview] for details on using the RC4 functions.
+
+Socket functions
+----------------
+link:accept.html[accept],
+link:accept4.html[accept4],
+link:bind.html[bind],
+link:connect.html[connect],
+link:getpeername.html[getpeername],
+link:getsockname.html[getsockname],
+link:getsockopt.html[getsockopt],
+link:listen.html[listen],
+link:recv.html[recv],
+link:recvfrom.html[recvfrom],
+link:send.html[send],
+link:sendto.html[sendto],
+link:setsockopt.html[setsockopt],
+link:shutdown.html[shutdown],
+link:socket.html[socket],
+link:socketpair.html[socketpair]
+
+String manipulation
+-------------------
+link:atoi.html[atoi],
+link:snprintf.html[snprintf],
+link:sprintf.html[sprintf],
+link:strcat.html[strcat],
+link:strchr.html[strchr],
+link:strcmp.html[strcmp],
+link:strcpy.html[strcpy],
+link:strdup.html[strdup],
+link:strlen.html[strlen],
+link:strncpy.html[strncpy],
+link:strrchr.html[strrchr],
+link:vsprintf.html[vsprintf],
+link:vsnprintf.html[vsnprintf]
+
+Time functions
+--------------
+link:gettimeofday.html[gettimeofday],
+link:time.html[time]
 

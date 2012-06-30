@@ -154,5 +154,13 @@ ssize_t recvfrom(int fd, void* buf, size_t n, int flags, struct sockaddr* addr, 
 int getsockopt(int fd, int level, int optname, void* optval, socklen_t* optlen);
 int setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen);
 
+int create_tcp4_connection(uint32_t ip, uint16_t port);
+int create_udp4_connection(uint32_t ip, uint16_t port);
+int create_tcp6_connection(const void* ip, uint16_t port);
+int create_udp6_connection(const void* ip, uint16_t port);
+ssize_t send_all(int fd, const void* buf, size_t n, int flags);
+ssize_t recv_all(int fd, void* buf, size_t n, int flags);
+ssize_t send_string(int fd, const char* str);
+
 #endif
 

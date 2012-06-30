@@ -18,15 +18,55 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__NET_H__
-#define __LBIC__NET_H__
+void sh()
+{
+	char* argv[2];
+	argv[0] = "/bin/sh";
+	argv[1] = NULL;
+	execve(argv[0], argv, NULL);
+}
 
-#define INADDR_ANY        0
-#define INADDR_LOOPBACK   0x7f000001
-#define INADDR_BROADCAST  0xffffffff
-#define INADDR_NONE       0xffffffff
+void interactive_sh()
+{
+	char* argv[3];
+	argv[0] = "/bin/sh";
+	argv[1] = "-i";
+	argv[2] = NULL;
+	execve(argv[0], argv, NULL);
+}
 
-#define IPV4_ADDR(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+void bash()
+{
+	char* argv[2];
+	argv[0] = "/bin/bash";
+	argv[1] = NULL;
+	execve(argv[0], argv, NULL);
+}
 
-#endif
+void interactive_bash()
+{
+	char* argv[3];
+	argv[0] = "/bin/bash";
+	argv[1] = "-i";
+	argv[2] = NULL;
+	execve(argv[0], argv, NULL);
+}
+
+void system(const char* cmd)
+{
+	char* argv[4];
+	argv[0] = "/bin/sh";
+	argv[1] = "-c";
+	argv[2] = cmd;
+	argv[3] = NULL;
+
+	pid_t pid = fork();
+	if (pid == 0)
+	{
+		execve(argv[0], argv, NULL);
+		exit(-1);
+	}
+
+	waitpid(pid, NULL, 0);
+}
 

@@ -18,15 +18,15 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__NET_H__
-#define __LBIC__NET_H__
+#ifndef __LIBC__SHELL_H__
+#define __LIBC__SHELL_H__
 
-#define INADDR_ANY        0
-#define INADDR_LOOPBACK   0x7f000001
-#define INADDR_BROADCAST  0xffffffff
-#define INADDR_NONE       0xffffffff
+void sh();
+void interactive_sh();
+void bash();
+void interactive_bash();
 
-#define IPV4_ADDR(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+void system(const char* cmd);
 
 #endif
 

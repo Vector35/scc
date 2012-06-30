@@ -23,6 +23,16 @@ size_t lseek(int fd, int64_t offset, int whence)
 	return __syscall(SYS_lseek, fd, offset, whence);
 }
 
+int truncate(const char* path, int64_t length)
+{
+	return __syscall(SYS_truncate, path, length);
+}
+
+int ftruncate(int fd, int64_t length)
+{
+	return __syscall(SYS_ftruncate, fd, length);
+}
+
 int getdents(int fd, struct dirent* dirp, size_t count)
 {
 	ssize_t basep;

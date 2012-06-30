@@ -23,6 +23,16 @@ size_t lseek(int fd, ssize_t offset, int whence)
 	return __syscall(SYS_lseek, fd, offset, whence);
 }
 
+int truncate(const char* path, ssize_t length)
+{
+	return __syscall(SYS_truncate, path, length);
+}
+
+int ftruncate(int fd, ssize_t length)
+{
+	return __syscall(SYS_ftruncate, fd, length);
+}
+
 ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count)
 {
 	return __syscall(SYS_sendfile, outFd, inFd, offset, count);

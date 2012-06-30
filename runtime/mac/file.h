@@ -115,6 +115,8 @@ struct dirent
 };
 
 size_t lseek(int fd, int64_t offset, int whence);
+int truncate(const char* path, int64_t length);
+int ftruncate(int fd, int64_t length);
 
 int getdents(int fd, struct dirent* dirp, size_t count);
 int getdirentries(int fd, struct dirent* dirp, size_t count, ssize_t* basep);

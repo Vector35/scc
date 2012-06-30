@@ -49,6 +49,8 @@ struct dirent
 };
 
 size_t lseek(int fd, ssize_t offset, int whence);
+int truncate(const char* path, ssize_t length);
+int ftruncate(int fd, ssize_t length);
 
 ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
 int getdents(int fd, struct dirent* dirp, size_t count);

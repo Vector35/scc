@@ -69,3 +69,18 @@ int pipe(int* fds)
 	return a;
 }
 
+int chflags(const char* path, int flags)
+{
+	return __syscall(SYS_chflags, path, flags);
+}
+
+int fchflags(int fd, int flags)
+{
+	return __syscall(SYS_fchflags, fd, flags);
+}
+
+int lchflags(const char* path, int flags)
+{
+	return __syscall(SYS_lchflags, path, flags);
+}
+

@@ -47,6 +47,19 @@
 
 #define S_ISTXT     0x200
 
+#define UF_SETTABLE  0xffff
+#define UF_NODUMP    0x0001
+#define UF_IMMUTABLE 0x0002
+#define UF_APPEND    0x0004
+#define UF_OPAQUE    0x0008
+#define UF_NOUNLINK  0x0010
+#define SF_SETTABLE  0xffff0000
+#define SF_ARCHIVED  0x00010000
+#define SF_IMMUTABLE 0x00020000
+#define SF_APPEND    0x00040000
+#define SF_NOUNLINK  0x00100000
+#define SF_SNAPSHOT  0x00200000
+
 struct stat
 {
 	uint32_t st_dev;
@@ -89,6 +102,10 @@ int getdirentries(int fd, struct dirent* dirp, size_t count, ssize_t* basep);
 int fstat(int fd, struct stat* buf);
 int stat(const char* path, struct stat* buf);
 int lstat(const char* path, struct stat* buf);
+
+int chflags(const char* path, int flags);
+int fchflags(int fd, int flags);
+int lchflags(const char* path, int flags);
 
 #endif
 

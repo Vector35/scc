@@ -1,0 +1,15 @@
+__next_arg
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* __next_arg(void* ptr, size_t size);
+---------------------------------------------
+
+Returns a pointer to the next argument given the pointer to the current argument, `ptr`, and
+the size of the current argument, `size`.  This intrinsic can be used to find the next
+argument regardless of the direction of stack growth.
+
+See also
+--------
+link:prev_arg.html[prev_arg]

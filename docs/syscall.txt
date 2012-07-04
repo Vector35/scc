@@ -1,0 +1,19 @@
+__syscall
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+long __syscall(long num, ...);
+---------------------------------------------
+
+Issues system call number `num` on the target platform.  Any additional arguments are passed directly
+to the system call.  Returns the result of the system call.
+
+IMPORTANT: On platforms that set a processor flag on error, such as FreeBSD, the `__syscall` function
+will return the negation of the error code on error.  This is to allow for unified behaviour across
+different platforms.  For example, checking the result of the `open` call for `-ENOENT` will work
+across all supported UNIX-based platforms.
+
+See also
+--------
+link:syscall2.html[syscall2]

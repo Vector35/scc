@@ -1,0 +1,14 @@
+abs
+===
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+abs(n);
+---------------------------------------------
+
+Computes the absolute value of `n`, which must be a numeric type.  The return value is the same type as `n`.
+
+See also
+--------
+link:min.html[min],
+link:max.html[max]

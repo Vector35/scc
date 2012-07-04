@@ -1,0 +1,20 @@
+__noreturn
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void example_function(void) __noreturn;
+---------------------------------------------
+
+The `__noreturn` modifier can be placed immediately after a function type declaration to specify that
+a function can never return.  For example, the `exit` function is marked with `__noreturn`.
+
+It is not necessary for functions that call `__noreturn` functions such as `exit` to explicitly specify
+that they cannot return.  The compiler will automatically determine that such functions are `__noreturn`.
+This attribute is usually only necessary with functions that issue system calls that cause the
+process to exit, or to transition to a new codebase (such as `execve`).
+
+See also
+--------
+link:exit.html[exit],
+link:execve.html[execve]

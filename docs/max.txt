@@ -1,0 +1,14 @@
+__max
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+__max(...);
+---------------------------------------------
+
+Returns the maximum value in the list of parameters.  Return value is the same type
+as the parameters.
+
+See also
+--------
+link:min.html[min]

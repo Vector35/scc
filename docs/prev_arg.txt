@@ -1,0 +1,15 @@
+__prev_arg
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* __prev_arg(void* ptr, size_t size);
+---------------------------------------------
+
+Returns a pointer to the previous argument given the pointer to the current argument, `ptr`, and
+the size of the previous argument, `size`.  This intrinsic can be used to find the previous
+argument regardless of the direction of stack growth.
+
+See also
+--------
+link:next_arg.html[next_arg]

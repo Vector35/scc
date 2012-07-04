@@ -1,0 +1,14 @@
+__rdtsc
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+uint64_t __rdtsc();
+---------------------------------------------
+
+Reads the time stamp counter on the x86 architecture.  Returns the time stamp counter as a single 64-bit integer.
+
+See also
+--------
+link:rdtsc_low.html[rdtsc_low],
+link:rdtsc_high.html[rdtsc_high]

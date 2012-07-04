@@ -1,0 +1,12 @@
+__byteswap
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+uint16_t __byteswap(uint16 n);
+uint32_t __byteswap(uint32 n);
+uint64_t __byteswap(uint64 n);
+---------------------------------------------
+
+Swaps the byte ordering of the value `n`.
+

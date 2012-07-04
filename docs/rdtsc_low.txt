@@ -1,0 +1,14 @@
+__rdtsc_low
+===========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+uint32_t __rdtsc_low();
+---------------------------------------------
+
+Reads the time stamp counter on the x86 architecture.  Returns the lower 32 bits of the time stamp counter.
+
+See also
+--------
+link:rdtsc.html[rdtsc],
+link:rdtsc_high.html[rdtsc_high]

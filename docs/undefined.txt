@@ -1,0 +1,19 @@
+__undefined
+===========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+__undefined;
+---------------------------------------------
+
+This intrinsic can be used in place of any value.  It gives undefined results, usually by omitting
+code.  The runtime result will vary based on the choices of the optimizer and code generator.  The compiler
+will typically leave the register or memory location being targeted in its original state, completely
+omitting any instructions that would have been required to update it.  Any arithmetic performed with
+`__undefined` as part of the computation will optimized down to a single usage of the `__undefined`
+intrinsic, as the results are by definition undefined.
+
+One of the most common uses of this intrinsic is to exit the program while treating the exit code as
+a "don't care" value, using `exit(__undefined)`.  A `main` function that returns `void` implicitly
+does this.
+

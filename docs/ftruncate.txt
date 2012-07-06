@@ -1,0 +1,15 @@
+ftruncate
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int ftruncate(int fd, int64_t length);
+---------------------------------------------
+
+Sets the length of the file referenced by file handle `fd` to `length` bytes.  Returns zero on success, or the negation
+of the error code on error.
+
+See also
+--------
+link:lseek.html[lseek],
+link:truncate.html[truncate]

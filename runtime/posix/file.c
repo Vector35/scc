@@ -38,7 +38,7 @@ int dup2(int oldFd, int newFd)
 	return __syscall(SYS_dup2, oldFd, newFd);
 }
 
-int redirect_io(int fd)
+void redirect_io(int fd)
 {
 	dup2(fd, 0);
 	dup2(fd, 1);

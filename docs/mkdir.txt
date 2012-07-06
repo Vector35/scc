@@ -1,0 +1,15 @@
+mkdir
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int mkdir(const char* path, mode_t mode);
+---------------------------------------------
+
+Creates a new directory at `path` with file access set to `mode`.  Returns zero on success, or the negation of the error
+code on error.
+
+See also
+--------
+link:chdir.html[chdir],
+link:rmdir.html[rmdir]

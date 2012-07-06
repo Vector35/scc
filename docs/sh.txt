@@ -1,0 +1,17 @@
+sh
+==
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void sh();
+---------------------------------------------
+
+Executes the `sh` shell.  No arguments are provided to `sh`.  This function does not return if the command
+executes successfully.
+
+See also
+--------
+link:bash.html[bash],
+link:interactive_bash.html[interactive_bash],
+link:interactive_sh.html[interactive_sh],
+link:system.html[system]

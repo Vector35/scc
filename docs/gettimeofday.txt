@@ -1,0 +1,28 @@
+gettimeofday
+============
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int gettimeofday(struct timeval* t, struct timezone* tz);
+---------------------------------------------
+
+Gets the current time and places it into the structure `t`.  The `tz` parameter can be `NULL`.  The two structures
+are as defined below:
+
+---------------------------------------------
+struct timeval
+{
+	time_t tv_sec;
+	size_t tv_usec;
+};
+
+struct timezone
+{
+	int tz_minuteswest;
+	int tz_dsttime;
+};
+---------------------------------------------
+
+See also
+--------
+link:time.html[time]

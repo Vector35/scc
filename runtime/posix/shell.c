@@ -52,7 +52,7 @@ void interactive_bash()
 	execve(argv[0], argv, NULL);
 }
 
-void system(const char* cmd)
+int system(const char* cmd)
 {
 	char* argv[4];
 	argv[0] = "/bin/sh";
@@ -67,6 +67,8 @@ void system(const char* cmd)
 		exit(-1);
 	}
 
-	waitpid(pid, NULL, 0);
+	int status;
+	waitpid(pid, &status, 0);
+	return status;
 }
 

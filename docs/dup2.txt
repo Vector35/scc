@@ -1,0 +1,15 @@
+dup2
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int dup2(int oldFd, int newFd);
+---------------------------------------------
+
+Duplicates the file handle `oldFd` such that the new file handle is `newFd`.  If file handle `newFd` is
+already open, the existing file handle is closed.  Returns the new file handle.
+
+See also
+--------
+link:close.html[close],
+link:dup.html[dup]

@@ -1,0 +1,15 @@
+close
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int close(int fd);
+---------------------------------------------
+
+Closes the file handle `fd`.
+
+See also
+--------
+link:dup.html[dup],
+link:dup2.html[dup2],
+link:open.html[open]

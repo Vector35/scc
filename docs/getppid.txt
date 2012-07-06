@@ -1,0 +1,13 @@
+getppid
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+pid_t getppid(void);
+---------------------------------------------
+
+Gets the process ID of the parent process.
+
+See also
+--------
+link:getpid.html[getpid]

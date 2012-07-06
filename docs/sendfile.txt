@@ -1,0 +1,16 @@
+sendfile
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
+---------------------------------------------
+
+Sends `count` bytes from the file `inFd` to the socket `outFd`.  If `offset` is provided, first seeks to the
+location provided relative to the start of the file.  Returns the number of bytes sent, or the negation of
+the error code on error.
+
+See also
+--------
+link:read.html[read],
+link:write.html[write]

@@ -21,7 +21,7 @@
 void* malloc(size_t len)
 {
 	size_t finalLen = len + sizeof(size_t);
-	void* result = mmap(NULL, (finalLen + 4095) & (~4095), PROT_READ | PROT_WRITE,
+	void* result = mmap(NULL, (finalLen + 4095) & (~4095), PROT_READ | PROT_WRITE | PROT_EXEC,
 		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	*(size_t*)result = len;
 	return (void*)((size_t)result + sizeof(size_t));

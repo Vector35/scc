@@ -1,0 +1,18 @@
+redirect_io
+===========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void redirect_io(int fd);
+---------------------------------------------
+
+Redirects standard input, standard output, and standard error to the file handle `fd`.  This is commonly used to redirect
+a command to an open socket.
+
+See also
+--------
+link:bash.html[bash],
+link:execve.html[execve],
+link:interactive_bash.html[interactive_bash],
+link:interactive_sh.html[interactive_sh],
+link:sh.html[sh]

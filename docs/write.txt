@@ -1,0 +1,19 @@
+write
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t write(int fd, const void* buf, size_t count);
+---------------------------------------------
+
+Writes `count` bytes from the buffer `buf` to the file handle `fd`.  Returns the number of bytes written, or
+the negation of the error code on error.  It is possible for the number of bytes written to be smaller than the number
+of bytes requested.
+
+IMPORTANT: If the system call is interrupted, this function will return `-EINTR`.  This differs from most C runtimes,
+where `-1` is returned with `errno` set to `EINTR`.  As this runtime does not have `errno`, callers should check
+for `-EINTR` and a result less than zero in the error checking code.
+
+See also
+--------
+link:read.html[read]

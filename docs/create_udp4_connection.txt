@@ -1,0 +1,16 @@
+create_udp4_connection
+======================
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int create_udp4_connection(uint32_t ip, uint16_t port);
+---------------------------------------------
+
+Creates a new UDP connection on port `port` to IPv4 address `ip`.  The `IPV4_ADDR` macro can be used to construct
+an IP address from four octets easily.  Returns an open socket handle, or the negation of the error code on error.
+
+See also
+--------
+link:create_tcp4_connection.html[create_tcp4_connection],
+link:create_tcp6_connection.html[create_tcp6_connection],
+link:create_udp6_connection.html[create_udp6_connection]

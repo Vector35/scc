@@ -1,0 +1,13 @@
+munmap
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* munmap(void* addr, size_t len);
+---------------------------------------------
+
+Unmaps a region of virtual address space.  The region unmapped starts at `addr` and is `len` bytes in length.
+
+See also
+--------
+link:mmap.html[mmap]

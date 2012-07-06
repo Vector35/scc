@@ -1,0 +1,13 @@
+getpid
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+pid_t getpid(void);
+---------------------------------------------
+
+Gets the process ID of the current process.
+
+See also
+--------
+link:getppid.html[getppid]

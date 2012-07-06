@@ -1,0 +1,10 @@
+crc32
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+uint32_t crc32(const void* data, size_t len);
+---------------------------------------------
+
+Computes the CRC32 hash of the buffer `data` with length of `len` bytes.  Returns the hash.
+

@@ -1,0 +1,17 @@
+setreuid
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setreuid(uid_t rid, uid_t eid);
+---------------------------------------------
+
+Sets the real user ID to `rid` and the effective user ID to `eid`.  If either parameter is zero, the corresponding ID
+is not set.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:geteuid.html[geteuid],
+link:getuid.html[getuid],
+link:setuid.html[setuid],
+link:seteuid.html[seteuid]

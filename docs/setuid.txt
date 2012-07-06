@@ -1,0 +1,16 @@
+setuid
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setuid(gid_t id);
+--------------------------------------------
+
+Sets the real user ID of the current process to `id`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:geteuid.html[geteuid],
+link:getuid.html[getuid],
+link:seteuid.html[seteuid],
+link:setreuid.html[setreuid]

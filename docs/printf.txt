@@ -1,0 +1,16 @@
+printf
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int printf(const char* fmt, ...);
+---------------------------------------------
+
+Writes a formatted string with format `fmt` to standard output.  See the link:format.html[format specifier reference]
+for the supported format specifiers.
+
+See also
+--------
+link:fprintf.html[fprintf],
+link:vfprintf.html[vfprintf],
+link:vprintf.html[vprintf],

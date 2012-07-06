@@ -1,0 +1,14 @@
+sprintf
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int sprintf(char* out, const char* fmt, ...);
+---------------------------------------------
+
+Writes a formatted string with format `fmt` to the string `out`.  See the link:format.html[format specifier reference]
+for the supported format specifiers.
+
+See also
+--------
+link:snprintf.html[snprintf]

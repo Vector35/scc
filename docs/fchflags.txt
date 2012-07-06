@@ -1,0 +1,15 @@
+fchflags
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fchflags(int fd, int flags);
+---------------------------------------------
+
+Sets the FreeBSD file flags of the file handle `fd` to `flags`.  The FreeBSD macros, such as `UF_IMMUTABLE`, are
+available.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:chflags.html[chflags],
+link:lchflags.html[lchflags]

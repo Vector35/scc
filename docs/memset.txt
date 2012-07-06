@@ -1,0 +1,13 @@
+memset
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* memset(void* dest, uint8_t value, size_t len);
+---------------------------------------------
+
+Sets `len` bytes in `dest` to the value `value`.  Returns the pointer `dest`.
+
+See also
+--------
+link:memcpy.html[memcpy]

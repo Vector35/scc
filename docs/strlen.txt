@@ -1,0 +1,10 @@
+strlen
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+size_t strlen(const char* str);
+---------------------------------------------
+
+Returns the length of the string `str`.
+

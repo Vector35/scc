@@ -1,0 +1,13 @@
+chmod
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int chmod(const char* path, mode_t mode);
+---------------------------------------------
+
+Changes the file permissions for `path` to `mode`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:fchmod.html[fchmod]

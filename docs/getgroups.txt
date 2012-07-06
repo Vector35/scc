@@ -1,0 +1,15 @@
+getgroups
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int getgroups(int size, gid_t* groups);
+---------------------------------------------
+
+Obtains the list of groups the current process is a member of.  Up to `size` entires may be placed into the `groups` array.
+Returns the number of groups, or the negation of the error code on error.
+
+See also
+--------
+link:getegid.html[getegid],
+link:getgid.html[getgid]

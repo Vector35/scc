@@ -1,0 +1,24 @@
+Format specifier reference
+==========================
+:title: Shellcode Compiler Runtime
+
+The Shellcode Compiler supports a subset of the standard `printf` format specifiers.  The following
+specifiers are supported:
+
+* `%s`: String argument
+* `%d`: 32-bit signed integer argument (decimal)
+* `%u`: 32-bit unsigned integer argument (decimal)
+* `%x`: Native integer in lowercase hexadecimal
+* `%X`: Native integer in uppercase hexadecimal
+
+Field width specifiers are supported, along with the "`-`" sign for left alignment.  No other modifiers are supported.
+
+See also
+--------
+link:fprintf.html[fprintf],
+link:printf.html[printf],
+link:sprintf.html[sprintf],
+link:snprintf.html[snprintf],
+link:vfprintf.html[vfprintf],
+link:vsprintf.html[vfprintf],
+link:vsnprintf.html[vfprintf]

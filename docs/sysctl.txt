@@ -1,0 +1,11 @@
+sysctl
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen);
+---------------------------------------------
+
+Retrieves system information.  The information is OS dependent.  See the documentation for the target platform.
+
+IMPORTANT: This function is only available on FreeBSD and Mac OS X.

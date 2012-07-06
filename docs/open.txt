@@ -1,0 +1,17 @@
+open
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int open(const char* file, int flags, int mode);
+---------------------------------------------
+
+Opens the file at `path`.  The `flags` argument is typically `O_RDONLY`, `O_WRONLY`, or `O_RDWR`.  The `mode`
+argument specifies the file permissions if the file is created.
+
+IMPORTANT: The `mode` parameter must always be specified for this runtime, even when not creating a file.  Use
+zero or the `__undefined` intrinsic when not creating a file.
+
+See also
+--------
+link:close.html[close]

@@ -1,0 +1,13 @@
+unlink
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int unlink(const char* path);
+---------------------------------------------
+
+Deletes the file at `path`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:rename.html[rename]

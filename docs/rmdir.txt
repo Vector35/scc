@@ -1,0 +1,13 @@
+rmdir
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int rmdir(const char* path);
+---------------------------------------------
+
+Removes the directory at `path`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:mkdir.html[mkdir]

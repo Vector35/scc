@@ -1,0 +1,24 @@
+stat
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int stat(const char* path, struct stat* buf);
+---------------------------------------------
+
+Gets information about the file at path `path` and places it into `buf`.  If the file referenced is a symbolic
+link, the lnk will be followed.  The contents of the `struct stat` structure vary by platform, but share many common fields:
+
+* `st_uid`: User that owns the file
+* `st_gid`: Group that owns the file
+* `st_mode`: File access rights
+* `st_size`: Size of file in bytes
+
+The standard C runtime macros for checking `st_mode`, such as `S_ISDIR`, exist for all supported POSIX platforms.
+
+Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:fstat.html[fstat],
+link:lstat.html[lstat]

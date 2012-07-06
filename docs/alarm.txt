@@ -1,0 +1,13 @@
+alarm
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+unsigned int alarm(unsigned int seconds);
+---------------------------------------------
+
+Delivers the signal `SIGALRM` after `seconds` seconds.  If `seconds` is zero, any previously set alarm is cleared.
+
+See also
+--------
+link:kill.html[kill]

@@ -1,0 +1,14 @@
+fchdir
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fchdir(int fd);
+---------------------------------------------
+
+Changes the current directory to an open directory with file handle `fd`.
+
+See also
+--------
+link:chdir.html[chdir],
+link:getcwd.html[getcwd]

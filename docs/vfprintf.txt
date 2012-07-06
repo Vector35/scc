@@ -1,0 +1,18 @@
+vfprintf
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int vfprintf(FILE* fp, const char* fmt, va_list va);
+---------------------------------------------
+
+Writes a formatted string with format `fmt` to the file stream `fp`.  Uses the argument list `va` as the source of arguments
+referenced by the format string.  See the link:format.html[format specifier reference]
+for the supported format specifiers.
+
+See also
+--------
+link:fdopen.html[fdopen],
+link:fprintf.html[fprintf],
+link:printf.html[printf],
+link:vprintf.html[vprintf]

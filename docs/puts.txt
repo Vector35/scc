@@ -1,0 +1,13 @@
+puts
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int puts(const char* str);
+---------------------------------------------
+
+Writes the string `str` to standard output.
+
+See also
+--------
+link:fputs.html[fputs]

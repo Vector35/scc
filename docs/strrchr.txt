@@ -1,0 +1,14 @@
+strrchr
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+char* strrchr(const char* str, char ch);
+---------------------------------------------
+
+Finds the last occurance of the character `ch` in string `str`, and returns a pointer to the character.  If the
+character does not occur in the string, `NULL` is returned.
+
+See also
+--------
+link:strchr.html[strchr]

@@ -1,0 +1,16 @@
+setegid
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setegid(gid_t id);
+---------------------------------------------
+
+Sets the effective group ID of the current process to `id`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:getegid.html[getegid],
+link:getgid.html[getgid],
+link:setgid.html[setgid],
+link:setregid.html[setregid]

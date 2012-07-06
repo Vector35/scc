@@ -1,0 +1,27 @@
+select
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds, struct timeval* timeout);
+---------------------------------------------
+
+Waits for one or more of the file handles in `readfs`, `writefds`, or `errorfds` to become available.  Returns
+early if `timeout` expires.  The `nfds` parameter must be set to one more than the maximum file handle
+present.
+
+On return, the sets are updated to include only the file handles that are ready.  The return value is the total number
+of file handles that are ready, or zero on timeout.  On error, the negation of the error code is returned.
+
+The following macros can be used to manipulate sets of file handles:
+---------------------------------------------
+FD_ZERO(&set);
+FD_SET(fd, &set);
+FD_CLR(fd, &set);
+FD_ISSET(fd, &set);
+---------------------------------------------
+
+See also
+--------
+link:read.html[read],
+link:write.html[write]

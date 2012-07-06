@@ -1,0 +1,17 @@
+send_string
+===========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t send_string(int fd, const char* str);
+---------------------------------------------
+
+Sends the string `str` over the socket handle `fd`.  The null terminator is not sent.  Does not return until
+the entire string has been sent, or there is an error.  Returns the number of bytes sent, or the negation
+of the error code on error.
+
+See also
+--------
+link:recv_all.html[recv_all],
+link:send.html[send],
+link:send_all.html[send_all]

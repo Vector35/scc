@@ -1,0 +1,14 @@
+strcmp
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int strcmp(const char* a, const char* b);
+---------------------------------------------
+
+Compares two strings `a` and `b`.  Returns one of the following:
+
+* `a` < `b`: Returns less than zero
+* `a` == `b`: Returns zero
+* `a` > `b`: Returns greater than zero
+

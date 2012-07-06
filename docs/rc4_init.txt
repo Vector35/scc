@@ -1,0 +1,15 @@
+rc4_init
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void rc4_init(rc4_state_t* state, void* key, size_t keylen);
+---------------------------------------------
+
+Initializes the RC4 state in `state` with the key of length `keylen` pointed to by `key`.
+
+See also
+--------
+link:rc4_overview.html[RC4 overview],
+link:rc4_crypt.html[rc4_crypt],
+link:rc4_output.html[rc4_output]

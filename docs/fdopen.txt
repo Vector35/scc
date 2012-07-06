@@ -1,0 +1,20 @@
+fdopen
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+FILE* fdopen(int fd);
+---------------------------------------------
+
+Opens a file stream using file handle `fd`.  Returns the file stream.
+
+TIP: File stream pointers (`FILE*`) are actually just file handles cast to a pointer type.  The implementation
+of this function is actually a simple macro with a direct cast to the `FILE*` type.
+
+See also
+--------
+link:fgetc.html[fgetc],
+link:fgets.html[fgets],
+link:fprintf.html[fprintf],
+link:fputc.html[fputc],
+link:fputs.html[fputs]

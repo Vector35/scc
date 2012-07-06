@@ -1,0 +1,13 @@
+time
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+time_t time(time_t* t);
+---------------------------------------------
+
+Returns the current time.  If `t` is not `NULL`, the time is also stored into the pointer `t`.
+
+See also
+--------
+link:gettimeofday.html[gettimeofday]

@@ -1,0 +1,15 @@
+fchown
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fchown(int fd, uid_t owner, gid_t group);
+---------------------------------------------
+
+Changes the owner to `owner` and group to `group` for the file handle `fd`.  Returns zero on success, or the negation
+of the error code on error.
+
+See also
+--------
+link:chown.html[chown],
+link:lchown.html[lchown]

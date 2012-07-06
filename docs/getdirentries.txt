@@ -1,0 +1,16 @@
+getdirentries
+=============
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int getdirentries(int fd, struct dirent* dirp, size_t count, ssize_t* basep);
+---------------------------------------------
+
+Get `count` directory entries from the open directory handle `fd`.  The `struct dirent` structure varies by
+platform, but always contains the `d_name` field, which holds the name of the file.  If `basep` is not
+`NULL`, the new location in the directory stream is stored into `basep`.  Returns the number of
+bytes of directory entries read, or the negation of the error code on error.
+
+See also
+--------
+link:getdents.html[getdents]

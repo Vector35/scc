@@ -1,0 +1,13 @@
+free
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void free(void* ptr);
+---------------------------------------------
+
+Frees the buffer pointed to by `ptr`.  The provided buffer must have been allocated with `malloc`.
+
+See also
+--------
+link:malloc.html[malloc]

@@ -1,0 +1,16 @@
+fgets
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+char* fgets(char* result, int size, FILE* fp);
+---------------------------------------------
+
+Reads the next line from the file stream `fp` and stores the result in `result`.  The maximum number of characters
+read is `size`.  The newline character is included in the string, unless there are more characters than `size` present
+on the current line.  Returns a pointer to `result`, or NULL on failure or at the end of the file.
+
+See also
+--------
+link:fdopen.html[fdopen],
+link:fgetc.html[fgetc]

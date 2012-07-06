@@ -1,0 +1,17 @@
+recv_all
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t recv_all(int fd, void* buf, size_t n, int flags);
+---------------------------------------------
+
+Receives `n` bytes from socket handle `fd` and places the result into `buf`.  Does not return until all `n` bytes
+have been received, or there is an error.  Returns the number of bytes received, or the negation of the error
+code on error.
+
+See also
+--------
+link:recv.html[recv],
+link:send_all.html[send_all],
+link:send_string.html[send_string]

@@ -1,0 +1,15 @@
+lchown
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int lchown(const char* path, uid_t owner, gid_t group);
+---------------------------------------------
+
+Changes the owner to `owner` and group to `group` for the file at `path`.  If `path` is a symbolic link, the link
+itself is modified.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:fchown.html[fchown],
+link:lchown.html[lchown]

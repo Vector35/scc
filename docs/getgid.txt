@@ -1,0 +1,16 @@
+getgid
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+gid_t getgid(void);
+---------------------------------------------
+
+Returns the real group ID of the current process.
+
+See also
+--------
+link:getegid.html[getegid],
+link:setgid.html[setgid],
+link:setegid.html[setegid],
+link:setregid.html[setregid]

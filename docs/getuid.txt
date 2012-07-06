@@ -1,0 +1,16 @@
+getuid
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+gid_t getuid(void);
+---------------------------------------------
+
+Returns the real user ID of the current process.
+
+See also
+--------
+link:geteuid.html[geteuid],
+link:setuid.html[setuid],
+link:seteuid.html[seteuid],
+link:setreuid.html[setreuid]

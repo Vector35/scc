@@ -1,0 +1,15 @@
+malloc
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* malloc(size_t len);
+---------------------------------------------
+
+Allocates `len` bytes from the heap, and returns a pointer to the new buffer.  The buffer is aligned to the
+size of a pointer, and is always executable.
+
+See also
+--------
+link:alloca.html[alloca],
+link:free.html[free]

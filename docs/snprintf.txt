@@ -1,0 +1,14 @@
+snprintf
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int snprintf(char* out, size_t len, const char* fmt, ...);
+---------------------------------------------
+
+Writes a formatted string with format `fmt` to the string `out`, with maximum length `len`.  See
+the link:format.html[format specifier reference] for the supported format specifiers.
+
+See also
+--------
+link:sprintf.html[sprintf]

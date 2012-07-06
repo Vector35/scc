@@ -1,0 +1,15 @@
+waitpid
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+pid_t waitpid(pid_t pid, int* status, int options);
+---------------------------------------------
+
+Waits for the child process `pid` to complete.  If `status` is not `NULL`, the exit status of the process
+is written to the pointer.  Returns the process ID of the child process that exited, or the negation of
+the error code on error.
+
+See also
+--------
+link:wait.html[wait]

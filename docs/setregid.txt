@@ -1,0 +1,17 @@
+setregid
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setregid(uid_t rid, uid_t eid);
+---------------------------------------------
+
+Sets the real group ID to `rid` and the effective group ID to `eid`.  If either parameter is zero, the corresponding ID
+is not set.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:getegid.html[getegid],
+link:getgid.html[getgid],
+link:setgid.html[setgid],
+link:setegid.html[setegid]

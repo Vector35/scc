@@ -27,6 +27,7 @@
 #define stdin  (FILE*)0
 #define stdout (FILE*)1
 #define stderr (FILE*)2
+#define fdopen(fd) ((FILE*)(fd))
 
 #define EOF    -1
 
@@ -86,7 +87,7 @@ int open(const char* file, int flags, int mode);
 int close(int fd);
 int dup(int fd);
 int dup2(int oldFd, int newFd);
-int redirect_io(int fd);
+void redirect_io(int fd);
 
 ssize_t read(int fd, void* buf, size_t count);
 ssize_t write(int fd, const void* buf, size_t count);

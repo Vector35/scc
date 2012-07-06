@@ -1,0 +1,13 @@
+exit
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void exit(int result) __noreturn;
+---------------------------------------------
+
+Exits the current process with exit code `result`.  Does not return.
+
+See also
+--------
+link:undefined.html[undefined]

@@ -1,0 +1,13 @@
+rename
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int rename(const char* oldpath, const char* newpath);
+---------------------------------------------
+
+Renames the file at `oldpath` to `newpath`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:unlink.html[unlink]

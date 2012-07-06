@@ -1,0 +1,14 @@
+alloca
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* alloca(size_t size);
+---------------------------------------------
+
+Allocates `size` bytes on the current stack frame, and returns a pointer to the new buffer.  The returned buffer
+is no longer valid after the current function returns.
+
+See also
+--------
+link:malloc.html[malloc]

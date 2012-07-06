@@ -1,0 +1,17 @@
+fprintf
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fprintf(FILE* fp, const char* fmt, ...);
+---------------------------------------------
+
+Writes a formatted string with format `fmt` to the file stream `fp`.  See the link:format.html[format specifier reference]
+for the supported format specifiers.
+
+See also
+--------
+link:fdopen.html[fdopen],
+link:printf.html[printf],
+link:vfprintf.html[vfprintf],
+link:vprintf.html[vprintf]

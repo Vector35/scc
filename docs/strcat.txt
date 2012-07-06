@@ -1,0 +1,16 @@
+strcat
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+char* strcat(char* dest, const char* src);
+---------------------------------------------
+
+Appends the null-terminated string `src` to `dest`.  The maximum length
+of the string is not bounded.  Returns a pointer to the destination string.
+
+See also
+--------
+link:strcpy.html[strcpy],
+link:strdup.html[strdup],
+link:strncpy.html[strncpy]

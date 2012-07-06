@@ -1,0 +1,16 @@
+rc4_output
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+uint8_t rc4_output(rc4_state_t* state);
+---------------------------------------------
+
+Returns the next byte of the RC4 key stream.  The `state` structure can be initialized with the
+link:rc4_init.html[rc4_init] function.
+
+See also
+--------
+link:rc4_overview.html[RC4 overview],
+link:rc4_crypt.html[rc4_crypt],
+link:rc4_init.html[rc4_init]

@@ -1,0 +1,33 @@
+RC4 overview
+============
+:title: Shellcode Compiler Runtime
+
+To use the RC4 encryption functions, first call link:rc4_init.html[rc4_init] with the desired key to initialize
+the cipher state.  RC4 can use the same functions for both encryption and decryption.  Once initialized, the
+link:rc4_crypt.html[rc4_crypt] function can be called to encrypt or decrypt data.  Alternatively, the
+link:rc4_output.html[rc4_output] function can be used to directly access the key stream (XOR each byte with
+the output of this function to encrypt or decrypt data).
+
+IMPORTANT: It is recommended that the first bytes of the key stream for RC4 is discarded.  To do this, call
+the link:rc4_output.html[rc4_output] a number of times.  Ensure that the same number of bytes is discarded
+on both sides of the communication.
+
+WARNING: Do not encrypt multiple sessions using the same key.  RC4 is very vulnerable to cryptography attacks
+if the same key is used to encrypt two different streams (this is why WEP is so easy to break).
+
+Example
+-------
+The following example will set up an RC4 cipher context and encrypt a string.
+
+-------------------------------------------  
+void main()
+{
+	rc4_state_t rc4;
+	char* key = "thereisnocowlevel";
+	rc4_init(&rc4, key, strlen(key));
+	char* str = "pwniesinstead";
+	size_t len = strlen(str);
+	rc4_crypt(&rc4, str, len);
+	write(1, str, len);
+}
+-------------------------------------------  

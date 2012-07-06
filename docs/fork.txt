@@ -1,0 +1,19 @@
+fork
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+pid_t fork(void);
+---------------------------------------------
+
+Forks the current process.  Returns zero in the child process, and returns the PID of the child
+in the parent process.
+
+CAUTION: If the signal `SIGCHLD` is not ignored, child processes will become zombies on exit if
+`wait` or `waitpid` is not issued by the parent for the child process.
+
+See also
+--------
+link:exit.html[exit],
+link:wait.html[wait],
+link:waitpid.html[waitpid]

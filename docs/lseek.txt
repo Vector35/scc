@@ -1,0 +1,15 @@
+lseek
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+size_t lseek(int fd, int64_t offset, int whence);
+---------------------------------------------
+
+Changes the file position of the file handle `fd`.  The `whence` argument can be `SEEK_SET`, `SEEK_CUR`, or `SEEK_END`.
+Returns the new location relative to the start of the file.
+
+See also
+--------
+link:ftruncate.html[ftruncate],
+link:truncate.html[truncate]

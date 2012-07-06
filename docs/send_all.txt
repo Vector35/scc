@@ -1,0 +1,16 @@
+send_all
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t send_all(int fd, const void* buf, size_t n, int flags);
+---------------------------------------------
+
+Sends `n` bytes from `buf` to socket handle `fd`.  Does not return until all `n` bytes have been sent, or there
+is an error.  Returns the number of bytes sent, or the negation of the error code on error.
+
+See also
+--------
+link:recv_all.html[recv_all],
+link:send.html[send],
+link:send_string.html[send_string]

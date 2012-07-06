@@ -1,0 +1,39 @@
+Known issues
+============
+:title: Shellcode Compiler Runtime
+
+The following sections describe known issues in the Shellcode Compiler and its runtime environment.
+
+Compiler bugs
+-------------
+* Floating point doesn't work at all.
+* Structure copies using the "`=`" operator do not work.  Use link:memcpy.html[memcpy] instead.
+* Structure parameters passed by value do not work.  Structure parameters passed by pointer are working.
+* Structure return values are not implemented.  Pass a pointer to the return value as a parameter instead.
+* When the `--encode-pointers` option is enabled, `NULL` function pointers do not work.
+* Code output is much larger than desired.  The code generation system is not complete.
+
+Missing features
+----------------
+* Structure packing is not supported.
+* Blacklisted code generation is not implemented.  Use an external encoder if the shellcode must not
+have byte values that are present in the output of the compiler.
+* Polymorphic code generation is very limited.  Register allocation is randomized and basic block
+ordering is present, but instruction sequences are constant between runs.
+* Built-in encoders and decoders (using the `--encoder` and `--decoder` command line options)
+are not implemented.
+* The `--return-reg` and `--return-reg-high` options are not implemented.
+* The `__initial_<reg>` variables are not implemented.  Passing arguments to shellcode on the
+stack using parameters to `main` is supported.
+* The `--base` option is not implemented.  By default, shellcode is automatically output using
+pure position independent code.
+* The PE file format is not supported.
+* Windows is not supported as a target.
+
+Runtime issues
+--------------
+* There is not currently a `signal` function in the runtime.  This means that if the process does
+not already ignore `SIGCHLD`, a call to link:wait.html[wait] or link:waitpid.html[waitpid] must
+follow a call to link:fork.html[fork], especially if link:fork.html[fork] may be called
+multiple times, or a zombie apocalypse may result.
+

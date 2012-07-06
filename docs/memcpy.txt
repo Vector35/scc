@@ -1,0 +1,13 @@
+memcpy
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* memcpy(void* dest, const void* src, size_t len);
+---------------------------------------------
+
+Copies `len` bytes from `src` to `dest`.  Returns a pointer to `dest`.
+
+See also
+--------
+link:memset.html[memset]

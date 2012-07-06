@@ -1,0 +1,14 @@
+symlink
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int symlink(const char* target, const char* path);
+---------------------------------------------
+
+Creates a symbolic link at `path` that points to `target`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:link.html[link],
+link:readlink.html[readlink]

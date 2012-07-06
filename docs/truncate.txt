@@ -1,0 +1,15 @@
+truncate
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int truncate(const char* path, int64_t length);
+---------------------------------------------
+
+Sets the length of the file at `path` to `length` bytes.  Returns zero on success, or the negation
+of the error code on error.
+
+See also
+--------
+link:ftruncate.html[ftruncate],
+link:lseek.html[lseek]

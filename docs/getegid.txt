@@ -1,0 +1,16 @@
+getegid
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+gid_t getegid(void);
+---------------------------------------------
+
+Returns the effective group ID of the current process.
+
+See also
+--------
+link:getgid.html[getgid],
+link:setgid.html[setgid],
+link:setegid.html[setegid],
+link:setregid.html[setregid]

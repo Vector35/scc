@@ -1,0 +1,24 @@
+fstat
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fstat(int fd, struct stat* buf);
+---------------------------------------------
+
+Gets information about the file handle `fd` and places it into `buf`.  The contents of the `struct stat`
+structure vary by platform, but share many common fields:
+
+* `st_uid`: User that owns the file
+* `st_gid`: Group that owns the file
+* `st_mode`: File access rights
+* `st_size`: Size of file in bytes
+
+The standard C runtime macros for checking `st_mode`, such as `S_ISDIR`, exist for all supported POSIX platforms.
+
+Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:lstat.html[lstat],
+link:stat.html[stat]

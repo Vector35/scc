@@ -1,0 +1,14 @@
+fputc
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fputc(int ch, FILE* fp);
+---------------------------------------------
+
+Writes the byte `ch` to the file stream `fp`.  Returns the number of bytes written, or the negation of the error code on error.
+
+See also
+--------
+link:fdopen.html[fdopen],
+link:fputs.html[fputs]

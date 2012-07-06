@@ -1,0 +1,14 @@
+dup
+===
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int dup(int fd);
+---------------------------------------------
+
+Duplicates the file handle `fd` and returns the new file handle.
+
+See also
+--------
+link:close.html[close],
+link:dup2.html[dup2]

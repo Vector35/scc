@@ -1,0 +1,15 @@
+chflags
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int chflags(const char* path, int flags);
+---------------------------------------------
+
+Sets the FreeBSD file flags of `path` to `flags`.  If `path` is a symbolic link, the link is followed.  The FreeBSD
+macros, such as `UF_IMMUTABLE`, are available.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:fchflags.html[fchflags],
+link:lchflags.html[lchflags]

@@ -1,0 +1,14 @@
+link
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int link(const char* target, const char* path);
+---------------------------------------------
+
+Creates a hard link at `path` that points to `target`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:readlink.html[readlink],
+link:symlink.html[symlink]

@@ -1,0 +1,15 @@
+strdup
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+char* strdup(const char* str);
+---------------------------------------------
+
+Duplicates the string `str` on the heap, and returns a pointer to the new string.
+
+See also
+--------
+link:free.html[free],
+link:malloc.html[malloc],
+link:strcpy.html[strcpy]

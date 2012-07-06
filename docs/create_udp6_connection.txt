@@ -1,0 +1,16 @@
+create_udp6_connection
+======================
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int create_udp6_connection(const void* ip, uint16_t port);
+---------------------------------------------
+
+Creates a new TCP connection on port `port` to IPv6 address `ip`.  Returns an open socket handle, or the
+negation of the error code on error.
+
+See also
+--------
+link:create_tcp4_connection.html[create_tcp4_connection],
+link:create_tcp6_connection.html[create_tcp6_connection],
+link:create_udp4_connection.html[create_udp4_connection]

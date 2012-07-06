@@ -26,7 +26,7 @@ void interactive_sh();
 void bash();
 void interactive_bash();
 
-void system(const char* cmd);
+int system(const char* cmd);
 
 #endif
 

@@ -1,0 +1,14 @@
+fchmod
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fchmod(int fd, mode_t mode);
+---------------------------------------------
+
+Changes the file permissions for the file handle `fd` to `mode`.  Returns zero on success, or the
+negation of the error code on error.
+
+See also
+--------
+link:chmod.html[chmod]

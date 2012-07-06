@@ -1,0 +1,17 @@
+interactive_sh
+==============
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void interactive_sh();
+---------------------------------------------
+
+Executes the `sh` shell.  The "`-i`" argument is provided to `sh` so that it is started in interactive mode.
+This function does not return if the command executes successfully.
+
+See also
+--------
+link:bash.html[bash],
+link:interactive_bash.html[interactive_bash],
+link:sh.html[sh],
+link:system.html[system]

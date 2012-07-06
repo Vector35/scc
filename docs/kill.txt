@@ -1,0 +1,15 @@
+kill
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int kill(pid_t pid, int sig);
+---------------------------------------------
+
+Sends the signal `sig` to process `pid`.  Returns zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:fork.html[fork],
+link:wait.html[wait],
+link:waitpid.html[waitpid]

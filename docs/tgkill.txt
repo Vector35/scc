@@ -1,0 +1,16 @@
+tgkill
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int tgkill(int tgid, int tid, int sig);
+---------------------------------------------
+
+Sends the signal `sig` to thread `tid`, which is part of process `tgid`.  Returns zero on success, or the negation
+of the error code on error.
+
+IMPORTANT: This function is only available on Linux.
+
+See also
+--------
+link:kill.html[kill]

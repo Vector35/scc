@@ -1,0 +1,16 @@
+readlink
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t readlink(const char* path, char* buf, size_t size);
+---------------------------------------------
+
+Reads the symbolic link at `path` and stores the target at `buf`, with maximum length `size`.  Returns the size of
+the link in bytes on success, or the negation of the error code on error.
+
+IMPORTANT: The result buffer is not null terminated.
+
+See also
+--------
+link:symlink.html[symlink]

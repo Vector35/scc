@@ -1,0 +1,10 @@
+atoi
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int atoi(const char* str);
+---------------------------------------------
+
+Converts a decimal string `str` to an integer, and returns the integer value.
+

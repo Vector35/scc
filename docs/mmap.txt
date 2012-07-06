@@ -1,0 +1,24 @@
+mmap
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* mmap(void* addr, size_t len, int prot, int flags, int fd, uint64_t offset);
+---------------------------------------------
+
+Maps a block of memory of `len` bytes with page protection `prot`.  If `addr` is `NULL`, the system
+automatically picks a free virtual address.  If `addr` is not `NULL`, the provided address is mapped
+(existing mappings will be overridden).
+
+The protection flags in `prot` can include one or more of `PROT_READ`, `PROT_WRITE`, and `PROT_EXEC`.
+
+The `flags` parameter must contain one of `MAP_SHARED` or `MAP_PRIVATE`.  Additional flags include
+`MAP_ANONYMOUS`, which maps a region backed by RAM instead of a file.  The `fd` parameter should be
+`-1` when mapping anonymous pages.  If the region is to be backed by a file, the `fd` and `offset`
+parameters specify the file handle and offset within the file of the beginning of the mapping.
+
+Returns a pointer to the mapped region.
+
+See also
+--------
+link:munmap.html[munmap]

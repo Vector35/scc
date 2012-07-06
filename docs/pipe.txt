@@ -1,0 +1,15 @@
+pipe
+====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int pipe(int fds[2]);
+---------------------------------------------
+
+Creates a new pipe.  The first file handle is the "read" end, and the second file handle is the "write" end.
+
+See also
+--------
+link:close.html[close],
+link:dup.html[dup],
+link:dup2.html[dup2]

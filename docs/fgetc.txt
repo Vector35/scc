@@ -1,0 +1,14 @@
+fgetc
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fgetc(FILE* fp);
+---------------------------------------------
+
+Reads the next byte from the file stream `fp`.  If the current position was at the end of the file, `EOF` is returned.
+
+See also
+--------
+link:fdopen.html[fdopen],
+link:fgets.html[fgets]

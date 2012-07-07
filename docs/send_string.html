@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>send_string</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content monospaced">
+<pre>ssize_t send_string(int fd, const char* str);</pre>
+</div></div>
+<div class="paragraph"><p>Sends the string <span class="monospaced">str</span> over the socket handle <span class="monospaced">fd</span>.  The null terminator is not sent.  Does not return until
+the entire string has been sent, or there is an error.  Returns the number of bytes sent, or the negation
+of the error code on error.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_see_also">See also</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="recv_all.html">recv_all</a>,
+<a href="send.html">send</a>,
+<a href="send_all.html">send_all</a></p></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

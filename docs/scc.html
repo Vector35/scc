@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>Command line invocation</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>The Shellcode Compiler can be run from the command line.  The following describes the command line sytax:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>scc [options] &lt;input files&gt; [...]
+
+This compiler accepts a subset of C99 syntax, with extensions for creating a standalone
+environment for writing shellcode.  Many standard system calls and C library functions
+are automatically available without the need for include files.
+
+Options:
+    --arch &lt;value&gt;                    Specify processor architecture
+                                      Can be: x86 (default), x64
+    --allow-return                    Allow return from shellcode (default is to exit)
+    --base &lt;expr&gt;                     Set base address of output (can be a runtime computed
+                                      expression, such as "[eax+8]-12")
+    --base-reg &lt;reg&gt;                  Global register that will hold base of code
+    --blacklist &lt;byte&gt;                Blacklist the given byte value
+    --concat                          Jump to end of output on return for concatenating code
+    --decoder &lt;source&gt;                Use decoder to decode shellcode before executing
+    --encode-pointers                 All code pointers are encoded with a random canary
+    --encoder &lt;source&gt;                Use encoder to encode shellcode
+    --exec                            Execute shellcode after generation (does not write
+                                      output to a file)
+    --exec-stack                      When outputting an executable, make stack executable
+    --format &lt;value&gt;, -f &lt;value&gt;      Specify output format
+                                      Can be: bin (default), lib, elf, pe, macho
+    --frame-reg &lt;reg&gt;                 Use alternate register as the frame pointer
+    --header &lt;file&gt;                   Include a precompiled header
+    -L &lt;lib&gt;                          Include pre-built library
+    -m32, -m64                        Specify target address size
+    --map &lt;file&gt;                      Generate map file
+    --max-length &lt;value&gt;              Do not let output size exceed given number of bytes
+    --mixed-mode                      Randomly choose subarchitecture for each function
+    -o &lt;filename&gt;                     Set output filename (default is hex dump to stdout)
+    -O0                               Do not run the optimizer
+    -Os                               Try to generate the smallest code possible
+    --pad                             Pad output to be exactly the maximum length
+    --pie                             Always generate position independent code
+    --platform &lt;value&gt;                Specify operating system
+                                      Can be: linux (default), freebsd, mac, windows, none
+    --polymorph                       Generate different code on each run
+    --preserve &lt;reg&gt;                  Preserve the value of the given register
+    --unsafe-stack                    Stack pointer may be near the code
+    --return-reg &lt;reg&gt;                Use alternate register as the return value
+    --return-high-reg &lt;reg&gt;           Use alternate register as the upper 32 bits of return
+                                      value (32-bit output only)
+    --seed &lt;value&gt;                    Specify random seed (to reproduce --polymorph runs)
+    --shared                          Generate shared library instead of executable
+    --stack-grows-up                  Stack grows toward larger addresses
+    --stack-reg &lt;reg&gt;                 Use alternate register as the stack pointer
+    --stdin                           Read source code from stdin
+    --stdout                          Send generated code to stdout for pipelines
+
+Useful extensions:
+    __noreturn                        Specifies that a function cannot return
+                                      Example: void exit(int value) __noreturn;
+    __syscall(num, ...)               Executes a system call on the target platform
+    __undefined                       Gives undefined results, usually omitting code
+                                      Example: exit(__undefined);
+    __initial_&lt;reg&gt;                   Value of register at start of program
+                                      Example: int socketDescriptor = __initial_ebx;</pre>
+</div></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

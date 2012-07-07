@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>Known issues</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>The following sections describe known issues in the Shellcode Compiler and its runtime environment.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_compiler_bugs">Compiler bugs</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+Floating point doesn&#8217;t work at all.
+</p>
+</li>
+<li>
+<p>
+Structure copies using the "<span class="monospaced">=</span>" operator do not work.  Use <a href="memcpy.html">memcpy</a> instead.
+</p>
+</li>
+<li>
+<p>
+Structure parameters passed by value do not work.  Structure parameters passed by pointer are working.
+</p>
+</li>
+<li>
+<p>
+Structure return values are not implemented.  Pass a pointer to the return value as a parameter instead.
+</p>
+</li>
+<li>
+<p>
+When the <span class="monospaced">--encode-pointers</span> option is enabled, <span class="monospaced">NULL</span> function pointers do not work.
+</p>
+</li>
+<li>
+<p>
+Code output is much larger than desired.  The code generation system is not complete.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_missing_features">Missing features</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+Structure packing is not supported.
+</p>
+</li>
+<li>
+<p>
+Blacklisted code generation is not implemented.  Use an external encoder if the shellcode must not
+have byte values that are present in the output of the compiler.
+</p>
+</li>
+<li>
+<p>
+Polymorphic code generation is very limited.  Register allocation is randomized and basic block
+ordering is present, but instruction sequences are constant between runs.
+</p>
+</li>
+<li>
+<p>
+Built-in encoders and decoders (using the <span class="monospaced">--encoder</span> and <span class="monospaced">--decoder</span> command line options)
+are not implemented.
+</p>
+</li>
+<li>
+<p>
+The <span class="monospaced">--return-reg</span> and <span class="monospaced">--return-reg-high</span> options are not implemented.
+</p>
+</li>
+<li>
+<p>
+The <span class="monospaced">__initial_&lt;reg&gt;</span> variables are not implemented.  Passing arguments to shellcode on the
+stack using parameters to <span class="monospaced">main</span> is supported.
+</p>
+</li>
+<li>
+<p>
+The <span class="monospaced">--base</span> option is not implemented.  By default, shellcode is automatically output using
+pure position independent code.
+</p>
+</li>
+<li>
+<p>
+The <span class="monospaced">--preserve</span> option is not implemented.
+</p>
+</li>
+<li>
+<p>
+The PE file format is not supported.
+</p>
+</li>
+<li>
+<p>
+Windows is not supported as a target.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_runtime_issues">Runtime issues</h2>
+<div class="sectionbody">
+<div class="ulist"><ul>
+<li>
+<p>
+There is not currently a <span class="monospaced">signal</span> function in the runtime.  This means that if the process does
+not already ignore <span class="monospaced">SIGCHLD</span>, a call to <a href="wait.html">wait</a> or <a href="waitpid.html">waitpid</a> must
+follow a call to <a href="fork.html">fork</a>, especially if <a href="fork.html">fork</a> may be called
+multiple times, or a zombie apocalypse may result.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

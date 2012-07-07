@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>RC4 overview</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>To use the RC4 encryption functions, first call <a href="rc4_init.html">rc4_init</a> with the desired key to initialize
+the cipher state.  RC4 can use the same functions for both encryption and decryption.  Once initialized, the
+<a href="rc4_crypt.html">rc4_crypt</a> function can be called to encrypt or decrypt data.  Alternatively, the
+<a href="rc4_output.html">rc4_output</a> function can be used to directly access the key stream (XOR each byte with
+the output of this function to encrypt or decrypt data).</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/important.png" alt="Important">
+</td>
+<td class="content">It is recommended that the first bytes of the key stream for RC4 is discarded.  To do this, call
+the <a href="rc4_output.html">rc4_output</a> a number of times.  Ensure that the same number of bytes is discarded
+on both sides of the communication.</td>
+</tr></table>
+</div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/warning.png" alt="Warning">
+</td>
+<td class="content">Do not encrypt multiple sessions using the same key.  RC4 is very vulnerable to cryptography attacks
+if the same key is used to encrypt two different streams (this is why WEP is so easy to break).</td>
+</tr></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_example">Example</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The following example will set up an RC4 cipher context and encrypt a string.</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>void main()
+{
+        rc4_state_t rc4;
+        char* key = "thereisnocowlevel";
+        rc4_init(&amp;rc4, key, strlen(key));
+        char* str = "pwniesinstead";
+        size_t len = strlen(str);
+        rc4_crypt(&amp;rc4, str, len);
+        write(1, str, len);
+}</pre>
+</div></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install(2);
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>Shellcode Compiler Runtime</h1>
+<div id="toc">
+  <div id="toctitle">Table of Contents</div>
+  <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>This document describes the runtime environment provided by the Shellcode
+Compiler.  This runtime is a lightweight library that is designed to
+generate small code, and is embedded into the Shellcode Compiler executable
+itself for all platforms it supports.  The runtime library for the selected
+platform is automatically included in the compilation, and only the parts
+that are used by the code are included in the output binary.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_overview">Overview</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The Shellcode Compiler contains a built-in C runtime containing many of the
+standard functions typically used in C programs.  It also includes <a href="#X1">helper functions</a>
+for common shellcoding tasks, such as connecting over TCP/UDP and launching a shell.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/caution.png" alt="Caution">
+</td>
+<td class="content">No <span class="monospaced">#include</span> directives are needed to access runtime functions.  Code
+that contains <span class="monospaced">#include</span> directives for C runtime functions may fail to compile.</td>
+</tr></table>
+</div>
+<div class="paragraph"><p>This C runtime may differ in some ways from a typical implementation, in order
+to reduce code size or to simplify creation of code that can run across many
+different platforms.  Important differences include the handling of error codes,
+and the use of <span class="monospaced">AF_INET</span> (only allowed for addresses) versus <span class="monospaced">PF_INET</span>
+(only allowed in socket creation) in socket code.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/caution.png" alt="Caution">
+</td>
+<td class="content">The variable <span class="monospaced">errno</span> is not available with this runtime.  Runtime
+functions instead return the negation of the error code (i.e. <span class="monospaced">-ENOENT</span>), just
+like system calls on Linux.  Be sure to use the comparison <span class="monospaced">result &lt; 0</span> rather
+than <span class="monospaced">result == -1</span> to check for failure.</td>
+</tr></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_compiler_intrinsics">Compiler intrinsics</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="abs.html">abs</a>,
+<a href="byteswap.html">byteswap</a>,
+<a href="max.html">max</a>,
+<a href="min.html">min</a>,
+<a href="next_arg.html">next_arg</a>,
+<a href="noreturn.html">noreturn</a>,
+<a href="prev_arg.html">prev_arg</a>,
+<a href="rdtsc.html">rdtsc</a>,
+<a href="rdtsc_low.html">rdtsc_low</a>,
+<a href="rdtsc_high.html">rdtsc_high</a>,
+<a href="syscall.html">syscall</a>,
+<a href="syscall2.html">syscall2</a>,
+<a href="undefined.html">undefined</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_file_and_directory_functions">File and directory functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="chdir.html">chdir</a>,
+<a href="close.html">close</a>,
+<a href="dup.html">dup</a>,
+<a href="dup2.html">dup2</a>,
+<a href="fchdir.html">fchdir</a>,
+<a href="fdopen.html">fdopen</a>,
+<a href="fgetc.html">fgetc</a>,
+<a href="fgets.html">fgets</a>,
+<a href="fprintf.html">fprintf</a>,
+<a href="fputc.html">fputc</a>,
+<a href="fputs.html">fputs</a>,
+<a href="fstat.html">fstat</a>,
+<a href="ftruncate.html">ftruncate</a>,
+<a href="getcwd.html">getcwd</a>,
+<a href="getdents.html">getdents</a>,
+<a href="getdirentries.html">getdirentries</a>,
+<a href="link.html">link</a>,
+<a href="lseek.html">lseek</a>,
+<a href="lstat.html">lstat</a>,
+<a href="mkdir.html">mkdir</a>,
+<a href="open.html">open</a>,
+<a href="pipe.html">pipe</a>,
+<a href="printf.html">printf</a>,
+<a href="puts.html">puts</a>,
+<a href="read.html">read</a>,
+<a href="readlink.html">readlink</a>,
+<a href="rename.html">rename</a>,
+<a href="rmdir.html">rmdir</a>,
+<a href="select.html">select</a>,
+<a href="sendfile.html">sendfile</a>,
+<a href="stat.html">stat</a>,
+<a href="symlink.html">symlink</a>,
+<a href="truncate.html">truncate</a>,
+<a href="unlink.html">unlink</a>,
+<a href="vprintf.html">vprintf</a>,
+<a href="vfprintf.html">vfprintf</a>,
+<a href="write.html">write</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_file_security_functions">File security functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="chflags.html">chflags</a>,
+<a href="chmod.html">chmod</a>,
+<a href="chown.html">chown</a>,
+<a href="fchflags.html">fchflags</a>,
+<a href="fchmod.html">fchmod</a>,
+<a href="fchown.html">fchown</a>,
+<a href="lchflags.html">lchflags</a>,
+<a href="lchown.html">lchown</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_hash_functions">Hash functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="crc32.html">crc32</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="X1">Helper functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="bash.html">bash</a>,
+<a href="create_tcp4_connection.html">create_tcp4_connection</a>,
+<a href="create_tcp6_connection.html">create_tcp6_connection</a>,
+<a href="create_udp4_connection.html">create_udp4_connection</a>,
+<a href="create_udp6_connection.html">create_udp6_connection</a>,
+<a href="interactive_bash.html">interactive_bash</a>,
+<a href="interactive_sh.html">interactive_sh</a>,
+<a href="recv_all.html">recv_all</a>,
+<a href="redirect_io.html">redirect_io</a>,
+<a href="send_all.html">send_all</a>,
+<a href="send_string.html">send_string</a>,
+<a href="sh.html">sh</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_memory_management_functions">Memory management functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="alloca.html">alloca</a>,
+<a href="free.html">free</a>,
+<a href="malloc.html">malloc</a>,
+<a href="memcpy.html">memcpy</a>,
+<a href="memset.html">memset</a>,
+<a href="mmap.html">mmap</a>,
+<a href="munmap.html">munmap</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_process_functions">Process functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="alarm.html">alarm</a>,
+<a href="execve.html">execve</a>,
+<a href="exit.html">exit</a>,
+<a href="fork.html">fork</a>,
+<a href="getpid.html">getpid</a>,
+<a href="getppid.html">getppid</a>,
+<a href="kill.html">kill</a>,
+<a href="sysctl.html">sysctl</a>,
+<a href="system.html">system</a>,
+<a href="tgkill.html">tgkill</a>,
+<a href="wait.html">wait</a>,
+<a href="waitpid.html">waitpid</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_process_security_functions">Process security functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="getegid.html">getegid</a>,
+<a href="geteuid.html">geteuid</a>,
+<a href="getgid.html">getgid</a>,
+<a href="getgroups.html">getgroups</a>,
+<a href="getuid.html">getuid</a>,
+<a href="setegid.html">setegid</a>,
+<a href="seteuid.html">seteuid</a>,
+<a href="setgid.html">setgid</a>,
+<a href="setregid.html">setregid</a>,
+<a href="setreuid.html">setreuid</a>,
+<a href="setuid.html">setuid</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_rc4_encryption">RC4 encryption</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="rc4_crypt.html">rc4_crypt</a>,
+<a href="rc4_init.html">rc4_init</a>,
+<a href="rc4_output.html">rc4_output</a></p></div>
+<div class="paragraph"><p>See the <a href="rc4_overview.html">RC4 overview</a> for details on using the RC4 functions.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_socket_functions">Socket functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="accept.html">accept</a>,
+<a href="accept4.html">accept4</a>,
+<a href="bind.html">bind</a>,
+<a href="connect.html">connect</a>,
+<a href="getpeername.html">getpeername</a>,
+<a href="getsockname.html">getsockname</a>,
+<a href="getsockopt.html">getsockopt</a>,
+<a href="listen.html">listen</a>,
+<a href="recv.html">recv</a>,
+<a href="recvfrom.html">recvfrom</a>,
+<a href="send.html">send</a>,
+<a href="sendto.html">sendto</a>,
+<a href="setsockopt.html">setsockopt</a>,
+<a href="shutdown.html">shutdown</a>,
+<a href="socket.html">socket</a>,
+<a href="socketpair.html">socketpair</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_string_manipulation">String manipulation</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="atoi.html">atoi</a>,
+<a href="snprintf.html">snprintf</a>,
+<a href="sprintf.html">sprintf</a>,
+<a href="strcat.html">strcat</a>,
+<a href="strchr.html">strchr</a>,
+<a href="strcmp.html">strcmp</a>,
+<a href="strcpy.html">strcpy</a>,
+<a href="strdup.html">strdup</a>,
+<a href="strlen.html">strlen</a>,
+<a href="strncpy.html">strncpy</a>,
+<a href="strrchr.html">strrchr</a>,
+<a href="vsprintf.html">vsprintf</a>,
+<a href="vsnprintf.html">vsnprintf</a></p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_time_functions">Time functions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="gettimeofday.html">gettimeofday</a>,
+<a href="time.html">time</a></p></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

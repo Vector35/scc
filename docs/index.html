@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>Description</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>The Shellcode Compiler is a C compiler designed to output standalone code that will be injected into other
+running processes.  It contains a small, lightweight runtime that is designed to generate small code.  The
+runtime has absolutely no external dependencies other than the target operating system kernel, so the
+generated code is not dependent on the target system&#8217;s configuration.  It contains advanced features for
+customizing the code generation to satisfy constraints and make code that is harder to reverse engineer.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+C syntax.
+</p>
+</li>
+<li>
+<p>
+Runtime is built-in to the compiler executable and does not need to be installed.
+</p>
+</li>
+<li>
+<p>
+Able to output ELF, Mach-O, and PE binaries in addition to flat position-independent binary blobs.
+</p>
+</li>
+<li>
+<p>
+Targets Linux, FreeBSD, Mac OS X, and Windows.
+</p>
+</li>
+<li>
+<p>
+Supports both 32-bit and 64-bit x86 architectures on all supported platforms.
+</p>
+</li>
+<li>
+<p>
+Blacklist any byte value, and the compiler will generate code that does not use it.  For example, it
+can generate code that does not have null bytes.
+</p>
+</li>
+<li>
+<p>
+Polymorphic code generation can generate different code each time it is compiled.
+</p>
+</li>
+<li>
+<p>
+Calling conventions (including the choice of stack pointer register) are highly customizable.
+</p>
+</li>
+<li>
+<p>
+Python bindings for dynamic generation of code from scripts.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

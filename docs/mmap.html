@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>mmap</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content monospaced">
+<pre>void* mmap(void* addr, size_t len, int prot, int flags, int fd, uint64_t offset);</pre>
+</div></div>
+<div class="paragraph"><p>Maps a block of memory of <span class="monospaced">len</span> bytes with page protection <span class="monospaced">prot</span>.  If <span class="monospaced">addr</span> is <span class="monospaced">NULL</span>, the system
+automatically picks a free virtual address.  If <span class="monospaced">addr</span> is not <span class="monospaced">NULL</span>, the provided address is mapped
+(existing mappings will be overridden).</p></div>
+<div class="paragraph"><p>The protection flags in <span class="monospaced">prot</span> can include one or more of <span class="monospaced">PROT_READ</span>, <span class="monospaced">PROT_WRITE</span>, and <span class="monospaced">PROT_EXEC</span>.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">flags</span> parameter must contain one of <span class="monospaced">MAP_SHARED</span> or <span class="monospaced">MAP_PRIVATE</span>.  Additional flags include
+<span class="monospaced">MAP_ANONYMOUS</span>, which maps a region backed by RAM instead of a file.  The <span class="monospaced">fd</span> parameter should be
+<span class="monospaced">-1</span> when mapping anonymous pages.  If the region is to be backed by a file, the <span class="monospaced">fd</span> and <span class="monospaced">offset</span>
+parameters specify the file handle and offset within the file of the beginning of the mapping.</p></div>
+<div class="paragraph"><p>Returns a pointer to the mapped region.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_see_also">See also</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a href="munmap.html">munmap</a></p></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

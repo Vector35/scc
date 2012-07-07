@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>__undefined</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content monospaced">
+<pre>__undefined;</pre>
+</div></div>
+<div class="paragraph"><p>This intrinsic can be used in place of any value.  It gives undefined results, usually by omitting
+code.  The runtime result will vary based on the choices of the optimizer and code generator.  The compiler
+will typically leave the register or memory location being targeted in its original state, completely
+omitting any instructions that would have been required to update it.  Any arithmetic performed with
+<span class="monospaced">__undefined</span> as part of the computation will optimized down to a single usage of the <span class="monospaced">__undefined</span>
+intrinsic, as the results are by definition undefined.</p></div>
+<div class="paragraph"><p>One of the most common uses of this intrinsic is to exit the program while treating the exit code as
+a "don&#8217;t care" value, using <span class="monospaced">exit(__undefined)</span>.  A <span class="monospaced">main</span> function that returns <span class="monospaced">void</span> implicitly
+does this.</p></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

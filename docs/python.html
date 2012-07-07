@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
+<title>Shellcode Compiler Runtime</title>
+<link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
+<link rel="stylesheet" href="lib/layout2.css" type="text/css" />
+<script type="text/javascript" src="lib/asciidoc.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+asciidoc.install();
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="layout-menu-box">
+<div id="layout-menu">
+  <div>&#187;<a href="index.html">Home</a></div>
+  <div>&#187;<a href="examples.html">Examples</a></div>
+  <div>&#187;<a href="scc.html">Invocation</a></div>
+  <div>&#187;<a href="runtime.html">Runtime&nbsp;Library</a></div>
+  <div>&#187;<a href="python.html">Python&nbsp;Bindings</a></div>
+  <div>&#187;<a href="issues.html">Known&nbsp;Issues</a></div>
+</div>
+</div>
+<div id="layout-content-box">
+<div id="layout-banner">
+  <div id="layout-title">Shellcode Compiler</div>
+  <div id="layout-description">Advanced exploit development made easier</div>
+</div>
+<div id="layout-content">
+<div id="header">
+<h1>Python bindings</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph"><p>The Shellcode Compiler has a simple interface for compiling code from Python.  Once installed, the <span class="monospaced">scc</span> module
+contains the function <span class="monospaced">compile_source</span>, which will invoke the compiler and return the results.  The following
+is the definition of this function:</p></div>
+<div class="listingblock">
+<div class="content monospaced">
+<pre>def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
+        base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
+        optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
+        return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, additional_options=None)</pre>
+</div></div>
+<div class="paragraph"><p>This function will return a tuple of two elements.  The first element is the compiled code, or <span class="monospaced">None</span> on compilation
+failure.  The second element contains the output from the compiler, and will include the error messages when the
+compilation fails.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/important.png" alt="Important">
+</td>
+<td class="content">Some of these options are not yet implemented.  See the <a href="issues.html">known issues</a> for a list
+of incomplete features.</td>
+</tr></table>
+</div>
+<div class="paragraph"><p>The <span class="monospaced">source</span> parameter contains the source code to compile.  This code does not need to be present in a file on
+the file system, and can be dynamically constructed.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">platform</span> parameter contains the OS to compile for.  This can be one of <span class="monospaced">linux</span>, <span class="monospaced">freebsd</span>, <span class="monospaced">mac</span>, <span class="monospaced">windows</span>, or <span class="monospaced">none</span>.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">arch</span> parameter contains the architecture to compile for.  This can be one of <span class="monospaced">x86</span> or <span class="monospaced">x64</span>.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">blacklist</span> parameter specifies the byte values that must not occur in the output.  This should be a list of integers.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">allow_return</span> parameter is <span class="monospaced">True</span>, the outputted code will issue a return instruction on completion instead of
+exiting the process.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">unsafe_stack</span> parameter is <span class="monospaced">True</span>, the compiler will not assume that the stack is safe for use (for example, use
+of the stack may corrupt the code that is executing).  When this is enabled, the compiler will adjust the stack pointer
+to ensure that it is in a safe location.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">base</span> parameter specifies the base address of the start of the output.  This can be a computed expression in terms
+of register contents at the start of the program.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">base_reg</span> parameter is specified, the register that is used to hold the base of the program is forced to the
+specified register.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">concat</span> parameter is <span class="monospaced">True</span>, the compiler will jump to the end of the output on completion instead of exiting the
+process.  This allows multiple pieces of code to be appended together to form a larger program.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">encode_pointers</span> parameter is <span class="monospaced">True</span>, the compiler will encode all pointers to code using a key that is unique
+to each execution of the program.  Using this option will significantly increase code size.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">frame_reg</span> parameter is specified, the register that is used to hold the base of the stack frame is forced to the
+specified register.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">max_length</span> parameter is specified, the compiler will ensure that the output does not exceed the given number of
+bytes.  If the compiler cannot satisfy the constraints, an error is generated.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">optimization</span> parameter can be one of <span class="monospaced">scc.NormalOptimization</span>, <span class="monospaced">scc.Unoptimized</span>, or <span class="monospaced">scc.SizeOptimization</span>.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">pad</span> parameter is <span class="monospaced">True</span>, the output will be padded to exactly the length specified by the <span class="monospaced">max_length</span> parameter.
+The padding is randomly chosen and will never include bytes in the <span class="monospaced">blacklist</span> list.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">polymorph</span> parameter is <span class="monospaced">True</span>, the output will be randomly shuffled to produce different code on each run.  The
+<span class="monospaced">seed</span> parameter can be specified to force a specific result from the randomization.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">preserve_regs</span> parameter contains registers that should be preserved across execution of the code.  This should be
+a list of register names.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">return_reg</span> parameter is specified, the register that is used to hold the return value is forced to the specified
+register.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">return_high_reg</span> parameter is specified, the register that is used to hold the high half of a large return value
+is forced to the specified register.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">seed</span> parameter is specified, the compiler will use the provided random seed for generating padding and
+polymorphic code.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">stack_grows_up</span> parameter is <span class="monospaced">True</span>, the compiler will cause the stack to grow toward larger addresses.</p></div>
+<div class="paragraph"><p>If the <span class="monospaced">stack_reg</span> parameter is specified, the register that is used to hold the stack pointer is forced to the specified
+register.  Using this option will significantly increase code size.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">additional_options</span> parameter can hold a list of additional <a href="scc.html">command line arguments</a>.</p></div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+</div>
+</div>
+</body>
+</html>

@@ -27,6 +27,7 @@ are not implemented.
 stack using parameters to `main` is supported.
 * The `--base` option is not implemented.  By default, shellcode is automatically output using
 pure position independent code.
+* The `--preserve` option is not implemented.
 * The PE file format is not supported.
 * Windows is not supported as a target.
 

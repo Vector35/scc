@@ -1,0 +1,23 @@
+connect
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
+---------------------------------------------
+
+Connects the socket `sockfd` to the address `addr`.  The following address types are supported:
+
+---------------------------------------------
+struct sockaddr_in;
+struct sockaddr_in6;
+struct sockaddr_un;
+---------------------------------------------
+
+IMPORTANT: The socket family member of the address structure must use the `AF_*` constants.  The
+`PF_*` constants must only be used when creating sockets.  This is to automatically set the length
+field present only on BSD.  The length fields are not explicitly present in this runtime.
+
+See also
+--------
+link:socket.html[socket]

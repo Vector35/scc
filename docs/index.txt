@@ -1,0 +1,20 @@
+Description
+===========
+:title: Shellcode Compiler Runtime
+
+The Shellcode Compiler is a C compiler designed to output standalone code that will be injected into other
+running processes.  It contains a small, lightweight runtime that is designed to generate small code.  The
+runtime has absolutely no external dependencies other than the target operating system kernel, so the
+generated code is not dependent on the target system's configuration.  It contains advanced features for
+customizing the code generation to satisfy constraints and make code that is harder to reverse engineer.
+
+* C syntax.
+* Runtime is built-in to the compiler executable and does not need to be installed.
+* Able to output ELF, Mach-O, and PE binaries in addition to flat position-independent binary blobs.
+* Targets Linux, FreeBSD, Mac OS X, and Windows.
+* Supports both 32-bit and 64-bit x86 architectures on all supported platforms.
+* Blacklist any byte value, and the compiler will generate code that does not use it.  For example, it
+can generate code that does not have null bytes.
+* Polymorphic code generation can generate different code each time it is compiled.
+* Calling conventions (including the choice of stack pointer register) are highly customizable.
+* Python bindings for dynamic generation of code from scripts.

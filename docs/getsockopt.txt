@@ -1,0 +1,13 @@
+getsockopt
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int getsockopt(int fd, int level, int optname, void* optval, socklen_t* optlen);
+---------------------------------------------
+
+Retrieves the value of an option for socket `fd`.
+
+See also
+--------
+link:setsockopt.html[setsockopt]

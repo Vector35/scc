@@ -1,0 +1,83 @@
+Python bindings
+===============
+:title: Shellcode Compiler Runtime
+
+The Shellcode Compiler has a simple interface for compiling code from Python.  Once installed, the `scc` module
+contains the function `compile_source`, which will invoke the compiler and return the results.  The following
+is the definition of this function:
+
+---------------------------------------
+def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
+	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
+	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
+	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, additional_options=None)
+---------------------------------------
+
+This function will return a tuple of two elements.  The first element is the compiled code, or `None` on compilation
+failure.  The second element contains the output from the compiler, and will include the error messages when the
+compilation fails.
+
+IMPORTANT: Some of these options are not yet implemented.  See the link:issues.html[known issues] for a list
+of incomplete features.
+
+The `source` parameter contains the source code to compile.  This code does not need to be present in a file on
+the file system, and can be dynamically constructed.
+
+The `platform` parameter contains the OS to compile for.  This can be one of `linux`, `freebsd`, `mac`, `windows`, or `none`.
+
+The `arch` parameter contains the architecture to compile for.  This can be one of `x86` or `x64`.
+
+The `blacklist` parameter specifies the byte values that must not occur in the output.  This should be a list of integers.
+
+If the `allow_return` parameter is `True`, the outputted code will issue a return instruction on completion instead of
+exiting the process.
+
+If the `unsafe_stack` parameter is `True`, the compiler will not assume that the stack is safe for use (for example, use
+of the stack may corrupt the code that is executing).  When this is enabled, the compiler will adjust the stack pointer
+to ensure that it is in a safe location.
+
+The `base` parameter specifies the base address of the start of the output.  This can be a computed expression in terms
+of register contents at the start of the program.
+
+If the `base_reg` parameter is specified, the register that is used to hold the base of the program is forced to the
+specified register.
+
+If the `concat` parameter is `True`, the compiler will jump to the end of the output on completion instead of exiting the
+process.  This allows multiple pieces of code to be appended together to form a larger program.
+
+If the `encode_pointers` parameter is `True`, the compiler will encode all pointers to code using a key that is unique
+to each execution of the program.  Using this option will significantly increase code size.
+
+If the `frame_reg` parameter is specified, the register that is used to hold the base of the stack frame is forced to the
+specified register.
+
+If the `max_length` parameter is specified, the compiler will ensure that the output does not exceed the given number of
+bytes.  If the compiler cannot satisfy the constraints, an error is generated.
+
+The `optimization` parameter can be one of `scc.NormalOptimization`, `scc.Unoptimized`, or `scc.SizeOptimization`.
+
+If the `pad` parameter is `True`, the output will be padded to exactly the length specified by the `max_length` parameter.
+The padding is randomly chosen and will never include bytes in the `blacklist` list.
+
+If the `polymorph` parameter is `True`, the output will be randomly shuffled to produce different code on each run.  The
+`seed` parameter can be specified to force a specific result from the randomization.
+
+The `preserve_regs` parameter contains registers that should be preserved across execution of the code.  This should be
+a list of register names.
+
+If the `return_reg` parameter is specified, the register that is used to hold the return value is forced to the specified
+register.
+
+If the `return_high_reg` parameter is specified, the register that is used to hold the high half of a large return value
+is forced to the specified register.
+
+If the `seed` parameter is specified, the compiler will use the provided random seed for generating padding and
+polymorphic code.
+
+If the `stack_grows_up` parameter is `True`, the compiler will cause the stack to grow toward larger addresses.
+
+If the `stack_reg` parameter is specified, the register that is used to hold the stack pointer is forced to the specified
+register.  Using this option will significantly increase code size.
+
+The `additional_options` parameter can hold a list of additional link:scc.html[command line arguments].
+

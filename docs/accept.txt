@@ -1,0 +1,16 @@
+accept
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
+---------------------------------------------
+
+Accepts a new connection on socket `sockfd`.  If `addr` is not `NULL`, the address of the peer is stored.
+The handle of the connected socket is returned on success, or the negation of the error code on error.
+
+See also
+--------
+link:bind.html[bind],
+link:listen.html[listen],
+link:socket.html[socket]

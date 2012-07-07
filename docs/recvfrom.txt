@@ -1,0 +1,24 @@
+recvfrom
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t recvfrom(int fd, void* buf, size_t n, int flags, struct sockaddr* addr, socklen_t* addrlen);
+---------------------------------------------
+
+Reads `n` bytes from the socket `fd`, and places the result in `buf`.  If `addr` is not `NULL`, fills in the address
+from which the data was received.  Returns the number of bytes read, or the negation of the error code on error.  It
+is possible for the number of bytes read to be smaller than the number of bytes requested.
+
+IMPORTANT: If the system call is interrupted, this function will return `-EINTR`.  This differs from most C runtimes,
+where `-1` is returned with `errno` set to `EINTR`.  As this runtime does not have `errno`, callers should check
+for `-EINTR` and a result less than zero in the error checking code.
+
+See also
+--------
+link:recv.html[recv],
+link:recv_all.html[recv_all],
+link:send.html[send],
+link:send_all.html[send_all],
+link:send_string.html[send_string],
+link:sendto.html[sendto]

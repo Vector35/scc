@@ -1,0 +1,13 @@
+setsockopt
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen);
+---------------------------------------------
+
+Sets the value of an option for socket `fd`.
+
+See also
+--------
+link:getsockopt.html[getsockopt]

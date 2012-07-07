@@ -1,0 +1,16 @@
+listen
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int listen(int sockfd, int backlog);
+---------------------------------------------
+
+Listens for new connections on socket `sockfd`.  The maximum number of queued connections is `backlog`.  Returns
+zero on success, or the negation of the error code on failure.
+
+See also
+--------
+link:accept.html[accept],
+link:bind.html[bind],
+link:socket.html[socket]

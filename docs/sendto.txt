@@ -1,0 +1,36 @@
+sendto
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+ssize_t sendto(int fd, const void* buf, size_t n, int flags, const struct sockaddr* addr, socklen_t addrlen);
+---------------------------------------------
+
+Sends `n` bytes from the buffer `buf` over the socket `fd`.  If `addr` is not `NULL`, specifies the address that the
+data will be sent to.  Returns the number of bytes sent, or the negation of the error code on error.  It is possible
+for the number of bytes sent to be smaller than the number of bytes requested.
+
+The supported address types for the `addr` parameter are below:
+
+---------------------------------------------
+struct sockaddr_in;
+struct sockaddr_in6;
+struct sockaddr_un;
+---------------------------------------------
+
+IMPORTANT: The socket family member of the address structure must use the `AF_*` constants.  The
+`PF_*` constants must only be used when creating sockets.  This is to automatically set the length
+field present only on BSD.  The length fields are not explicitly present in this runtime.
+
+IMPORTANT: If the system call is interrupted, this function will return `-EINTR`.  This differs from most C runtimes,
+where `-1` is returned with `errno` set to `EINTR`.  As this runtime does not have `errno`, callers should check
+for `-EINTR` and a result less than zero in the error checking code.
+
+See also
+--------
+link:recv.html[recv],
+link:recv_all.html[recv_all],
+link:recvfrom.html[recvfrom],
+link:send.html[send],
+link:send_all.html[send_all],
+link:send_string.html[send_string]

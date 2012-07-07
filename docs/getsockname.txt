@@ -1,0 +1,13 @@
+getsockname
+===========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
+---------------------------------------------
+
+Fills the `addr` structure with the address associated with the socket `sockfd`.
+
+See also
+--------
+link:getpeername.html[getpeername]

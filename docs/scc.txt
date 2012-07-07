@@ -1,0 +1,67 @@
+Command line invocation
+=======================
+:title: Shellcode Compiler Runtime
+
+The Shellcode Compiler can be run from the command line.  The following describes the command line sytax:
+
+---------------------------------------
+scc [options] <input files> [...]
+
+This compiler accepts a subset of C99 syntax, with extensions for creating a standalone
+environment for writing shellcode.  Many standard system calls and C library functions
+are automatically available without the need for include files.
+
+Options:
+    --arch <value>                    Specify processor architecture
+                                      Can be: x86 (default), x64
+    --allow-return                    Allow return from shellcode (default is to exit)
+    --base <expr>                     Set base address of output (can be a runtime computed
+                                      expression, such as "[eax+8]-12")
+    --base-reg <reg>                  Global register that will hold base of code
+    --blacklist <byte>                Blacklist the given byte value
+    --concat                          Jump to end of output on return for concatenating code
+    --decoder <source>                Use decoder to decode shellcode before executing
+    --encode-pointers                 All code pointers are encoded with a random canary
+    --encoder <source>                Use encoder to encode shellcode
+    --exec                            Execute shellcode after generation (does not write
+                                      output to a file)
+    --exec-stack                      When outputting an executable, make stack executable
+    --format <value>, -f <value>      Specify output format
+                                      Can be: bin (default), lib, elf, pe, macho
+    --frame-reg <reg>                 Use alternate register as the frame pointer
+    --header <file>                   Include a precompiled header
+    -L <lib>                          Include pre-built library
+    -m32, -m64                        Specify target address size
+    --map <file>                      Generate map file
+    --max-length <value>              Do not let output size exceed given number of bytes
+    --mixed-mode                      Randomly choose subarchitecture for each function
+    -o <filename>                     Set output filename (default is hex dump to stdout)
+    -O0                               Do not run the optimizer
+    -Os                               Try to generate the smallest code possible
+    --pad                             Pad output to be exactly the maximum length
+    --pie                             Always generate position independent code
+    --platform <value>                Specify operating system
+                                      Can be: linux (default), freebsd, mac, windows, none
+    --polymorph                       Generate different code on each run
+    --preserve <reg>                  Preserve the value of the given register
+    --unsafe-stack                    Stack pointer may be near the code
+    --return-reg <reg>                Use alternate register as the return value
+    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return
+                                      value (32-bit output only)
+    --seed <value>                    Specify random seed (to reproduce --polymorph runs)
+    --shared                          Generate shared library instead of executable
+    --stack-grows-up                  Stack grows toward larger addresses
+    --stack-reg <reg>                 Use alternate register as the stack pointer
+    --stdin                           Read source code from stdin
+    --stdout                          Send generated code to stdout for pipelines
+
+Useful extensions:
+    __noreturn                        Specifies that a function cannot return
+                                      Example: void exit(int value) __noreturn;
+    __syscall(num, ...)               Executes a system call on the target platform
+    __undefined                       Gives undefined results, usually omitting code
+                                      Example: exit(__undefined);
+    __initial_<reg>                   Value of register at start of program
+                                      Example: int socketDescriptor = __initial_ebx;
+---------------------------------------
+

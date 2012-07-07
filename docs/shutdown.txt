@@ -1,0 +1,16 @@
+shutdown
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int shutdown(int sockfd, int how);
+---------------------------------------------
+
+Shuts down the socket `sockfd`.  The `how` parameter can be one of `SHUT_RD`, `SHUT_WR`, or `SHUT_RDWR`.  Returns
+zero on success, or the negation of the error code on error.
+
+See also
+--------
+link:bind.html[bind],
+link:connect.html[connect],
+link:socket.html[socket]

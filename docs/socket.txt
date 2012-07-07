@@ -1,0 +1,18 @@
+socket
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int socket(int domain, int type, int protocol);
+---------------------------------------------
+
+Creates a new socket of the given type.
+
+IMPORTANT: The `domain` parameter must use the `PF_*` family of constants.  The `AF_*` family of constants do not
+have the correct value for the `socket` function on BSD.  This is to facilitate cross-platform code.
+
+See also
+--------
+link:bind.html[bind],
+link:connect.html[connect],
+link:socketpair.html[socketpair]

@@ -1017,7 +1017,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 			if (!valid)
 			{
-				fprintf(stderr, "error: unable to satify constraints (output contains 0x%.2x)\n", errorByte);
+				fprintf(stderr, "error: unable to satisfy constraints (output contains 0x%.2x)\n", errorByte);
 				return false;
 			}
 		}

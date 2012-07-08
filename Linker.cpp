@@ -998,6 +998,31 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		return false;
 	}
 
+	// Verify blacklist constraints
+	if (m_settings.blacklist.size() != 0)
+	{
+		for (size_t i = 0; i < finalBinary->len; i++)
+		{
+			bool valid = true;
+			uint8_t errorByte = 0;
+			for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+			{
+				if (((uint8_t*)finalBinary->code)[i] == *j)
+				{
+					errorByte = *j;
+					valid = false;
+					break;
+				}
+			}
+
+			if (!valid)
+			{
+				fprintf(stderr, "error: unable to satify constraints (output contains 0x%.2x)\n", errorByte);
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 

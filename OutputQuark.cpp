@@ -1630,7 +1630,16 @@ bool OutputQuark::GenerateGoto(SymInstrBlock* out, const ILInstruction& instr)
 
 bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 {
+	uint32_t retVal = SYMREG_NONE;
+	uint32_t retValHigh = SYMREG_NONE;
 	size_t pushSize = 0;
+
+	if (instr.params[0].cls != ILPARAM_VOID)
+	{
+		retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
+		if (instr.params[0].GetWidth() == 8)
+			retValHigh = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH);
+	}
 
 	// Push parameters from right to left
 	for (size_t i = instr.params.size() - 1; i >= 2; i--)
@@ -1712,7 +1721,7 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 		else
 		{
 			// Normal call
-			out->AddInstruction(QuarkCall(instr.params[1].function, instr.params[1].function->GetIL()[0]));
+			out->AddInstruction(QuarkCall(instr.params[1].function, instr.params[1].function->GetIL()[0], retVal, retValHigh));
 		}
 	}
 	else
@@ -1748,7 +1757,7 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 		}
 		else
 		{
-			out->AddInstruction(QuarkCall(func.reg));
+			out->AddInstruction(QuarkCall(func.reg, retVal, retValHigh));
 		}
 	}
 
@@ -1764,17 +1773,16 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 	// Store return value, if there is one
 	if (instr.params[0].cls != ILPARAM_VOID)
 	{
-		OperandReference retVal;
-		retVal.type = OPERANDREF_REG;
-		retVal.width = instr.params[0].GetWidth();
-		retVal.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
-		if (retVal.width == 8)
-			retVal.highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH);
+		OperandReference retValOperand;
+		retValOperand.type = OPERANDREF_REG;
+		retValOperand.width = instr.params[0].GetWidth();
+		retValOperand.reg = retVal;
+		retValOperand.highReg = retValHigh;
 
 		OperandReference dest;
 		if (!PrepareStore(out, instr.params[0], dest))
 			return false;
-		if (!Move(out, dest, retVal))
+		if (!Move(out, dest, retValOperand))
 			return false;
 	}
 
@@ -1801,6 +1809,7 @@ bool OutputQuark::GenerateSignedConvert(SymInstrBlock* out, const ILInstruction&
 		out->AddInstruction(QuarkSxh(result.reg, src.reg));
 		break;
 	default:
+		out->AddInstruction(QuarkMov(result.reg, src.reg));
 		break;
 	}
 
@@ -1832,22 +1841,27 @@ bool OutputQuark::GenerateUnsignedConvert(SymInstrBlock* out, const ILInstructio
 
 bool OutputQuark::GenerateReturn(SymInstrBlock* out, const ILInstruction& instr)
 {
-	OperandReference retVal;
-	if (!Load(out, instr.params[0], retVal))
+	uint32_t retVal = SYMREG_NONE;
+	uint32_t retValHigh = SYMREG_NONE;
+	OperandReference retValOperand;
+	if (!Load(out, instr.params[0], retValOperand))
 		return false;
 
-	if (retVal.type == OPERANDREF_REG)
+	if (retValOperand.type == OPERANDREF_REG)
 	{
-		switch (retVal.width)
+		switch (retValOperand.width)
 		{
 		case 1:
 		case 2:
 		case 4:
-			out->AddInstruction(QuarkMov(m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE), retVal.reg, 0));
+			retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
+			out->AddInstruction(QuarkMov(retVal, retValOperand.reg, 0));
 			break;
 		case 8:
-			out->AddInstruction(QuarkMov(m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE), retVal.reg, 0));
-			out->AddInstruction(QuarkMov(m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH), retVal.highReg, 0));
+			retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
+			retValHigh = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH);
+			out->AddInstruction(QuarkMov(retVal, retValOperand.reg, 0));
+			out->AddInstruction(QuarkMov(retValHigh, retValOperand.highReg, 0));
 			break;
 		default:
 			return false;
@@ -1855,24 +1869,30 @@ bool OutputQuark::GenerateReturn(SymInstrBlock* out, const ILInstruction& instr)
 	}
 	else
 	{
-		switch (retVal.width)
+		switch (retValOperand.width)
 		{
 		case 1:
 		case 2:
 		case 4:
-			out->AddInstruction(QuarkMov(m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE), (int32_t)retVal.immed));
+			retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
+			out->AddInstruction(QuarkMov(retVal, (int32_t)retValOperand.immed));
 			break;
 		case 8:
-			out->AddInstruction(QuarkMov(m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE), (int32_t)retVal.immed));
-			out->AddInstruction(QuarkMov(m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH),
-				(int32_t)(retVal.immed >> 32)));
+			retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
+			retValHigh = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH);
+			out->AddInstruction(QuarkMov(retVal, (int32_t)retValOperand.immed));
+			out->AddInstruction(QuarkMov(retValHigh, (int32_t)(retValOperand.immed >> 32)));
 			break;
 		default:
 			return false;
 		}
 	}
 
-	return GenerateReturnVoid(out, instr);
+	if (!GenerateReturnVoid(out, instr))
+		return false;
+
+	out->AddInstruction(QuarkSymReturn(retVal, retValHigh));
+	return true;
 }
 
 
@@ -1942,6 +1962,7 @@ bool OutputQuark::GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr)
 
 bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr)
 {
+	vector<uint32_t> writes, reads;
 	size_t regIndex = 0;
 	for (size_t i = 2; i < instr.params.size(); i++)
 	{
@@ -1965,11 +1986,14 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 		{
 			reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex));
 			highReg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1));
+			reads.push_back(reg);
+			reads.push_back(highReg);
 			regIndex += 2;
 		}
 		else
 		{
 			reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex));
+			reads.push_back(reg);
 			highReg = SYMREG_NONE;
 			regIndex++;
 		}
@@ -1988,15 +2012,16 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 	if (!Load(out, instr.params[1], num))
 		return false;
 
-	if (num.type == OPERANDREF_REG)
-		out->AddInstruction(QuarkSyscallReg(num.reg));
-	else
-		out->AddInstruction(QuarkSyscallImmed(num.immed));
-
 	OperandReference result;
 	result.type = OPERANDREF_REG;
 	result.width = 4;
 	result.reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_RESULT);
+	writes.push_back(result.reg);
+
+	if (num.type == OPERANDREF_REG)
+		out->AddInstruction(QuarkSyscallReg(num.reg, writes, reads));
+	else
+		out->AddInstruction(QuarkSyscallImmed(num.immed, writes, reads));
 
 	OperandReference dest;
 	if (!PrepareStore(out, instr.params[0], dest))
@@ -2249,6 +2274,8 @@ bool OutputQuark::GenerateCode(Function* func)
 	m_func = func;
 	m_symFunc = &symFunc;
 
+	symFunc.InitializeBlocks(func);
+
 	if (func->IsVariableSizedStackFrame())
 		m_framePointerEnabled = true;
 	else
@@ -2370,7 +2397,7 @@ bool OutputQuark::GenerateCode(Function* func)
 	bool first = true;
 	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
 	{
-		SymInstrBlock* out = m_symFunc->AddBlock(*i);
+		SymInstrBlock* out = m_symFunc->GetBlock(*i);
 
 		if (first)
 		{
@@ -2403,6 +2430,9 @@ bool OutputQuark::GenerateCode(Function* func)
 		if (!GenerateCodeBlock(out, *i))
 			return false;
 	}
+
+	if (!m_symFunc->AllocateRegisters())
+		return false;
 
 	fprintf(stderr, "\n%s:\n", func->GetName().c_str());
 	m_symFunc->Print();

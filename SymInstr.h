@@ -3,6 +3,7 @@
 
 #include "ILBlock.h"
 #include "Function.h"
+#include "BitVector.h"
 
 #define SYMREG_SP   0xfffffff0
 #define SYMREG_BP   0xfffffff1
@@ -10,6 +11,8 @@
 #define SYMREG_IP   0xfffffff3
 #define SYMREG_ANY  0xfffffffe
 #define SYMREG_NONE 0xffffffff
+
+#define SYMREG_IS_SPECIAL_REG(r) (((r) & 0x80000000) != 0)
 
 #define SYMFLAG_WRITES_FLAGS    1
 #define SYMFLAG_CLOBBERS_FLAGS  2
@@ -44,6 +47,8 @@ struct SymInstrOperand
 	int64_t immed;
 	Function* func;
 	ILBlock* block;
+	size_t dataFlowBit;
+	std::vector<size_t> useDefChain;
 
 	void Print();
 };
@@ -63,7 +68,7 @@ public:
 	uint32_t GetOperation() const { return m_operation; }
 	uint32_t GetFlags() const { return m_flags; }
 	bool IsFlagSet(uint32_t flag) const { return (m_flags & flag) != 0; }
-	const std::vector<SymInstrOperand>& GetOperands() const { return m_operands; }
+	std::vector<SymInstrOperand>& GetOperands() { return m_operands; }
 
 	void SetOperation(uint32_t op) { m_operation = op; }
 	void EnableFlag(uint32_t flag) { m_flags |= flag; }
@@ -87,21 +92,29 @@ class SymInstrBlock
 protected:
 	size_t m_index;
 	std::vector<SymInstr*> m_instrs;
-	std::vector<SymInstrBlock*> m_entryBlocks;
-	std::vector<SymInstrBlock*> m_exitBlocks;
+	std::set<SymInstrBlock*> m_entryBlocks;
+	std::set<SymInstrBlock*> m_exitBlocks;
+
+	BitVector m_defPreserve, m_defGenerate, m_defReachIn, m_defReachOut;
 
 public:
 	SymInstrBlock(size_t i);
 	virtual ~SymInstrBlock();
 
 	size_t GetIndex() const { return m_index; }
-	const std::vector<SymInstr*>& GetInstructions() const { return m_instrs; }
+	std::vector<SymInstr*>& GetInstructions() { return m_instrs; }
 	void AddInstruction(SymInstr* instr) { m_instrs.push_back(instr); }
 
-	const std::vector<SymInstrBlock*>& GetEntryBlocks() const { return m_entryBlocks; }
-	const std::vector<SymInstrBlock*>& GetExitBlocks() const { return m_exitBlocks; }
-	void AddEntryBlock(SymInstrBlock* block) { m_entryBlocks.push_back(block); }
-	void AddExitBlock(SymInstrBlock* block) { m_exitBlocks.push_back(block); }
+	const std::set<SymInstrBlock*>& GetEntryBlocks() const { return m_entryBlocks; }
+	const std::set<SymInstrBlock*>& GetExitBlocks() const { return m_exitBlocks; }
+	void AddEntryBlock(SymInstrBlock* block) { m_entryBlocks.insert(block); }
+	void AddExitBlock(SymInstrBlock* block) { m_exitBlocks.insert(block); }
+
+	void ResetDataFlowInfo(size_t bits);
+	BitVector& GetPreservedDefinitions() { return m_defPreserve; }
+	BitVector& GetGeneratedDefinitions() { return m_defGenerate; }
+	BitVector& GetReachingDefinitionsInput() { return m_defReachIn; }
+	BitVector& GetReachingDefinitionsOutput() { return m_defReachOut; }
 
 	virtual void Print();
 };
@@ -111,17 +124,29 @@ class SymInstrFunction
 {
 protected:
 	std::vector<SymInstrBlock*> m_blocks;
+	std::map<ILBlock*, SymInstrBlock*> m_blockMap;
 	std::vector<uint32_t> m_symRegClass;
 	std::vector<uint32_t> m_symRegVar;
 	std::vector<uint32_t> m_symRegAssignment;
 	std::vector<int64_t> m_stackVarOffsets;
 
+	std::set<SymInstrBlock*> m_exitBlocks;
+	BitVector m_exitReachingDefs;
+	std::map< uint32_t, std::vector<size_t> > m_regDefs;
+	std::vector< std::pair<SymInstrBlock*, size_t> > m_defLocs;
+	std::vector< std::vector< std::pair<SymInstrBlock*, size_t> > > m_defUseChains;
+
+	SymInstrBlock* AddBlock(ILBlock* il);
+	void AddExitBlock(SymInstrBlock* block, SymInstrBlock* exitBlock);
+
+	void PerformDataFlowAnalysis();
+
 public:
 	SymInstrFunction();
 	virtual ~SymInstrFunction();
 
-	SymInstrBlock* AddBlock(ILBlock* il);
-	void AddExitBlock(SymInstrBlock* block, SymInstrBlock* exitBlock);
+	void InitializeBlocks(Function* func);
+	SymInstrBlock* GetBlock(ILBlock* block) const;
 
 	uint32_t AddRegister(uint32_t cls, uint32_t var = SYMREG_NONE);
 	void AssignRegister(uint32_t reg, uint32_t native);
@@ -130,6 +155,8 @@ public:
 
 	uint32_t AddStackVar(int64_t offset);
 	const std::vector<int64_t>& GetStackVars() const { return m_stackVarOffsets; }
+
+	bool AllocateRegisters();
 
 	virtual void PrintRegisterClass(uint32_t cls) = 0;
 	virtual void Print();

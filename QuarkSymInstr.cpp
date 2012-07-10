@@ -1,8 +1,30 @@
+// Copyright (c) 2012 Rusty Wagner
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "QuarkSymInstr.h"
 #include "Struct.h"
 #include "asmquark.h"
+
+using namespace std;
 
 
 QuarkSymInstr::QuarkSymInstr()
@@ -284,18 +306,49 @@ QuarkCondJumpInstr::QuarkCondJumpInstr(uint32_t b, uint32_t val, Function* func,
 }
 
 
-QuarkCallInstr::QuarkCallInstr(uint32_t a)
+QuarkCallInstr::QuarkCallInstr(uint32_t op, Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh)
+{
+	SetOperation(op);
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
+	AddBlockOperand(func, block);
+	if (retVal != SYMREG_NONE)
+		AddWriteRegisterOperand(retVal);
+	if (retValHigh != SYMREG_NONE)
+		AddWriteRegisterOperand(retValHigh);
+}
+
+
+QuarkCallRegInstr::QuarkCallRegInstr(uint32_t a, uint32_t retVal, uint32_t retValHigh)
 {
 	SetOperation(0x1f06);
 	EnableFlag(SYMFLAG_CONTROL_FLOW);
 	AddReadRegisterOperand(a);
+	if (retVal != SYMREG_NONE)
+		AddWriteRegisterOperand(retVal);
+	if (retValHigh != SYMREG_NONE)
+		AddWriteRegisterOperand(retValHigh);
 }
 
 
-QuarkSyscallImmInstr::QuarkSyscallImmInstr(int32_t immed)
+QuarkSyscallImmInstr::QuarkSyscallImmInstr(int32_t immed, const vector<uint32_t>& writes, const vector<uint32_t>& reads)
 {
 	SetOperation(0x2c);
 	AddImmediateOperand(immed);
+	for (vector<uint32_t>::const_iterator i = writes.begin(); i != writes.end(); i++)
+		AddWriteRegisterOperand(*i);
+	for (vector<uint32_t>::const_iterator i = reads.begin(); i != reads.end(); i++)
+		AddReadRegisterOperand(*i);
+}
+
+
+QuarkSyscallRegInstr::QuarkSyscallRegInstr(uint32_t a, const vector<uint32_t>& writes, const vector<uint32_t>& reads)
+{
+	SetOperation(0x1f10);
+	AddReadRegisterOperand(a);
+	for (vector<uint32_t>::const_iterator i = writes.begin(); i != writes.end(); i++)
+		AddWriteRegisterOperand(*i);
+	for (vector<uint32_t>::const_iterator i = reads.begin(); i != reads.end(); i++)
+		AddReadRegisterOperand(*i);
 }
 
 
@@ -410,6 +463,16 @@ QuarkCondBit3OpInstr::QuarkCondBit3OpInstr(uint32_t op, uint32_t a, uint32_t b, 
 QuarkBreakpointInstr::QuarkBreakpointInstr()
 {
 	SetOperation(0x1f1f);
+}
+
+
+QuarkSymReturnInstr::QuarkSymReturnInstr(uint32_t retVal, uint32_t retValHigh)
+{
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
+	if (retVal != SYMREG_NONE)
+		AddReadRegisterOperand(retVal);
+	if (retValHigh != SYMREG_NONE)
+		AddReadRegisterOperand(retValHigh);
 }
 
 
@@ -798,13 +861,57 @@ void QuarkCallInstr::Print()
 {
 	fprintf(stderr, "%s ", GetOperationName());
 	m_operands[0].Print();
+	if (m_operands.size() > 1)
+	{
+		fprintf(stderr, ", ret ");
+		m_operands[1].Print();
+	}
+	if (m_operands.size() > 2)
+	{
+		fprintf(stderr, ", high ");
+		m_operands[2].Print();
+	}
+}
+
+
+void QuarkCallRegInstr::Print()
+{
+	fprintf(stderr, "%s ", GetOperationName());
+	m_operands[0].Print();
+	if (m_operands.size() > 1)
+	{
+		fprintf(stderr, ", ret ");
+		m_operands[1].Print();
+	}
+	if (m_operands.size() > 2)
+	{
+		fprintf(stderr, ", high ");
+		m_operands[2].Print();
+	}
 }
 
 
 void QuarkSyscallImmInstr::Print()
 {
 	fprintf(stderr, "%s ", GetOperationName());
-	m_operands[0].Print();
+	for (vector<SymInstrOperand>::iterator i = m_operands.begin(); i != m_operands.end(); i++)
+	{
+		i->Print();
+		if ((i + 1) != m_operands.end())
+			fprintf(stderr, ", ");
+	}
+}
+
+
+void QuarkSyscallRegInstr::Print()
+{
+	fprintf(stderr, "%s ", GetOperationName());
+	for (vector<SymInstrOperand>::iterator i = m_operands.begin(); i != m_operands.end(); i++)
+	{
+		i->Print();
+		if ((i + 1) != m_operands.end())
+			fprintf(stderr, ", ");
+	}
 }
 
 
@@ -958,6 +1065,23 @@ void QuarkBreakpointInstr::Print()
 }
 
 
+void QuarkSymReturnInstr::Print()
+{
+	fprintf(stderr, "retval ");
+
+	if (m_operands.size() == 0)
+		fprintf(stderr, "none");
+	else
+		m_operands[0].Print();
+
+	if (m_operands.size() > 1)
+	{
+		fprintf(stderr, ", ");
+		m_operands[1].Print();
+	}
+}
+
+
 void QuarkSymInstrFunction::PrintRegisterClass(uint32_t cls)
 {
 	switch (cls)
@@ -1093,10 +1217,10 @@ SymInstr* QuarkLoadImmHigh(uint32_t a, int32_t immed) { return new QuarkLoadImmH
 
 SymInstr* QuarkJump(Function* func, ILBlock* block) { return new QuarkBranchInstr(0x16, func, block); }
 SymInstr* QuarkCondJump(uint32_t b, uint32_t value, Function* func, ILBlock* block) { return new QuarkCondJumpInstr(b, value, func, block); }
-SymInstr* QuarkCall(Function* func, ILBlock* block) { return new QuarkBranchInstr(0x17, func, block); }
-SymInstr* QuarkCall(uint32_t reg) { return new QuarkCallInstr(reg); }
-SymInstr* QuarkSyscallReg(uint32_t a) { return new Quark1OpReadRegInstr(0x1f10, a); }
-SymInstr* QuarkSyscallImmed(int32_t immed) { return new QuarkSyscallImmInstr(immed); }
+SymInstr* QuarkCall(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh) { return new QuarkCallInstr(0x17, func, block, retVal, retValHigh); }
+SymInstr* QuarkCall(uint32_t reg, uint32_t retVal, uint32_t retValHigh) { return new QuarkCallRegInstr(reg, retVal, retValHigh); }
+SymInstr* QuarkSyscallReg(uint32_t a, const vector<uint32_t>& writes, const vector<uint32_t>& reads) { return new QuarkSyscallRegInstr(a, writes, reads); }
+SymInstr* QuarkSyscallImmed(int32_t immed, const vector<uint32_t>& writes, const vector<uint32_t>& reads) { return new QuarkSyscallImmInstr(immed, writes, reads); }
 
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpInstr(0x18, a, b, c, s); }
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, int32_t immed) { return new Quark3OpInstr(0x18, a, b, immed); }
@@ -1227,4 +1351,6 @@ SymInstr* QuarkFlog10(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x3f
 SymInstr* QuarkFlog10(uint32_t a, int32_t immed) { return new Quark2OpInstr(0x3f1e, a, immed); }
 SymInstr* QuarkFmov(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x3f1f, a, b); }
 SymInstr* QuarkFmov(uint32_t a, int32_t immed) { return new Quark2OpInstr(0x3f1f, a, immed); }
+
+SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh) { return new QuarkSymReturnInstr(retVal, retValHigh); }
 

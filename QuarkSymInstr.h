@@ -1,3 +1,23 @@
+// Copyright (c) 2012 Rusty Wagner
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
 #ifndef __QUARKSYMINSTR_H__
 #define __QUARKSYMINSTR_H__
 
@@ -208,14 +228,28 @@ public:
 class QuarkCallInstr: public QuarkSymInstr
 {
 public:
-	QuarkCallInstr(uint32_t a);
+	QuarkCallInstr(uint32_t op, Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh);
+	virtual void Print();
+};
+
+class QuarkCallRegInstr: public QuarkSymInstr
+{
+public:
+	QuarkCallRegInstr(uint32_t a, uint32_t retVal, uint32_t retValHigh);
 	virtual void Print();
 };
 
 class QuarkSyscallImmInstr: public QuarkSymInstr
 {
 public:
-	QuarkSyscallImmInstr(int32_t imm);
+	QuarkSyscallImmInstr(int32_t imm, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
+	virtual void Print();
+};
+
+class QuarkSyscallRegInstr: public QuarkSymInstr
+{
+public:
+	QuarkSyscallRegInstr(uint32_t a, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
 	virtual void Print();
 };
 
@@ -281,6 +315,13 @@ class QuarkBreakpointInstr: public QuarkSymInstr
 {
 public:
 	QuarkBreakpointInstr();
+	virtual void Print();
+};
+
+class QuarkSymReturnInstr: public QuarkSymInstr
+{
+public:
+	QuarkSymReturnInstr(uint32_t retVal, uint32_t retValHigh);
 	virtual void Print();
 };
 
@@ -372,10 +413,10 @@ SymInstr* QuarkLoadImmHigh(uint32_t a, int32_t immed);
 
 SymInstr* QuarkJump(Function* func, ILBlock* block);
 SymInstr* QuarkCondJump(uint32_t b, uint32_t value, Function* func, ILBlock* block);
-SymInstr* QuarkCall(Function* func, ILBlock* block);
-SymInstr* QuarkCall(uint32_t reg);
-SymInstr* QuarkSyscallReg(uint32_t a);
-SymInstr* QuarkSyscallImmed(int32_t immed);
+SymInstr* QuarkCall(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh);
+SymInstr* QuarkCall(uint32_t reg, uint32_t retVal, uint32_t retValHigh);
+SymInstr* QuarkSyscallReg(uint32_t a, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
+SymInstr* QuarkSyscallImmed(int32_t immed, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
 
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, int32_t immed);
@@ -504,6 +545,8 @@ SymInstr* QuarkFlog10(uint32_t a, uint32_t b);
 SymInstr* QuarkFlog10(uint32_t a, int32_t immed);
 SymInstr* QuarkFmov(uint32_t a, uint32_t b);
 SymInstr* QuarkFmov(uint32_t a, int32_t immed);
+
+SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh);
 
 
 #endif

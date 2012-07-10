@@ -261,8 +261,8 @@ public:
 	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }
 	void RemoveEntryBlock(ILBlock* block) { m_entryBlocks.erase(block); }
 	void RemoveExitBlock(ILBlock* block) { m_exitBlocks.erase(block); }
-	const std::set<ILBlock*>& GetEntryBlocks() { return m_entryBlocks; }
-	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
+	const std::set<ILBlock*>& GetEntryBlocks() const { return m_entryBlocks; }
+	const std::set<ILBlock*>& GetExitBlocks() const { return m_exitBlocks; }
 
 	void ResetDataFlowInfo(size_t bits);
 	BitVector& GetPreservedDefinitions() { return m_defPreserve; }

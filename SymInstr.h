@@ -96,6 +96,7 @@ protected:
 	std::set<SymInstrBlock*> m_exitBlocks;
 
 	BitVector m_defPreserve, m_defGenerate, m_defReachIn, m_defReachOut;
+	BitVector m_liveDef, m_liveUse, m_liveIn, m_liveOut;
 
 public:
 	SymInstrBlock(size_t i);
@@ -110,11 +111,15 @@ public:
 	void AddEntryBlock(SymInstrBlock* block) { m_entryBlocks.insert(block); }
 	void AddExitBlock(SymInstrBlock* block) { m_exitBlocks.insert(block); }
 
-	void ResetDataFlowInfo(size_t bits);
+	void ResetDataFlowInfo(size_t defs, size_t regs);
 	BitVector& GetPreservedDefinitions() { return m_defPreserve; }
 	BitVector& GetGeneratedDefinitions() { return m_defGenerate; }
 	BitVector& GetReachingDefinitionsInput() { return m_defReachIn; }
 	BitVector& GetReachingDefinitionsOutput() { return m_defReachOut; }
+	BitVector& GetLiveDefinitions() { return m_liveDef; }
+	BitVector& GetLiveUses() { return m_liveUse; }
+	BitVector& GetLiveInput() { return m_liveIn; }
+	BitVector& GetLiveOutput() { return m_liveOut; }
 
 	virtual void Print();
 };
@@ -140,6 +145,7 @@ protected:
 	void AddExitBlock(SymInstrBlock* block, SymInstrBlock* exitBlock);
 
 	void PerformDataFlowAnalysis();
+	void SplitRegisters();
 
 public:
 	SymInstrFunction();

@@ -103,3 +103,10 @@ void BitVector::Intersection(const BitVector& v)
 		m_data[i] &= v.m_data[i];
 }
 
+
+void BitVector::Difference(const BitVector& v)
+{
+	for (size_t i = 0; i < (m_size + 31) / 32; i++)
+		m_data[i] &= ~v.m_data[i];
+}
+

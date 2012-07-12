@@ -143,12 +143,20 @@ SymInstrBlock::~SymInstrBlock()
 }
 
 
-void SymInstrBlock::ResetDataFlowInfo(size_t bits)
+void SymInstrBlock::ResetDataFlowInfo(size_t defs, size_t regs)
 {
-	m_defPreserve.Reset(bits, true);
-	m_defGenerate.Reset(bits, false);
-	m_defReachIn.Reset(bits, false);
-	m_defReachOut.Reset(bits, false);
+	m_defPreserve.Reset(defs, true);
+	m_defGenerate.Reset(defs, false);
+	m_defReachIn.Reset(defs, false);
+	m_defReachOut.Reset(defs, false);
+	m_liveDef.Reset(regs, false);
+	m_liveUse.Reset(regs, false);
+	m_liveIn.Reset(regs, false);
+	m_liveOut.Reset(regs, false);
+
+	for (vector<SymInstr*>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
+		for (vector<SymInstrOperand>::iterator j = (*i)->GetOperands().begin(); j != (*i)->GetOperands().end(); j++)
+			j->useDefChain.clear();
 }
 
 
@@ -160,6 +168,39 @@ void SymInstrBlock::Print()
 	fprintf(stderr, ", exit ");
 	for (set<SymInstrBlock*>::iterator i = m_exitBlocks.begin(); i != m_exitBlocks.end(); i++)
 		fprintf(stderr, "%d ", (int)(*i)->m_index);
+
+	size_t count = 0;
+	for (size_t i = 0; i < m_liveOut.GetSize(); i++)
+	{
+		if (m_liveIn.GetBit(i))
+			count++;
+	}
+	if (count > 0)
+	{
+		fprintf(stderr, ", live start ");
+		for (size_t i = 0; i < m_liveIn.GetSize(); i++)
+		{
+			if (m_liveIn.GetBit(i))
+				fprintf(stderr, "reg%d ", (int)i);
+		}
+	}
+
+	count = 0;
+	for (size_t i = 0; i < m_liveOut.GetSize(); i++)
+	{
+		if (m_liveOut.GetBit(i))
+			count++;
+	}
+	if (count > 0)
+	{
+		fprintf(stderr, ", live end ");
+		for (size_t i = 0; i < m_liveOut.GetSize(); i++)
+		{
+			if (m_liveOut.GetBit(i))
+				fprintf(stderr, "reg%d ", (int)i);
+		}
+	}
+
 	fprintf(stderr, "\n");
 	for (size_t i = 0; i < m_instrs.size(); i++)
 	{
@@ -206,7 +247,7 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 	}
 
 	for (vector<SymInstrBlock*>::const_iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
-		(*i)->ResetDataFlowInfo(bitCount);
+		(*i)->ResetDataFlowInfo(bitCount, m_symRegClass.size());
 	m_exitReachingDefs.Reset(bitCount, false);
 	m_defUseChains.clear();
 	m_defUseChains.resize(bitCount);
@@ -327,8 +368,94 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 		}
 	}
 
+	// Save definition information
 	m_regDefs = regDefs;
 	m_defLocs = defs;
+
+	// Populate liveness analysis information
+	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+	{
+		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+		{
+			// Check uses of registers
+			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
+				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
+			{
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				{
+					if (!(*i)->GetLiveDefinitions().GetBit(k->reg))
+					{
+						// Used before definition
+						(*i)->GetLiveUses().SetBit(k->reg, true);
+					}
+				}
+			}
+
+			// Check definitions of registers
+			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
+				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
+			{
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				{
+					if (!(*i)->GetLiveUses().GetBit(k->reg))
+					{
+						// Defined before use
+						(*i)->GetLiveDefinitions().SetBit(k->reg, true);
+					}
+				}
+			}
+		}
+	}
+
+	// Iteratively compute liveness at the block level
+	tempVector.Reset(m_symRegClass.size(), false);
+	changed = true;
+	while (changed)
+	{
+		changed = false;
+
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+		{
+			// Add liveness of all successor blocks to the output of the current block
+			tempVector.Reset(m_symRegClass.size(), false);
+			for (set<SymInstrBlock*>::const_iterator j = (*i)->GetExitBlocks().begin();
+				j != (*i)->GetExitBlocks().end(); j++)
+				tempVector.Union((*j)->GetLiveInput());
+			if (tempVector != (*i)->GetLiveOutput())
+			{
+				changed = true;
+				(*i)->GetLiveOutput() = tempVector;
+			}
+
+			// Compute liveness at start of this block ((out - defined) | used)
+			tempVector = (*i)->GetLiveOutput();
+			tempVector.Difference((*i)->GetLiveDefinitions());
+			tempVector.Union((*i)->GetLiveUses());
+			if (tempVector != (*i)->GetLiveInput())
+			{
+				changed = true;
+				(*i)->GetLiveInput() = tempVector;
+			}
+		}
+	}
+}
+
+
+void SymInstrFunction::SplitRegisters()
+{
+	// For each register, check definitions to see if they are fully separated in usage
+	for (map< uint32_t, vector<size_t> >::iterator i = m_regDefs.begin(); i != m_regDefs.end(); i++)
+	{
+		if (i->second.size() <= 1)
+		{
+			// If there isn't more than one definition, there is nothing to split
+			continue;
+		}
+
+		// TODO: Combine definition->use chains that share uses in common.  A read/write register access
+		// must force a merge of two definition->use chains.  Any that are not combined after this
+		// process are fully separate and can be assigned a new symbolic register.
+	}
 }
 
 
@@ -398,6 +525,13 @@ uint32_t SymInstrFunction::AddStackVar(int64_t offset)
 
 bool SymInstrFunction::AllocateRegisters()
 {
+	// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see
+	// if there are any that can be split into multiple registers to reduce register pressure when the same
+	// register is used for multiple non-overlapping purposes.  These are called "webs" in the literature.
+	PerformDataFlowAnalysis();
+	SplitRegisters();
+
+	// Data flow information may have changed, recalculate it before continuing
 	PerformDataFlowAnalysis();
 
 	return true;

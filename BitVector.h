@@ -28,6 +28,7 @@ public:
 
 	void Union(const BitVector& v);
 	void Intersection(const BitVector& v);
+	void Difference(const BitVector& v);
 };
 
 

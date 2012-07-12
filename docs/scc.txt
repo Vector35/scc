@@ -30,6 +30,7 @@ Options:
                                       Can be: bin (default), lib, elf, pe, macho
     --frame-reg <reg>                 Use alternate register as the frame pointer
     --header <file>                   Include a precompiled header
+    -I <path>                         Add additional directory for include files
     -L <lib>                          Include pre-built library
     -m32, -m64                        Specify target address size
     --map <file>                      Generate map file

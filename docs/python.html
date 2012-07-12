@@ -45,7 +45,7 @@ is the definition of this function:</p></div>
 <pre>def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
         base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
         optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
-        return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, additional_options=None)</pre>
+        return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, additional_options=None)</pre>
 </div></div>
 <div class="paragraph"><p>This function will return a tuple of two elements.  The first element is the compiled code, or <span class="monospaced">None</span> on compilation
 failure.  The second element contains the output from the compiler, and will include the error messages when the
@@ -97,6 +97,7 @@ polymorphic code.</p></div>
 <div class="paragraph"><p>If the <span class="monospaced">stack_grows_up</span> parameter is <span class="monospaced">True</span>, the compiler will cause the stack to grow toward larger addresses.</p></div>
 <div class="paragraph"><p>If the <span class="monospaced">stack_reg</span> parameter is specified, the register that is used to hold the stack pointer is forced to the specified
 register.  Using this option will significantly increase code size.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">include_dirs</span> specifies additional include directories, and should be a list of strings.</p></div>
 <div class="paragraph"><p>The <span class="monospaced">additional_options</span> parameter can hold a list of additional <a href="scc.html">command line arguments</a>.</p></div>
 </div>
 </div>

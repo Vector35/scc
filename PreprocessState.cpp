@@ -30,7 +30,8 @@ extern int Preprocess_parse(PreprocessState* state);
 extern int Preprocess_get_lineno(void* yyscanner);
 
 
-PreprocessState::PreprocessState(const string& name, void* scanner): m_fileName(name), m_scanner(scanner)
+PreprocessState::PreprocessState(const string& name, void* scanner, const Settings& settings):
+	m_fileName(name), m_scanner(scanner), m_settings(settings)
 {
 	m_errors = 0;
 	m_expansionInProgress = false;
@@ -40,7 +41,8 @@ PreprocessState::PreprocessState(const string& name, void* scanner): m_fileName(
 }
 
 
-PreprocessState::PreprocessState(PreprocessState& parent, const string& name, void* scanner): m_fileName(name), m_scanner(scanner)
+PreprocessState::PreprocessState(PreprocessState& parent, const string& name, void* scanner):
+	m_fileName(name), m_scanner(scanner), m_settings(parent.m_settings)
 {
 	m_errors = 0;
 	m_expansionInProgress = false;
@@ -195,17 +197,39 @@ void PreprocessState::IncludeFile(const string& name)
 	FILE* fp = fopen(name.c_str(), "rb");
 	if (!fp)
 	{
-		if (m_scanner)
+		// Look for include file in alternative directories
+		for (vector<string>::const_iterator i = m_settings.includeDirs.begin(); i != m_settings.includeDirs.end(); i++)
 		{
-			fprintf(stderr, "%s:%d: error: include file '%s' not found\n", GetFileName().c_str(),
-				GetLineNumber(), name.c_str());
+			string path = *i;
+			if ((path.size() > 0) && (path[path.size() - 1] != '/') && (path[path.size() - 1] != '\\'))
+			{
+#ifdef WIN32
+				path += "\\";
+#else
+				path += "/";
+#endif
+			}
+			path += name;
+
+			fp = fopen(path.c_str(), "rb");
+			if (fp)
+				break;
 		}
-		else
+
+		if (!fp)
 		{
-			fprintf(stderr, "%s: error: include file '%s' not found\n", GetFileName().c_str(), name.c_str());
+			if (m_scanner)
+			{
+				fprintf(stderr, "%s:%d: error: include file '%s' not found\n", GetFileName().c_str(),
+					GetLineNumber(), name.c_str());
+			}
+			else
+			{
+				fprintf(stderr, "%s: error: include file '%s' not found\n", GetFileName().c_str(), name.c_str());
+			}
+			m_errors++;
+			return;
 		}
-		m_errors++;
-		return;
 	}
 
 	fseek(fp, 0, SEEK_END);
@@ -519,7 +543,8 @@ bool PreprocessState::Deserialize(InputBlock* input)
 }
 
 
-bool PreprocessState::PreprocessSource(const string& source, const string& fileName, string& output, PreprocessState* parent)
+bool PreprocessState::PreprocessSource(const Settings& settings, const string& source, const string& fileName,
+	string& output, PreprocessState* parent)
 {
 	yyscan_t scanner;
 	Preprocess_lex_init(&scanner);
@@ -527,7 +552,7 @@ bool PreprocessState::PreprocessSource(const string& source, const string& fileN
 	if (parent)
 		parser = new PreprocessState(*parent, fileName.c_str(), scanner);
 	else
-		parser = new PreprocessState(fileName.c_str(), scanner);
+		parser = new PreprocessState(fileName.c_str(), scanner, settings);
 
 	YY_BUFFER_STATE buf = Preprocess__scan_string(source.c_str(), scanner);
 	Preprocess__switch_to_buffer(buf, scanner);

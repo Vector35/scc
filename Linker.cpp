@@ -83,7 +83,7 @@ extern int Code_parse(ParserState* state);
 extern void Code_set_lineno(int line, void* yyscanner);
 
 
-Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL),
+Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
 	m_precompileState("precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
 {
 }
@@ -289,7 +289,7 @@ bool Linker::FinalizePrecompiledHeaders()
 bool Linker::CompileSource(const std::string& source, const std::string& filename)
 {
 	string preprocessed;
-	if (!PreprocessState::PreprocessSource(source, filename, preprocessed, &m_precompiledPreprocess))
+	if (!PreprocessState::PreprocessSource(m_settings, source, filename, preprocessed, &m_precompiledPreprocess))
 		return false;
 
 	yyscan_t scanner;

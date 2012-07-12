@@ -67,6 +67,7 @@ void Usage()
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe, macho\n");
 	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
+	fprintf(stderr, "    -I <path>                         Add additional directory for include files\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
@@ -335,6 +336,18 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--internal-debug"))
 		{
 			settings.internalDebug = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "-I"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.includeDirs.push_back(argv[i]);
 			continue;
 		}
 		else if (!strcmp(argv[i], "-L"))

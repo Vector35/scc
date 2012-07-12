@@ -64,6 +64,8 @@ struct Settings
 	std::vector<std::string> preservedRegs;
 	std::string stackReg, frameReg, returnReg, returnHighReg, baseReg;
 
+	std::vector<std::string> includeDirs;
+
 	Architecture architecture;
 	OperatingSystem os;
 	OutputFormat format;

@@ -10,7 +10,7 @@ is the definition of this function:
 def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
 	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
-	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, additional_options=None)
+	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, additional_options=None)
 ---------------------------------------
 
 This function will return a tuple of two elements.  The first element is the compiled code, or `None` on compilation
@@ -78,6 +78,8 @@ If the `stack_grows_up` parameter is `True`, the compiler will cause the stack t
 
 If the `stack_reg` parameter is specified, the register that is used to hold the stack pointer is forced to the specified
 register.  Using this option will significantly increase code size.
+
+The `include_dirs` specifies additional include directories, and should be a list of strings.
 
 The `additional_options` parameter can hold a list of additional link:scc.html[command line arguments].
 

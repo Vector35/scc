@@ -5,12 +5,15 @@
 #include "Function.h"
 #include "BitVector.h"
 
+#define SYMREG_MIN_SPECIAL_REG 0xffffff00
 #define SYMREG_SP   0xfffffff0
 #define SYMREG_BP   0xfffffff1
 #define SYMREG_LR   0xfffffff2
 #define SYMREG_IP   0xfffffff3
 #define SYMREG_ANY  0xfffffffe
 #define SYMREG_NONE 0xffffffff
+
+#define SYMREG_NATIVE_REG(r) ((r) | 0x80000000)
 
 #define SYMREG_IS_SPECIAL_REG(r) (((r) & 0x80000000) != 0)
 
@@ -19,6 +22,8 @@
 #define SYMFLAG_USES_FLAGS      4
 #define SYMFLAG_MEMORY_BARRIER  8
 #define SYMFLAG_CONTROL_FLOW    0x10
+#define SYMFLAG_CALL            0x20
+#define SYMFLAG_COPY            0x40
 
 
 enum SymInstrOperandType
@@ -38,6 +43,7 @@ enum SymInstrOperandAccess
 };
 
 class SymInstrBlock;
+class SymInstrFunction;
 
 struct SymInstrOperand
 {
@@ -50,7 +56,7 @@ struct SymInstrOperand
 	size_t dataFlowBit;
 	std::vector<size_t> useDefChain;
 
-	void Print();
+	void Print(SymInstrFunction* func);
 };
 
 
@@ -83,7 +89,8 @@ public:
 	void AddGlobalVarOperand(int64_t dataOffset);
 	void AddBlockOperand(Function* func, ILBlock* block);
 
-	virtual void Print() = 0;
+	virtual bool ReplacePseudoInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual void Print(SymInstrFunction* func) = 0;
 };
 
 
@@ -105,6 +112,7 @@ public:
 	size_t GetIndex() const { return m_index; }
 	std::vector<SymInstr*>& GetInstructions() { return m_instrs; }
 	void AddInstruction(SymInstr* instr) { m_instrs.push_back(instr); }
+	void ReplaceInstruction(size_t i, const std::vector<SymInstr*>& replacement);
 
 	const std::set<SymInstrBlock*>& GetEntryBlocks() const { return m_entryBlocks; }
 	const std::set<SymInstrBlock*>& GetExitBlocks() const { return m_exitBlocks; }
@@ -121,7 +129,9 @@ public:
 	BitVector& GetLiveInput() { return m_liveIn; }
 	BitVector& GetLiveOutput() { return m_liveOut; }
 
-	virtual void Print();
+	bool IsRegisterLiveAtDefinition(uint32_t reg, size_t instr);
+
+	virtual void Print(SymInstrFunction* func);
 };
 
 
@@ -140,6 +150,9 @@ protected:
 	std::map< uint32_t, std::vector<size_t> > m_regDefs;
 	std::vector< std::pair<SymInstrBlock*, size_t> > m_defLocs;
 	std::vector< std::vector< std::pair<SymInstrBlock*, size_t> > > m_defUseChains;
+	std::vector< std::set<uint32_t> > m_regInterference;
+
+	std::vector<uint32_t> m_clobberedCalleeSavedRegs;
 
 	SymInstrBlock* AddBlock(ILBlock* il);
 	void AddExitBlock(SymInstrBlock* block, SymInstrBlock* exitBlock);
@@ -162,9 +175,19 @@ public:
 	uint32_t AddStackVar(int64_t offset);
 	const std::vector<int64_t>& GetStackVars() const { return m_stackVarOffsets; }
 
-	bool AllocateRegisters();
+	const std::vector<uint32_t>& GetClobberedCalleeSavedRegisters() const { return m_clobberedCalleeSavedRegs; }
+
+	bool AllocateRegisters(const Settings& settings);
+
+	virtual std::vector<uint32_t> GetCallerSavedRegisters(const Settings& settings) = 0;
+	virtual std::vector<uint32_t> GetCalleeSavedRegisters(const Settings& settings) = 0;
+	virtual std::set<uint32_t> GetRegisterClassInterferences(const Settings& settings, uint32_t cls) = 0;
+	virtual uint32_t GetSpecialRegisterAssignment(const Settings& settings, uint32_t reg) = 0;
+
+	virtual void AdjustStackFrame(const Settings& settings) = 0;
 
 	virtual void PrintRegisterClass(uint32_t cls) = 0;
+	virtual void PrintRegister(uint32_t reg);
 	virtual void Print();
 };
 

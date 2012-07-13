@@ -1902,6 +1902,7 @@ bool OutputQuark::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& in
 	if (m_framePointerEnabled)
 	{
 		out->AddInstruction(QuarkMov(SYMREG_SP, SYMREG_BP, 0));
+		out->AddInstruction(QuarkRestoreCalleeSavedRegs());
 		if (m_settings.stackGrowsUp)
 		{
 			out->AddInstruction(QuarkLoad32(SYMREG_BP, SYMREG_SP, 0));
@@ -1918,6 +1919,7 @@ bool OutputQuark::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& in
 			SubImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
 		else
 			AddImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
+		out->AddInstruction(QuarkRestoreCalleeSavedRegs());
 	}
 
 	// Pop return address
@@ -2413,6 +2415,7 @@ bool OutputQuark::GenerateCode(Function* func)
 			{
 				out->AddInstruction(QuarkStoreUpdate32(SYMREG_LR, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
 				out->AddInstruction(QuarkStoreUpdate32(SYMREG_BP, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
+				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 				out->AddInstruction(QuarkMov(SYMREG_BP, SYMREG_SP, 0));
 				if (m_settings.stackGrowsUp)
 					AddImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
@@ -2422,6 +2425,7 @@ bool OutputQuark::GenerateCode(Function* func)
 			else
 			{
 				out->AddInstruction(QuarkStoreUpdate32(SYMREG_LR, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
+				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 			}
 
 			first = false;
@@ -2431,7 +2435,7 @@ bool OutputQuark::GenerateCode(Function* func)
 			return false;
 	}
 
-	if (!m_symFunc->AllocateRegisters())
+	if (!m_symFunc->AllocateRegisters(m_settings))
 		return false;
 
 	fprintf(stderr, "\n%s:\n", func->GetName().c_str());

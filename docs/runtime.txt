@@ -124,7 +124,9 @@ link:malloc.html[malloc],
 link:memcpy.html[memcpy],
 link:memset.html[memset],
 link:mmap.html[mmap],
-link:munmap.html[munmap]
+link:munmap.html[munmap],
+link:shm_open.html[shm_open],
+link:shm_unlink.html[shm_unlink]
 
 Process functions
 -----------------

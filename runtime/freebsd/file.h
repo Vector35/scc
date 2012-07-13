@@ -109,5 +109,8 @@ int chflags(const char* path, int flags);
 int fchflags(int fd, int flags);
 int lchflags(const char* path, int flags);
 
+int shm_open(const char *name, int oflag, mode_t mode);
+int shm_unlink(const char *name);
+
 #endif
 

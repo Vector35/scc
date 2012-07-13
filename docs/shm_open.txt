@@ -1,0 +1,21 @@
+shm_open
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int shm_open(const char* path, int oflags, mode_t mode);
+---------------------------------------------
+
+Opens a shared memory page with the name specified by at `path`.  The `flags` argument is typically `O_RDONLY`, `O_WRONLY`,
+or `O_RDWR`.  The `mode` argument specifies the file permissions if the file is created.
+
+IMPORTANT: The `path` parameter must be prefixed with a '/' (forward slash).
+
+IMPORTANT: The `mode` parameter must always be specified for this runtime, even when not creating a file.  Use
+zero or the `__undefined` intrinsic when not creating a file.
+
+WARNING: This function is not yet available on Linux.
+
+See also
+--------
+link:shm_unlink.html[shm_unlink]

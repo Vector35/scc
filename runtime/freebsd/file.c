@@ -94,3 +94,12 @@ int lchflags(const char* path, int flags)
 	return __syscall(SYS_lchflags, path, flags);
 }
 
+int shm_open(const char *name, int oflag, mode_t mode)
+{
+	return __syscall(SYS_shm_open, name, oflag, mode);
+}
+
+int shm_unlink(const char *name)
+{
+	return __syscall(SYS_shm_unlink, name);
+}

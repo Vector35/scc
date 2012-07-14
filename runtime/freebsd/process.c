@@ -18,6 +18,22 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+unsigned int alarm(unsigned int seconds)
+{
+	struct itimerval value, old;
+	value.it_interval.tv_sec = 0;
+	value.it_interval.tv_usec = 0;
+	value.it_value.tv_sec = seconds;
+	value.it_value.tv_usec = 0;
+
+	if (setitimer(ITIMER_REAL, &value, &old) < 0)
+		return (unsigned int)-1;
+
+	if (old.it_value.tv_usec)
+		old.it_value.tv_sec++;
+	return old.it_value.tv_sec;
+}
+
 int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen)
 {
 	return __syscall(SYS___sysctl, name, namelen, oldp, oldlenp, newp, newlen);

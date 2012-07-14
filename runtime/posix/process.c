@@ -28,6 +28,16 @@ int execve(const char* filename, const char** argv, const char** envp)
 	__syscall(SYS_execve, filename, argv, envp);
 }
 
+int getitimer(int which, struct itimerval* value)
+{
+	return __syscall(SYS_getitimer, which, value);
+}
+
+int setitimer(int which, const struct itimerval* value, struct itimerval* old)
+{
+	return __syscall(SYS_setitimer, which, value, old);
+}
+
 uid_t getuid(void)
 {
 	return __syscall(SYS_getuid);

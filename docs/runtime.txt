@@ -130,7 +130,6 @@ link:shm_unlink.html[shm_unlink]
 
 Process functions
 -----------------
-link:alarm.html[alarm],
 link:execve.html[execve],
 link:exit.html[exit],
 link:fork.html[fork],
@@ -204,7 +203,10 @@ link:vsnprintf.html[vsnprintf]
 
 Time functions
 --------------
+link:alarm.html[alarm],
+link:getitimer.html[getitimer],
 link:gettimeofday.html[gettimeofday],
 link:nanosleep.html[nanosleep],
+link:setitimer.html[setitimer],
 link:time.html[time]
 

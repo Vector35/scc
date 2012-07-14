@@ -1,0 +1,15 @@
+getitimer
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+nt getitimer(int which, struct itimerval* value);
+---------------------------------------------
+
+Gets the current value of interval timer `which` and places the result in `value`.  The `which` parameter can be one
+of `ITIMER_REAL`, `ITIMER_VIRTUAL`, or `ITIMER_PROF`.
+
+See also
+--------
+link:alarm.html[alarm],
+link:setitimer.html[setitimer]

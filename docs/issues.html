@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.6.6" />
+<meta name="generator" content="AsciiDoc 8.6.7" />
 <title>Shellcode Compiler Runtime</title>
 <link rel="stylesheet" href="lib/asciidoc.css" type="text/css" />
 <link rel="stylesheet" href="lib/layout2.css" type="text/css" />
@@ -145,7 +145,7 @@ Windows is not supported as a target.
 <div class="ulist"><ul>
 <li>
 <p>
-Setting a signal handler on 64-bit Linux that is not <span class="monospaced">SIG_DFL</span> or <span class="monospaced">SIG_IGN</span> will cause the program to
+Setting a signal handler on 64-bit Linux or Mac OS X that is not <span class="monospaced">SIG_DFL</span> or <span class="monospaced">SIG_IGN</span> will cause the program to
 crash when the signal is received.  The reason is not known.  Additionally, even if it did not crash the
 parameters would not be correct, as the wrong calling convention is used (this is not the cause of the crash).
 </p>

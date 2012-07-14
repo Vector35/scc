@@ -33,6 +33,6 @@ pure position independent code.
 
 Runtime issues
 --------------
-* Setting a signal handler on 64-bit Linux that is not `SIG_DFL` or `SIG_IGN` will cause the program to
+* Setting a signal handler on 64-bit Linux or Mac OS X that is not `SIG_DFL` or `SIG_IGN` will cause the program to
 crash when the signal is received.  The reason is not known.  Additionally, even if it did not crash the
 parameters would not be correct, as the wrong calling convention is used (this is not the cause of the crash).

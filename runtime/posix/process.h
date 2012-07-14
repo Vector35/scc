@@ -64,6 +64,11 @@ int setregid(uid_t rid, uid_t eid);
 pid_t getpid(void);
 pid_t getppid(void);
 
+pid_t setsid(void);
+int setpgid(pid_t pid, pid_t pgid);
+pid_t getpgid(pid_t pid);
+pid_t getpgrp(void);
+
 int kill(pid_t pid, int sig);
 
 #endif

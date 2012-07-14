@@ -1,0 +1,16 @@
+setsid
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+pid_t setsid(void);
+---------------------------------------------
+
+Creates a new session for the current process by setting the process group ID to the current process ID.  Returns
+the new process group ID.
+
+See also
+--------
+link:getpgid.html[getpgid],
+link:getpgrp.html[getpgrp],
+link:setpgid.html[setpgid]

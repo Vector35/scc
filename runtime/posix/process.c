@@ -103,6 +103,26 @@ pid_t getppid(void)
 	return __syscall(SYS_getppid);
 }
 
+pid_t setsid(void)
+{
+	return __syscall(SYS_setsid);
+}
+
+int setpgid(pid_t pid, pid_t pgid)
+{
+	return __syscall(SYS_setpgid, pid, pgid);
+}
+
+pid_t getpgid(pid_t pid)
+{
+	return __syscall(SYS_getpgid, pid);
+}
+
+pid_t getpgrp(void)
+{
+	return __syscall(SYS_getpgrp);
+}
+
 int kill(pid_t pid, int sig)
 {
 	return __syscall(SYS_kill, pid, sig);

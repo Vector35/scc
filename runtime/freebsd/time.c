@@ -32,3 +32,8 @@ int gettimeofday(struct timeval* t, struct timezone* tz)
 	return __syscall(SYS_gettimeofday, t, tz);
 }
 
+int nanosleep(const struct timespec* amount, struct timespec* unslept)
+{
+	return __syscall(SYS_nanosleep, amount, unslept);
+}
+

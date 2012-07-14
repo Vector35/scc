@@ -33,8 +33,6 @@ pure position independent code.
 
 Runtime issues
 --------------
-* There is not currently a `signal` function in the runtime.  This means that if the process does
-not already ignore `SIGCHLD`, a call to link:wait.html[wait] or link:waitpid.html[waitpid] must
-follow a call to link:fork.html[fork], especially if link:fork.html[fork] may be called
-multiple times, or a zombie apocalypse may result.
-
+* Setting a signal handler on 64-bit Linux that is not `SIG_DFL` or `SIG_IGN` will cause the program to
+crash when the signal is received.  The reason is not known.  Additionally, even if it did not crash the
+parameters would not be correct, as the wrong calling convention is used (this is not the cause of the crash).

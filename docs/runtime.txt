@@ -137,6 +137,8 @@ link:fork.html[fork],
 link:getpid.html[getpid],
 link:getppid.html[getppid],
 link:kill.html[kill],
+link:sigaction.html[sigaction],
+link:signal.html[signal],
 link:sysctl.html[sysctl],
 link:system.html[system],
 link:tgkill.html[tgkill],
@@ -203,5 +205,6 @@ link:vsnprintf.html[vsnprintf]
 Time functions
 --------------
 link:gettimeofday.html[gettimeofday],
+link:nanosleep.html[nanosleep],
 link:time.html[time]
 

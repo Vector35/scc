@@ -148,10 +148,10 @@
 #define SYS_getsid			124
 #define SYS_capget			125
 #define SYS_capset			126
-#define SYS_rt_sigpendin		127
-#define SYS_rt_sigtimedw		128
-#define SYS_rt_sigqueuei		129
-#define SYS_rt_sigsuspen		130
+#define SYS_rt_sigpending		127
+#define SYS_rt_sigtimedwait		128
+#define SYS_rt_sigqueueinfo		129
+#define SYS_rt_sigsuspend		130
 #define SYS_sigaltstack			131
 #define SYS_utime			132
 #define SYS_mknod			133

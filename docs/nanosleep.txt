@@ -1,0 +1,15 @@
+nanosleep
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int nanosleep(const struct timespec* amount, struct timespec* unslept);
+---------------------------------------------
+
+Sleeps for the interval defined by `amount`.  If the time requested elapses without interruption, the function
+returns zero.  If the call is interrupted, the return value is the negation of the error code, and `unslept`
+is filled in with the time left to sleep if `unslept` is not `NULL`.
+
+See also
+--------
+link:alarm.html[alarm]

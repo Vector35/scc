@@ -33,3 +33,22 @@ pid_t fork(void)
 	return __syscall(SYS_fork);
 }
 
+sig_t signal(int sig, sig_t func)
+{
+	// FIXME: Handlers do not work on 64-bit because there is no way to force the correct calling convention.  Special
+	// values such as SIG_IGN do work.
+	struct sigaction act, old;
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = func;
+
+	int result = sigaction(sig, &act, &old);
+	if (result < 0)
+		return (sig_t)result;
+	return old.sa_handler;
+}
+
+int sigaction(int sig, const struct sigaction* act, struct sigaction* old)
+{
+	return __syscall(SYS_sigaction, sig, act, old);
+}
+

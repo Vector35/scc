@@ -28,3 +28,13 @@ pid_t waitpid(pid_t pid, int* status, int options)
 	return __syscall(SYS_waitpid, pid, status, options);
 }
 
+sig_t signal(int sig, sig_t func)
+{
+	return (sig_t)__syscall(SYS_signal, sig, func);
+}
+
+int sigaction(int sig, const struct sigaction* act, struct sigaction* old)
+{
+	return __syscall(SYS_sigaction, sig, act, old);
+}
+

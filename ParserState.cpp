@@ -25,7 +25,8 @@
 using namespace std;
 
 
-ParserState::ParserState(const string& name, void* scanner): m_fileName(name), m_scanner(scanner)
+ParserState::ParserState(const Settings& settings, const string& name, void* scanner):
+	m_fileName(name), m_scanner(scanner), m_settings(settings)
 {
 	m_initExpression = BasicExpr(EXPR_SEQUENCE);
 	m_globalScope = new Scope(NULL, true);
@@ -35,7 +36,8 @@ ParserState::ParserState(const string& name, void* scanner): m_fileName(name), m
 }
 
 
-ParserState::ParserState(ParserState* parent, const std::string& name, void* scanner): m_fileName(name), m_scanner(scanner)
+ParserState::ParserState(ParserState* parent, const std::string& name, void* scanner):
+	m_fileName(name), m_scanner(scanner), m_settings(parent->m_settings)
 {
 	DuplicateContext dup;
 	for (map< string, Ref<Type> >::iterator i = parent->m_types.begin(); i != parent->m_types.end(); i++)
@@ -542,6 +544,24 @@ void ParserState::AddInitExpression(Expr* expr)
 		m_initExpression->CopyChildren(expr);
 	else
 		m_initExpression->AddChild(expr);
+}
+
+
+bool ParserState::HasIntrinsicStrlen()
+{
+	return m_settings.architecture == ARCH_X86;
+}
+
+
+bool ParserState::HasIntrinsicMemcpy()
+{
+	return m_settings.architecture == ARCH_X86;
+}
+
+
+bool ParserState::HasIntrinsicMemset()
+{
+	return m_settings.architecture == ARCH_X86;
 }
 
 

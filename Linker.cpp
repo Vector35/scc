@@ -104,7 +104,7 @@ extern void Code_set_lineno(int line, void* yyscanner);
 
 
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL),
-	m_precompileState("precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
+	m_precompileState(settings, "precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
 {
 }
 
@@ -776,7 +776,7 @@ bool Linker::FinalizeLink()
 	startFunction->SetBody(startBody);
 
 	// First, propogate type information
-	ParserState startState("_start", NULL);
+	ParserState startState(m_settings, "_start", NULL);
 	startFunction->SetBody(startFunction->GetBody()->Simplify(&startState));
 	startFunction->GetBody()->ComputeType(&startState, startFunction);
 	startFunction->SetBody(startFunction->GetBody()->Simplify(&startState));

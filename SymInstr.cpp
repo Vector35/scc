@@ -46,7 +46,7 @@ void SymInstrOperand::Print(SymInstrFunction* f)
 }
 
 
-SymInstr::SymInstr()
+SymInstr::SymInstr(): m_flags(0)
 {
 }
 

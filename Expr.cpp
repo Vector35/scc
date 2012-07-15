@@ -2573,20 +2573,62 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
 		c = m_children[2]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_MEMCPY, a, b, c);
+		if (state->HasIntrinsicMemcpy())
+		{
+			block->AddInstruction(ILOP_MEMCPY, a, b, c);
+		}
+		else
+		{
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find("__memcpy");
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '__memcpy'\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b, c);
+		}
 		result = a;
 		break;
 	case EXPR_MEMSET:
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
 		c = m_children[2]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_MEMSET, a, b, c);
+		if (state->HasIntrinsicMemset())
+		{
+			block->AddInstruction(ILOP_MEMSET, a, b, c);
+		}
+		else
+		{
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find("__memset");
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '__memset'\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b, c);
+		}
 		result = a;
 		break;
 	case EXPR_STRLEN:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_STRLEN, result, a);
+		if (state->HasIntrinsicStrlen())
+		{
+			block->AddInstruction(ILOP_STRLEN, result, a);
+		}
+		else
+		{
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find("__strlen");
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '__strlen'\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a);
+		}
 		break;
 	case EXPR_CAST:
 		if (ILParameter::ReduceType(m_type) == ILParameter::ReduceType(m_children[0]->GetType()))

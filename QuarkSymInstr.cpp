@@ -502,6 +502,16 @@ QuarkAddGlobalInstr::QuarkAddGlobalInstr(uint32_t a, uint32_t b, int64_t offset,
 }
 
 
+QuarkAddBlockInstr::QuarkAddBlockInstr(uint32_t a, uint32_t b, Function* func, ILBlock* block, uint32_t scratch)
+{
+	SetOperation(0x18);
+	AddWriteRegisterOperand(a);
+	AddReadRegisterOperand(b);
+	AddBlockOperand(func, block);
+	AddTemporaryRegisterOperand(scratch);
+}
+
+
 QuarkCondBit1OpInstr::QuarkCondBit1OpInstr(uint32_t op, uint32_t a)
 {
 	SetOperation(op);
@@ -625,6 +635,25 @@ bool QuarkGlobalInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* 
 	reloc.extra = m_operands[3].reg & 31;
 	reloc.instruction = reloc.offset;
 	reloc.dataOffset = m_operands[2].immed;
+	reloc.overflow = RelativeLoadOverflowHandler;
+	out->relocs.push_back(reloc);
+	return true;
+}
+
+
+bool QuarkAddBlockInstr::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	out->WriteUInt32(__QUARK_IMM11(m_operation, m_operands[0].reg & 31, m_operands[1].reg & 31, 0));
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 11;
+	reloc.bitShift = 0;
+	reloc.offset = out->len - 4;
+	reloc.extra = m_operands[3].reg & 31;
+	reloc.instruction = reloc.offset;
+	reloc.target = m_operands[2].block;
 	reloc.overflow = RelativeLoadOverflowHandler;
 	out->relocs.push_back(reloc);
 	return true;
@@ -1423,6 +1452,19 @@ void QuarkAddGlobalInstr::Print(SymInstrFunction* func)
 }
 
 
+void QuarkAddBlockInstr::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "%s ", GetOperationName());
+	m_operands[0].Print(func);
+	fprintf(stderr, ", ");
+	m_operands[1].Print(func);
+	fprintf(stderr, ", ");
+	m_operands[2].Print(func);
+	fprintf(stderr, ", scratch ");
+	m_operands[3].Print(func);
+}
+
+
 void QuarkCondBit1OpInstr::Print(SymInstrFunction* func)
 {
 	fprintf(stderr, "%s ", GetOperationName());
@@ -1795,6 +1837,7 @@ SymInstr* QuarkAdd(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new 
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, int32_t immed) { return new Quark3OpInstr(0x18, a, b, immed); }
 SymInstr* QuarkAddStack(uint32_t a, uint32_t b, uint32_t var, int64_t o) { return new QuarkAddStackInstr(a, b, var, o); }
 SymInstr* QuarkAddGlobal(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch) { return new QuarkAddGlobalInstr(a, b, offset, scratch); }
+SymInstr* QuarkAddBlock(uint32_t a, uint32_t b, Function* func, ILBlock* block, uint32_t scratch) { return new QuarkAddBlockInstr(a, b, func, block, scratch); }
 SymInstr* QuarkSub(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpInstr(0x19, a, b, c, s); }
 SymInstr* QuarkSub(uint32_t a, uint32_t b, int32_t immed) { return new Quark3OpInstr(0x19, a, b, immed); }
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpExInstr(0x1a, a, b, c, s); }

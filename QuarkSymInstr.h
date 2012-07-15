@@ -349,6 +349,14 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
+class QuarkAddBlockInstr: public QuarkSymInstr
+{
+public:
+	QuarkAddBlockInstr(uint32_t a, uint32_t b, Function* func, ILBlock* block, uint32_t scratch);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+};
+
 class QuarkCondBit1OpInstr: public QuarkSymInstr
 {
 public:
@@ -519,6 +527,7 @@ SymInstr* QuarkAdd(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkAddStack(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 SymInstr* QuarkAddGlobal(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkAddBlock(uint32_t a, uint32_t b, Function* func, ILBlock* block, uint32_t scratch);
 SymInstr* QuarkSub(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkSub(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, uint32_t c, uint32_t s);

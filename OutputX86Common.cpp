@@ -1602,8 +1602,6 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOfMember(OutputBlock* out, const ILInstru
 		return false;
 	if (!PrepareLoad(out, instr.params[1], src))
 		return false;
-	if (src.type != OPERANDREF_MEM)
-		return false;
 
 	// Load pointer into a register
 	OperandReference temp;

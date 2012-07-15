@@ -526,6 +526,7 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 	params.push_back(b);
 	params.push_back(c);
 	params.push_back(d);
+	params.push_back(e);
 }
 
 

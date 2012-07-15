@@ -1285,8 +1285,8 @@ bool OutputQuark::GenerateIfTrue(SymInstrBlock* out, const ILInstruction& instr)
 		out->AddInstruction(QuarkCmp(0, QUARK_COND_NE, value.reg, 0));
 	}
 
-	ConditionalJump(out, instr.params[2].block, 0, true);
-	UnconditionalJump(out, instr.params[3].block);
+	ConditionalJump(out, instr.params[1].block, 0, true);
+	UnconditionalJump(out, instr.params[2].block);
 	return true;
 }
 

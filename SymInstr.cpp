@@ -111,7 +111,7 @@ void SymInstr::AddBlockOperand(Function* func, ILBlock* block)
 }
 
 
-bool SymInstr::ReplacePseudoInstruction(SymInstrFunction* func, const Settings& settings, vector<SymInstr*>& replacement)
+bool SymInstr::UpdateInstruction(SymInstrFunction* func, const Settings& settings, vector<SymInstr*>& replacement)
 {
 	return false;
 }
@@ -156,6 +156,13 @@ void SymInstrBlock::ResetDataFlowInfo(size_t defs, size_t regs)
 
 bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 {
+	// The register is always live for the instruction it is defined at
+	for (vector<SymInstrOperand>::iterator i = m_instrs[instr]->GetOperands().begin(); i != m_instrs[instr]->GetOperands().end(); i++)
+	{
+		if ((i->type == SYMOPERAND_REG) && (i->access != SYMOPERAND_READ) && (i->reg == reg))
+			return true;
+	}
+
 	// Determine if there is a definition of this register before the requested instruction
 	bool hasDefBeforeInstr = false;
 	if (m_liveIn.GetBit(reg))
@@ -166,7 +173,8 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 		{
 			for (vector<SymInstrOperand>::iterator j = m_instrs[i]->GetOperands().begin(); j != m_instrs[i]->GetOperands().end(); j++)
 			{
-				if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) && (j->reg == reg))
+				if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) &&
+					(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
 					hasDefBeforeInstr = true;
 			}
 		}
@@ -183,13 +191,15 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 	{
 		for (vector<SymInstrOperand>::iterator j = m_instrs[i]->GetOperands().begin(); j != m_instrs[i]->GetOperands().end(); j++)
 		{
-			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_WRITE) && (j->reg == reg))
+			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_WRITE) &&
+				(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
 			{
 				// Register is being used before another definition, it is live
 				return true;
 			}
 
-			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) && (j->reg == reg))
+			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) &&
+				(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
 			{
 				// Register is being defined before the original definition was used, register is not live at
 				// the instruction requested
@@ -200,6 +210,17 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 
 	// Reached end of block, use block level liveness data from the data flow analysis
 	return m_liveOut.GetBit(reg);
+}
+
+
+bool SymInstrBlock::EmitCode(SymInstrFunction* func, OutputBlock* out)
+{
+	for (vector<SymInstr*>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
+	{
+		if (!(*i)->EmitInstruction(func, out))
+			return false;
+	}
+	return true;
 }
 
 
@@ -608,6 +629,33 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 					m_regInterference[k].insert(i);
 				}
 			}
+
+			// If this is a temporary register usage, register interferes with all other registers used by this instruction
+			bool tempUse = false;
+			for (vector<SymInstrOperand>::iterator k = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
+				k != defBlock->GetInstructions()[defInstr]->GetOperands().end(); k++)
+			{
+				if ((k->type == SYMOPERAND_REG) && (k->access == SYMOPERAND_TEMPORARY) && (k->reg == i))
+				{
+					tempUse = true;
+					break;
+				}
+			}
+
+			if (tempUse)
+			{
+				// Using as temporary, interfere with any other registers, even reads, since the register is being
+				// used as part of the instruction itself
+				for (vector<SymInstrOperand>::iterator k = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
+					k != defBlock->GetInstructions()[defInstr]->GetOperands().end(); k++)
+				{
+					if ((k->type == SYMOPERAND_REG) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+					{
+						m_regInterference[i].insert(k->reg);
+						m_regInterference[k->reg].insert(i);
+					}
+				}
+			}
 		}
 
 		// Add interference edges to native registers according to the register class
@@ -629,6 +677,20 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 			// Check all registers, if a register is live at this call, generate caller saved register interferences
 			for (uint32_t k = 0; k < (uint32_t)m_symRegClass.size(); k++)
 			{
+				// Skip registers that are defined by the call itself
+				bool definedByCall = false;
+				for (vector<SymInstrOperand>::iterator n = (*i)->GetInstructions()[j]->GetOperands().begin();
+					n != (*i)->GetInstructions()[j]->GetOperands().end(); n++)
+				{
+					if ((n->type == SYMOPERAND_REG) && (n->access != SYMOPERAND_READ) && (n->reg == k))
+					{
+						definedByCall = true;
+						break;
+					}
+				}
+				if (definedByCall)
+					continue;
+
 				if ((*i)->IsRegisterLiveAtDefinition(k, j))
 				{
 					// Register is live at this call, add caller saved registers to interference graph
@@ -803,14 +865,14 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 	m_exitReachingDefs.Reset(0, false);
 	m_defUseChains.clear();
 
-	// Replace pseudo-instructions with the final forms.  For example, this step will generate code for saving and
+	// Replace instructions with the final forms.  For example, this step will generate code for saving and
 	// restoring callee saved registers onto the stack frame.
 	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
 	{
 		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
 		{
 			vector<SymInstr*> replacement;
-			if ((*i)->GetInstructions()[j]->ReplacePseudoInstruction(this, settings, replacement))
+			if ((*i)->GetInstructions()[j]->UpdateInstruction(this, settings, replacement))
 			{
 				(*i)->ReplaceInstruction(j, replacement);
 				j += replacement.size() - 1;

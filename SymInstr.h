@@ -39,7 +39,8 @@ enum SymInstrOperandAccess
 {
 	SYMOPERAND_READ,
 	SYMOPERAND_WRITE,
-	SYMOPERAND_READ_WRITE
+	SYMOPERAND_READ_WRITE,
+	SYMOPERAND_TEMPORARY
 };
 
 class SymInstrBlock;
@@ -84,12 +85,14 @@ public:
 	void AddReadRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_READ); }
 	void AddWriteRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_WRITE); }
 	void AddReadWriteRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_READ_WRITE); }
+	void AddTemporaryRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_TEMPORARY); }
 	void AddImmediateOperand(int64_t immed);
 	void AddStackVarOperand(uint32_t var, int64_t offset);
 	void AddGlobalVarOperand(int64_t dataOffset);
 	void AddBlockOperand(Function* func, ILBlock* block);
 
-	virtual bool ReplacePseudoInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out) = 0;
 	virtual void Print(SymInstrFunction* func) = 0;
 };
 
@@ -130,6 +133,8 @@ public:
 	BitVector& GetLiveOutput() { return m_liveOut; }
 
 	bool IsRegisterLiveAtDefinition(uint32_t reg, size_t instr);
+
+	bool EmitCode(SymInstrFunction* func, OutputBlock* out);
 
 	virtual void Print(SymInstrFunction* func);
 };

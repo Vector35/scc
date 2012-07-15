@@ -24,54 +24,13 @@
 #include "Function.h"
 #include "Struct.h"
 
-#define NONE (-1)
 #define UNSAFE_STACK_PIVOT 0x1000
-
-#define DEFAULT_STACK_POINTER 0
-#define DEFAULT_FRAME_POINTER 29
-#define LR                    30
-#define IP                    31
-
-#define EMIT(op) (out->WriteUInt32(QUARK_EMIT(op)))
-#define EMIT_1(op, a) (out->WriteUInt32(QUARK_EMIT_1(op, a)))
-#define EMIT_1I(op, a) (out->WriteUInt32(QUARK_EMIT_1I(op, a)))
-#define EMIT_1R(op, a) (out->WriteUInt32(QUARK_EMIT_1R(op, a)))
-#define EMIT_2(op, a, b) (out->WriteUInt32(QUARK_EMIT_2(op, a, b)))
-#define EMIT_2I(op, a, b) (out->WriteUInt32(QUARK_EMIT_2I(op, a, b)))
-#define EMIT_2F(op, a, b) (out->WriteUInt32(QUARK_EMIT_2F(op, a, b)))
-#define EMIT_2R(op, a, b, s) (out->WriteUInt32(QUARK_EMIT_2R(op, a, b, s)))
-#define EMIT_3(op, a, b, c) (out->WriteUInt32(QUARK_EMIT_3(op, a, b, c)))
-#define EMIT_3I(op, a, b, c) (out->WriteUInt32(QUARK_EMIT_3I(op, a, b, c)))
-#define EMIT_3F(op, a, b, c) (out->WriteUInt32(QUARK_EMIT_3F(op, a, b, c)))
-#define EMIT_3R(op, a, b, c, s) (out->WriteUInt32(QUARK_EMIT_3R(op, a, b, c, s)))
-#define EMIT_4(op, a, b, c, d) (out->WriteUInt32(QUARK_EMIT_4(op, a, b, c, d)))
-#define EMIT_COND(op, cc) (out->WriteUInt32(QUARK_EMIT_COND(op, cc)))
-#define EMIT_COND_1(op, cc, a) (out->WriteUInt32(QUARK_EMIT_COND_1(op, cc, a)))
-#define EMIT_COND_1I(op, cc, a) (out->WriteUInt32(QUARK_EMIT_COND_1I(op, cc, a)))
-#define EMIT_COND_1R(op, cc, a) (out->WriteUInt32(QUARK_EMIT_COND_1R(op, cc, a)))
-#define EMIT_COND_2(op, cc, a, b) (out->WriteUInt32(QUARK_EMIT_COND_2(op, cc, a, b)))
-#define EMIT_COND_2I(op, cc, a, b) (out->WriteUInt32(QUARK_EMIT_COND_2I(op, cc, a, b)))
-#define EMIT_COND_2F(op, cc, a, b) (out->WriteUInt32(QUARK_EMIT_COND_2F(op, cc, a, b)))
-#define EMIT_COND_2R(op, cc, a, b, s) (out->WriteUInt32(QUARK_EMIT_COND_2R(op, cc, a, b, s)))
-#define EMIT_COND_3(op, cc, a, b, c) (out->WriteUInt32(QUARK_EMIT_COND_3(op, cc, a, b, c)))
-#define EMIT_COND_3I(op, cc, a, b, c) (out->WriteUInt32(QUARK_EMIT_COND_3I(op, cc, a, b, c)))
-#define EMIT_COND_3F(op, cc, a, b, c) (out->WriteUInt32(QUARK_EMIT_COND_3F(op, cc, a, b, c)))
-#define EMIT_COND_3R(op, cc, a, b, c, s) (out->WriteUInt32(QUARK_EMIT_COND_3R(op, cc, a, b, c, s)))
-#define EMIT_COND_4(op, cc, a, b, c, d) (out->WriteUInt32(QUARK_EMIT_COND_4(op, cc, a, b, c, d)))
 
 using namespace std;
 
 
 OutputQuark::OutputQuark(const Settings& settings): Output(settings)
 {
-}
-
-
-int OutputQuark::GetRegisterByName(const std::string& name)
-{
-	if (name[0] != 'r')
-		return NONE;
-	return atoi(&name.c_str()[1]);
 }
 
 
@@ -150,55 +109,6 @@ void OutputQuark::SubImm(SymInstrBlock* out, uint32_t dest, uint32_t src, int32_
 }
 
 
-void OutputQuark::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc)
-{
-	size_t start = reloc.instruction;
-	uint32_t* oldInstr = (uint32_t*)((size_t)out->code + start);
-
-	if (reloc.bitSize == 17)
-	{
-		// Was a 17-bit immediate, use a full 32-bit immediate
-		uint32_t instrs[3];
-		int32_t oldOffset = oldInstr[0] & 0x1ffff;
-		int oldReg = (oldInstr[1] >> 17) & 31;
-		if (oldOffset & 0x10000)
-			oldOffset |= 0xfffe0000;
-
-		oldOffset -= 4;
-
-		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
-		instrs[1] = QUARK_EMIT_2(ldih, reloc.extra, (oldOffset < 0) ? -1 : 0);
-		instrs[2] = QUARK_EMIT_3R(add, oldReg, IP, reloc.extra, 0);
-
-		out->ReplaceInstruction(start, 8, instrs, 12, 0);
-
-		reloc.type = DATA_RELOC_RELATIVE_64_SPLIT_FIELD;
-		reloc.bitSize = 16;
-		reloc.secondBitOffset = 0;
-		reloc.secondBitSize = 16;
-		reloc.secondBitShift = 16;
-	}
-	else
-	{
-		// Was an 11-bit immediate, extend to a 17-bit immediate
-		uint32_t instrs[2];
-		int32_t oldOffset = oldInstr[0] & 0x7ff;
-		int oldReg = (oldInstr[0] >> 17) & 31;
-		if (oldOffset & 0x400)
-			oldOffset |= 0xfffff800;
-
-		oldOffset -= 4;
-
-		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
-		instrs[1] = QUARK_EMIT_3R(add, oldReg, IP, reloc.extra, 0);
-
-		out->ReplaceInstruction(start, 4, instrs, 8, 0);
-
-		reloc.bitSize = 17;
-	}
-}
-
-
 bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
 {
 	if (param.cls == ILPARAM_MEMBER)
@@ -227,6 +137,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 		ref.memType = MEMORYREF_GLOBAL_VAR;
 		ref.base = SYMREG_IP;
 		ref.offset = param.variable->GetDataSectionOffset();
+		ref.scratch = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		return true;
 	}
 
@@ -279,13 +190,13 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 					if (ref.memType == MEMORYREF_STACK_VAR)
 						out->AddInstruction(QuarkLoadStackFS(reg, ref.base, ref.var, ref.offset));
 					else
-						out->AddInstruction(QuarkLoadGlobalFS(reg, ref.base, ref.offset));
+						out->AddInstruction(QuarkLoadGlobalFS(reg, ref.base, ref.offset, ref.scratch));
 					break;
 				case 8:
 					if (ref.memType == MEMORYREF_STACK_VAR)
 						out->AddInstruction(QuarkLoadStackFD(reg, ref.base, ref.var, ref.offset));
 					else
-						out->AddInstruction(QuarkLoadGlobalFD(reg, ref.base, ref.offset));
+						out->AddInstruction(QuarkLoadGlobalFD(reg, ref.base, ref.offset, ref.scratch));
 					break;
 				default:
 					return false;
@@ -299,19 +210,19 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 					if (ref.memType == MEMORYREF_STACK_VAR)
 						out->AddInstruction(QuarkLoadStack8(reg, ref.base, ref.var, ref.offset));
 					else
-						out->AddInstruction(QuarkLoadGlobal8(reg, ref.base, ref.offset));
+						out->AddInstruction(QuarkLoadGlobal8(reg, ref.base, ref.offset, ref.scratch));
 					break;
 				case 2:
 					if (ref.memType == MEMORYREF_STACK_VAR)
 						out->AddInstruction(QuarkLoadStack16(reg, ref.base, ref.var, ref.offset));
 					else
-						out->AddInstruction(QuarkLoadGlobal16(reg, ref.base, ref.offset));
+						out->AddInstruction(QuarkLoadGlobal16(reg, ref.base, ref.offset, ref.scratch));
 					break;
 				case 4:
 					if (ref.memType == MEMORYREF_STACK_VAR)
 						out->AddInstruction(QuarkLoadStack32(reg, ref.base, ref.var, ref.offset));
 					else
-						out->AddInstruction(QuarkLoadGlobal32(reg, ref.base, ref.offset));
+						out->AddInstruction(QuarkLoadGlobal32(reg, ref.base, ref.offset, ref.scratch));
 					break;
 				case 8:
 					if (ref.memType == MEMORYREF_STACK_VAR)
@@ -321,8 +232,8 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 					}
 					else
 					{
-						out->AddInstruction(QuarkLoadGlobal32(reg, ref.base, ref.offset));
-						out->AddInstruction(QuarkLoadGlobal32(highReg, ref.base, ref.offset + 4));
+						out->AddInstruction(QuarkLoadGlobal32(reg, ref.base, ref.offset, ref.scratch));
+						out->AddInstruction(QuarkLoadGlobal32(highReg, ref.base, ref.offset + 4, ref.scratch));
 					}
 					break;
 				default:
@@ -465,19 +376,19 @@ bool OutputQuark::Move(SymInstrBlock* out, const OperandReference& dest, const O
 			if (dest.memType == MEMORYREF_STACK_VAR)
 				out->AddInstruction(QuarkStoreStack8(srcReg.reg, dest.base, dest.var, dest.offset));
 			else
-				out->AddInstruction(QuarkStoreGlobal8(srcReg.reg, dest.base, dest.offset));
+				out->AddInstruction(QuarkStoreGlobal8(srcReg.reg, dest.base, dest.offset, dest.scratch));
 			break;
 		case 2:
 			if (dest.memType == MEMORYREF_STACK_VAR)
 				out->AddInstruction(QuarkStoreStack16(srcReg.reg, dest.base, dest.var, dest.offset));
 			else
-				out->AddInstruction(QuarkStoreGlobal16(srcReg.reg, dest.base, dest.offset));
+				out->AddInstruction(QuarkStoreGlobal16(srcReg.reg, dest.base, dest.offset, dest.scratch));
 			break;
 		case 4:
 			if (dest.memType == MEMORYREF_STACK_VAR)
 				out->AddInstruction(QuarkStoreStack32(srcReg.reg, dest.base, dest.var, dest.offset));
 			else
-				out->AddInstruction(QuarkStoreGlobal32(srcReg.reg, dest.base, dest.offset));
+				out->AddInstruction(QuarkStoreGlobal32(srcReg.reg, dest.base, dest.offset, dest.scratch));
 			break;
 		case 8:
 			if (dest.memType == MEMORYREF_STACK_VAR)
@@ -487,8 +398,8 @@ bool OutputQuark::Move(SymInstrBlock* out, const OperandReference& dest, const O
 			}
 			else
 			{
-				out->AddInstruction(QuarkStoreGlobal32(srcReg.reg, dest.base, dest.offset));
-				out->AddInstruction(QuarkStoreGlobal32(srcReg.highReg, dest.base, dest.offset + 4));
+				out->AddInstruction(QuarkStoreGlobal32(srcReg.reg, dest.base, dest.offset, dest.scratch));
+				out->AddInstruction(QuarkStoreGlobal32(srcReg.highReg, dest.base, dest.offset + 4, dest.scratch));
 			}
 			break;
 		default:
@@ -546,7 +457,7 @@ bool OutputQuark::GenerateAddressOf(SymInstrBlock* out, const ILInstruction& ins
 	if (ref.memType == MEMORYREF_STACK_VAR)
 		out->AddInstruction(QuarkAddStack(addr.reg, ref.base, ref.var, ref.offset));
 	else
-		out->AddInstruction(QuarkAddGlobal(addr.reg, ref.base, ref.offset));
+		out->AddInstruction(QuarkAddGlobal(addr.reg, ref.base, ref.offset, ref.scratch));
 	return Move(out, dest, addr);
 }
 
@@ -573,7 +484,7 @@ bool OutputQuark::GenerateAddressOfMember(SymInstrBlock* out, const ILInstructio
 	if (ref.memType == MEMORYREF_STACK_VAR)
 		out->AddInstruction(QuarkAddStack(addr.reg, ref.base, ref.var, ref.offset + member->offset));
 	else
-		out->AddInstruction(QuarkAddGlobal(addr.reg, ref.base, ref.offset + member->offset));
+		out->AddInstruction(QuarkAddGlobal(addr.reg, ref.base, ref.offset + member->offset, ref.scratch));
 	return Move(out, dest, addr);
 }
 
@@ -1614,7 +1525,7 @@ bool OutputQuark::GenerateGoto(SymInstrBlock* out, const ILInstruction& instr)
 			out->AddInstruction(QuarkMov(SYMREG_IP, value.reg, 0));
 			break;
 		case OPERANDREF_IMMED:
-			out->AddInstruction(QuarkMov(SYMREG_IP, (int32_t)value.immed));
+			LoadImm(out, SYMREG_IP, (int32_t)value.immed);
 			break;
 		default:
 			return false;
@@ -1809,7 +1720,7 @@ bool OutputQuark::GenerateSignedConvert(SymInstrBlock* out, const ILInstruction&
 		out->AddInstruction(QuarkSxh(result.reg, src.reg));
 		break;
 	default:
-		out->AddInstruction(QuarkMov(result.reg, src.reg));
+		out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
 		break;
 	}
 
@@ -1875,13 +1786,13 @@ bool OutputQuark::GenerateReturn(SymInstrBlock* out, const ILInstruction& instr)
 		case 2:
 		case 4:
 			retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
-			out->AddInstruction(QuarkMov(retVal, (int32_t)retValOperand.immed));
+			LoadImm(out, retVal, (int32_t)retValOperand.immed);
 			break;
 		case 8:
 			retVal = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE);
 			retValHigh = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH);
-			out->AddInstruction(QuarkMov(retVal, (int32_t)retValOperand.immed));
-			out->AddInstruction(QuarkMov(retValHigh, (int32_t)(retValOperand.immed >> 32)));
+			LoadImm(out, retVal, (int32_t)retValOperand.immed);
+			LoadImm(out, retValHigh, (int32_t)(retValOperand.immed >> 32));
 			break;
 		default:
 			return false;
@@ -1902,16 +1813,6 @@ bool OutputQuark::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& in
 	if (m_framePointerEnabled)
 	{
 		out->AddInstruction(QuarkMov(SYMREG_SP, SYMREG_BP, 0));
-		out->AddInstruction(QuarkRestoreCalleeSavedRegs());
-		if (m_settings.stackGrowsUp)
-		{
-			out->AddInstruction(QuarkLoad32(SYMREG_BP, SYMREG_SP, 0));
-			out->AddInstruction(QuarkSub(SYMREG_SP, SYMREG_SP, 4));
-		}
-		else
-		{
-			out->AddInstruction(QuarkLoadUpdate32(SYMREG_BP, SYMREG_SP, 0));
-		}
 	}
 	else if (m_stackFrameSize != 0)
 	{
@@ -1919,27 +1820,11 @@ bool OutputQuark::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& in
 			SubImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
 		else
 			AddImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
-		out->AddInstruction(QuarkRestoreCalleeSavedRegs());
 	}
 
-	// Pop return address
-	if ((!m_settings.stackGrowsUp) && (!m_settings.encodePointers))
-	{
-		// Normal stack, pop directly into IP
-		out->AddInstruction(QuarkLoadUpdate32(SYMREG_IP, SYMREG_SP, 0));
-		return true;
-	}
+	out->AddInstruction(QuarkRestoreCalleeSavedRegs());
 
-	if (m_settings.stackGrowsUp)
-	{
-		out->AddInstruction(QuarkLoad32(SYMREG_LR, SYMREG_SP, 0));
-		out->AddInstruction(QuarkSub(SYMREG_SP, SYMREG_SP, 4));
-	}
-	else
-	{
-		out->AddInstruction(QuarkLoadUpdate32(SYMREG_LR, SYMREG_SP, 0));
-	}
-
+	// Return to caller
 	if (m_settings.encodePointers)
 	{
 		// Using encoded pointers, decode return address before returning
@@ -2377,9 +2262,9 @@ bool OutputQuark::GenerateCode(Function* func)
 
 		// Allocate stack space for this parameter
 		if (m_framePointerEnabled)
-			m_stackFrame[*var] = offset + 8;
+			m_stackFrame[*var] = offset;
 		else
-			m_stackFrame[*var] = offset + m_stackFrameSize + 4;
+			m_stackFrame[*var] = offset + m_stackFrameSize;
 
 		if (m_settings.stackGrowsUp)
 		{
@@ -2413,8 +2298,6 @@ bool OutputQuark::GenerateCode(Function* func)
 			// Generate function prologue
 			if (m_framePointerEnabled)
 			{
-				out->AddInstruction(QuarkStoreUpdate32(SYMREG_LR, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
-				out->AddInstruction(QuarkStoreUpdate32(SYMREG_BP, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
 				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 				out->AddInstruction(QuarkMov(SYMREG_BP, SYMREG_SP, 0));
 				if (m_settings.stackGrowsUp)
@@ -2424,7 +2307,6 @@ bool OutputQuark::GenerateCode(Function* func)
 			}
 			else
 			{
-				out->AddInstruction(QuarkStoreUpdate32(SYMREG_LR, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
 				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 			}
 
@@ -2435,11 +2317,29 @@ bool OutputQuark::GenerateCode(Function* func)
 			return false;
 	}
 
+	// Allocate registers for symbolic code to produce final assembly
 	if (!m_symFunc->AllocateRegisters(m_settings))
 		return false;
 
-	fprintf(stderr, "\n%s:\n", func->GetName().c_str());
-	m_symFunc->Print();
+	// Emit machine code for each block
+	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
+	{
+		OutputBlock* out = new OutputBlock;
+		out->code = NULL;
+		out->len = 0;
+		out->maxLen = 0;
+
+		if (!m_symFunc->GetBlock(*i)->EmitCode(m_symFunc, out))
+		{
+			delete out;
+			return false;
+		}
+
+		(*i)->SetOutputBlock(out);
+	}
+
+//	fprintf(stderr, "\n%s:\n", func->GetName().c_str());
+//	m_symFunc->Print();
 	return true;
 }
 

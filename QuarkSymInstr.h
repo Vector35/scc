@@ -65,12 +65,21 @@ enum QuarkRegisterClass
 
 class QuarkSymInstr: public SymInstr
 {
+protected:
+	static void RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc);
+
 public:
 	QuarkSymInstr();
 	const char* GetOperationName() const;
 };
 
-class Quark1OpInstr: public QuarkSymInstr
+class Quark1OpInstrBase: public QuarkSymInstr
+{
+public:
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class Quark1OpInstr: public Quark1OpInstrBase
 {
 public:
 	Quark1OpInstr(uint32_t op, uint32_t a, uint32_t shift);
@@ -78,21 +87,27 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class Quark1OpReadRegInstr: public QuarkSymInstr
+class Quark1OpReadRegInstr: public Quark1OpInstrBase
 {
 public:
 	Quark1OpReadRegInstr(uint32_t op, uint32_t a);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class Quark1OpWriteRegInstr: public QuarkSymInstr
+class Quark1OpWriteRegInstr: public Quark1OpInstrBase
 {
 public:
 	Quark1OpWriteRegInstr(uint32_t op, uint32_t a);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class Quark2OpInstr: public QuarkSymInstr
+class Quark2OpInstrBase: public QuarkSymInstr
+{
+public:
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class Quark2OpInstr: public Quark2OpInstrBase
 {
 public:
 	Quark2OpInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t shift);
@@ -100,14 +115,20 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class Quark2OpRegInstr: public QuarkSymInstr
+class Quark2OpRegInstr: public Quark2OpInstrBase
 {
 public:
 	Quark2OpRegInstr(uint32_t op, uint32_t a, uint32_t b);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class Quark3OpInstr: public QuarkSymInstr
+class Quark3OpInstrBase: public QuarkSymInstr
+{
+public:
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class Quark3OpInstr: public Quark3OpInstrBase
 {
 public:
 	Quark3OpInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t shift);
@@ -115,7 +136,7 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class Quark3OpExInstr: public QuarkSymInstr
+class Quark3OpExInstr: public Quark3OpInstrBase
 {
 public:
 	Quark3OpExInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t shift);
@@ -123,7 +144,7 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkFloat3OpInstr: public QuarkSymInstr
+class QuarkFloat3OpInstr: public Quark3OpInstrBase
 {
 public:
 	QuarkFloat3OpInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c);
@@ -134,10 +155,20 @@ class Quark4OpInstr: public QuarkSymInstr
 {
 public:
 	Quark4OpInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t d);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkLoadInstr: public QuarkSymInstr
+class QuarkMovInstr: public Quark2OpInstrBase
+{
+public:
+	QuarkMovInstr(uint32_t a, uint32_t b, uint32_t shift);
+	QuarkMovInstr(uint32_t a, int32_t immed);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual void Print(SymInstrFunction* func);
+};
+
+class QuarkLoadInstr: public Quark3OpInstrBase
 {
 public:
 	QuarkLoadInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t shift);
@@ -145,21 +176,33 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkStackLoadInstr: public QuarkSymInstr
+class QuarkStackInstrBase: public QuarkSymInstr
+{
+public:
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class QuarkStackLoadInstr: public QuarkStackInstrBase
 {
 public:
 	QuarkStackLoadInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkGlobalLoadInstr: public QuarkSymInstr
+class QuarkGlobalInstrBase: public QuarkSymInstr
 {
 public:
-	QuarkGlobalLoadInstr(uint32_t op, uint32_t a, uint32_t b, int64_t offset);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class QuarkGlobalLoadInstr: public QuarkGlobalInstrBase
+{
+public:
+	QuarkGlobalLoadInstr(uint32_t op, uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkLoadUpdateInstr: public QuarkSymInstr
+class QuarkLoadUpdateInstr: public Quark3OpInstrBase
 {
 public:
 	QuarkLoadUpdateInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t shift);
@@ -167,21 +210,27 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkLoadImmInstr: public QuarkSymInstr
+class QuarkLoadImmInstrBase: public QuarkSymInstr
+{
+public:
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class QuarkLoadImmInstr: public QuarkLoadImmInstrBase
 {
 public:
 	QuarkLoadImmInstr(uint32_t a, int32_t immed);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkLoadImmHighInstr: public QuarkSymInstr
+class QuarkLoadImmHighInstr: public QuarkLoadImmInstrBase
 {
 public:
 	QuarkLoadImmHighInstr(uint32_t a, int32_t immed);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkStoreInstr: public QuarkSymInstr
+class QuarkStoreInstr: public Quark3OpInstrBase
 {
 public:
 	QuarkStoreInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t shift);
@@ -189,21 +238,21 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkStackStoreInstr: public QuarkSymInstr
+class QuarkStackStoreInstr: public QuarkStackInstrBase
 {
 public:
 	QuarkStackStoreInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkGlobalStoreInstr: public QuarkSymInstr
+class QuarkGlobalStoreInstr: public QuarkGlobalInstrBase
 {
 public:
-	QuarkGlobalStoreInstr(uint32_t op, uint32_t a, uint32_t b, int64_t offset);
+	QuarkGlobalStoreInstr(uint32_t op, uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkStoreUpdateInstr: public QuarkSymInstr
+class QuarkStoreUpdateInstr: public Quark3OpInstrBase
 {
 public:
 	QuarkStoreUpdateInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c, uint32_t shift);
@@ -211,10 +260,16 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkBranchInstr: public QuarkSymInstr
+class QuarkBranchInstrBase: public QuarkSymInstr
 {
 public:
-	QuarkBranchInstr(uint32_t op, Function* func, ILBlock* block);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class QuarkBranchInstr: public QuarkBranchInstrBase
+{
+public:
+	QuarkBranchInstr(Function* func, ILBlock* block);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -222,17 +277,18 @@ class QuarkCondJumpInstr: public QuarkSymInstr
 {
 public:
 	QuarkCondJumpInstr(uint32_t b, uint32_t val, Function* func, ILBlock* block);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkCallInstr: public QuarkSymInstr
+class QuarkCallInstr: public QuarkBranchInstrBase
 {
 public:
-	QuarkCallInstr(uint32_t op, Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh);
+	QuarkCallInstr(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkCallRegInstr: public QuarkSymInstr
+class QuarkCallRegInstr: public Quark1OpInstrBase
 {
 public:
 	QuarkCallRegInstr(uint32_t a, uint32_t retVal, uint32_t retValHigh);
@@ -243,10 +299,11 @@ class QuarkSyscallImmInstr: public QuarkSymInstr
 {
 public:
 	QuarkSyscallImmInstr(int32_t imm, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkSyscallRegInstr: public QuarkSymInstr
+class QuarkSyscallRegInstr: public Quark1OpInstrBase
 {
 public:
 	QuarkSyscallRegInstr(uint32_t a, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
@@ -258,6 +315,7 @@ class QuarkCmpInstr: public QuarkSymInstr
 public:
 	QuarkCmpInstr(uint32_t op, uint32_t b, uint32_t cmp, uint32_t a, uint32_t c, uint32_t shift);
 	QuarkCmpInstr(uint32_t op, uint32_t b, uint32_t cmp, uint32_t a, int32_t immed);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -266,27 +324,28 @@ class QuarkCondCmpInstr: public QuarkSymInstr
 public:
 	QuarkCondCmpInstr(uint32_t cc, uint32_t val, uint32_t op, uint32_t b, uint32_t cmp, uint32_t a, uint32_t c, uint32_t shift);
 	QuarkCondCmpInstr(uint32_t cc, uint32_t val, uint32_t op, uint32_t b, uint32_t cmp, uint32_t a, int32_t immed);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkXchgInstr: public QuarkSymInstr
+class QuarkXchgInstr: public Quark2OpInstrBase
 {
 public:
 	QuarkXchgInstr(uint32_t a, uint32_t b);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkAddStackInstr: public QuarkSymInstr
+class QuarkAddStackInstr: public QuarkStackInstrBase
 {
 public:
 	QuarkAddStackInstr(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkAddGlobalInstr: public QuarkSymInstr
+class QuarkAddGlobalInstr: public QuarkGlobalInstrBase
 {
 public:
-	QuarkAddGlobalInstr(uint32_t a, uint32_t b, int64_t offset);
+	QuarkAddGlobalInstr(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -294,6 +353,7 @@ class QuarkCondBit1OpInstr: public QuarkSymInstr
 {
 public:
 	QuarkCondBit1OpInstr(uint32_t op, uint32_t a);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -301,6 +361,7 @@ class QuarkCondBit2OpInstr: public QuarkSymInstr
 {
 public:
 	QuarkCondBit2OpInstr(uint32_t op, uint32_t a, uint32_t b);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -308,6 +369,7 @@ class QuarkCondBit3OpInstr: public QuarkSymInstr
 {
 public:
 	QuarkCondBit3OpInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t c);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -315,30 +377,37 @@ class QuarkBreakpointInstr: public QuarkSymInstr
 {
 public:
 	QuarkBreakpointInstr();
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkSymReturnInstr: public QuarkSymInstr
+class QuarkPseudoInstrBase: public QuarkSymInstr
+{
+public:
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class QuarkSymReturnInstr: public QuarkPseudoInstrBase
 {
 public:
 	QuarkSymReturnInstr(uint32_t retVal, uint32_t retValHigh);
-	virtual bool ReplacePseudoInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkSaveCalleeSavedRegsInstr: public QuarkSymInstr
+class QuarkSaveCalleeSavedRegsInstr: public QuarkPseudoInstrBase
 {
 public:
 	QuarkSaveCalleeSavedRegsInstr();
-	virtual bool ReplacePseudoInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 	virtual void Print(SymInstrFunction* func);
 };
 
-class QuarkRestoreCalleeSavedRegsInstr: public QuarkSymInstr
+class QuarkRestoreCalleeSavedRegsInstr: public QuarkPseudoInstrBase
 {
 public:
 	QuarkRestoreCalleeSavedRegsInstr();
-	virtual bool ReplacePseudoInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -378,13 +447,13 @@ SymInstr* QuarkLoadStackFS(uint32_t a, uint32_t b, uint32_t var, int64_t offset)
 SymInstr* QuarkLoadStackFD(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 SymInstr* QuarkLoadStackSX8(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 SymInstr* QuarkLoadStackSX16(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
-SymInstr* QuarkLoadGlobal8(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkLoadGlobal16(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkLoadGlobal32(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkLoadGlobalFS(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkLoadGlobalFD(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkLoadGlobalSX8(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkLoadGlobalSX16(uint32_t a, uint32_t b, int64_t offset);
+SymInstr* QuarkLoadGlobal8(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkLoadGlobal16(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkLoadGlobal32(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkLoadGlobalFS(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkLoadGlobalFD(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkLoadGlobalSX8(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkLoadGlobalSX16(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
 SymInstr* QuarkLoadUpdate8(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkLoadUpdate8(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkLoadUpdate16(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
@@ -415,11 +484,11 @@ SymInstr* QuarkStoreStack16(uint32_t a, uint32_t b, uint32_t var, int64_t offset
 SymInstr* QuarkStoreStack32(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 SymInstr* QuarkStoreStackFS(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
 SymInstr* QuarkStoreStackFD(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
-SymInstr* QuarkStoreGlobal8(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkStoreGlobal16(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkStoreGlobal32(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkStoreGlobalFS(uint32_t a, uint32_t b, int64_t offset);
-SymInstr* QuarkStoreGlobalFD(uint32_t a, uint32_t b, int64_t offset);
+SymInstr* QuarkStoreGlobal8(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkStoreGlobal16(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkStoreGlobal32(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkStoreGlobalFS(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
+SymInstr* QuarkStoreGlobalFD(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
 SymInstr* QuarkStoreUpdate8(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkStoreUpdate8(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkStoreUpdate16(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
@@ -449,7 +518,7 @@ SymInstr* QuarkSyscallImmed(int32_t immed, const std::vector<uint32_t>& writes, 
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkAddStack(uint32_t a, uint32_t b, uint32_t var, int64_t offset);
-SymInstr* QuarkAddGlobal(uint32_t a, uint32_t b, int64_t offset);
+SymInstr* QuarkAddGlobal(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch);
 SymInstr* QuarkSub(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkSub(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, uint32_t c, uint32_t s);

@@ -58,6 +58,7 @@ class OutputQuark: public Output
 				uint32_t base;
 				uint32_t var;
 				int32_t offset;
+				uint32_t scratch;
 			};
 			int64_t immed;
 		};
@@ -75,8 +76,6 @@ class OutputQuark: public Output
 	bool m_framePointerEnabled;
 	ILBlock* m_currentBlock;
 
-	int GetRegisterByName(const std::string& name);
-
 	bool IsSigned11Bit(int64_t imm);
 	bool IsSigned17Bit(int64_t imm);
 	bool IsPowerOfTwo(int32_t imm, uint32_t& shiftCount);
@@ -84,8 +83,6 @@ class OutputQuark: public Output
 	void LoadImm(SymInstrBlock* out, uint32_t dest, int32_t imm);
 	void AddImm(SymInstrBlock* out, uint32_t dest, uint32_t src, int32_t imm);
 	void SubImm(SymInstrBlock* out, uint32_t dest, uint32_t src, int32_t imm);
-
-	static void RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc);
 
 	bool AccessVariableStorage(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
 	bool Load(SymInstrBlock* out, const ILParameter& param, OperandReference& ref, bool forceReg = false);

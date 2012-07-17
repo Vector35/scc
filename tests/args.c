@@ -159,6 +159,46 @@ void test_syscall_error_return(void)
 		printf("%d\n", result);
 }
 
+void add_ptr_32(int32_t* a, int32_t* b, int32_t* result)
+{
+	*result = (*a) + (*b);
+}
+
+struct test
+{
+	int32_t a;
+	int32_t b;
+	int32_t result;
+};
+
+void test_struct_members(void)
+{
+	struct test a;
+	struct test* b = (struct test*)malloc(sizeof(struct test));
+
+	a.a = 42;
+	a.b = 17;
+	a.result = 0;
+	add_ptr_32(&a.a, &a.b, &a.result);
+	printf("%d\n", a.result);
+	a.result++;
+	++a.result;
+	a.a--;
+	--a.a;
+	printf("%d %d\n", a.result, a.a);
+
+	b->a = 99;
+	b->b = 32;
+	b->result = 0;
+	add_ptr_32(&b->a, &b->b, &b->result);
+	printf("%d\n", b->result);
+	b->result++;
+	++b->result;
+	b->a--;
+	--b->a;
+	printf("%d %d\n", b->result, b->a);
+}
+
 int main()
 {
 	show_8(add_two_8(17, 42));
@@ -172,6 +212,7 @@ int main()
 		(int64_t)3284984, (int64_t)0));
 	test_const_inline();
 	test_syscall_error_return();
+	test_struct_members();
 	return 0;
 }
 

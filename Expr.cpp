@@ -1951,6 +1951,12 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
 				(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
+		else if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->m_children[0]->GenerateIL(state, func, block),
+				ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue));
+		}
 		else
 		{
 			block->AddInstruction(ILOP_ADDRESS_OF, result, m_children[0]->GenerateIL(state, func, block));
@@ -1973,6 +1979,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, (int64_t)1));
 		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), result);
+		}
 		break;
 	case EXPR_PRE_DECREMENT:
 		result = m_children[0]->GenerateIL(state, func, block);
@@ -1986,6 +1999,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		else
 		{
 			block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, (int64_t)1));
+		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), result);
 		}
 		break;
 	case EXPR_POST_INCREMENT:
@@ -2003,6 +2023,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, (int64_t)1));
 		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), a);
+		}
 		break;
 	case EXPR_POST_DECREMENT:
 		result = func->CreateTempVariable(m_type);
@@ -2018,6 +2045,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		else
 		{
 			block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, (int64_t)1));
+		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), a);
 		}
 		break;
 	case EXPR_ARRAY_INDEX:

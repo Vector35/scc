@@ -81,7 +81,7 @@ bool OUTPUT_CLASS_NAME::OperandReference::operator!=(const OperandReference& ref
 }
 
 
-OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings): Output(settings)
+OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc): Output(settings, startFunc)
 {
 }
 
@@ -5937,7 +5937,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			}
 
 #ifdef OUTPUT32
-			if (m_settings.positionIndependent && (func->GetName() == "_start"))
+			if (m_settings.positionIndependent && ((func->GetName() == "_start") || m_settings.multiStage))
 			{
 				// Capture base of code at start
 				size_t leaOffset = GetInstructionPointer(out, m_basePointer);
@@ -5946,7 +5946,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				reloc.overflow = LeaOverflowHandler;
 				reloc.instruction = leaOffset;
 				reloc.offset = out->len - 1;
-				reloc.target = func->GetIL()[0];
+				reloc.target = m_startFunc->GetIL()[0];
 				out->relocs.push_back(reloc);
 			}
 #endif

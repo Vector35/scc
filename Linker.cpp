@@ -672,10 +672,10 @@ bool Linker::FinalizeLink()
 		paramVars.push_back(var);
 	}
 
-	Ref<Function> startFunction = new Function(startInfo, false);
-	startFunction->SetVariables(paramVars);
-	m_functions.insert(m_functions.begin(), startFunction);
-	m_functionsByName["_start"] = startFunction;
+	m_startFunction = new Function(startInfo, false);
+	m_startFunction->SetVariables(paramVars);
+	m_functions.insert(m_functions.begin(), m_startFunction);
+	m_functionsByName["_start"] = m_startFunction;
 
 	Ref<Expr> startBody = new Expr(EXPR_SEQUENCE);
 
@@ -727,19 +727,19 @@ bool Linker::FinalizeLink()
 	}
 
 	// Generate code for _start
-	startFunction->SetBody(startBody);
+	m_startFunction->SetBody(startBody);
 
 	// First, propogate type information
 	ParserState startState("_start", NULL);
-	startFunction->SetBody(startFunction->GetBody()->Simplify(&startState));
-	startFunction->GetBody()->ComputeType(&startState, startFunction);
-	startFunction->SetBody(startFunction->GetBody()->Simplify(&startState));
+	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
+	m_startFunction->GetBody()->ComputeType(&startState, m_startFunction);
+	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
 	if (startState.HasErrors())
 		return false;
 
 	// Generate IL
-	startFunction->GenerateIL(&startState);
-	startFunction->ReportUndefinedLabels(&startState);
+	m_startFunction->GenerateIL(&startState);
+	m_startFunction->ReportUndefinedLabels(&startState);
 	if (startState.HasErrors())
 		return false;
 
@@ -801,8 +801,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	map<SubarchitectureType, Output*> out;
 	if (m_settings.architecture == ARCH_X86)
 	{
-		out[SUBARCH_X86] = new OutputX86(m_settings);
-		out[SUBARCH_X64] = new OutputX64(m_settings);
+		out[SUBARCH_X86] = new OutputX86(m_settings, m_startFunction);
+		out[SUBARCH_X64] = new OutputX64(m_settings, m_startFunction);
 		if (m_settings.preferredBits == 32)
 			out[SUBARCH_DEFAULT] = out[SUBARCH_X86];
 		else
@@ -810,7 +810,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	}
 	else if (m_settings.architecture == ARCH_QUARK)
 	{
-		out[SUBARCH_DEFAULT] = new OutputQuark(m_settings);
+		out[SUBARCH_DEFAULT] = new OutputQuark(m_settings, m_startFunction);
 	}
 	else
 	{

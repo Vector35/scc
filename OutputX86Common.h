@@ -190,7 +190,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateCodeBlock(OutputBlock* out, ILBlock* block);
 
 public:
-	OUTPUT_CLASS_NAME(const Settings& settings);
+	OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc);
 
 	virtual bool GenerateCode(Function* func);
 };

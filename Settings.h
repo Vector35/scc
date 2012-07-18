@@ -77,6 +77,7 @@ struct Settings
 	bool execStack;
 	bool concat;
 	bool sharedLibrary;
+	bool multiStage;
 
 	bool stackGrowsUp;
 	bool encodePointers;

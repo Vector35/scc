@@ -38,6 +38,7 @@ class Linker
 	std::vector< Ref<Variable> > m_variables;
 	std::map< std::string, Ref<Variable> > m_variablesByName;
 	Ref<Expr> m_initExpression;
+	Ref<Function> m_startFunction;
 
 public:
 	Linker(const Settings& settings);

@@ -62,7 +62,7 @@
 using namespace std;
 
 
-OutputQuark::OutputQuark(const Settings& settings): Output(settings)
+OutputQuark::OutputQuark(const Settings& settings, Function* startFunc): Output(settings, startFunc)
 {
 }
 

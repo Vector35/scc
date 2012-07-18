@@ -115,9 +115,10 @@ class Output
 {
 protected:
 	Settings m_settings;
+	Function* m_startFunc;
 
 public:
-	Output(const Settings& settings);
+	Output(const Settings& settings, Function* startFunc);
 	virtual ~Output();
 
 	virtual bool GenerateCode(Function* func) = 0;

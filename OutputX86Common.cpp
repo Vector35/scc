@@ -5375,6 +5375,13 @@ bool OUTPUT_CLASS_NAME::GenerateByteSwap(OutputBlock* out, const ILInstruction& 
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateBreakpoint(OutputBlock* out, const ILInstruction& instr)
+{
+	EMIT(int3);
+	return true;
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 {
 	m_currentBlock = block;
@@ -5606,6 +5613,10 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(OutputBlock* out, ILBlock* block)
 			break;
 		case ILOP_BYTESWAP:
 			if (!GenerateByteSwap(out, *i))
+				goto fail;
+			break;
+		case ILOP_BREAKPOINT:
+			if (!GenerateBreakpoint(out, *i))
 				goto fail;
 			break;
 		default:

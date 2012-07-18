@@ -130,7 +130,7 @@ void Code_error(ParserState* state, const char* msg)
 %token SYSCALL_TOK SYSCALL2_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
 %token NEXT_ARG PREV_ARG
-%token BYTESWAP
+%token BYTESWAP BREAKPOINT
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
@@ -1504,6 +1504,7 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$5->Release();
 		}
 	|	BYTESWAP LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_BYTESWAP, $3); $$->AddRef(); $3->Release(); }
+	|	BREAKPOINT LPAREN RPAREN  { $$ = new Expr(EXPR_BREAKPOINT); $$->AddRef(); }
 	;
 
 expression_with_comma:	expression_with_comma COMMA expression  { $$ = $1; $$->AddChild($3); $3->Release(); }

@@ -1,0 +1,10 @@
+breakpoint
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+__breakpoint()
+---------------------------------------------
+
+Emits the breakpoint instruction for the target architecture.
+

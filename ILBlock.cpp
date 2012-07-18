@@ -634,6 +634,7 @@ bool ILInstruction::WritesToFirstParameter() const
 	case ILOP_RETURN_VOID:
 	case ILOP_MEMCPY:
 	case ILOP_MEMSET:
+	case ILOP_BREAKPOINT:
 		// These instructions do not write to any variables, default is avoided here
 		// to make the compiler spit out warnings if instructions are added but they
 		// aren't handled here (which could lead to well hidden bugs)
@@ -753,6 +754,7 @@ void ILInstruction::Print() const
 	case ILOP_NEXT_ARG:  params[0].Print(); fprintf(stderr, " = next_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_PREV_ARG:  params[0].Print(); fprintf(stderr, " = prev_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_BYTESWAP:  params[0].Print(); fprintf(stderr, " = byteswap "); params[1].Print(); break;
+	case ILOP_BREAKPOINT:  fprintf(stderr, "breakpoint"); break;
 	case ILOP_CALL:
 		params[0].Print();
 		fprintf(stderr, " = ");

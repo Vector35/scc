@@ -4229,7 +4229,19 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(OutputBlock* out, const ILInstru
 			if (dest.type == OPERANDREF_REG)
 				EMIT_RR(xor_32, dest.highReg, dest.highReg);
 			else
+			{
+				if (src.type == OPERANDREF_REG)
+				{
+					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), src.reg);
+				}
+				else
+				{
+					OperandType tmp = AllocateTemporaryRegister(out, 4);
+					EMIT_RM(mov_32, tmp, X86_MEM_REF(src.mem));
+					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), tmp);
+				}
 				EMIT_MI(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
+			}
 			return true;
 		}
 		else

@@ -1974,11 +1974,11 @@ bool OutputQuark::GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr)
 }
 
 
-bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr)
+bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr, bool twoDest)
 {
 	vector<uint32_t> writes, reads;
 	size_t regIndex = 0;
-	for (size_t i = 2; i < instr.params.size(); i++)
+	for (size_t i = twoDest ? 3 : 2; i < instr.params.size(); i++)
 	{
 		if (regIndex >= 8)
 			return false;
@@ -2023,14 +2023,22 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 	}
 
 	OperandReference num;
-	if (!Load(out, instr.params[1], num))
+	if (!Load(out, instr.params[twoDest ? 2 : 1], num))
 		return false;
 
-	OperandReference result;
+	OperandReference result, result2;
 	result.type = OPERANDREF_REG;
 	result.width = 4;
-	result.reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_RESULT);
+	result.reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_RESULT_1);
 	writes.push_back(result.reg);
+
+	if (twoDest)
+	{
+		result2.type = OPERANDREF_REG;
+		result2.width = 4;
+		result2.reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_RESULT_2);
+		writes.push_back(result2.reg);
+	}
 
 	if (num.type == OPERANDREF_REG)
 		out->AddInstruction(QuarkSyscallReg(num.reg, writes, reads));
@@ -2040,7 +2048,18 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 	OperandReference dest;
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
-	return Move(out, dest, result);
+	if (!Move(out, dest, result))
+		return false;
+
+	if (twoDest)
+	{
+		if (!PrepareStore(out, instr.params[1], dest))
+			return false;
+		if (!Move(out, dest, result2))
+			return false;
+	}
+
+	return true;
 }
 
 
@@ -2064,7 +2083,42 @@ bool OutputQuark::GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr
 
 bool OutputQuark::GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr)
 {
-	return false;
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+
+	uint32_t temp;
+	switch (src.width)
+	{
+	case 2:
+		out->AddInstruction(QuarkSwaph(result.reg, src.reg));
+		break;
+	case 4:
+		out->AddInstruction(QuarkSwapw(result.reg, src.reg));
+		break;
+	case 8:
+		temp = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		out->AddInstruction(QuarkSwapw(temp, src.reg));
+		out->AddInstruction(QuarkSwapw(result.reg, src.highReg));
+		result.highReg = temp;
+		break;
+	default:
+		out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
+		break;
+	}
+
+	return Move(out, dest, result);
+}
+
+
+bool OutputQuark::GenerateBreakpoint(SymInstrBlock* out, const ILInstruction& instr)
+{
+	out->AddInstruction(new QuarkBreakpointInstr());
+	return true;
 }
 
 
@@ -2255,7 +2309,11 @@ bool OutputQuark::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 				goto fail;
 			break;
 		case ILOP_SYSCALL:
-			if (!GenerateSyscall(out, *i))
+			if (!GenerateSyscall(out, *i, false))
+				goto fail;
+			break;
+		case ILOP_SYSCALL2:
+			if (!GenerateSyscall(out, *i, true))
 				goto fail;
 			break;
 		case ILOP_NEXT_ARG:
@@ -2268,6 +2326,10 @@ bool OutputQuark::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 			break;
 		case ILOP_BYTESWAP:
 			if (!GenerateByteSwap(out, *i))
+				goto fail;
+			break;
+		case ILOP_BREAKPOINT:
+			if (!GenerateBreakpoint(out, *i))
 				goto fail;
 			break;
 		default:

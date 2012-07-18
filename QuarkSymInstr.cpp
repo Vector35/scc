@@ -1616,8 +1616,11 @@ set<uint32_t> QuarkSymInstrFunction::GetRegisterClassInterferences(const Setting
 	case QUARKREGCLASS_SYSCALL_PARAM_7:
 		ALL_EXCEPT(8);
 		break;
-	case QUARKREGCLASS_SYSCALL_RESULT:
+	case QUARKREGCLASS_SYSCALL_RESULT_1:
 		ALL_EXCEPT(1);
+		break;
+	case QUARKREGCLASS_SYSCALL_RESULT_2:
+		ALL_EXCEPT(2);
 		break;
 	default:
 		break;
@@ -1639,6 +1642,8 @@ uint32_t QuarkSymInstrFunction::GetSpecialRegisterAssignment(const Settings& set
 		return SYMREG_NATIVE_REG(30);
 	case SYMREG_IP:
 		return SYMREG_NATIVE_REG(31);
+	case SYMREG_ANY:
+		return SYMREG_NATIVE_REG(1);
 	default:
 		return SYMREG_NONE;
 	}
@@ -1725,8 +1730,11 @@ void QuarkSymInstrFunction::PrintRegisterClass(uint32_t cls)
 	case QUARKREGCLASS_SYSCALL_PARAM_7:
 		fprintf(stderr, "sysparam%d", cls - QUARKREGCLASS_SYSCALL_PARAM_0);
 		break;
-	case QUARKREGCLASS_SYSCALL_RESULT:
-		fprintf(stderr, "sysresult");
+	case QUARKREGCLASS_SYSCALL_RESULT_1:
+		fprintf(stderr, "sysresult1");
+		break;
+	case QUARKREGCLASS_SYSCALL_RESULT_2:
+		fprintf(stderr, "sysresult2");
 		break;
 	default:
 		fprintf(stderr, "invalid");

@@ -22,6 +22,7 @@
 #define __LIBC__ARCH_DEFINES_H__
 
 #define QUARK
+#define __32BIT
 
 #endif
 

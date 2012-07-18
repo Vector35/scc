@@ -241,7 +241,7 @@ static void output_hex(void (*output)(void* ctxt, char ch), void* ctxt, size_t v
 		prec = 23;
 
 	if (val == 0)
-		*(--pos) == 0;
+		*(--pos) = '0';
 	else
 	{
 		while (val != 0)

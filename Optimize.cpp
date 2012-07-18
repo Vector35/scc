@@ -65,6 +65,25 @@ void Optimize::PerformControlFlowAnalysis(Function* func)
 				block->AddExitBlock(dest);
 				dest->AddEntryBlock(block);
 
+				if (m_settings.internalDebug)
+				{
+					bool ok = false;
+					for (vector<ILBlock*>::const_iterator k = func->GetIL().begin(); k != func->GetIL().end(); k++)
+					{
+						if (*k == dest)
+						{
+							ok = true;
+							break;
+						}
+					}
+					if (!ok)
+					{
+						fprintf(stderr, "error: instruction '");
+						i->Print();
+						fprintf(stderr, "' in function '%s' has invalid exit block\n", func->GetName().c_str());
+					}
+				}
+
 				if (!visited.count(dest))
 				{
 					toProcess.push(dest);

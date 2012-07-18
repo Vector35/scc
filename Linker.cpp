@@ -890,6 +890,49 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		addr += (*i)->GetType()->GetWidth();
 	}
 
+	if ((m_settings.alignment > 1) && ((addr % m_settings.alignment) != 0))
+	{
+		// Pad data section with random bytes (respecting blacklist)
+		size_t alignSize = (size_t)(m_settings.alignment - (addr % m_settings.alignment));
+		addr += alignSize;
+
+		if (m_settings.polymorph || (m_settings.blacklist.size() > 0))
+		{
+			vector<uint8_t> available;
+			for (size_t i = 0; i < 256; i++)
+			{
+				bool ok = true;
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+				{
+					if (i == *j)
+					{
+						ok = false;
+						break;
+					}
+				}
+
+				if (ok)
+					available.push_back((uint8_t)i);
+			}
+
+			for (size_t i = 0; i < alignSize; i++)
+			{
+				uint8_t choice = available[rand() % available.size()];
+				*(uint8_t*)dataSection.PrepareWrite(1) = choice;
+				dataSection.FinishWrite(1);
+			}
+		}
+		else
+		{
+			uint8_t zero = 0;
+			for (size_t i = 0; i < alignSize; i++)
+				dataSection.Write(&zero, 1);
+		}
+	}
+
+	if (m_variablesByName.find("__end") != m_variablesByName.end())
+		m_variablesByName["__end"]->SetDataSectionOffset(addr);
+
 	// Generate list of IL blocks
 	vector<ILBlock*> codeBlocks;
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
@@ -970,6 +1013,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 			(*i)->SetAddress(addr);
 			addr += (*i)->GetOutputBlock()->len;
 		}
+		if ((m_settings.alignment > 1) && ((addr % m_settings.alignment) != 0))
+			addr += m_settings.alignment - (addr % m_settings.alignment);
 
 		m_settings.dataSectionBase = addr;
 		if (m_settings.format == FORMAT_ELF)
@@ -1014,6 +1059,46 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		OutputBlock* block = (*i)->GetOutputBlock();
 		memcpy(codeSection.PrepareWrite(block->len), block->code, block->len);
 		codeSection.FinishWrite(block->len);
+	}
+
+	if ((m_settings.alignment > 1) && ((codeSection.len % m_settings.alignment) != 0))
+	{
+		// Pad code section with random bytes (respecting blacklist)
+		size_t alignSize = (size_t)(m_settings.alignment - (codeSection.len % m_settings.alignment));
+		addr += alignSize;
+
+		if (m_settings.polymorph || (m_settings.blacklist.size() > 0))
+		{
+			vector<uint8_t> available;
+			for (size_t i = 0; i < 256; i++)
+			{
+				bool ok = true;
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+				{
+					if (i == *j)
+					{
+						ok = false;
+						break;
+					}
+				}
+
+				if (ok)
+					available.push_back((uint8_t)i);
+			}
+
+			for (size_t i = 0; i < alignSize; i++)
+			{
+				uint8_t choice = available[rand() % available.size()];
+				*(uint8_t*)codeSection.PrepareWrite(1) = choice;
+				codeSection.FinishWrite(1);
+			}
+		}
+		else
+		{
+			uint8_t zero = 0;
+			for (size_t i = 0; i < alignSize; i++)
+				codeSection.Write(&zero, 1);
+		}
 	}
 
 	// Generate final binary

@@ -135,10 +135,11 @@ class OutputQuark: public Output
 	bool GenerateReturn(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr);
-	bool GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr, bool twoDest);
 	bool GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateBreakpoint(SymInstrBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 

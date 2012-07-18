@@ -414,9 +414,12 @@ Expr* ParserState::DeclareVariable(Type* type, const VarInitInfo& info, bool isS
 
 	if (m_currentScope->IsVariableDefinedInCurrentScope(info.name))
 	{
-		Error();
-		fprintf(stderr, "%s:%d: error: variable '%s' already defined\n",
-			info.location.fileName.c_str(), info.location.lineNumber, info.name.c_str());
+		if (!m_currentScope->GetVariable(info.name)->IsExternal())
+		{
+			Error();
+			fprintf(stderr, "%s:%d: error: variable '%s' already defined\n",
+				info.location.fileName.c_str(), info.location.lineNumber, info.name.c_str());
+		}
 	}
 
 	if ((m_currentScope == m_globalScope) && (m_functions.find(info.name) != m_functions.end()))

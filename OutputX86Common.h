@@ -134,6 +134,9 @@ class OUTPUT_CLASS_NAME: public Output
 	bool Decrement(OutputBlock* out, const OperandReference& dest);
 	void ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
 	void UnconditionalJump(OutputBlock* out, ILBlock* block, bool canOmit = true);
+#ifdef OUTPUT32
+	bool Mult64(OutputBlock* out, const OperandReference& dest, const OperandReference& a, const OperandReference& b);
+#endif
 
 	bool GenerateAssign(OutputBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(OutputBlock* out, const ILInstruction& instr);

@@ -1206,6 +1206,9 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			m_type = Type::VoidType();
 		}
 		break;
+	case EXPR_BREAKPOINT:
+		m_type = Type::VoidType();
+		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n", m_location.fileName.c_str(),
@@ -2853,6 +2856,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		block->AddInstruction(ILOP_BYTESWAP, result, a);
+		break;
+	case EXPR_BREAKPOINT:
+		block->AddInstruction(ILOP_BREAKPOINT);
 		break;
 	default:
 		state->Error();

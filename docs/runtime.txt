@@ -32,6 +32,7 @@ than `result == -1` to check for failure.
 Compiler intrinsics
 -------------------
 link:abs.html[abs],
+link:breakpoint.html[breakpoint],
 link:byteswap.html[byteswap],
 link:max.html[max],
 link:min.html[min],

@@ -58,12 +58,33 @@ tests = [
 
 seeds = [17, 42, 1024, 1337, 4096, 4141, 7331, 31337, 65536, 1048576]
 
-def test(arch_name, name, testcase, arch_options, options):
-	if "target" in testcase:
+def test(arch_name, name, testcase, arch_options, options, arch_type):
+	if arch_type == "quark":
+		interpret_arch_options = list(arch_options)
+		interpret_arch_options[interpret_arch_options.index("quark")] = "x86"
 		if os.uname()[0] == "Darwin":
-			compile_cmd = ["./scc", "-o", "Obj/target", "-f", "macho", testcase["target"]] + arch_options
+			compile_cmd = ["./scc", "-o", "Obj/testvm", "-f", "macho", "tests/vm.c", "-m32"] + interpret_arch_options
 		else:
-			compile_cmd = ["./scc", "-o", "Obj/target", "-f", "elf", testcase["target"]] + arch_options
+			compile_cmd = ["./scc", "-o", "Obj/testvm", "-f", "elf", "tests/vm.c", "-m32"] + interpret_arch_options
+		proc = subprocess.Popen(compile_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		output = proc.communicate()[0]
+		if proc.returncode != 0:
+			sys.stdout.write("\033[01;31mFAILED\033[00m\n")
+			sys.stdout.write("Compiler command line: " + (" ".join(compile_cmd)) + "\n")
+			sys.stdout.write("VM interpreter compilation failed with exit code %d:\n" % proc.returncode)
+			sys.stdout.write(output)
+			sys.stdout.write("\n")
+			return False
+
+		os.chmod("Obj/testvm", 0o700)
+
+	if "target" in testcase:
+		if arch_type == "quark":
+			compile_cmd = ["./scc", "-o", "Obj/test", "-f", "bin", testcase["target"]] + arch_options
+		elif os.uname()[0] == "Darwin":
+			compile_cmd = ["./scc", "-o", "Obj/test", "-f", "macho", testcase["target"]] + arch_options
+		else:
+			compile_cmd = ["./scc", "-o", "Obj/test", "-f", "elf", testcase["target"]] + arch_options
 		if "targetoptions" in testcase:
 			compile_cmd += testcase["targetoptions"]
 		proc = subprocess.Popen(compile_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -76,9 +97,11 @@ def test(arch_name, name, testcase, arch_options, options):
 			sys.stdout.write("\n")
 			return False
 
-		os.chmod("Obj/target", 0o700)
+		os.chmod("Obj/test", 0o700)
 
 	if "target" in testcase:
+		compile_cmd = ["./scc", "-o", "Obj/testsc", "-f", "bin", testcase["source"]] + arch_options + options
+	elif arch_type == "quark":
 		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "bin", testcase["source"]] + arch_options + options
 	elif os.uname()[0] == "Darwin":
 		compile_cmd = ["./scc", "-o", "Obj/test", "-f", "macho", testcase["source"]] + arch_options + options
@@ -100,8 +123,11 @@ def test(arch_name, name, testcase, arch_options, options):
 		output_contents = ""
 
 	if "target" in testcase:
-		input_contents = open("Obj/test", "r").read()
-		cmd = ["Obj/target"]
+		input_contents = open("Obj/testsc", "r").read()
+		if arch_type == "quark":
+			cmd = ["Obj/testvm"]
+		else:
+			cmd = ["Obj/test"]
 		if "targetparams" in testcase:
 			cmd += testcase["targetparams"]
 	else:
@@ -110,10 +136,16 @@ def test(arch_name, name, testcase, arch_options, options):
 		else:
 			input_contents = ""
 		os.chmod("Obj/test", 0o700)
-		if os.uname()[0] == "Darwin":
-			cmd = ["/bin/bash", "-c", "Obj/test"]
+		if arch_type == "quark":
+			if os.uname()[0] == "Darwin":
+				cmd = ["/bin/bash", "-c", "Obj/testvm"]
+			else:
+				cmd = ["Obj/testvm"]
 		else:
-			cmd = ["Obj/test"]
+			if os.uname()[0] == "Darwin":
+				cmd = ["/bin/bash", "-c", "Obj/test"]
+			else:
+				cmd = ["Obj/test"]
 
 	proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	output = proc.communicate(input_contents)[0]
@@ -141,7 +173,7 @@ def test(arch_name, name, testcase, arch_options, options):
 
 	return True
 
-def test_all(arch_name, arch_options):
+def test_all(arch_name, arch_options, arch_type):
 	sys.stdout.write("\033[01;33m" + arch_name + "\033[00m\n")
 
 	failed = 0
@@ -155,7 +187,7 @@ def test_all(arch_name, arch_options):
 			for seed in seeds:
 				options = list(t[2])
 				options[options.index("<SEED>")] = str(seed)
-				if not test(arch_name, t[0], t[1], arch_options, options):
+				if not test(arch_name, t[0], t[1], arch_options, options, arch_type):
 					this_failed = True
 					break
 				
@@ -165,7 +197,7 @@ def test_all(arch_name, arch_options):
 				sys.stdout.write("\033[01;32mPASSED\033[00m\n")
 				sys.stdout.flush()
 		else:
-			if test(arch_name, t[0], t[1], arch_options, t[2]):
+			if test(arch_name, t[0], t[1], arch_options, t[2], arch_type):
 				sys.stdout.write("\033[01;32mPASSED\033[00m\n")
 				sys.stdout.flush()
 			else:
@@ -175,15 +207,18 @@ def test_all(arch_name, arch_options):
 
 failed = 0
 if os.uname()[0] == "Darwin":
-	failed += test_all("Mac OS X x86", ["--platform", "mac", "--arch", "x86"])
-	failed += test_all("Mac OS X x64", ["--platform", "mac", "--arch", "x64"])
+	failed += test_all("Mac OS X x86", ["--platform", "mac", "--arch", "x86"], "x86")
+	failed += test_all("Mac OS X x64", ["--platform", "mac", "--arch", "x64"], "x64")
+	failed += test_all("Mac OS X Quark", ["--platform", "mac", "--arch", "quark"], "quark")
 elif os.name != "nt":
-	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"])
+	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"], "x86")
+	failed += test_all("Linux Quark", ["--platform", "linux", "--arch", "quark"], "quark")
 	if os.uname()[0] == "FreeBSD":
-		failed += test_all("FreeBSD x86", ["--platform", "freebsd", "--arch", "x86"])
-		failed += test_all("FreeBSD x64", ["--platform", "freebsd", "--arch", "x64"])
+		failed += test_all("FreeBSD x86", ["--platform", "freebsd", "--arch", "x86"], "x86")
+		failed += test_all("FreeBSD x64", ["--platform", "freebsd", "--arch", "x64"], "x64")
+		failed += test_all("FreeBSD Quark", ["--platform", "freebsd", "--arch", "quark"], "quark")
 	else:
-		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"])
+		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64")
 
 if failed != 0:
 	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)

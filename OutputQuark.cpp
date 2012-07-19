@@ -134,6 +134,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 	if (param.variable->IsGlobal())
 	{
 		ref.type = OPERANDREF_MEM;
+		ref.sign = param.variable->GetType()->IsSigned();
 		ref.memType = MEMORYREF_GLOBAL_VAR;
 		ref.base = SYMREG_IP;
 		ref.offset = param.variable->GetDataSectionOffset();
@@ -145,6 +146,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 	{
 		// Variable has a register associated with it
 		ref.type = OPERANDREF_REG;
+		ref.sign = param.variable->GetType()->IsSigned();
 		ref.reg = m_varReg[param.variable];
 		if ((!param.IsFloat()) && (ref.width == 8))
 			ref.highReg = ref.reg + 1;
@@ -155,6 +157,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 	if (i == m_stackVar.end())
 		return false;
 	ref.type = OPERANDREF_MEM;
+	ref.sign = param.variable->GetType()->IsSigned();
 	ref.memType = MEMORYREF_STACK_VAR;
 	ref.base = m_framePointerEnabled ? SYMREG_BP : SYMREG_SP;
 	ref.var = i->second;
@@ -251,11 +254,13 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		if ((!forceReg) && IsSigned11Bit(param.integerValue))
 		{
 			ref.type = OPERANDREF_IMMED;
+			ref.sign = true;
 			ref.immed = param.integerValue;
 			return true;
 		}
 
 		ref.type = OPERANDREF_REG;
+		ref.sign = true;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		if (ref.width == 8)
 			ref.highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
@@ -272,17 +277,20 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 			return true;
 		}
 		ref.type = OPERANDREF_REG;
+		ref.sign = false;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		LoadImm(out, ref.reg, param.boolValue ? 1 : 0);
 		return true;
 	case ILPARAM_FUNC:
 		ref.type = OPERANDREF_REG;
+		ref.sign = false;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		out->AddInstruction(QuarkAddBlock(ref.reg, SYMREG_IP, param.function, param.function->GetIL()[0],
 			m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
 		return true;
 	case ILPARAM_UNDEFINED:
 		ref.type = OPERANDREF_REG;
+		ref.sign = true;
 		ref.width = param.GetWidth();
 		ref.reg = SYMREG_ANY;
 		return true;
@@ -349,7 +357,7 @@ bool OutputQuark::GetDestRegister(SymInstrBlock* out, const OperandReference& de
 }
 
 
-bool OutputQuark::Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OutputQuark::Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src, bool enforceSize)
 {
 	if (dest.type == OPERANDREF_REG)
 	{
@@ -358,6 +366,20 @@ bool OutputQuark::Move(SymInstrBlock* out, const OperandReference& dest, const O
 			LoadImm(out, dest.reg, (int32_t)src.immed);
 			if (dest.width == 8)
 				LoadImm(out, dest.highReg, (int32_t)(src.immed >> 32));
+		}
+		else if (enforceSize && (dest.width == 1))
+		{
+			if (dest.sign)
+				out->AddInstruction(QuarkSxb(dest.reg, src.reg));
+			else
+				out->AddInstruction(QuarkZxb(dest.reg, src.reg));
+		}
+		else if (enforceSize && (dest.width == 2))
+		{
+			if (dest.sign)
+				out->AddInstruction(QuarkSxh(dest.reg, src.reg));
+			else
+				out->AddInstruction(QuarkZxh(dest.reg, src.reg));
 		}
 		else
 		{
@@ -976,7 +998,7 @@ bool OutputQuark::GenerateAdd(SymInstrBlock* out, const ILInstruction& instr)
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1022,7 +1044,7 @@ bool OutputQuark::GenerateSub(SymInstrBlock* out, const ILInstruction& instr)
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1052,7 +1074,7 @@ bool OutputQuark::GenerateSignedMult(SymInstrBlock* out, const ILInstruction& in
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1082,7 +1104,7 @@ bool OutputQuark::GenerateUnsignedMult(SymInstrBlock* out, const ILInstruction& 
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1112,7 +1134,7 @@ bool OutputQuark::GenerateSignedDiv(SymInstrBlock* out, const ILInstruction& ins
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1142,7 +1164,7 @@ bool OutputQuark::GenerateUnsignedDiv(SymInstrBlock* out, const ILInstruction& i
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1172,7 +1194,7 @@ bool OutputQuark::GenerateSignedMod(SymInstrBlock* out, const ILInstruction& ins
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1202,7 +1224,7 @@ bool OutputQuark::GenerateUnsignedMod(SymInstrBlock* out, const ILInstruction& i
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1328,7 +1350,7 @@ bool OutputQuark::GenerateShl(SymInstrBlock* out, const ILInstruction& instr)
 		return false;
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1415,7 +1437,7 @@ bool OutputQuark::GenerateNeg(SymInstrBlock* out, const ILInstruction& instr)
 		out->AddInstruction(QuarkNeg(result.reg, src.reg));
 	}
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1433,7 +1455,7 @@ bool OutputQuark::GenerateNot(SymInstrBlock* out, const ILInstruction& instr)
 	if (result.width == 8)
 		out->AddInstruction(QuarkNot(result.highReg, src.highReg));
 
-	return Move(out, dest, result);
+	return Move(out, dest, result, true);
 }
 
 
@@ -1910,8 +1932,19 @@ bool OutputQuark::GenerateUnsignedConvert(SymInstrBlock* out, const ILInstructio
 	if (!GetDestRegister(out, dest, result))
 		return false;
 
-	if (!Move(out, result, src))
-		return false;
+	switch (src.width)
+	{
+	case 1:
+		out->AddInstruction(QuarkZxb(result.reg, src.reg));
+		break;
+	case 2:
+		out->AddInstruction(QuarkZxh(result.reg, src.reg));
+		break;
+	default:
+		out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
+		break;
+	}
+
 	if (instr.params[0].GetWidth() == 8)
 		out->AddInstruction(QuarkLoadImm(result.highReg, 0));
 

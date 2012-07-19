@@ -898,6 +898,8 @@ const char* QuarkSymInstr::GetOperationName() const
 	case 0x1f06: return "call";
 	case 0x1f08: return "neg";
 	case 0x1f09: return "not";
+	case 0x1f0a: return "zxb";
+	case 0x1f0b: return "zxh";
 	case 0x1f0c: return "ldsr";
 	case 0x1f0d: return "stsr";
 	case 0x1f0e: return "ldcr";
@@ -1936,6 +1938,8 @@ SymInstr* QuarkSwaph(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x1f0
 SymInstr* QuarkSwapw(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x1f05, a, b); }
 SymInstr* QuarkNeg(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x1f08, a, b); }
 SymInstr* QuarkNot(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x1f09, a, b); }
+SymInstr* QuarkZxb(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x1f0a, a, b); }
+SymInstr* QuarkZxh(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x1f0b, a, b); }
 
 SymInstr* QuarkLoadCR(uint32_t a) { return new Quark1OpWriteRegInstr(0x1f0e, a); }
 SymInstr* QuarkStoreCR(uint32_t a) { return new Quark1OpReadRegInstr(0x1f0f, a); }

@@ -45,6 +45,7 @@ class OutputQuark: public Output
 	{
 		OperandReferenceType type;
 		size_t width;
+		bool sign;
 		union
 		{
 			struct
@@ -89,7 +90,7 @@ class OutputQuark: public Output
 	bool PrepareStore(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
 	bool LoadIntoRegister(SymInstrBlock* out, const OperandReference& ref, OperandReference& reg);
 	bool GetDestRegister(SymInstrBlock* out, const OperandReference& dest, OperandReference& reg);
-	bool Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src, bool enforceSize = false);
 
 	void UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit = true);
 	void ConditionalJump(SymInstrBlock* out, ILBlock* block, int cond, bool value);

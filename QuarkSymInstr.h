@@ -598,6 +598,8 @@ SymInstr* QuarkSwaph(uint32_t a, uint32_t b);
 SymInstr* QuarkSwapw(uint32_t a, uint32_t b);
 SymInstr* QuarkNeg(uint32_t a, uint32_t b);
 SymInstr* QuarkNot(uint32_t a, uint32_t b);
+SymInstr* QuarkZxb(uint32_t a, uint32_t b);
+SymInstr* QuarkZxh(uint32_t a, uint32_t b);
 
 SymInstr* QuarkLoadCR(uint32_t a);
 SymInstr* QuarkStoreCR(uint32_t a);

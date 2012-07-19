@@ -247,6 +247,12 @@ void quark_exec(void* buf, ...) __noreturn
 			case 0x09: // not
 				r[a] = ~r[c];
 				break;
+			case 0x0a: // zxb
+				r[a] = (uint32_t)(uint8_t)r[c];
+				break;
+			case 0x0b: // zxh
+				r[a] = (uint32_t)(uint16_t)r[c];
+				break;
 			case 0x0e: // ldcr
 				r[a] = ((uint32_t)cc[3] << 24) | ((uint32_t)cc[2] << 16) | ((uint32_t)cc[1] << 8) | (uint32_t)cc[0];
 				break;

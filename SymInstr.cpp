@@ -451,7 +451,8 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
-				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) && (k->access != SYMOPERAND_TEMPORARY) &&
+					(!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					if (!(*i)->GetLiveDefinitions().GetBit(k->reg))
 					{
@@ -465,7 +466,8 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
-				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (k->access != SYMOPERAND_TEMPORARY) &&
+					(!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					if (!(*i)->GetLiveUses().GetBit(k->reg))
 					{

@@ -30,6 +30,7 @@ using namespace std;
 
 
 map<size_t, ILBlock*> ILBlock::m_serializationMapping;
+stack< map<size_t, ILBlock*> > ILBlock::m_savedSerializationMappings;
 
 	
 ILParameter::ILParameter()
@@ -1308,6 +1309,20 @@ ILBlock* ILBlock::GetSerializationMapping(size_t i)
 void ILBlock::SetSerializationMapping(size_t i, ILBlock* block)
 {
 	m_serializationMapping[i] = block;
+}
+
+
+void ILBlock::SaveSerializationMapping()
+{
+	m_savedSerializationMappings.push(m_serializationMapping);
+	m_serializationMapping.clear();
+}
+
+
+void ILBlock::RestoreSerializationMapping()
+{
+	m_serializationMapping = m_savedSerializationMappings.top();
+	m_savedSerializationMappings.pop();
 }
 
 

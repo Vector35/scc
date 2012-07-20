@@ -1432,7 +1432,7 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$2->Release();
 			$4->Release();
 		}
-	|	LPAREN var_type LPAREN calling_convention ptr_decorator RPAREN LPAREN param_list RPAREN RPAREN expression %prec CAST
+	|	LPAREN return_type LPAREN calling_convention ptr_decorator RPAREN LPAREN param_list RPAREN RPAREN expression %prec CAST
 		{
 			Type* type = Type::PointerType(Type::FunctionType($2, (CallingConvention)$4, *$8), $5 - 1);
 			$$ = state->CastExpr(type, $11);

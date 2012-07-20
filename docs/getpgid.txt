@@ -1,0 +1,15 @@
+getpgid
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+pid_t getpgid(pid_t pid);
+---------------------------------------------
+
+Returns the process group ID for process `pid`.
+
+See also
+--------
+link:getpgrp.html[getpgrp],
+link:setpgid.html[setpgid],
+link:setsid.html[setsid]

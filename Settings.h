@@ -64,6 +64,8 @@ struct Settings
 	std::vector<std::string> preservedRegs;
 	std::string stackReg, frameReg, returnReg, returnHighReg, baseReg;
 
+	std::vector<std::string> includeDirs;
+
 	Architecture architecture;
 	OperatingSystem os;
 	OutputFormat format;
@@ -75,6 +77,7 @@ struct Settings
 	bool execStack;
 	bool concat;
 	bool sharedLibrary;
+	bool multiStage;
 
 	bool stackGrowsUp;
 	bool encodePointers;

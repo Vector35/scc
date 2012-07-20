@@ -81,7 +81,7 @@ bool OUTPUT_CLASS_NAME::OperandReference::operator!=(const OperandReference& ref
 }
 
 
-OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings): Output(settings)
+OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc): Output(settings, startFunc)
 {
 }
 
@@ -2156,6 +2156,55 @@ bool OUTPUT_CLASS_NAME::GenerateSub(OutputBlock* out, const ILInstruction& instr
 }
 
 
+#ifdef OUTPUT32
+bool OUTPUT_CLASS_NAME::Mult64(OutputBlock* out, const OperandReference& dest,
+	const OperandReference& a, const OperandReference& b)
+{
+	OperandType temp = AllocateTemporaryRegister(out, 4);
+	OperandReference result;
+	result.type = OPERANDREF_REG;
+	result.width = 8;
+	result.reg = REG_EAX;
+	result.highReg = REG_EDX;
+
+	// Multiply low half of both and store 64-bit result in EDX:EAX
+	if (a.type == OPERANDREF_REG)
+		EMIT_RR(mov_32, REG_EAX, a.reg);
+	else
+		EMIT_RM(mov_32, REG_EAX, X86_MEM_REF(a.mem));
+	if (b.type == OPERANDREF_REG)
+		EMIT_R(mul_32, b.reg);
+	else
+		EMIT_M(mul_32, X86_MEM_REF(b.mem));
+
+	// Multiply low half of a and high half of b and add to EDX
+	if (a.type == OPERANDREF_REG)
+		EMIT_RR(mov_32, temp, a.reg);
+	else
+		EMIT_RM(mov_32, temp, X86_MEM_REF(a.mem));
+	if (b.type == OPERANDREF_REG)
+		EMIT_RR(imul_32, temp, b.highReg);
+	else
+		EMIT_RM(imul_32, temp, X86_MEM_REF_OFFSET(b.mem, 4));
+	EMIT_RR(add_32, REG_EDX, temp);
+
+	// Multiply high half of a and low half of b and add to EDX
+	if (a.type == OPERANDREF_REG)
+		EMIT_RR(mov_32, temp, a.highReg);
+	else
+		EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(a.mem, 4));
+	if (b.type == OPERANDREF_REG)
+		EMIT_RR(imul_32, temp, b.reg);
+	else
+		EMIT_RM(imul_32, temp, X86_MEM_REF(b.mem));
+	EMIT_RR(add_32, REG_EDX, temp);
+
+	// Store EDX:EAX into result
+	return Move(out, dest, result);
+}
+#endif
+
+
 bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
@@ -2168,18 +2217,6 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction
 	if (!PrepareLoad(out, instr.params[2], b))
 		return false;
 
-#ifdef OUTPUT32
-	if (a.width == 8)
-		return false;
-#endif
-
-	OperandReference eax;
-	eax.type = OPERANDREF_REG;
-	eax.width = a.width;
-	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
-	if (!Move(out, eax, a))
-		return false;
-
 	if (b.type == OPERANDREF_IMMED)
 	{
 		OperandReference temp;
@@ -2190,6 +2227,18 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(OutputBlock* out, const ILInstruction
 			return false;
 		b = temp;
 	}
+
+#ifdef OUTPUT32
+	if (a.width == 8)
+		return Mult64(out, dest, a, b);
+#endif
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
 
 	switch (a.width)
 	{
@@ -2239,18 +2288,6 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(OutputBlock* out, const ILInstructi
 	if (!PrepareLoad(out, instr.params[2], b))
 		return false;
 
-#ifdef OUTPUT32
-	if (a.width == 8)
-		return false;
-#endif
-
-	OperandReference eax;
-	eax.type = OPERANDREF_REG;
-	eax.width = a.width;
-	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
-	if (!Move(out, eax, a))
-		return false;
-
 	if (b.type == OPERANDREF_IMMED)
 	{
 		OperandReference temp;
@@ -2261,6 +2298,18 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(OutputBlock* out, const ILInstructi
 			return false;
 		b = temp;
 	}
+
+#ifdef OUTPUT32
+	if (a.width == 8)
+		return Mult64(out, dest, a, b);
+#endif
+
+	OperandReference eax;
+	eax.type = OPERANDREF_REG;
+	eax.width = a.width;
+	eax.reg = GetRegisterOfSize(REG_EAX, eax.width);
+	if (!Move(out, eax, a))
+		return false;
 
 	switch (a.width)
 	{
@@ -4227,7 +4276,19 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(OutputBlock* out, const ILInstru
 			if (dest.type == OPERANDREF_REG)
 				EMIT_RR(xor_32, dest.highReg, dest.highReg);
 			else
+			{
+				if (src.type == OPERANDREF_REG)
+				{
+					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), src.reg);
+				}
+				else
+				{
+					OperandType tmp = AllocateTemporaryRegister(out, 4);
+					EMIT_RM(mov_32, tmp, X86_MEM_REF(src.mem));
+					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), tmp);
+				}
 				EMIT_MI(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
+			}
 			return true;
 		}
 		else
@@ -5633,10 +5694,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #else
 	m_basePointer = NONE;
 #endif
-	if (func->IsVariableSizedStackFrame())
-		m_framePointerEnabled = true;
-	else
-		m_framePointerEnabled = false;
+
+	// FIXME: There are bugs with ESP based addressing (pushing parameters on stack doesn't
+	// account for adjusted stack), so it is disabled for now
+	m_framePointerEnabled = true;
 
 #ifdef OUTPUT32
 	if (m_settings.stackReg.size() != 0)
@@ -5934,7 +5995,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			}
 
 #ifdef OUTPUT32
-			if (m_settings.positionIndependent && (func->GetName() == "_start"))
+			if (m_settings.positionIndependent && ((func->GetName() == "_start") || m_settings.multiStage))
 			{
 				// Capture base of code at start
 				size_t leaOffset = GetInstructionPointer(out, m_basePointer);
@@ -5943,7 +6004,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				reloc.overflow = LeaOverflowHandler;
 				reloc.instruction = leaOffset;
 				reloc.offset = out->len - 1;
-				reloc.target = func->GetIL()[0];
+				reloc.target = m_startFunc->GetIL()[0];
 				out->relocs.push_back(reloc);
 			}
 #endif

@@ -145,10 +145,9 @@ Windows is not supported as a target.
 <div class="ulist"><ul>
 <li>
 <p>
-There is not currently a <span class="monospaced">signal</span> function in the runtime.  This means that if the process does
-not already ignore <span class="monospaced">SIGCHLD</span>, a call to <a href="wait.html">wait</a> or <a href="waitpid.html">waitpid</a> must
-follow a call to <a href="fork.html">fork</a>, especially if <a href="fork.html">fork</a> may be called
-multiple times, or a zombie apocalypse may result.
+Setting a signal handler on 64-bit Linux or Mac OS X that is not <span class="monospaced">SIG_DFL</span> or <span class="monospaced">SIG_IGN</span> will cause the program to
+crash when the signal is received.  The reason is not known.  Additionally, even if it did not crash the
+parameters would not be correct, as the wrong calling convention is used (this is not the cause of the crash).
 </p>
 </li>
 </ul></div>

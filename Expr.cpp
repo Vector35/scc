@@ -1954,6 +1954,12 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
 				(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
+		else if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->m_children[0]->GenerateIL(state, func, block),
+				ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue));
+		}
 		else
 		{
 			block->AddInstruction(ILOP_ADDRESS_OF, result, m_children[0]->GenerateIL(state, func, block));
@@ -1976,6 +1982,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, (int64_t)1));
 		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), result);
+		}
 		break;
 	case EXPR_PRE_DECREMENT:
 		result = m_children[0]->GenerateIL(state, func, block);
@@ -1989,6 +2002,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		else
 		{
 			block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, (int64_t)1));
+		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), result);
 		}
 		break;
 	case EXPR_POST_INCREMENT:
@@ -2006,6 +2026,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, (int64_t)1));
 		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), a);
+		}
 		break;
 	case EXPR_POST_DECREMENT:
 		result = func->CreateTempVariable(m_type);
@@ -2021,6 +2048,13 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		else
 		{
 			block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, (int64_t)1));
+		}
+		if (m_children[0]->GetClass() == EXPR_ARROW)
+		{
+			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
+				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+				m_children[0]->m_stringValue), a);
 		}
 		break;
 	case EXPR_ARRAY_INDEX:
@@ -2102,19 +2136,59 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SDIV, result, a, b);
+		if ((GetTargetPointerSize() == 4) && (m_children[0]->GetType()->GetWidth() == 8))
+		{
+			// 64-bit division on 32-bit output, emit call to divide routine
+			string name;
+			if (m_children[0]->GetType()->IsSigned())
+				name = "__sdiv64";
+			else
+				name = "__udiv64";
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
+					name.c_str());
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+		}
 		else
-			block->AddInstruction(ILOP_UDIV, result, a, b);
+		{
+			if (m_children[0]->GetType()->IsSigned())
+				block->AddInstruction(ILOP_SDIV, result, a, b);
+			else
+				block->AddInstruction(ILOP_UDIV, result, a, b);
+		}
 		break;
 	case EXPR_MOD:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SMOD, result, a, b);
+		if ((GetTargetPointerSize() == 4) && (m_children[0]->GetType()->GetWidth() == 8))
+		{
+			// 64-bit division on 32-bit output, emit call to divide routine
+			string name;
+			if (m_children[0]->GetType()->IsSigned())
+				name = "__smod64";
+			else
+				name = "__umod64";
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
+					name.c_str());
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+		}
 		else
-			block->AddInstruction(ILOP_UMOD, result, a, b);
+		{
+			if (m_children[0]->GetType()->IsSigned())
+				block->AddInstruction(ILOP_SMOD, result, a, b);
+			else
+				block->AddInstruction(ILOP_UMOD, result, a, b);
+		}
 		break;
 	case EXPR_AND:
 		result = func->CreateTempVariable(m_type);

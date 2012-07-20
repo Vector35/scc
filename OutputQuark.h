@@ -145,7 +145,7 @@ class OutputQuark: public Output
 	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 
 public:
-	OutputQuark(const Settings& settings);
+	OutputQuark(const Settings& settings, Function* startFunc);
 
 	virtual bool GenerateCode(Function* func);
 };

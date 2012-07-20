@@ -58,6 +58,18 @@
 #define SIGTHR     32
 #define SIGLWP     32
 
+#define SIG_DFL     ((sig_t)0)
+#define SIG_IGN     ((sig_t)1)
+#define SIG_HOLD    ((sig_t)3)
+
+#define SA_ONSTACK    1
+#define SA_RESTART    2
+#define SA_RESETHAND  4
+#define SA_NOCLDSTOP  8
+#define SA_NODEFER    0x10
+#define SA_NOCLDWAIT  0x20
+#define SA_SIGINFO    0x40
+
 #define	CTL_UNSPEC    0  // unused
 #define	CTL_KERN      1  // "high kernel": proc, limits
 #define	CTL_VM        2  // virtual memory
@@ -130,10 +142,34 @@
 #define	KERN_PROC_FILEDESC    33  // File descriptors for process
 #define	KERN_PROC_GROUPS      34  // process groups
 
+typedef void (*sig_t)(int);
+
 typedef struct __sigset_t
 {
 	uint32_t __bits[4];
 } sigset_t;
+
+typedef struct
+{
+	int si_signo;
+	int si_errno;
+	int si_code;
+	pid_t si_pid;
+	uid_t si_uid;
+	int si_status;
+	void* si_addr;
+} siginfo_t;
+
+struct sigaction
+{
+	union
+	{
+		sig_t sa_handler;
+		void (*sa_sigaction)(int, siginfo_t*, void*);
+	};
+	int sa_flags;
+	sigset_t sa_mask;
+};
 
 struct priority
 {
@@ -248,6 +284,9 @@ struct kinfo_proc
 };
 
 int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen);
+
+sig_t signal(int sig, sig_t func);
+int sigaction(int sig, const struct sigaction* act, struct sigaction* old);
 
 #endif
 

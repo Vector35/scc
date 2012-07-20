@@ -1,0 +1,17 @@
+setitimer
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setitimer(int which, const struct itimerval* value, struct itimerval* old);
+---------------------------------------------
+
+Sets the interval timer `which` to `value`.  The `which` parameter can be one of `ITIMER_REAL`, `ITIMER_VIRTUAL`,
+or `ITIMER_PROF`.  The old timer value is stored in `old` if it is not `NULL`.
+
+Setting the `ITIMER_REAL` interval timer can produce the same results as the `alarm` function.
+
+See also
+--------
+link:alarm.html[alarm],
+link:getitimer.html[getitimer]

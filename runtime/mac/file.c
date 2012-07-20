@@ -85,3 +85,15 @@ int pipe(int* fds)
 	return a;
 }
 
+// FIXME: This should actually be "int shm_open(const char *name, int oflag, ...)",
+// with the mode being optional, but I don't think our syscall interface supports it.
+// If not creating a file, the mode parameter is ignored.
+int shm_open(const char *name, int oflag, mode_t mode)
+{
+	return __syscall(SYS_shm_open, name, oflag, mode);
+}
+
+int shm_unlink(const char *name)
+{
+	return __syscall(SYS_shm_unlink, name);
+}

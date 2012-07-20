@@ -21,9 +21,21 @@
 #ifndef __LIBC__PROCESS_H__
 #define __LIBC__PROCESS_H__
 
+#include "runtime/posix/time.h"
+
+#define ITIMER_REAL     0
+#define ITIMER_VIRTUAL  1
+#define ITIMER_PROF     2
+
 typedef int pid_t;
 typedef int uid_t;
 typedef int gid_t;
+
+struct itimerval
+{
+	struct timeval it_interval;
+	struct timeval it_value;
+};
 
 void exit(int result) __noreturn;
 #define _exit(result) exit(result)
@@ -34,6 +46,8 @@ pid_t wait(int* status);
 pid_t waitpid(pid_t pid, int* status, int options);
 
 unsigned int alarm(unsigned int seconds);
+int getitimer(int which, struct itimerval* value);
+int setitimer(int which, const struct itimerval* value, struct itimerval* old);
 
 uid_t getuid(void);
 gid_t getgid(void);
@@ -49,6 +63,11 @@ int setregid(uid_t rid, uid_t eid);
 
 pid_t getpid(void);
 pid_t getppid(void);
+
+pid_t setsid(void);
+int setpgid(pid_t pid, pid_t pgid);
+pid_t getpgid(pid_t pid);
+pid_t getpgrp(void);
 
 int kill(pid_t pid, int sig);
 

@@ -1,0 +1,16 @@
+setpgid
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int setpgid(pid_t pid, pid_t pgid);
+---------------------------------------------
+
+Sets the process group ID for process `pid` to `pgid`.  Returns zero on success, or the negation of the error
+code on failure.
+
+See also
+--------
+link:getpgid.html[getpgid],
+link:getpgrp.html[getpgrp],
+link:setsid.html[setsid]

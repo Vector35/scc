@@ -1,0 +1,16 @@
+sigaction
+=========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int sigaction(int sig, const struct sigaction* act, struct sigaction* old);
+---------------------------------------------
+
+Sets the signal handler for `sig` to `act`, and stores the old signal handler information in `old` if not `NULL`.
+The `sa_handler` field in `act` can be `SIG_DFL` for the default handler, or `SIG_IGN` to ignore the signal.
+
+WARNING: Setting a handler other than `SIG_DFL` or `SIG_IGN` is not yet supported on 64-bit platforms.
+
+See also
+--------
+link:signal.html[signal]

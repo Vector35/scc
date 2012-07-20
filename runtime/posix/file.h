@@ -71,8 +71,8 @@
 #define S_ISWHT(m)  (((m) & S_IFMT) == 0xe000)
 
 #define FD_ZERO(fd) memset(fd, 0, sizeof(fd_set))
-#define FD_SET(d, set) (set)->fds_bits[(d) >> 5] |= (1 << ((d) & 31))
-#define FD_CLR(d, set) (set)->fds_bits[(d) >> 5] &= ~(1 << ((d) & 31))
+#define FD_SET(d, set) (set)->fds_bits[(d) >> 5] |= (uint32_t)(1 << ((d) & 31))
+#define FD_CLR(d, set) (set)->fds_bits[(d) >> 5] &= (uint32_t)~(1 << ((d) & 31))
 #define FD_ISSET(d, set) ((set)->fds_bits[(d) >> 5] & (1 << ((d) & 31)))
 
 typedef void* FILE;

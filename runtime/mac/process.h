@@ -55,7 +55,50 @@
 #define SIGUSR1    30
 #define SIGUSR2    31
 
+#define SIG_DFL     ((sig_t)0)
+#define SIG_IGN     ((sig_t)1)
+#define SIG_HOLD    ((sig_t)5)
+
+#define SA_ONSTACK    1
+#define SA_RESTART    2
+#define SA_RESETHAND  4
+#define SA_NOCLDSTOP  8
+#define SA_NODEFER    0x10
+#define SA_NOCLDWAIT  0x20
+#define SA_SIGINFO    0x40
+#define SA_USERTRAMP  0x100
+#define SA_64REGSET   0x200
+
+typedef void (*sig_t)(int);
+typedef uint32_t sigset_t;
+
+typedef struct
+{
+	int si_signo;
+	int si_errno;
+	int si_code;
+	pid_t si_pid;
+	uid_t si_uid;
+	int si_status;
+	void* si_addr;
+} siginfo_t;
+
+struct sigaction
+{
+	union
+	{
+		sig_t sa_handler;
+		void (*sa_sigaction)(int, siginfo_t*, void*);
+	};
+	void (*sa_tramp)(void*, int, int, siginfo_t*, void*);
+	sigset_t sa_mask;
+	int sa_flags;
+};
+
 int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen);
+
+sig_t signal(int sig, sig_t func);
+int sigaction(int sig, const struct sigaction* act, struct sigaction* old);
 
 #endif
 

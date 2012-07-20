@@ -66,11 +66,13 @@ Options:
                                       Can be: bin (default), lib, elf, pe, macho
     --frame-reg &lt;reg&gt;                 Use alternate register as the frame pointer
     --header &lt;file&gt;                   Include a precompiled header
+    -I &lt;path&gt;                         Add additional directory for include files
     -L &lt;lib&gt;                          Include pre-built library
     -m32, -m64                        Specify target address size
     --map &lt;file&gt;                      Generate map file
     --max-length &lt;value&gt;              Do not let output size exceed given number of bytes
     --mixed-mode                      Randomly choose subarchitecture for each function
+    --multi-stage                     Compile code to be used in multi-stage execution
     -o &lt;filename&gt;                     Set output filename (default is hex dump to stdout)
     -O0                               Do not run the optimizer
     -Os                               Try to generate the smallest code possible

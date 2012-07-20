@@ -1,0 +1,15 @@
+shm_unlink
+==========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int shm_unlink(const char* path);
+---------------------------------------------
+
+Deletes the shared memory page denoted by `path`.  Returns zero on success, or the negation of the error code on error.
+
+WARNING: This function is not yet available on Linux.
+
+See also
+--------
+link:shm_open.html[shm_open]

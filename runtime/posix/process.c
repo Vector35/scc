@@ -28,6 +28,16 @@ int execve(const char* filename, const char** argv, const char** envp)
 	__syscall(SYS_execve, filename, argv, envp);
 }
 
+int getitimer(int which, struct itimerval* value)
+{
+	return __syscall(SYS_getitimer, which, value);
+}
+
+int setitimer(int which, const struct itimerval* value, struct itimerval* old)
+{
+	return __syscall(SYS_setitimer, which, value, old);
+}
+
 uid_t getuid(void)
 {
 	return __syscall(SYS_getuid);
@@ -91,6 +101,26 @@ pid_t getpid(void)
 pid_t getppid(void)
 {
 	return __syscall(SYS_getppid);
+}
+
+pid_t setsid(void)
+{
+	return __syscall(SYS_setsid);
+}
+
+int setpgid(pid_t pid, pid_t pgid)
+{
+	return __syscall(SYS_setpgid, pid, pgid);
+}
+
+pid_t getpgid(pid_t pid)
+{
+	return __syscall(SYS_getpgid, pid);
+}
+
+pid_t getpgrp(void)
+{
+	return __syscall(SYS_getpgrp);
 }
 
 int kill(pid_t pid, int sig)

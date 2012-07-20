@@ -125,5 +125,8 @@ int fstat(int fd, struct stat* buf);
 int stat(const char* path, struct stat* buf);
 int lstat(const char* path, struct stat* buf);
 
+int shm_open(const char *name, int oflag, mode_t mode);
+int shm_unlink(const char *name);
+
 #endif
 

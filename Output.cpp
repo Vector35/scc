@@ -363,7 +363,7 @@ bool InputBlock::ReadBool(bool& value)
 }
 
 
-Output::Output(const Settings& settings): m_settings(settings)
+Output::Output(const Settings& settings, Function* startFunc): m_settings(settings), m_startFunc(startFunc)
 {
 }
 

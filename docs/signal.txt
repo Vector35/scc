@@ -1,0 +1,16 @@
+signal
+======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+sig_t signal(int sig, sig_t func);
+---------------------------------------------
+
+Sets the signal handler for `sig` to `func`.  The `func` parameter can be `SIG_DFL` for the default handler, or `SIG_IGN` to
+ignore the signal.
+
+WARNING: Setting a handler other than `SIG_DFL` or `SIG_IGN` is not yet supported on 64-bit platforms.
+
+See also
+--------
+link:sigaction.html[sigaction]

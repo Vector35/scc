@@ -126,17 +126,24 @@ link:malloc.html[malloc],
 link:memcpy.html[memcpy],
 link:memset.html[memset],
 link:mmap.html[mmap],
-link:munmap.html[munmap]
+link:munmap.html[munmap],
+link:shm_open.html[shm_open],
+link:shm_unlink.html[shm_unlink]
 
 Process functions
 -----------------
-link:alarm.html[alarm],
 link:execve.html[execve],
 link:exit.html[exit],
 link:fork.html[fork],
+link:getpgid.html[getpgid],
+link:getpgrp.html[getpgrp],
 link:getpid.html[getpid],
 link:getppid.html[getppid],
 link:kill.html[kill],
+link:setpgid.html[setpgid],
+link:setsid.html[setsid],
+link:sigaction.html[sigaction],
+link:signal.html[signal],
 link:sysctl.html[sysctl],
 link:system.html[system],
 link:tgkill.html[tgkill],
@@ -202,7 +209,11 @@ link:vsnprintf.html[vsnprintf]
 
 Time functions
 --------------
+link:alarm.html[alarm],
+link:getitimer.html[getitimer],
 link:gettimeofday.html[gettimeofday],
+link:nanosleep.html[nanosleep],
+link:setitimer.html[setitimer],
 link:time.html[time]
 
 Virtual machine functions

@@ -40,3 +40,26 @@ int gettimeofday(struct timeval* t, struct timezone* tz)
 	return 0;
 }
 
+int nanosleep(const struct timespec* amount, struct timespec* unslept)
+{
+	// Mac OS X does not have a nanosleep system, need to emulate it
+	// TODO: The official runtime does this with an undocumented call, look into this
+
+	// Currently emulating by creating a pipe (which is never accessed), then calling
+	// select() with the desired timeout.
+	int fds[2];
+	fd_set set;
+	pipe(fds);
+	FD_ZERO(&set);
+	FD_SET(fds[0], &set);
+
+	struct timeval tv;
+	tv.tv_sec = amount->tv_sec;
+	tv.tv_usec = amount->tv_nsec / 1000;
+	select(fds[0] + 1, &set, NULL, NULL, &tv);
+
+	close(fds[0]);
+	close(fds[1]);
+	return 0;
+}
+

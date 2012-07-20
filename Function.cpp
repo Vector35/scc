@@ -584,6 +584,7 @@ bool Function::DeserializeInternal(InputBlock* input)
 	size_t blockCount;
 	if (!input->ReadNativeInteger(blockCount))
 		return false;
+	ILBlock::SaveSerializationMapping();
 	for (size_t i = 0; i < blockCount; i++)
 	{
 		ILBlock* block = new ILBlock(i);
@@ -593,8 +594,12 @@ bool Function::DeserializeInternal(InputBlock* input)
 	for (size_t i = 0; i < blockCount; i++)
 	{
 		if (!m_ilBlocks[i]->Deserialize(input))
+		{
+			ILBlock::RestoreSerializationMapping();
 			return false;
+		}
 	}
+	ILBlock::RestoreSerializationMapping();
 
 	if (!input->ReadUInt32(m_nextTempId))
 		return false;

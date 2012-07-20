@@ -22,6 +22,7 @@
 #define __ILBLOCK_H__
 
 #include <set>
+#include <stack>
 #include "Type.h"
 #include "BitVector.h"
 
@@ -212,6 +213,7 @@ class ILBlock
 	std::vector< std::vector< std::pair<ILBlock*, size_t> > > m_defUseChains;
 
 	static std::map<size_t, ILBlock*> m_serializationMapping;
+	static std::stack< std::map<size_t, ILBlock*> > m_savedSerializationMappings;
 
 public:
 	ILBlock();
@@ -281,6 +283,8 @@ public:
 	bool Deserialize(InputBlock* input);
 	static ILBlock* GetSerializationMapping(size_t i);
 	static void SetSerializationMapping(size_t i, ILBlock* block);
+	static void SaveSerializationMapping();
+	static void RestoreSerializationMapping();
 
 	void Print() const;
 };

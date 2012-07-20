@@ -78,13 +78,13 @@ void quark_exec(void* buf, ...) __noreturn
 			cval = r[c] << d;
 
 		// Check for conditional instructions
-		if (instr & 0x80000000)
+		if (cond & 8)
 		{
 			// Condition bit check enabled
-			if (cc[(instr >> 29) & 3] != ((instr >> 28) & 1))
+			if (cc[(cond >> 1) & 3] != (cond & 1))
 				continue;
 		}
-		else if (instr & 0x10000000)
+		else if (cond & 1)
 		{
 			// Never execute condition
 			continue;

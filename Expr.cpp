@@ -2136,7 +2136,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if ((GetTargetPointerSize() == 4) && (m_children[0]->GetType()->GetWidth() == 8))
+		if ((!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2165,7 +2165,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if ((GetTargetPointerSize() == 4) && (m_children[0]->GetType()->GetWidth() == 8))
+		if ((!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2212,16 +2212,52 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_SHL, result, a, b);
+		if ((!state->HasIntrinsicShift64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		{
+			// 64-bit shift on 32-bit output, emit call to shift routine
+			string name = "__shl64";
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
+					name.c_str());
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+		}
+		else
+		{
+			block->AddInstruction(ILOP_SHL, result, a, b);
+		}
 		break;
 	case EXPR_SHIFT_RIGHT:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if (m_children[0]->GetType()->IsSigned())
-			block->AddInstruction(ILOP_SAR, result, a, b);
+		if ((!state->HasIntrinsicShift64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		{
+			// 64-bit division on 32-bit output, emit call to divide routine
+			string name;
+			if (m_children[0]->GetType()->IsSigned())
+				name = "__sar64";
+			else
+				name = "__shr64";
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
+					name.c_str());
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+		}
 		else
-			block->AddInstruction(ILOP_SHR, result, a, b);
+		{
+			if (m_children[0]->GetType()->IsSigned())
+				block->AddInstruction(ILOP_SAR, result, a, b);
+			else
+				block->AddInstruction(ILOP_SHR, result, a, b);
+		}
 		break;
 	case EXPR_NEG:
 		result = func->CreateTempVariable(m_type);

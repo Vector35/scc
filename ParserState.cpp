@@ -568,6 +568,18 @@ bool ParserState::HasIntrinsicMemset()
 }
 
 
+bool ParserState::HasIntrinsicDivide64()
+{
+	return m_settings.preferredBits == 64;
+}
+
+
+bool ParserState::HasIntrinsicShift64()
+{
+	return m_settings.architecture == ARCH_X86;
+}
+
+
 void ParserState::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(m_types.size());

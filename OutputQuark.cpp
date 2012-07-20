@@ -211,16 +211,36 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 				switch (ref.width)
 				{
 				case 1:
-					if (ref.memType == MEMORYREF_STACK_VAR)
-						out->AddInstruction(QuarkLoadStack8(reg, ref.base, ref.var, ref.offset, ref.scratch));
+					if (ref.sign)
+					{
+						if (ref.memType == MEMORYREF_STACK_VAR)
+							out->AddInstruction(QuarkLoadStackSX8(reg, ref.base, ref.var, ref.offset, ref.scratch));
+						else
+							out->AddInstruction(QuarkLoadGlobalSX8(reg, ref.base, ref.offset, ref.scratch));
+					}
 					else
-						out->AddInstruction(QuarkLoadGlobal8(reg, ref.base, ref.offset, ref.scratch));
+					{
+						if (ref.memType == MEMORYREF_STACK_VAR)
+							out->AddInstruction(QuarkLoadStack8(reg, ref.base, ref.var, ref.offset, ref.scratch));
+						else
+							out->AddInstruction(QuarkLoadGlobal8(reg, ref.base, ref.offset, ref.scratch));
+					}
 					break;
 				case 2:
-					if (ref.memType == MEMORYREF_STACK_VAR)
-						out->AddInstruction(QuarkLoadStack16(reg, ref.base, ref.var, ref.offset, ref.scratch));
+					if (ref.sign)
+					{
+						if (ref.memType == MEMORYREF_STACK_VAR)
+							out->AddInstruction(QuarkLoadStackSX16(reg, ref.base, ref.var, ref.offset, ref.scratch));
+						else
+							out->AddInstruction(QuarkLoadGlobalSX16(reg, ref.base, ref.offset, ref.scratch));
+					}
 					else
-						out->AddInstruction(QuarkLoadGlobal16(reg, ref.base, ref.offset, ref.scratch));
+					{
+						if (ref.memType == MEMORYREF_STACK_VAR)
+							out->AddInstruction(QuarkLoadStack16(reg, ref.base, ref.var, ref.offset, ref.scratch));
+						else
+							out->AddInstruction(QuarkLoadGlobal16(reg, ref.base, ref.offset, ref.scratch));
+					}
 					break;
 				case 4:
 					if (ref.memType == MEMORYREF_STACK_VAR)

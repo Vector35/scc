@@ -41,6 +41,7 @@ void QuarkSymInstr::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& re
 	{
 		// Was a 17-bit immediate, use a full 32-bit immediate
 		uint32_t instrs[3];
+		uint32_t oldOpcode = (oldInstr[0] >> 22) & 0x3f;
 		int32_t oldOffset = oldInstr[0] & 0x1ffff;
 		int oldReg = (oldInstr[1] >> 17) & 31;
 		if (oldOffset & 0x10000)
@@ -50,7 +51,7 @@ void QuarkSymInstr::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& re
 
 		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
 		instrs[1] = QUARK_EMIT_2(ldih, reloc.extra, (oldOffset < 0) ? -1 : 0);
-		instrs[2] = QUARK_EMIT_3R(add, oldReg, 31, reloc.extra, 0);
+		instrs[2] = __QUARK_INSTR(oldOpcode, oldReg, 31, reloc.extra, 0);
 
 		out->ReplaceInstruction(start, 8, instrs, 12, 0);
 
@@ -64,6 +65,7 @@ void QuarkSymInstr::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& re
 	{
 		// Was an 11-bit immediate, extend to a 17-bit immediate
 		uint32_t instrs[2];
+		uint32_t oldOpcode = (oldInstr[0] >> 22) & 0x3f;
 		int32_t oldOffset = oldInstr[0] & 0x7ff;
 		int oldReg = (oldInstr[0] >> 17) & 31;
 		if (oldOffset & 0x400)
@@ -72,7 +74,7 @@ void QuarkSymInstr::RelativeLoadOverflowHandler(OutputBlock* out, Relocation& re
 		oldOffset -= 4;
 
 		instrs[0] = QUARK_EMIT_2(ldi, reloc.extra, oldOffset);
-		instrs[1] = QUARK_EMIT_3R(add, oldReg, 31, reloc.extra, 0);
+		instrs[1] = __QUARK_INSTR(oldOpcode, oldReg, 31, reloc.extra, 0);
 
 		out->ReplaceInstruction(start, 4, instrs, 8, 0);
 

@@ -751,7 +751,7 @@ bool OutputQuark::GenerateArrayIndexAssign(SymInstrBlock* out, const ILInstructi
 		return false;
 	if (!Load(out, instr.params[1], i))
 		return false;
-	if (!Load(out, instr.params[3], value))
+	if (!Load(out, instr.params[3], value, true))
 		return false;
 	if (ref.type != OPERANDREF_MEM)
 		return false;
@@ -1467,13 +1467,13 @@ bool OutputQuark::GenerateIfTrue(SymInstrBlock* out, const ILInstruction& instr)
 
 	if (value.width == 8)
 	{
-		out->AddInstruction(QuarkCmp(0, QUARK_COND_NE, value.reg, 0));
-		out->AddInstruction(QuarkCmp(1, QUARK_COND_NE, value.highReg, 0));
+		out->AddInstruction(QuarkCmp(QUARK_COND_NE, 0, value.reg, 0));
+		out->AddInstruction(QuarkCmp(QUARK_COND_NE, 1 ,value.highReg, 0));
 		out->AddInstruction(QuarkOrCC(0, 0, 1));
 	}
 	else
 	{
-		out->AddInstruction(QuarkCmp(0, QUARK_COND_NE, value.reg, 0));
+		out->AddInstruction(QuarkCmp(QUARK_COND_NE, 0, value.reg, 0));
 	}
 
 	ConditionalJump(out, instr.params[1].block, 0, true);

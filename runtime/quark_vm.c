@@ -68,14 +68,14 @@ void quark_exec(void* buf, ...) __noreturn
 		uint32_t addr, result;
 		uint64_t result64;
 
+		r[IP] += 4;
+
 		if (LARGEIMM(instr))
 			cval = IMM11(instr);
 		else if (SMALLIMM(instr))
 			cval = ROL(IMM5(instr), d);
 		else
 			cval = r[c] << d;
-
-		r[IP] += 4;
 
 		// Check for conditional instructions
 		if (instr & 0x80000000)

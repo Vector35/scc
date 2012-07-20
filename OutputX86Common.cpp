@@ -5696,10 +5696,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #else
 	m_basePointer = NONE;
 #endif
-	if (func->IsVariableSizedStackFrame())
-		m_framePointerEnabled = true;
-	else
-		m_framePointerEnabled = false;
+
+	// FIXME: There are bugs with ESP based addressing (pushing parameters on stack doesn't
+	// account for adjusted stack), so it is disabled for now
+	m_framePointerEnabled = true;
 
 #ifdef OUTPUT32
 	if (m_settings.stackReg.size() != 0)

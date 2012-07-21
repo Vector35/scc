@@ -233,12 +233,8 @@ void Optimize::PerformDataFlowAnalysis(Function* func)
 			for (size_t k = startParam; k < (*i)->GetInstructions()[j].params.size(); k++)
 			{
 				const ILParameter* param = &(*i)->GetInstructions()[j].params[k];
-				bool full = ((*i)->GetInstructions()[j].operation != ILOP_ARRAY_INDEX_ASSIGN);
 				while (param->cls == ILPARAM_MEMBER)
-				{
 					param = param->parent;
-					full = false;
-				}
 
 				if (param->cls != ILPARAM_VAR)
 					continue;

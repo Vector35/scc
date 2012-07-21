@@ -14,15 +14,15 @@ void SymInstrOperand::Print(SymInstrFunction* f)
 		f->PrintRegister(reg);
 		break;
 	case SYMOPERAND_IMMED:
-		fprintf(stderr, "%lld", immed);
+		fprintf(stderr, "%lld", (long long)immed);
 		break;
 	case SYMOPERAND_STACK_VAR:
 		fprintf(stderr, "stack%d", reg);
 		if (immed != 0)
-			fprintf(stderr, "+%lld", immed);
+			fprintf(stderr, "+%lld", (long long)immed);
 		break;
 	case SYMOPERAND_GLOBAL_VAR:
-		fprintf(stderr, "global%lld", immed);
+		fprintf(stderr, "global%lld", (long long)immed);
 		break;
 	case SYMOPERAND_BLOCK:
 		fprintf(stderr, "%s:%d", func->GetName().c_str(), (int)block->GetIndex());
@@ -943,7 +943,7 @@ void SymInstrFunction::Print()
 	}
 
 	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
-		fprintf(stderr, "\tstack%d: %lld\n", (int)i, m_stackVarOffsets[i]);
+		fprintf(stderr, "\tstack%d: %lld\n", (int)i, (long long)m_stackVarOffsets[i]);
 
 	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
 		(*i)->Print(this);

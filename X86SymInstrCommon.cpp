@@ -79,7 +79,7 @@ using namespace asmx86;
 				fprintf(stderr, "*%d", (int)m_operands[(start) + 2].immed); \
 		} \
 		if (m_operands[(start) + 3].immed != 0) \
-			fprintf(stderr, " + %lld", m_operands[(start) + 3].immed); \
+			fprintf(stderr, " + %lld", (long long)m_operands[(start) + 3].immed); \
 	} \
 	else if (m_operands[(start) + 1].reg != SYMREG_NONE) \
 	{ \
@@ -88,11 +88,11 @@ using namespace asmx86;
 		if (m_operands[(start) + 2].immed != 1) \
 			fprintf(stderr, "*%d", (int)m_operands[(start) + 2].immed); \
 		if (m_operands[(start) + 3].immed != 0) \
-			fprintf(stderr, " + %lld", m_operands[(start) + 3].immed); \
+			fprintf(stderr, " + %lld", (long long)m_operands[(start) + 3].immed); \
 	} \
 	else \
 	{ \
-		fprintf(stderr, "0x%llx", m_operands[(start) + 3].immed); \
+		fprintf(stderr, "0x%llx", (long long)m_operands[(start) + 3].immed); \
 	} \
 	fprintf(stderr, "]");
 

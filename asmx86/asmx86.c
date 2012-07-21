@@ -2087,9 +2087,6 @@ namespace x86
 	static void __fastcall DecodeSSESingle(DecodeState* restrict state)
 	{
 		uint8_t type = DecodeSSEPrefix(state);
-		uint8_t rm = Peek8(state);
-		uint8_t modField = (rm >> 6) & 3;
-		uint16_t size;
 
 		if ((type == 1) || (type == 2))
 		{
@@ -2098,10 +2095,6 @@ namespace x86
 		}
 
 		state->result->operation = (InstructionOperation)((int)state->result->operation + (type & 1));
-		if (modField == 3)
-			size = 16;
-		else
-			size = GetSizeForSSEType(type);
 		DecodeRMReg(state, state->operand1, xmmRegList, 16, state->operand0, xmmRegList, 16);
 	}
 

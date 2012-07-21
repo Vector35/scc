@@ -40,6 +40,35 @@
 #define O_NOATIME   0x40000
 #define O_CLOEXEC   0x80000
 
+#define F_DUPFD         0  // duplicate file descriptor
+#define F_GETFD         1  // get file descriptor flags
+#define F_SETFD         2  // set file descriptor flags
+#define F_GETFL         3  // get file status flags
+#define F_SETFL         4  // set file status flags
+#define F_GETLK         5  // get record locking information
+#define F_SETLK         6  // set record locking information
+#define F_SETLKW        7  // F_SETLK; wait if blocked
+#define F_GETOWN        8  // get SIGIO/SIGURG proc/pgrp
+#define F_SETOWN        9  // set SIGIO/SIGURG proc/pgrp
+#define F_SETSIG        10
+#define F_GETSIG        11
+#define F_SETOWN_EX     15
+#define F_GETOWN_EX     16
+#define F_SETLEASE      1024
+#define F_GETLEASE      1025
+#define F_NOTIFY        1026
+#define F_DUPFD_CLOEXEC 1030
+#define F_SETPIPE_SZ    1031
+#define F_GETPIPE_SZ    1032
+
+#define FD_CLOEXEC      1
+
+#define F_RDLCK         0
+#define F_WRLCK         1
+#define F_UNLCK         2
+#define F_EXLCK         4
+#define F_SHLCK         8
+
 struct dirent
 {
 	size_t d_ino;

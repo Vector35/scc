@@ -201,3 +201,8 @@ int symlink(const char* target, const char* path)
 	return __syscall(SYS_symlink, target, path);
 }
 
+int fcntl(int fd, int cmd, size_t arg)
+{
+	return __syscall(SYS_fcntl, fd, cmd, arg);
+}
+

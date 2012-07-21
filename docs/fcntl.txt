@@ -1,0 +1,21 @@
+fcntl
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int fcntl(int fd, int cmd, size_t arg);
+---------------------------------------------
+
+Issues a file descriptor command.  The available commands vary by platform, but the most common commands, such as `F_SETFL`, are
+available on all platforms.  Returns the result of the command, the meaning of which varies by the command sent.
+
+IMPORTANT: In the standard C runtime implementation of this function, the `arg` parameter is optional.  This runtime always
+requires the third argument.  For commands that do not need the `arg` parameter, it will be ignored.  The `__undefined`
+intrinsic can be used for ignored parameters.
+
+See also
+--------
+link:dup2.html[dup2],
+link:open.html[open],
+link:pipe.html[pipe],
+link:socket.html[socket]

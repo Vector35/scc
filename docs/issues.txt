@@ -12,6 +12,7 @@ Compiler bugs
 * Structure return values are not implemented.  Pass a pointer to the return value as a parameter instead.
 * When the `--encode-pointers` option is enabled, `NULL` function pointers do not work.
 * Code output is much larger than desired.  The code generation system is not complete.
+* Improper circular includes are not detected.  The compiler will crash with a stack overflow.
 
 Missing features
 ----------------

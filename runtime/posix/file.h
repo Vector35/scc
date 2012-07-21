@@ -126,5 +126,7 @@ int pipe(int* fds);
 
 int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds, struct timeval* timeout);
 
+int fcntl(int fd, int cmd, size_t arg);
+
 #endif
 

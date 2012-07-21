@@ -84,6 +84,12 @@
 #define F_SETNOSIGPIPE          73  // No SIGPIPE generated on EPIPE
 #define F_GETNOSIGPIPE          74  // Status of SIGPIPE for this fd
 
+#define FD_CLOEXEC   1
+
+#define F_RDLCK      1
+#define F_UNLCK      2
+#define F_WRLCK      3
+
 struct stat
 {
 	uint32_t st_dev;

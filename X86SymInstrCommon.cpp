@@ -33,9 +33,11 @@ using namespace asmx86;
 #ifdef OUTPUT32
 #define X86_NATIVE_REG(r) X86_REG_OF_SIZE(r, 32)
 #define X86_NATIVE_SIZE 32
+#define X86_NATIVE_SIZE_INSTR_NAME(i) i ## _32
 #else
 #define X86_NATIVE_REG(r) X86_REG_OF_SIZE(r, 64)
 #define X86_NATIVE_SIZE 64
+#define X86_NATIVE_SIZE_INSTR_NAME(i) i ## _64
 #endif
 
 
@@ -113,7 +115,7 @@ void X86_SYMINSTR_CLASS(name)::Print(SymInstrFunction* func) \
 SymInstr* X86_SYMINSTR_NAME(name)() { return new X86_SYMINSTR_CLASS(name)(); }
 
 
-#define X86_IMPLEMENT_1OP_RM_NATIVE(name, access, flags) \
+#define X86_IMPLEMENT_1OP_MODRM_NATIVE(name, access, flags) \
 X86_SYMINSTR_CLASS_OP(name, R)::X86_SYMINSTR_CLASS_OP(name, R)(uint32_t a) \
 { \
 	Add ## access ## RegisterOperand(a); \
@@ -149,7 +151,7 @@ SymInstr* X86_SYMINSTR_NAME_OP(name, R)(uint32_t a) { return new X86_SYMINSTR_CL
 SymInstr* X86_SYMINSTR_NAME_OP(name, M)(X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_OP(name, M)(X86_MEM_OP_PASS); }
 
 
-#define X86_IMPLEMENT_1OP_RM_SIZE(name, size, access, flags) \
+#define X86_IMPLEMENT_1OP_MODRM_SIZE(name, size, access, flags) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, R)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, R)(uint32_t a) \
 { \
 	Add ## access ## RegisterOperand(a); \
@@ -185,7 +187,30 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, R)(uint32_t a) { return new X86_
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, M)(X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, M)(X86_MEM_OP_PASS); }
 
 
-#define X86_IMPLEMENT_2OP_RM_SIZE(name, size, firstAccess, secondAccess, flags) \
+#define X86_IMPLEMENT_2OP_RM_NATIVE(name, firstAccess, secondAccess, flags) \
+X86_SYMINSTR_CLASS_OP(name, RM)::X86_SYMINSTR_CLASS_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM) \
+{ \
+	Add ## firstAccess ## RegisterOperand(a); \
+	X86_ADD_MEM_OP; \
+	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
+	EnableFlag(flags); \
+} \
+bool X86_SYMINSTR_CLASS_OP(name, RM)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT_RM(X86_NATIVE_SIZE_INSTR_NAME(name), X86_REG_OF_SIZE(m_operands[0].reg, X86_NATIVE_SIZE), X86_MEM_OP(1)); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_OP(name, RM)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_REG_OP(0, X86_NATIVE_SIZE); \
+	fprintf(stderr, ", "); \
+	X86_PRINT_MEM_OP(1, 0); \
+} \
+SymInstr* X86_SYMINSTR_NAME_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_OP(name, RM)(a, X86_MEM_OP_PASS); }
+
+
+#define X86_IMPLEMENT_2OP_RR_SIZE(name, size, firstAccess, secondAccess, flags) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) \
 { \
 	Add ## firstAccess ## RegisterOperand(a); \
@@ -204,6 +229,10 @@ void X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::Print(SymInstrFunction* func) \
 	fprintf(stderr, ", "); \
 	X86_PRINT_REG_OP(1, size); \
 } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(a, b); }
+
+
+#define X86_IMPLEMENT_2OP_RM_SIZE(name, size, firstAccess, secondAccess, flags) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM)(uint32_t a, X86_MEM_OP_PARAM) \
 { \
 	Add ## firstAccess ## RegisterOperand(a); \
@@ -223,6 +252,10 @@ void X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM)::Print(SymInstrFunction* func) \
 	fprintf(stderr, ", "); \
 	X86_PRINT_MEM_OP(1, size); \
 } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RM)(uint32_t a, X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM)(a, X86_MEM_OP_PASS); }
+
+
+#define X86_IMPLEMENT_2OP_MR_SIZE(name, size, firstAccess, secondAccess, flags) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR)(X86_MEM_OP_PARAM, uint32_t b) \
 { \
 	X86_ADD_MEM_OP; \
@@ -242,31 +275,85 @@ void X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR)::Print(SymInstrFunction* func) \
 	fprintf(stderr, ", "); \
 	X86_PRINT_REG_OP(4, size); \
 } \
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(a, b); } \
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RM)(uint32_t a, X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM)(a, X86_MEM_OP_PASS); } \
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MR)(X86_MEM_OP_PARAM, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR)(X86_MEM_OP_PASS, b); } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MR)(X86_MEM_OP_PARAM, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR)(X86_MEM_OP_PASS, b); }
+
+
+#define X86_IMPLEMENT_2OP_MODRM_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_IMPLEMENT_2OP_RR_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_IMPLEMENT_2OP_RM_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_IMPLEMENT_2OP_MR_SIZE(name, size, firstAccess, secondAccess, flags)
+
+
+#define X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_IMPLEMENT_2OP_MODRM_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) \
+{ \
+	Add ## firstAccess ## RegisterOperand(a); \
+	AddImmediateOperand(b); \
+	EnableFlag(flags); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT_RI(name ## _ ## size, X86_REG_OF_SIZE(m_operands[0].reg, size), (int ## size ## _t)m_operands[1].immed); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_REG_OP(0, size); \
+	fprintf(stderr, ", %lld", (long long)m_operands[1].immed); \
+} \
+X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) \
+{ \
+	X86_ADD_MEM_OP; \
+	AddImmediateOperand(b); \
+	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
+	EnableFlag(flags); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT_MI(name ## _ ## size, X86_MEM_OP(0), (int ## size ## _t)m_operands[4].immed); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_MEM_OP(0, size); \
+	fprintf(stderr, ", %lld", (long long)m_operands[4].immed); \
+} \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(a, b); } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PASS, b); } \
 
 
 #ifdef OUTPUT32
-#define X86_IMPLEMENT_1OP_RM(name, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 8, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 16, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 32, access, flags)
-#define X86_IMPLEMENT_2OP_RM(name, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 8, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 16, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 32, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_1OP_MODRM(name, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 8, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 16, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 32, access, flags)
+#define X86_IMPLEMENT_2OP_MODRM(name, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 8, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 16, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 32, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_2OP_MODRM_IMM(name, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 8, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 16, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 32, firstAccess, secondAccess, flags)
 #else
-#define X86_IMPLEMENT_1OP_RM(name, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 8, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 16, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 32, access, flags) \
-	X86_IMPLEMENT_1OP_RM_SIZE(name, 64, access, flags)
-#define X86_IMPLEMENT_2OP_RM(name, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 8, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 16, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 32, firstAccess, secondAccess, flags) \
-	X86_IMPLEMENT_2OP_RM_SIZE(name, 64, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_1OP_MODRM(name, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 8, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 16, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 32, access, flags) \
+	X86_IMPLEMENT_1OP_MODRM_SIZE(name, 64, access, flags)
+#define X86_IMPLEMENT_2OP_MODRM(name, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 8, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 16, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 32, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_SIZE(name, 64, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_2OP_MODRM_IMM(name, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 8, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 16, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 32, firstAccess, secondAccess, flags) \
+	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 64, firstAccess, secondAccess, flags)
 #endif
 
 
@@ -275,23 +362,26 @@ X86_IMPLEMENT_NO_OPERANDS(std)
 X86_IMPLEMENT_NO_OPERANDS(nop)
 X86_IMPLEMENT_NO_OPERANDS(int3)
 
-X86_IMPLEMENT_1OP_RM(dec, ReadWrite, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_1OP_RM(inc, ReadWrite, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_1OP_RM(neg, ReadWrite, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_1OP_RM(not, ReadWrite, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_1OP_RM_NATIVE(pop, Write, SYMFLAG_MEMORY_BARRIER)
-X86_IMPLEMENT_1OP_RM_NATIVE(push, Read, SYMFLAG_MEMORY_BARRIER)
+X86_IMPLEMENT_1OP_MODRM(dec, ReadWrite, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_1OP_MODRM(inc, ReadWrite, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_1OP_MODRM(neg, ReadWrite, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_1OP_MODRM(not, ReadWrite, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_1OP_MODRM_NATIVE(pop, Write, SYMFLAG_MEMORY_BARRIER)
+X86_IMPLEMENT_1OP_MODRM_NATIVE(push, Read, SYMFLAG_MEMORY_BARRIER)
 
-X86_IMPLEMENT_2OP_RM(adc, ReadWrite, Read, SYMFLAG_USES_FLAGS | SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(add, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(and, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(cmp, Read, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(sbb, ReadWrite, Read, SYMFLAG_USES_FLAGS | SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(sub, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(test, Read, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(or, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_RM(xchg, ReadWrite, ReadWrite, 0)
-X86_IMPLEMENT_2OP_RM(xor, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
+// FIXME: The LEA instruction does not need the SYMFLAG_MEMORY_BARRIER flag
+X86_IMPLEMENT_2OP_RM_NATIVE(lea, Write, Read, 0)
+
+X86_IMPLEMENT_2OP_MODRM_IMM(adc, ReadWrite, Read, SYMFLAG_USES_FLAGS | SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(add, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(and, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(cmp, Read, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(sbb, ReadWrite, Read, SYMFLAG_USES_FLAGS | SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(sub, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(test, Read, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM_IMM(or, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_2OP_MODRM(xchg, ReadWrite, ReadWrite, 0)
+X86_IMPLEMENT_2OP_MODRM_IMM(xor, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 
 
 OperandType X86_SYMINSTR_NAME(Instr)::GetOperandOfSize(uint32_t reg, uint32_t size)

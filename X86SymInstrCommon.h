@@ -68,7 +68,7 @@ public: \
 SymInstr* X86_SYMINSTR_NAME(name)();
 
 
-#define X86_DECLARE_1OP_RM_NATIVE(name) \
+#define X86_DECLARE_1OP_MODRM_NATIVE(name) \
 class X86_SYMINSTR_CLASS_OP(name, R): public X86_SYMINSTR_NAME(Instr) \
 { \
 public: \
@@ -87,7 +87,7 @@ SymInstr* X86_SYMINSTR_NAME_OP(name, R)(uint32_t a); \
 SymInstr* X86_SYMINSTR_NAME_OP(name, M)(X86_MEM_OP_PARAM);
 
 
-#define X86_DECLARE_1OP_RM_SIZE(name, size) \
+#define X86_DECLARE_1OP_MODRM_SIZE(name, size) \
 class X86_SYMINSTR_CLASS_SIZE_OP(name, size, R): public X86_SYMINSTR_NAME(Instr) \
 { \
 public: \
@@ -101,12 +101,23 @@ public: \
 	X86_SYMINSTR_CLASS_SIZE_OP(name, size, M)(X86_MEM_OP_PARAM); \
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
 	virtual void Print(SymInstrFunction* func); \
-};\
+}; \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, R)(uint32_t a); \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, M)(X86_MEM_OP_PARAM);
 
 
-#define X86_DECLARE_2OP_RM_SIZE(name, size) \
+#define X86_DECLARE_2OP_RM_NATIVE(name) \
+class X86_SYMINSTR_CLASS_OP(name, RM): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+}; \
+SymInstr* X86_SYMINSTR_NAME_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM);
+
+
+#define X86_DECLARE_2OP_RR_SIZE(name, size) \
 class X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR): public X86_SYMINSTR_NAME(Instr) \
 { \
 public: \
@@ -114,45 +125,86 @@ public: \
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
 	virtual void Print(SymInstrFunction* func); \
 }; \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b);
+
+
+#define X86_DECLARE_2OP_RM_SIZE(name, size) \
 class X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM): public X86_SYMINSTR_NAME(Instr) \
 { \
 public: \
 	X86_SYMINSTR_CLASS_SIZE_OP(name, size, RM)(uint32_t a, X86_MEM_OP_PARAM); \
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
 	virtual void Print(SymInstrFunction* func); \
-};\
+}; \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RM)(uint32_t a, X86_MEM_OP_PARAM);
+
+
+#define X86_DECLARE_2OP_MR_SIZE(name, size) \
 class X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR): public X86_SYMINSTR_NAME(Instr) \
 { \
 public: \
 	X86_SYMINSTR_CLASS_SIZE_OP(name, size, MR)(X86_MEM_OP_PARAM, uint32_t b); \
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
 	virtual void Print(SymInstrFunction* func); \
-};\
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b); \
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RM)(uint32_t a, X86_MEM_OP_PARAM); \
+}; \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MR)(X86_MEM_OP_PARAM, uint32_t b);
 
 
+#define X86_DECLARE_2OP_MODRM_SIZE(name, size) \
+X86_DECLARE_2OP_RR_SIZE(name, size) \
+X86_DECLARE_2OP_RM_SIZE(name, size) \
+X86_DECLARE_2OP_MR_SIZE(name, size)
+
+
+#define X86_DECLARE_2OP_MODRM_IMM_SIZE(name, size) \
+X86_DECLARE_2OP_MODRM_SIZE(name, size) \
+class X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(uint32_t a, int64_t b); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+}; \
+class X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+};\
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RI)(uint32_t a, int64_t b); \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b);
+
+
 #ifdef OUTPUT32
-#define X86_DECLARE_1OP_RM(name) \
-	X86_DECLARE_1OP_RM_SIZE(name, 8) \
-	X86_DECLARE_1OP_RM_SIZE(name, 16) \
-	X86_DECLARE_1OP_RM_SIZE(name, 32)
-#define X86_DECLARE_2OP_RM(name) \
-	X86_DECLARE_2OP_RM_SIZE(name, 8) \
-	X86_DECLARE_2OP_RM_SIZE(name, 16) \
-	X86_DECLARE_2OP_RM_SIZE(name, 32)
+#define X86_DECLARE_1OP_MODRM(name) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 8) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 16) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 32)
+#define X86_DECLARE_2OP_MODRM(name) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 8) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 16) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 32)
+#define X86_DECLARE_2OP_MODRM_IMM(name) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 8) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 16) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 32)
 #else
-#define X86_DECLARE_1OP_RM(name) \
-	X86_DECLARE_1OP_RM_SIZE(name, 8) \
-	X86_DECLARE_1OP_RM_SIZE(name, 16) \
-	X86_DECLARE_1OP_RM_SIZE(name, 32) \
-	X86_DECLARE_1OP_RM_SIZE(name, 64)
-#define X86_DECLARE_2OP_RM(name) \
-	X86_DECLARE_2OP_RM_SIZE(name, 8) \
-	X86_DECLARE_2OP_RM_SIZE(name, 16) \
-	X86_DECLARE_2OP_RM_SIZE(name, 32) \
-	X86_DECLARE_2OP_RM_SIZE(name, 64)
+#define X86_DECLARE_1OP_MODRM(name) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 8) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 16) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 32) \
+	X86_DECLARE_1OP_MODRM_SIZE(name, 64)
+#define X86_DECLARE_2OP_MODRM(name) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 8) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 16) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 32) \
+	X86_DECLARE_2OP_MODRM_SIZE(name, 64)
+#define X86_DECLARE_2OP_MODRM_IMM(name) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 8) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 16) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 32) \
+	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 64)
 #endif
 
 
@@ -161,23 +213,25 @@ X86_DECLARE_NO_OPERANDS(std)
 X86_DECLARE_NO_OPERANDS(nop)
 X86_DECLARE_NO_OPERANDS(int3)
 
-X86_DECLARE_1OP_RM(dec)
-X86_DECLARE_1OP_RM(inc)
-X86_DECLARE_1OP_RM(neg)
-X86_DECLARE_1OP_RM(not)
-X86_DECLARE_1OP_RM_NATIVE(pop)
-X86_DECLARE_1OP_RM_NATIVE(push)
+X86_DECLARE_1OP_MODRM(dec)
+X86_DECLARE_1OP_MODRM(inc)
+X86_DECLARE_1OP_MODRM(neg)
+X86_DECLARE_1OP_MODRM(not)
+X86_DECLARE_1OP_MODRM_NATIVE(pop)
+X86_DECLARE_1OP_MODRM_NATIVE(push)
 
-X86_DECLARE_2OP_RM(adc)
-X86_DECLARE_2OP_RM(add)
-X86_DECLARE_2OP_RM(and)
-X86_DECLARE_2OP_RM(cmp)
-X86_DECLARE_2OP_RM(sbb)
-X86_DECLARE_2OP_RM(sub)
-X86_DECLARE_2OP_RM(test)
-X86_DECLARE_2OP_RM(or)
-X86_DECLARE_2OP_RM(xchg)
-X86_DECLARE_2OP_RM(xor)
+X86_DECLARE_2OP_RM_NATIVE(lea)
+
+X86_DECLARE_2OP_MODRM_IMM(adc)
+X86_DECLARE_2OP_MODRM_IMM(add)
+X86_DECLARE_2OP_MODRM_IMM(and)
+X86_DECLARE_2OP_MODRM_IMM(cmp)
+X86_DECLARE_2OP_MODRM_IMM(sbb)
+X86_DECLARE_2OP_MODRM_IMM(sub)
+X86_DECLARE_2OP_MODRM_IMM(test)
+X86_DECLARE_2OP_MODRM_IMM(or)
+X86_DECLARE_2OP_MODRM(xchg)
+X86_DECLARE_2OP_MODRM_IMM(xor)
 
 
 #endif

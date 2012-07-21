@@ -189,6 +189,8 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 	// Determine if the definition is still live after the instruction (that is, it is used before being defined again)
 	for (size_t i = instr + 1; i < m_instrs.size(); i++)
 	{
+		bool written = false;
+
 		for (vector<SymInstrOperand>::iterator j = m_instrs[i]->GetOperands().begin(); j != m_instrs[i]->GetOperands().end(); j++)
 		{
 			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_WRITE) &&
@@ -200,11 +202,14 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 
 			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) &&
 				(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
-			{
-				// Register is being defined before the original definition was used, register is not live at
-				// the instruction requested
-				return false;
-			}
+				written = true;
+		}
+
+		if (written)
+		{
+			// Register is being defined before the original definition was used, register is not live at
+			// the instruction requested
+			return false;
 		}
 	}
 

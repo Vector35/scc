@@ -95,6 +95,9 @@ class OutputQuark: public Output
 	void UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit = true);
 	void ConditionalJump(SymInstrBlock* out, ILBlock* block, int cond, bool value);
 
+	bool Mult64(SymInstrBlock* out, const OperandReference& result, const OperandReference& left,
+		const OperandReference& right);
+
 	bool GenerateAssign(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOfMember(SymInstrBlock* out, const ILInstruction& instr);

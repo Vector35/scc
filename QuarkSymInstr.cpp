@@ -613,8 +613,8 @@ bool Quark3OpInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* out
 
 bool Quark4OpInstr::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
-	out->WriteUInt32(__QUARK_INSTR(m_operation, m_operands[0].reg & 31, m_operands[1].reg & 31,
-		m_operands[2].reg & 31, m_operands[3].reg & 31));
+	out->WriteUInt32(__QUARK_INSTR(m_operation, m_operands[1].reg & 31, m_operands[2].reg & 31,
+		m_operands[3].reg & 31, m_operands[0].reg & 31));
 	return true;
 }
 

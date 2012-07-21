@@ -1068,30 +1068,53 @@ bool OutputQuark::GenerateSub(SymInstrBlock* out, const ILInstruction& instr)
 }
 
 
+bool OutputQuark::Mult64(SymInstrBlock* out, const OperandReference& result, const OperandReference& left,
+	const OperandReference& right)
+{
+	uint32_t temp = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+	uint32_t outLow = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+	uint32_t outHigh = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+	out->AddInstruction(QuarkMulx(outHigh, outLow, left.reg, right.reg));
+	out->AddInstruction(QuarkMul(temp, left.reg, right.highReg, 0));
+	out->AddInstruction(QuarkAdd(outHigh, outHigh, temp, 0));
+	out->AddInstruction(QuarkMul(temp, left.highReg, right.reg, 0));
+	out->AddInstruction(QuarkAdd(outHigh, outHigh, temp, 0));
+	out->AddInstruction(QuarkMov(result.reg, outLow, 0));
+	out->AddInstruction(QuarkMov(result.highReg, outHigh, 0));
+	return true;
+}
+
+
 bool OutputQuark::GenerateSignedMult(SymInstrBlock* out, const ILInstruction& instr)
 {
 	OperandReference left, right, dest, result;
 	if (!Load(out, instr.params[1], left, true))
 		return false;
-	if (!Load(out, instr.params[2], right))
-		return false;
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
 	if (!GetDestRegister(out, dest, result))
 		return false;
-	if (result.width == 8)
+	if (!Load(out, instr.params[2], right, result.width == 8))
 		return false;
 
-	switch (right.type)
+	if (result.width == 8)
 	{
-	case OPERANDREF_REG:
-		out->AddInstruction(QuarkMul(result.reg, left.reg, right.reg, 0));
-		break;
-	case OPERANDREF_IMMED:
-		out->AddInstruction(QuarkMul(result.reg, left.reg, (int32_t)right.immed));
-		break;
-	default:
-		return false;
+		if (!Mult64(out, result, left, right))
+			return false;
+	}
+	else
+	{
+		switch (right.type)
+		{
+		case OPERANDREF_REG:
+			out->AddInstruction(QuarkMul(result.reg, left.reg, right.reg, 0));
+			break;
+		case OPERANDREF_IMMED:
+			out->AddInstruction(QuarkMul(result.reg, left.reg, (int32_t)right.immed));
+			break;
+		default:
+			return false;
+		}
 	}
 
 	return Move(out, dest, result, true);
@@ -1103,25 +1126,31 @@ bool OutputQuark::GenerateUnsignedMult(SymInstrBlock* out, const ILInstruction& 
 	OperandReference left, right, dest, result;
 	if (!Load(out, instr.params[1], left, true))
 		return false;
-	if (!Load(out, instr.params[2], right))
-		return false;
 	if (!PrepareStore(out, instr.params[0], dest))
 		return false;
 	if (!GetDestRegister(out, dest, result))
 		return false;
-	if (result.width == 8)
+	if (!Load(out, instr.params[2], right, result.width == 8))
 		return false;
 
-	switch (right.type)
+	if (result.width == 8)
 	{
-	case OPERANDREF_REG:
-		out->AddInstruction(QuarkMul(result.reg, left.reg, right.reg, 0));
-		break;
-	case OPERANDREF_IMMED:
-		out->AddInstruction(QuarkMul(result.reg, left.reg, (int32_t)right.immed));
-		break;
-	default:
-		return false;
+		if (!Mult64(out, result, left, right))
+			return false;
+	}
+	else
+	{
+		switch (right.type)
+		{
+		case OPERANDREF_REG:
+			out->AddInstruction(QuarkMul(result.reg, left.reg, right.reg, 0));
+			break;
+		case OPERANDREF_IMMED:
+			out->AddInstruction(QuarkMul(result.reg, left.reg, (int32_t)right.immed));
+			break;
+		default:
+			return false;
+		}
 	}
 
 	return Move(out, dest, result, true);
@@ -1517,7 +1546,7 @@ bool OutputQuark::GenerateIfLessThan(SymInstrBlock* out, const ILInstruction& in
 		{
 			out->AddInstruction(QuarkIcmp(QUARK_COND_LT, 0, left.highReg, right.highReg, 0));
 			out->AddInstruction(QuarkIcmp(QUARK_COND_EQ, 1, left.highReg, right.highReg, 0));
-			out->AddInstruction(QuarkCondIcmp(1, 1, QUARK_COND_LT, 0, left.reg, right.reg, 0));
+			out->AddInstruction(QuarkCondCmp(1, 1, QUARK_COND_LT, 0, left.reg, right.reg, 0));
 		}
 		else
 		{
@@ -1529,7 +1558,7 @@ bool OutputQuark::GenerateIfLessThan(SymInstrBlock* out, const ILInstruction& in
 		{
 			out->AddInstruction(QuarkIcmp(QUARK_COND_LT, 0, left.highReg, (int32_t)(right.immed >> 32)));
 			out->AddInstruction(QuarkIcmp(QUARK_COND_EQ, 1, left.highReg, (int32_t)(right.immed >> 32)));
-			out->AddInstruction(QuarkCondIcmp(1, 1, QUARK_COND_LT, 0, left.reg, (int32_t)right.immed));
+			out->AddInstruction(QuarkCondCmp(1, 1, QUARK_COND_LT, 0, left.reg, (int32_t)right.immed));
 		}
 		else
 		{
@@ -1561,7 +1590,7 @@ bool OutputQuark::GenerateIfLessThanEqual(SymInstrBlock* out, const ILInstructio
 		{
 			out->AddInstruction(QuarkIcmp(QUARK_COND_LT, 0, left.highReg, right.highReg, 0));
 			out->AddInstruction(QuarkIcmp(QUARK_COND_EQ, 1, left.highReg, right.highReg, 0));
-			out->AddInstruction(QuarkCondIcmp(1, 1, QUARK_COND_LE, 0, left.reg, right.reg, 0));
+			out->AddInstruction(QuarkCondCmp(1, 1, QUARK_COND_LE, 0, left.reg, right.reg, 0));
 		}
 		else
 		{
@@ -1573,7 +1602,7 @@ bool OutputQuark::GenerateIfLessThanEqual(SymInstrBlock* out, const ILInstructio
 		{
 			out->AddInstruction(QuarkIcmp(QUARK_COND_LT, 0, left.highReg, (int32_t)(right.immed >> 32)));
 			out->AddInstruction(QuarkIcmp(QUARK_COND_EQ, 1, left.highReg, (int32_t)(right.immed >> 32)));
-			out->AddInstruction(QuarkCondIcmp(1, 1, QUARK_COND_LE, 0, left.reg, (int32_t)right.immed));
+			out->AddInstruction(QuarkCondCmp(1, 1, QUARK_COND_LE, 0, left.reg, (int32_t)right.immed));
 		}
 		else
 		{
@@ -2483,6 +2512,12 @@ bool OutputQuark::GenerateCode(Function* func)
 	QuarkSymInstrFunction symFunc;
 	m_func = func;
 	m_symFunc = &symFunc;
+
+	if (m_settings.stackGrowsUp)
+	{
+		// TODO: Fix this setting
+		return false;
+	}
 
 	symFunc.InitializeBlocks(func);
 

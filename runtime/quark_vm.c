@@ -210,6 +210,16 @@ void quark_exec(void* buf, ...) __noreturn
 			r[a] = (uint32_t)result64;
 			cc[3] = ((uint8_t)(result64 >> 32)) & 1;
 			break;
+		case 0x1c: // mulx
+			result64 = ((uint64_t)r[b] * (uint64_t)r[c]);
+			r[a] = (uint32_t)result64;
+			r[d] = (uint32_t)(result64 >> 32);
+			break;
+		case 0x1d: // imulx
+			result64 = ((int64_t)(int32_t)r[b] * (int64_t)(int32_t)r[c]);
+			r[a] = (uint32_t)result64;
+			r[d] = (uint32_t)(result64 >> 32);
+			break;
 		case 0x1e: // mul
 			r[a] = r[b] * cval;
 			break;

@@ -29,7 +29,7 @@ SizeOptimization = 2
 def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
 	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
-	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None,
+	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
 	multi_stage=False, additional_options=None):
 	if sys.executable.lower().find('python') == -1:
 		base_path = os.path.dirname(sys.executable)
@@ -84,6 +84,8 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	if include_dirs:
 		for path in include_dirs:
 			cmd += ["-I", path]
+	if align:
+		cmd += ["--align", str(align)]
 	if multi_stage:
 		cmd += ["--multi-stage"]
 	if additional_options:

@@ -1,0 +1,11 @@
+__end
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+uint8_t __end[];
+---------------------------------------------
+
+This variable references the end of the output.  This is commonly used to append data or code to the end of the
+output and reference it from the code.
+

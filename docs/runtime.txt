@@ -34,6 +34,7 @@ Compiler intrinsics
 link:abs.html[abs],
 link:breakpoint.html[breakpoint],
 link:byteswap.html[byteswap],
+link:end.html[end],
 link:max.html[max],
 link:min.html[min],
 link:next_arg.html[next_arg],
@@ -216,4 +217,8 @@ link:gettimeofday.html[gettimeofday],
 link:nanosleep.html[nanosleep],
 link:setitimer.html[setitimer],
 link:time.html[time]
+
+Virtual machine functions
+-------------------------
+link:quark_exec.html[quark_exec]
 

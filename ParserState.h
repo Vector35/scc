@@ -30,6 +30,7 @@
 #include "Expr.h"
 #include "Function.h"
 #include "Scope.h"
+#include "Settings.h"
 
 
 struct VarInitInfo
@@ -72,8 +73,10 @@ class ParserState
 	Scope* m_globalScope;
 	Scope* m_currentScope;
 
+	Settings m_settings;
+
 public:
-	ParserState(const std::string& name, void* scanner);
+	ParserState(const Settings& settings, const std::string& name, void* scanner);
 	ParserState(ParserState* parent, const std::string& name, void* scanner);
 	~ParserState();
 
@@ -125,6 +128,12 @@ public:
 	Expr* ResolveIdentifierExpr(const std::string& name);
 
 	void AddInitExpression(Expr* expr);
+
+	bool HasIntrinsicStrlen();
+	bool HasIntrinsicMemcpy();
+	bool HasIntrinsicMemset();
+	bool HasIntrinsicDivide64();
+	bool HasIntrinsicShift64();
 
 	Expr* BasicExpr(ExprClass cls) { return new Expr(GetLocation(), cls); }
 	Expr* BoolExpr(bool value) { return Expr::BoolExpr(GetLocation(), value); }

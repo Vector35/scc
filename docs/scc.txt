@@ -14,6 +14,7 @@ are automatically available without the need for include files.
 Options:
     --arch <value>                    Specify processor architecture
                                       Can be: x86 (default), x64
+    --align <boundary>                Ensure output is aligned on the given boundary
     --allow-return                    Allow return from shellcode (default is to exit)
     --base <expr>                     Set base address of output (can be a runtime computed
                                       expression, such as "[eax+8]-12")

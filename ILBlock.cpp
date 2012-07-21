@@ -519,6 +519,18 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+	const ILParameter& d, const ILParameter& e)
+{
+	operation = op;
+	params.push_back(a);
+	params.push_back(b);
+	params.push_back(c);
+	params.push_back(d);
+	params.push_back(e);
+}
+
+
 ILInstruction::ILInstruction(ILOperation op, const vector<ILParameter>& list)
 {
 	operation = op;

@@ -21,8 +21,8 @@
 #ifndef __LIBC__ARCH_DEFINES_H__
 #define __LIBC__ARCH_DEFINES_H__
 
-#define x86_64
-#define __64BIT
+#define QUARK
+#define __32BIT
 
 #endif
 

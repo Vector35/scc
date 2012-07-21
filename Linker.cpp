@@ -39,44 +39,64 @@ extern unsigned char Obj_x86_lib[];
 extern unsigned int Obj_x86_lib_len;
 extern unsigned char Obj_x64_lib[];
 extern unsigned int Obj_x64_lib_len;
+extern unsigned char Obj_quark_lib[];
+extern unsigned int Obj_quark_lib_len;
 extern unsigned char Obj_linux_x86_lib[];
 extern unsigned int Obj_linux_x86_lib_len;
 extern unsigned char Obj_linux_x64_lib[];
 extern unsigned int Obj_linux_x64_lib_len;
+extern unsigned char Obj_linux_quark_lib[];
+extern unsigned int Obj_linux_quark_lib_len;
 extern unsigned char Obj_freebsd_x86_lib[];
 extern unsigned int Obj_freebsd_x86_lib_len;
 extern unsigned char Obj_freebsd_x64_lib[];
 extern unsigned int Obj_freebsd_x64_lib_len;
+extern unsigned char Obj_freebsd_quark_lib[];
+extern unsigned int Obj_freebsd_quark_lib_len;
 extern unsigned char Obj_mac_x86_lib[];
 extern unsigned int Obj_mac_x86_lib_len;
 extern unsigned char Obj_mac_x64_lib[];
 extern unsigned int Obj_mac_x64_lib_len;
+extern unsigned char Obj_mac_quark_lib[];
+extern unsigned int Obj_mac_quark_lib_len;
 extern unsigned char Obj_windows_x86_lib[];
 extern unsigned int Obj_windows_x86_lib_len;
 extern unsigned char Obj_windows_x64_lib[];
 extern unsigned int Obj_windows_x64_lib_len;
+extern unsigned char Obj_windows_quark_lib[];
+extern unsigned int Obj_windows_quark_lib_len;
 
 // Create weak symbols for empty libraries to be used during bootstrap process
 unsigned char __attribute__((weak)) Obj_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_quark_lib[] = {};
+unsigned int __attribute__((weak)) Obj_quark_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_linux_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_linux_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_linux_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_linux_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_linux_quark_lib[] = {};
+unsigned int __attribute__((weak)) Obj_linux_quark_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_freebsd_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_freebsd_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_freebsd_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_freebsd_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_freebsd_quark_lib[] = {};
+unsigned int __attribute__((weak)) Obj_freebsd_quark_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_mac_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_mac_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_mac_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_mac_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_mac_quark_lib[] = {};
+unsigned int __attribute__((weak)) Obj_mac_quark_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_windows_x86_lib[] = {};
 unsigned int __attribute__((weak)) Obj_windows_x86_lib_len = 0;
 unsigned char __attribute__((weak)) Obj_windows_x64_lib[] = {};
 unsigned int __attribute__((weak)) Obj_windows_x64_lib_len = 0;
+unsigned char __attribute__((weak)) Obj_windows_quark_lib[] = {};
+unsigned int __attribute__((weak)) Obj_windows_quark_lib_len = 0;
 
 
 extern int Code_parse(ParserState* state);
@@ -84,7 +104,7 @@ extern void Code_set_lineno(int line, void* yyscanner);
 
 
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
-	m_precompileState("precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
+	m_precompileState(settings, "precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
 {
 }
 
@@ -237,6 +257,32 @@ bool Linker::ImportStandardLibrary()
 				lib = Obj_x64_lib;
 				len = Obj_x64_lib_len;
 			}
+			break;
+		}
+	}
+	else if (m_settings.architecture == ARCH_QUARK)
+	{
+		switch (m_settings.os)
+		{
+		case OS_LINUX:
+			lib = Obj_linux_quark_lib;
+			len = Obj_linux_quark_lib_len;
+			break;
+		case OS_FREEBSD:
+			lib = Obj_freebsd_quark_lib;
+			len = Obj_freebsd_quark_lib_len;
+			break;
+		case OS_MAC:
+			lib = Obj_mac_quark_lib;
+			len = Obj_mac_quark_lib_len;
+			break;
+		case OS_WINDOWS:
+			lib = Obj_windows_quark_lib;
+			len = Obj_windows_quark_lib_len;
+			break;
+		default:
+			lib = Obj_quark_lib;
+			len = Obj_quark_lib_len;
 			break;
 		}
 	}
@@ -730,7 +776,7 @@ bool Linker::FinalizeLink()
 	m_startFunction->SetBody(startBody);
 
 	// First, propogate type information
-	ParserState startState("_start", NULL);
+	ParserState startState(m_settings, "_start", NULL);
 	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
 	m_startFunction->GetBody()->ComputeType(&startState, m_startFunction);
 	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
@@ -844,6 +890,49 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		addr += (*i)->GetType()->GetWidth();
 	}
 
+	if ((m_settings.alignment > 1) && ((addr % m_settings.alignment) != 0))
+	{
+		// Pad data section with random bytes (respecting blacklist)
+		size_t alignSize = (size_t)(m_settings.alignment - (addr % m_settings.alignment));
+		addr += alignSize;
+
+		if (m_settings.polymorph || (m_settings.blacklist.size() > 0))
+		{
+			vector<uint8_t> available;
+			for (size_t i = 0; i < 256; i++)
+			{
+				bool ok = true;
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+				{
+					if (i == *j)
+					{
+						ok = false;
+						break;
+					}
+				}
+
+				if (ok)
+					available.push_back((uint8_t)i);
+			}
+
+			for (size_t i = 0; i < alignSize; i++)
+			{
+				uint8_t choice = available[rand() % available.size()];
+				*(uint8_t*)dataSection.PrepareWrite(1) = choice;
+				dataSection.FinishWrite(1);
+			}
+		}
+		else
+		{
+			uint8_t zero = 0;
+			for (size_t i = 0; i < alignSize; i++)
+				dataSection.Write(&zero, 1);
+		}
+	}
+
+	if (m_variablesByName.find("__end") != m_variablesByName.end())
+		m_variablesByName["__end"]->SetDataSectionOffset(addr);
+
 	// Generate list of IL blocks
 	vector<ILBlock*> codeBlocks;
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
@@ -924,6 +1013,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 			(*i)->SetAddress(addr);
 			addr += (*i)->GetOutputBlock()->len;
 		}
+		if ((m_settings.alignment > 1) && ((addr % m_settings.alignment) != 0))
+			addr += m_settings.alignment - (addr % m_settings.alignment);
 
 		m_settings.dataSectionBase = addr;
 		if (m_settings.format == FORMAT_ELF)
@@ -968,6 +1059,46 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		OutputBlock* block = (*i)->GetOutputBlock();
 		memcpy(codeSection.PrepareWrite(block->len), block->code, block->len);
 		codeSection.FinishWrite(block->len);
+	}
+
+	if ((m_settings.alignment > 1) && ((codeSection.len % m_settings.alignment) != 0))
+	{
+		// Pad code section with random bytes (respecting blacklist)
+		size_t alignSize = (size_t)(m_settings.alignment - (codeSection.len % m_settings.alignment));
+		addr += alignSize;
+
+		if (m_settings.polymorph || (m_settings.blacklist.size() > 0))
+		{
+			vector<uint8_t> available;
+			for (size_t i = 0; i < 256; i++)
+			{
+				bool ok = true;
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+				{
+					if (i == *j)
+					{
+						ok = false;
+						break;
+					}
+				}
+
+				if (ok)
+					available.push_back((uint8_t)i);
+			}
+
+			for (size_t i = 0; i < alignSize; i++)
+			{
+				uint8_t choice = available[rand() % available.size()];
+				*(uint8_t*)codeSection.PrepareWrite(1) = choice;
+				codeSection.FinishWrite(1);
+			}
+		}
+		else
+		{
+			uint8_t zero = 0;
+			for (size_t i = 0; i < alignSize; i++)
+				codeSection.Write(&zero, 1);
+		}
 	}
 
 	// Generate final binary

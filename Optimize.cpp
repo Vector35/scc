@@ -65,6 +65,25 @@ void Optimize::PerformControlFlowAnalysis(Function* func)
 				block->AddExitBlock(dest);
 				dest->AddEntryBlock(block);
 
+				if (m_settings.internalDebug)
+				{
+					bool ok = false;
+					for (vector<ILBlock*>::const_iterator k = func->GetIL().begin(); k != func->GetIL().end(); k++)
+					{
+						if (*k == dest)
+						{
+							ok = true;
+							break;
+						}
+					}
+					if (!ok)
+					{
+						fprintf(stderr, "error: instruction '");
+						i->Print();
+						fprintf(stderr, "' in function '%s' has invalid exit block\n", func->GetName().c_str());
+					}
+				}
+
 				if (!visited.count(dest))
 				{
 					toProcess.push(dest);
@@ -214,12 +233,8 @@ void Optimize::PerformDataFlowAnalysis(Function* func)
 			for (size_t k = startParam; k < (*i)->GetInstructions()[j].params.size(); k++)
 			{
 				const ILParameter* param = &(*i)->GetInstructions()[j].params[k];
-				bool full = ((*i)->GetInstructions()[j].operation != ILOP_ARRAY_INDEX_ASSIGN);
 				while (param->cls == ILPARAM_MEMBER)
-				{
 					param = param->parent;
-					full = false;
-				}
 
 				if (param->cls != ILPARAM_VAR)
 					continue;

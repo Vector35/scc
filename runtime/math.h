@@ -25,6 +25,9 @@ uint64_t __udiv64(uint64_t a, uint64_t b);
 uint64_t __umod64(uint64_t a, uint64_t b);
 int64_t __sdiv64(int64_t a, int64_t b);
 int64_t __smod64(int64_t a, int64_t b);
+uint64_t __shl64(uint64_t a, uint8_t count);
+uint64_t __shr64(uint64_t a, uint8_t count);
+int64_t __sar64(int64_t a, uint8_t count);
 
 #endif
 

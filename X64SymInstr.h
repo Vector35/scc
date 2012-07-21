@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,11 +18,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__ARCH_DEFINES_H__
-#define __LIBC__ARCH_DEFINES_H__
+#ifndef __X64SYMINSTR_H__
+#define __X64SYMINSTR_H__
 
-#define x86_64
-#define __64BIT
+#define X86_SYMINSTR_PREFIX X64Sym
+#define OUTPUT64
+#include "X86SymInstrCommon.h"
+#undef X86_SYMINSTR_PREFIX
+#undef OUTPUT64
 
 #endif
 

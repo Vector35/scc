@@ -45,6 +45,7 @@ class OutputQuark: public Output
 	{
 		OperandReferenceType type;
 		size_t width;
+		bool sign;
 		union
 		{
 			struct
@@ -58,6 +59,7 @@ class OutputQuark: public Output
 				uint32_t base;
 				uint32_t var;
 				int32_t offset;
+				uint32_t scratch;
 			};
 			int64_t immed;
 		};
@@ -75,8 +77,6 @@ class OutputQuark: public Output
 	bool m_framePointerEnabled;
 	ILBlock* m_currentBlock;
 
-	int GetRegisterByName(const std::string& name);
-
 	bool IsSigned11Bit(int64_t imm);
 	bool IsSigned17Bit(int64_t imm);
 	bool IsPowerOfTwo(int32_t imm, uint32_t& shiftCount);
@@ -85,17 +85,18 @@ class OutputQuark: public Output
 	void AddImm(SymInstrBlock* out, uint32_t dest, uint32_t src, int32_t imm);
 	void SubImm(SymInstrBlock* out, uint32_t dest, uint32_t src, int32_t imm);
 
-	static void RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc);
-
 	bool AccessVariableStorage(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
 	bool Load(SymInstrBlock* out, const ILParameter& param, OperandReference& ref, bool forceReg = false);
 	bool PrepareStore(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
 	bool LoadIntoRegister(SymInstrBlock* out, const OperandReference& ref, OperandReference& reg);
 	bool GetDestRegister(SymInstrBlock* out, const OperandReference& dest, OperandReference& reg);
-	bool Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src, bool enforceSize = false);
 
 	void UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit = true);
 	void ConditionalJump(SymInstrBlock* out, ILBlock* block, int cond, bool value);
+
+	bool Mult64(SymInstrBlock* out, const OperandReference& result, const OperandReference& left,
+		const OperandReference& right);
 
 	bool GenerateAssign(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(SymInstrBlock* out, const ILInstruction& instr);
@@ -138,10 +139,11 @@ class OutputQuark: public Output
 	bool GenerateReturn(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr);
-	bool GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr, bool twoDest);
 	bool GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateBreakpoint(SymInstrBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 

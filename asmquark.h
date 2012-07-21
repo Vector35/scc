@@ -176,6 +176,8 @@ static uint32_t __inline __QUARK_PREFIX(swapw) (int ra, int rb) { return __QUARK
 static uint32_t __inline __QUARK_NAME(call, r) (int ra) { return __QUARK_INSTR(31, ra, 6, 0, 0); }
 static uint32_t __inline __QUARK_PREFIX(neg) (int ra, int rb) { return __QUARK_INSTR(31, ra, 8, rb, 0); }
 static uint32_t __inline __QUARK_PREFIX(not) (int ra, int rb) { return __QUARK_INSTR(31, ra, 9, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(zxb) (int ra, int rb) { return __QUARK_INSTR(31, ra, 10, rb, 0); }
+static uint32_t __inline __QUARK_PREFIX(zxh) (int ra, int rb) { return __QUARK_INSTR(31, ra, 11, rb, 0); }
 
 static uint32_t __inline __QUARK_PREFIX(ldsr) (int ra, int rb) { return __QUARK_INSTR(31, ra, 12, rb, 0); }
 static uint32_t __inline __QUARK_PREFIX(stsr) (int ra, int rb) { return __QUARK_INSTR(31, ra, 13, rb, 0); }

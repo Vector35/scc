@@ -18,11 +18,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__ARCH_DEFINES_H__
-#define __LIBC__ARCH_DEFINES_H__
+#ifndef __LIBC__BYTESWAP_H__
+#define __LIBC__BYTESWAP_H__
 
-#define x86_64
-#define __64BIT
+#define htons(x) __byteswap((uint16_t)(x))
+#define htonl(x) __byteswap((uint32_t)(x))
+#define ntohs(x) __byteswap((uint16_t)(x))
+#define ntohl(x) __byteswap((uint32_t)(x))
 
 #endif
 

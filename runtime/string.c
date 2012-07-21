@@ -90,6 +90,20 @@ char* strrchr(const char* str, char ch)
 	return NULL;
 }
 
+void* __memcpy(void* dest, const void* src, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+		((char*)dest)[i] = ((char*)src)[i];
+	return dest;
+}
+
+void* __memset(void* dest, char ch, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+		((char*)dest)[i] = ch;
+	return dest;
+}
+
 static void sprintf_output(void* ctxt, char ch)
 {
 	sprintf_output_context* out = (sprintf_output_context*)ctxt;

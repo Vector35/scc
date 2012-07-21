@@ -51,6 +51,7 @@ void Usage()
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    --arch <value>                    Specify processor architecture\n");
 	fprintf(stderr, "                                      Can be: x86 (default), x64\n");
+	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
 	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
 	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
@@ -120,6 +121,7 @@ int main(int argc, char* argv[])
 	bool pad = false;
 	bool useSpecificSeed = false;
 	bool positionIndependentExplicit = false;
+	bool alignmentExplicit = false;
 	Settings settings;
 
 	settings.architecture = ARCH_X86;
@@ -141,6 +143,7 @@ int main(int argc, char* argv[])
 	settings.positionIndependent = true;
 	settings.base = 0;
 	settings.internalDebug = false;
+	settings.alignment = 1;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -186,6 +189,24 @@ int main(int argc, char* argv[])
 		{
 			settings.preferredBits = 64;
 			architectureIsExplicit = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--align"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.alignment = atoi(argv[i]);
+			alignmentExplicit = true;
+			if (settings.alignment == 0)
+			{
+				fprintf(stderr, "error: invalid alignment\n");
+				return 1;
+			}
 			continue;
 		}
 		else if (!strcmp(argv[i], "--allow-return"))
@@ -647,6 +668,10 @@ int main(int argc, char* argv[])
 			settings.base = 0x1000000;
 		settings.base += 0x1000;
 	}
+
+	// Adjust alignment for architectures that require it
+	if ((settings.architecture == ARCH_QUARK) && (!alignmentExplicit))
+		settings.alignment = 4;
 
 	// Set pointer size
 	if (settings.preferredBits == 32)

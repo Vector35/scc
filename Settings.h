@@ -89,6 +89,7 @@ struct Settings
 	bool positionIndependent;
 	uint64_t base;
 	uint64_t dataSectionBase;
+	uint32_t alignment;
 
 	bool internalDebug;
 };

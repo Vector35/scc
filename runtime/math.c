@@ -102,3 +102,54 @@ int64_t __smod64(int64_t a, int64_t b)
 	return result;
 }
 
+uint64_t __shl64(uint64_t a, uint8_t count)
+{
+	uint32_t* parts = (uint32_t*)&a;
+	count &= 63;
+	if (count >= 32)
+	{
+		parts[1] = parts[0] << (count - 32);
+		parts[0] = 0;
+	}
+	else
+	{
+		parts[1] = (parts[1] << count) | (parts[0] >> (32 - count));
+		parts[0] <<= count;
+	}
+	return a;
+}
+
+uint64_t __shr64(uint64_t a, uint8_t count)
+{
+	uint32_t* parts = (uint32_t*)&a;
+	count &= 63;
+	if (count >= 32)
+	{
+		parts[0] = parts[1] >> (count - 32);
+		parts[1] = 0;
+	}
+	else
+	{
+		parts[0] = (parts[0] >> count) | (parts[1] << (32 - count));
+		parts[1] >>= count;
+	}
+	return a;
+}
+
+int64_t __sar64(int64_t a, uint8_t count)
+{
+	int32_t* parts = (int32_t*)&a;
+	count &= 63;
+	if (count >= 32)
+	{
+		parts[0] = parts[1] >> (count - 32);
+		parts[1] >>= 31;
+	}
+	else
+	{
+		parts[0] = (((uint32_t)parts[0]) >> count) | (((uint32_t)parts[1]) << (32 - count));
+		parts[1] >>= count;
+	}
+	return a;
+}
+

@@ -31,6 +31,9 @@ char* strcat(char* dest, const char* src);
 char* strchr(const char* str, char ch);
 char* strrchr(const char* str, char ch);
 
+void* __memcpy(void* dest, const void* src, size_t len);
+void* __memset(void* dest, char ch, size_t len);
+
 int sprintf(char* out, const char* fmt, ...);
 int snprintf(char* out, size_t len, const char* fmt, ...);
 int vsprintf(char* out, const char* fmt, va_list va);

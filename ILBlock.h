@@ -178,6 +178,8 @@ struct ILInstruction
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c, const ILParameter& d);
+	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+		const ILParameter& d, const ILParameter& e);
 	ILInstruction(ILOperation op, const std::vector<ILParameter>& list);
 	ILInstruction(const ILInstruction& instr);
 	ILInstruction& operator=(const ILInstruction& instr);
@@ -235,6 +237,8 @@ public:
 		const ILParameter& c) { AddInstruction(ILInstruction(op, a, b, c)); }
 	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
 		const ILParameter& d) { AddInstruction(ILInstruction(op, a, b, c, d)); }
+	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+		const ILParameter& d, const ILParameter& e) { AddInstruction(ILInstruction(op, a, b, c, d, e)); }
 	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list) { AddInstruction(ILInstruction(op, list)); }
 	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value) { m_instrs[i].params[param] = value; }
 	void SetInstructionDataFlowBit(size_t i, size_t bit) { m_instrs[i].dataFlowBit = bit; }
@@ -264,8 +268,8 @@ public:
 	void AddExitBlock(ILBlock* block) { m_exitBlocks.insert(block); }
 	void RemoveEntryBlock(ILBlock* block) { m_entryBlocks.erase(block); }
 	void RemoveExitBlock(ILBlock* block) { m_exitBlocks.erase(block); }
-	const std::set<ILBlock*>& GetEntryBlocks() { return m_entryBlocks; }
-	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
+	const std::set<ILBlock*>& GetEntryBlocks() const { return m_entryBlocks; }
+	const std::set<ILBlock*>& GetExitBlocks() const { return m_exitBlocks; }
 
 	void ResetDataFlowInfo(size_t bits);
 	BitVector& GetPreservedDefinitions() { return m_defPreserve; }

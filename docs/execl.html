@@ -32,25 +32,34 @@ asciidoc.install();
 </div>
 <div id="layout-content">
 <div id="header">
-<h1>execve</h1>
+<h1>execl</h1>
 </div>
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
 <div class="listingblock">
 <div class="content monospaced">
-<pre>int execve(const char* filename, const char** argv, const char** envp);</pre>
+<pre>int execl(const char* filename, const char* arg0, ...);</pre>
 </div></div>
-<div class="paragraph"><p>Starts a new program.  The program started is given by <span class="monospaced">filename</span> and passed the argument array <span class="monospaced">argv</span>.
-The environment variables are given by <span class="monospaced">envp</span>, or the default environment if <span class="monospaced">envp</span> is NULL.</p></div>
+<div class="paragraph"><p>Starts a new program.  The program started is given by <span class="monospaced">filename</span> and passed the arguments given.
+The list of arguments is terminated by a <span class="monospaced">NULL</span> parameter.  The default environment is used.</p></div>
 <div class="paragraph"><p>This function does not return if successful.  Returns the negation of the error code on error.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/warning.png" alt="Warning">
+</td>
+<td class="content">Do not use this function with the <span class="monospaced">--stack-grows-up</span> option.  Use <span class="monospaced">execve</span> or the
+built-in shell spawning functions if this option is desired.</td>
+</tr></table>
+</div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="_see_also">See also</h2>
 <div class="sectionbody">
 <div class="paragraph"><p><a href="bash.html">bash</a>,
-<a href="execl.html">execl</a>,
+<a href="execve.html">execve</a>,
 <a href="interactive_bash.html">interactive_bash</a>,
 <a href="interactive_sh.html">interactive_sh</a>,
 <a href="sh.html">sh</a>,

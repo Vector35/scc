@@ -132,6 +132,7 @@ link:shm_unlink.html[shm_unlink]
 
 Process functions
 -----------------
+link:execl.html[execl],
 link:execve.html[execve],
 link:exit.html[exit],
 link:fork.html[fork],

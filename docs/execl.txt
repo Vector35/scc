@@ -1,0 +1,24 @@
+execl
+=====
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int execl(const char* filename, const char* arg0, ...);
+---------------------------------------------
+
+Starts a new program.  The program started is given by `filename` and passed the arguments given.
+The list of arguments is terminated by a `NULL` parameter.  The default environment is used.
+
+This function does not return if successful.  Returns the negation of the error code on error.
+
+WARNING: Do not use this function with the `--stack-grows-up` option.  Use `execve` or the
+built-in shell spawning functions if this option is desired.
+
+See also
+--------
+link:bash.html[bash],
+link:execve.html[execve],
+link:interactive_bash.html[interactive_bash],
+link:interactive_sh.html[interactive_sh],
+link:sh.html[sh],
+link:system.html[system]

@@ -25,7 +25,12 @@ void exit(int result) __noreturn
 
 int execve(const char* filename, const char** argv, const char** envp)
 {
-	__syscall(SYS_execve, filename, argv, envp);
+	return __syscall(SYS_execve, filename, argv, envp);
+}
+
+int execl(const char* filename, const char* arg0, ...)
+{
+	return execve(filename, &arg0, NULL);
 }
 
 int getitimer(int which, struct itimerval* value)

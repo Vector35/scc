@@ -42,6 +42,7 @@ void exit(int result) __noreturn;
 
 pid_t fork(void);
 int execve(const char* filename, const char** argv, const char** envp);
+int execl(const char* filename, const char* arg0, ...);
 pid_t wait(int* status);
 pid_t waitpid(pid_t pid, int* status, int options);
 

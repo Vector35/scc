@@ -14,6 +14,7 @@ This function does not return if successful.  Returns the negation of the error 
 See also
 --------
 link:bash.html[bash],
+link:execl.html[execl],
 link:interactive_bash.html[interactive_bash],
 link:interactive_sh.html[interactive_sh],
 link:sh.html[sh],

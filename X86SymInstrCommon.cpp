@@ -240,29 +240,6 @@ void X86_SYMINSTR_CLASS_OP(name, R)::Print(SymInstrFunction* func) \
 SymInstr* X86_SYMINSTR_NAME_OP(name, R)(uint32_t a) { return new X86_SYMINSTR_CLASS_OP(name, R)(a); }
 
 
-#define X86_IMPLEMENT_2OP_RM_NATIVE(name, firstAccess, secondAccess, flags) \
-X86_SYMINSTR_CLASS_OP(name, RM)::X86_SYMINSTR_CLASS_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM) \
-{ \
-	Add ## firstAccess ## RegisterOperand(a); \
-	X86_ADD_MEM_OP; \
-	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
-	EnableFlag(flags); \
-} \
-bool X86_SYMINSTR_CLASS_OP(name, RM)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
-{ \
-	EMIT_RM(X86_NATIVE_SIZE_INSTR_NAME(name), X86_REG_OF_SIZE(m_operands[0].reg, X86_NATIVE_SIZE), X86_MEM_OP(1)); \
-	return true; \
-} \
-void X86_SYMINSTR_CLASS_OP(name, RM)::Print(SymInstrFunction* func) \
-{ \
-	fprintf(stderr, #name " "); \
-	X86_PRINT_REG_OP(0, X86_NATIVE_SIZE); \
-	fprintf(stderr, ", "); \
-	X86_PRINT_MEM_OP(1, 0); \
-} \
-SymInstr* X86_SYMINSTR_NAME_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_OP(name, RM)(a, X86_MEM_OP_PASS); }
-
-
 #define X86_IMPLEMENT_2OP_II_NATIVE(name, flags) \
 X86_SYMINSTR_CLASS_OP(name, II)::X86_SYMINSTR_CLASS_OP(name, II)(int64_t a, int64_t b) \
 { \
@@ -356,8 +333,7 @@ X86_IMPLEMENT_2OP_RM_SIZE(name, size, firstAccess, secondAccess, flags) \
 X86_IMPLEMENT_2OP_MR_SIZE(name, size, firstAccess, secondAccess, flags)
 
 
-#define X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, size, firstAccess, secondAccess, flags) \
-X86_IMPLEMENT_2OP_MODRM_SIZE(name, size, firstAccess, secondAccess, flags) \
+#define X86_IMPLEMENT_2OP_IMM_SIZE(name, size, firstAccess, secondAccess, flags) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) \
 { \
 	Add ## firstAccess ## RegisterOperand(a); \
@@ -393,6 +369,112 @@ void X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::Print(SymInstrFunction* func) \
 	X86_PRINT_MEM_OP(0, size); \
 	fprintf(stderr, ", %lld", (long long)m_operands[4].immed); \
 } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(a, b); } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PASS, b); }
+
+
+#define X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_IMPLEMENT_2OP_MODRM_SIZE(name, size, firstAccess, secondAccess, flags) \
+X86_IMPLEMENT_2OP_IMM_SIZE(name, size, firstAccess, secondAccess, flags)
+
+
+#define X86_IMPLEMENT_MOV_SIZE(name, size) \
+X86_IMPLEMENT_2OP_RM_SIZE(name, size, Write, Read, SYMFLAG_COPY) \
+X86_IMPLEMENT_2OP_MR_SIZE(name, size, Write, Read, SYMFLAG_COPY) \
+X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) \
+{ \
+	AddWriteRegisterOperand(a); \
+	AddReadRegisterOperand(b); \
+	EnableFlag(SYMFLAG_COPY); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT_RR(name ## _ ## size, X86_REG_OF_SIZE(m_operands[0].reg, size), X86_REG_OF_SIZE(m_operands[1].reg, size)); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_REG_OP(0, size); \
+	fprintf(stderr, ", "); \
+	X86_PRINT_REG_OP(1, size); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::UpdateInstruction(SymInstrFunction* func, const Settings& settings, \
+	vector<SymInstr*>& replacement) \
+{ \
+	if (m_operands[0].reg == m_operands[1].reg) \
+		return true; \
+	return false; \
+} \
+X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) \
+{ \
+	AddWriteRegisterOperand(a); \
+	AddImmediateOperand(b); \
+	if (b == 0) \
+		EnableFlag(SYMFLAG_WRITES_FLAGS); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	bool normalStack = true; \
+	if ((func->GetSettings().stackPointer != SYMREG_NATIVE_REG(REG_ESP)) || func->GetSettings().stackGrowsUp) \
+		normalStack = false; \
+	if (m_operands[1].immed == 0) \
+	{ \
+		if (size >= 32) \
+			EMIT_RR(xor_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_REG_OF_SIZE(m_operands[0].reg, 32)); \
+		else \
+			EMIT_RR(xor_ ## size, X86_REG_OF_SIZE(m_operands[0].reg, size), X86_REG_OF_SIZE(m_operands[0].reg, size)); \
+	} \
+	else if (normalStack && (m_operands[1].immed >= -0x80) && (m_operands[1].immed <= 0x7f)) \
+	{ \
+		EMIT_I(push, (int ## size ## _t)m_operands[1].immed); \
+		EMIT_R(pop, X86_REG_OF_SIZE(m_operands[0].reg, X86_NATIVE_SIZE)); \
+	} \
+	else if ((size == 64) && (m_operands[1].immed >= 0) && (m_operands[1].immed <= 0xffffffff)) \
+	{ \
+		EMIT_RI(name ## _32, X86_REG_OF_SIZE(m_operands[0].reg, 32), (int32_t)m_operands[1].immed); \
+	} \
+	else \
+	{ \
+		EMIT_RI(name ## _ ## size, X86_REG_OF_SIZE(m_operands[0].reg, size), (int ## size ## _t)m_operands[1].immed); \
+	} \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_REG_OP(0, size); \
+	fprintf(stderr, ", %lld", (long long)m_operands[1].immed); \
+} \
+X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) \
+{ \
+	X86_ADD_MEM_OP; \
+	AddImmediateOperand(b); \
+	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	bool normalStack = true; \
+	if ((func->GetSettings().stackPointer != SYMREG_NATIVE_REG(REG_ESP)) || func->GetSettings().stackGrowsUp) \
+		normalStack = false; \
+	if (normalStack && (size == X86_NATIVE_SIZE) && (m_operands[4].immed >= -0x80) && (m_operands[4].immed <= 0x7f)) \
+	{ \
+		EMIT_I(push, (int ## size ## _t)m_operands[4].immed); \
+		EMIT_M(pop, X86_MEM_OP(0)); \
+	} \
+	else \
+	{ \
+		EMIT_MI(name ## _ ## size, X86_MEM_OP(0), (int ## size ## _t)m_operands[4].immed); \
+	} \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_MEM_OP(0, size); \
+	fprintf(stderr, ", %lld", (long long)m_operands[4].immed); \
+} \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(a, b); } \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(a, b); } \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PASS, b); }
 
@@ -762,6 +844,10 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 8, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 16, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 32, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_MOV(name) \
+	X86_IMPLEMENT_MOV_SIZE(name, 8) \
+	X86_IMPLEMENT_MOV_SIZE(name, 16) \
+	X86_IMPLEMENT_MOV_SIZE(name, 32)
 #define X86_IMPLEMENT_CMOV(name) \
 	X86_IMPLEMENT_2OP_RR_SIZE(name, 16, ReadWrite, Read, SYMFLAG_USES_FLAGS) \
 	X86_IMPLEMENT_2OP_RM_SIZE(name, 16, ReadWrite, Read, SYMFLAG_USES_FLAGS) \
@@ -798,6 +884,11 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 16, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 32, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 64, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_MOV(name) \
+	X86_IMPLEMENT_MOV_SIZE(name, 8) \
+	X86_IMPLEMENT_MOV_SIZE(name, 16) \
+	X86_IMPLEMENT_MOV_SIZE(name, 32) \
+	X86_IMPLEMENT_MOV_SIZE(name, 64)
 #define X86_IMPLEMENT_CMOV(name) \
 	X86_IMPLEMENT_2OP_RR_SIZE(name, 16, ReadWrite, Read, SYMFLAG_USES_FLAGS) \
 	X86_IMPLEMENT_2OP_RM_SIZE(name, 16, ReadWrite, Read, SYMFLAG_USES_FLAGS) \
@@ -960,15 +1051,13 @@ X86_IMPLEMENT_CMOV(cmovge)
 X86_IMPLEMENT_CMOV(cmovle)
 X86_IMPLEMENT_CMOV(cmovg)
 
-// FIXME: The LEA instruction does not need the SYMFLAG_MEMORY_BARRIER flag
-X86_IMPLEMENT_2OP_RM_NATIVE(lea, Write, Read, 0)
 X86_IMPLEMENT_2OP_II_NATIVE(enter, SYMFLAG_MEMORY_BARRIER | SYMFLAG_STACK)
 
 X86_IMPLEMENT_2OP_MODRM_IMM(adc, ReadWrite, Read, SYMFLAG_USES_FLAGS | SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(add, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(and, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(cmp, Read, Read, SYMFLAG_WRITES_FLAGS)
-X86_IMPLEMENT_2OP_MODRM_IMM(mov, Write, Read, 0)
+X86_IMPLEMENT_MOV(mov)
 X86_IMPLEMENT_2OP_MODRM_IMM(sbb, ReadWrite, Read, SYMFLAG_USES_FLAGS | SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(sub, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(test, Read, Read, SYMFLAG_WRITES_FLAGS)
@@ -1009,6 +1098,38 @@ X86_IMPLEMENT_MOVEXT(movzx)
 #ifdef OUTPUT64
 X86_IMPLEMENT_MOVEXT_SIZE(movsxd, 64, 32)
 #endif
+
+
+X86_SYMINSTR_CLASS_OP(lea, RM)::X86_SYMINSTR_CLASS_OP(lea, RM)(uint32_t a, X86_MEM_OP_PARAM)
+{
+	AddWriteRegisterOperand(a);
+	X86_ADD_MEM_OP;
+}
+
+
+bool X86_SYMINSTR_CLASS_OP(lea, RM)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	EMIT_RM(X86_NATIVE_SIZE_INSTR_NAME(lea), X86_REG_OF_SIZE(m_operands[0].reg, X86_NATIVE_SIZE), X86_MEM_OP(1));
+	return true;
+}
+
+
+void X86_SYMINSTR_CLASS_OP(lea, RM)::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "lea ");
+	X86_PRINT_REG_OP(0, X86_NATIVE_SIZE);
+	fprintf(stderr, ", ");
+	X86_PRINT_MEM_OP(1, 0);
+}
+
+
+bool X86_SYMINSTR_CLASS_OP(lea, RM)::UpdateInstruction(SymInstrFunction* func, const Settings& settings,
+	vector<SymInstr*>& replacement)
+{
+	if ((m_operands[0].reg == m_operands[1].reg) && (m_operands[2].reg == SYMREG_NONE) && (m_operands[4].immed == 0))
+		return true;
+	return false;
+}
 
 
 X86_SYMINSTR_CLASS_SIZE_OP(rdtsc, 32, RR)::X86_SYMINSTR_CLASS_SIZE_OP(rdtsc, 32, RR)(uint32_t a, uint32_t b)
@@ -2815,6 +2936,7 @@ void X86_SYMINSTR_NAME(Function)::PrintRegister(uint32_t reg)
 }
 
 
+SymInstr* X86_SYMINSTR_NAME_OP(lea, RM)(uint32_t a, X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_OP(lea, RM)(a, X86_MEM_OP_PASS); }
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(rdtsc, 32, RR)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(rdtsc, 32, RR)(a, b); }
 SymInstr* X86_SYMINSTR_NAME(cwd)(uint32_t eax, uint32_t edx) { return new X86_SYMINSTR_CLASS(cwd)(eax, edx); }
 SymInstr* X86_SYMINSTR_NAME(cdq)(uint32_t eax, uint32_t edx) { return new X86_SYMINSTR_CLASS(cdq)(eax, edx); }

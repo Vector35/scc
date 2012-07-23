@@ -195,17 +195,6 @@ public: \
 SymInstr* X86_SYMINSTR_NAME_OP(name, RR)(uint32_t a, uint32_t b);
 
 
-#define X86_DECLARE_2OP_RM_NATIVE(name) \
-class X86_SYMINSTR_CLASS_OP(name, RM): public X86_SYMINSTR_NAME(Instr) \
-{ \
-public: \
-	X86_SYMINSTR_CLASS_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM); \
-	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
-	virtual void Print(SymInstrFunction* func); \
-}; \
-SymInstr* X86_SYMINSTR_NAME_OP(name, RM)(uint32_t a, X86_MEM_OP_PARAM);
-
-
 #define X86_DECLARE_2OP_II_NATIVE(name) \
 class X86_SYMINSTR_CLASS_OP(name, II): public X86_SYMINSTR_NAME(Instr) \
 { \
@@ -256,8 +245,7 @@ X86_DECLARE_2OP_RM_SIZE(name, size) \
 X86_DECLARE_2OP_MR_SIZE(name, size)
 
 
-#define X86_DECLARE_2OP_MODRM_IMM_SIZE(name, size) \
-X86_DECLARE_2OP_MODRM_SIZE(name, size) \
+#define X86_DECLARE_2OP_IMM_SIZE(name, size) \
 class X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI): public X86_SYMINSTR_NAME(Instr) \
 { \
 public: \
@@ -274,6 +262,26 @@ public: \
 };\
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RI)(uint32_t a, int64_t b); \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b);
+
+
+#define X86_DECLARE_2OP_MODRM_IMM_SIZE(name, size) \
+X86_DECLARE_2OP_MODRM_SIZE(name, size) \
+X86_DECLARE_2OP_IMM_SIZE(name, size)
+
+
+#define X86_DECLARE_MOV_SIZE(name, size) \
+X86_DECLARE_2OP_RM_SIZE(name, size) \
+X86_DECLARE_2OP_MR_SIZE(name, size) \
+X86_DECLARE_2OP_IMM_SIZE(name, size) \
+class X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement); \
+}; \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b);
 
 
 #define X86_DECLARE_3OP_RRI_SIZE(name, size) \
@@ -438,6 +446,10 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 8) \
 	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 16) \
 	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 32)
+#define X86_DECLARE_MOV(name) \
+	X86_DECLARE_MOV_SIZE(name, 8) \
+	X86_DECLARE_MOV_SIZE(name, 16) \
+	X86_DECLARE_MOV_SIZE(name, 32)
 #define X86_DECLARE_CMOV(name) \
 	X86_DECLARE_2OP_RR_SIZE(name, 16) \
 	X86_DECLARE_2OP_RM_SIZE(name, 16) \
@@ -474,6 +486,11 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 16) \
 	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 32) \
 	X86_DECLARE_2OP_MODRM_IMM_SIZE(name, 64)
+#define X86_DECLARE_MOV(name) \
+	X86_DECLARE_MOV_SIZE(name, 8) \
+	X86_DECLARE_MOV_SIZE(name, 16) \
+	X86_DECLARE_MOV_SIZE(name, 32) \
+	X86_DECLARE_MOV_SIZE(name, 64)
 #define X86_DECLARE_CMOV(name) \
 	X86_DECLARE_2OP_RR_SIZE(name, 16) \
 	X86_DECLARE_2OP_RM_SIZE(name, 16) \
@@ -558,14 +575,13 @@ X86_DECLARE_CMOV(cmovge)
 X86_DECLARE_CMOV(cmovle)
 X86_DECLARE_CMOV(cmovg)
 
-X86_DECLARE_2OP_RM_NATIVE(lea)
 X86_DECLARE_2OP_II_NATIVE(enter)
 
 X86_DECLARE_2OP_MODRM_IMM(adc)
 X86_DECLARE_2OP_MODRM_IMM(add)
 X86_DECLARE_2OP_MODRM_IMM(and)
 X86_DECLARE_2OP_MODRM_IMM(cmp)
-X86_DECLARE_2OP_MODRM_IMM(mov)
+X86_DECLARE_MOV(mov)
 X86_DECLARE_2OP_MODRM_IMM(sbb)
 X86_DECLARE_2OP_MODRM_IMM(sub)
 X86_DECLARE_2OP_MODRM_IMM(test)
@@ -608,6 +624,16 @@ X86_DECLARE_MOVEXT(movzx)
 #ifdef OUTPUT64
 X86_DECLARE_MOVEXT_SIZE(movsxd, 64, 32)
 #endif
+
+
+class X86_SYMINSTR_CLASS_OP(lea, RM): public X86_SYMINSTR_NAME(Instr)
+{
+public:
+	X86_SYMINSTR_CLASS_OP(lea, RM)(uint32_t a, X86_MEM_OP_PARAM);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+};
 
 
 class X86_SYMINSTR_CLASS(cwd): public X86_SYMINSTR_NAME(Instr)
@@ -834,6 +860,7 @@ public:
 };
 
 
+SymInstr* X86_SYMINSTR_NAME_OP(lea, RM)(uint32_t a, X86_MEM_OP_PARAM);
 SymInstr* X86_SYMINSTR_NAME(cwd)(uint32_t eax, uint32_t edx);
 SymInstr* X86_SYMINSTR_NAME(cdq)(uint32_t eax, uint32_t edx);
 #ifdef OUTPUT64

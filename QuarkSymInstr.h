@@ -424,12 +424,12 @@ public:
 class QuarkSymInstrFunction: public SymInstrFunction
 {
 public:
-	QuarkSymInstrFunction();
-	virtual std::vector<uint32_t> GetCallerSavedRegisters(const Settings& settings);
-	virtual std::vector<uint32_t> GetCalleeSavedRegisters(const Settings& settings);
-	virtual std::set<uint32_t> GetRegisterClassInterferences(const Settings& settings, uint32_t cls);
-	virtual uint32_t GetSpecialRegisterAssignment(const Settings& settings, uint32_t reg);
-	virtual void AdjustStackFrame(const Settings& settings);
+	QuarkSymInstrFunction(const Settings& settings);
+	virtual std::vector<uint32_t> GetCallerSavedRegisters();
+	virtual std::vector<uint32_t> GetCalleeSavedRegisters();
+	virtual std::set<uint32_t> GetRegisterClassInterferences(uint32_t cls);
+	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg);
+	virtual void AdjustStackFrame();
 	virtual void PrintRegisterClass(uint32_t cls);
 	virtual void PrintRegister(uint32_t reg);
 };

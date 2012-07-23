@@ -820,7 +820,7 @@ bool QuarkPseudoInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* 
 }
 
 
-QuarkSymInstrFunction::QuarkSymInstrFunction()
+QuarkSymInstrFunction::QuarkSymInstrFunction(const Settings& settings): SymInstrFunction(settings)
 {
 }
 
@@ -1552,7 +1552,7 @@ void QuarkRestoreCalleeSavedRegsInstr::Print(SymInstrFunction* func)
 }
 
 
-vector<uint32_t> QuarkSymInstrFunction::GetCallerSavedRegisters(const Settings& settings)
+vector<uint32_t> QuarkSymInstrFunction::GetCallerSavedRegisters()
 {
 	vector<uint32_t> result;
 	// TODO: Support non-default special registers
@@ -1562,7 +1562,7 @@ vector<uint32_t> QuarkSymInstrFunction::GetCallerSavedRegisters(const Settings& 
 }
 
 
-vector<uint32_t> QuarkSymInstrFunction::GetCalleeSavedRegisters(const Settings& settings)
+vector<uint32_t> QuarkSymInstrFunction::GetCalleeSavedRegisters()
 {
 	vector<uint32_t> result;
 	// TODO: Support non-default special registers
@@ -1572,7 +1572,7 @@ vector<uint32_t> QuarkSymInstrFunction::GetCalleeSavedRegisters(const Settings& 
 }
 
 
-set<uint32_t> QuarkSymInstrFunction::GetRegisterClassInterferences(const Settings& settings, uint32_t cls)
+set<uint32_t> QuarkSymInstrFunction::GetRegisterClassInterferences(uint32_t cls)
 {
 	set<uint32_t> result;
 	// TODO: Floating point
@@ -1654,7 +1654,7 @@ set<uint32_t> QuarkSymInstrFunction::GetRegisterClassInterferences(const Setting
 }
 
 
-uint32_t QuarkSymInstrFunction::GetSpecialRegisterAssignment(const Settings& settings, uint32_t reg)
+uint32_t QuarkSymInstrFunction::GetSpecialRegisterAssignment(uint32_t reg)
 {
 	// TODO: Support non-default special registers
 	switch (reg)
@@ -1667,15 +1667,13 @@ uint32_t QuarkSymInstrFunction::GetSpecialRegisterAssignment(const Settings& set
 		return SYMREG_NATIVE_REG(30);
 	case SYMREG_IP:
 		return SYMREG_NATIVE_REG(31);
-	case SYMREG_ANY:
-		return SYMREG_NATIVE_REG(1);
 	default:
 		return SYMREG_NONE;
 	}
 }
 
 
-void QuarkSymInstrFunction::AdjustStackFrame(const Settings& settings)
+void QuarkSymInstrFunction::AdjustStackFrame()
 {
 	// Analyze callee saved registers
 	uint32_t min = 29;
@@ -1688,14 +1686,14 @@ void QuarkSymInstrFunction::AdjustStackFrame(const Settings& settings)
 
 	// Adjust parameter locations to account for callee saved registers
 	int64_t adjust;
-	if (settings.stackGrowsUp)
+	if (m_settings.stackGrowsUp)
 		adjust = m_clobberedCalleeSavedRegs.size() * 4;
 	else
 		adjust = (31 - min) * 4;
 
 	for (vector<int64_t>::iterator i = m_stackVarOffsets.begin(); i != m_stackVarOffsets.end(); i++)
 	{
-		if (settings.stackGrowsUp)
+		if (m_settings.stackGrowsUp)
 		{
 			if (*i <= 0)
 				*i -= adjust;

@@ -62,7 +62,8 @@ struct Settings
 {
 	std::vector<uint8_t> blacklist;
 	std::vector<std::string> preservedRegs;
-	std::string stackReg, frameReg, returnReg, returnHighReg, baseReg;
+	std::string stackRegName, frameRegName, returnRegName, returnHighRegName, baseRegName;
+	uint32_t stackPointer, framePointer, returnReg, returnHighReg, basePointer;
 
 	std::vector<std::string> includeDirs;
 

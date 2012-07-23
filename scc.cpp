@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.baseReg = argv[i];
+			settings.baseRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--blacklist"))
@@ -310,7 +310,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.frameReg = argv[i];
+			settings.frameRegName = argv[i];
 			continue;
 		}
 		else if ((!strcmp(argv[i], "--format")) || (!strcmp(argv[i], "-f")))
@@ -518,7 +518,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.returnReg = argv[i];
+			settings.returnRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--return-high-reg"))
@@ -530,7 +530,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.returnHighReg = argv[i];
+			settings.returnHighRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--seed"))
@@ -565,7 +565,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.stackReg = argv[i];
+			settings.stackRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--stdin"))

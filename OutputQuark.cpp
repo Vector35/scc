@@ -312,7 +312,7 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		ref.type = OPERANDREF_REG;
 		ref.sign = true;
 		ref.width = param.GetWidth();
-		ref.reg = SYMREG_ANY;
+		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		return true;
 	default:
 		return false;
@@ -2509,7 +2509,7 @@ fail:
 
 bool OutputQuark::GenerateCode(Function* func)
 {
-	QuarkSymInstrFunction symFunc;
+	QuarkSymInstrFunction symFunc(m_settings);
 	m_func = func;
 	m_symFunc = &symFunc;
 
@@ -2604,12 +2604,12 @@ bool OutputQuark::GenerateCode(Function* func)
 
 			// Variable can be stored in a register
 			uint32_t reg = m_symFunc->AddRegister((i->first->GetType()->GetClass() == TYPE_FLOAT) ?
-				QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER, i->second);
+				QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER, m_stackVar[i->first]);
 			m_varReg[i->first] = reg;
 
 			// 64-bit variables take two adjacent registers
 			if ((i->first->GetType()->GetWidth() == 8) && (i->first->GetType()->GetClass() != TYPE_FLOAT))
-				m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, i->second);
+				m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, m_stackVar[i->first]);
 		}
 	}
 
@@ -2696,7 +2696,7 @@ bool OutputQuark::GenerateCode(Function* func)
 	}
 
 	// Allocate registers for symbolic code to produce final assembly
-	if (!m_symFunc->AllocateRegisters(m_settings))
+	if (!m_symFunc->AllocateRegisters())
 	{
 		if (m_settings.internalDebug)
 		{

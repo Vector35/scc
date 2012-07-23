@@ -10,7 +10,7 @@
 #define SYMREG_BP   0xfffffff1
 #define SYMREG_LR   0xfffffff2
 #define SYMREG_IP   0xfffffff3
-#define SYMREG_ANY  0xfffffffe
+#define SYMREG_BASE 0xfffffff4
 #define SYMREG_NONE 0xffffffff
 
 #define SYMREG_NATIVE_REG(r) ((r) | 0x80000000)
@@ -24,6 +24,7 @@
 #define SYMFLAG_CONTROL_FLOW    0x10
 #define SYMFLAG_CALL            0x20
 #define SYMFLAG_COPY            0x40
+#define SYMFLAG_STACK           0x80
 
 
 enum SymInstrOperandType
@@ -57,6 +58,7 @@ struct SymInstrOperand
 	size_t dataFlowBit;
 	std::vector<size_t> useDefChain;
 
+	SymInstrOperand();
 	void Print(SymInstrFunction* func);
 };
 
@@ -143,6 +145,8 @@ public:
 class SymInstrFunction
 {
 protected:
+	Settings m_settings;
+
 	std::vector<SymInstrBlock*> m_blocks;
 	std::map<ILBlock*, SymInstrBlock*> m_blockMap;
 	std::vector<uint32_t> m_symRegClass;
@@ -166,7 +170,7 @@ protected:
 	void SplitRegisters();
 
 public:
-	SymInstrFunction();
+	SymInstrFunction(const Settings& settings);
 	virtual ~SymInstrFunction();
 
 	void InitializeBlocks(Function* func);
@@ -181,15 +185,16 @@ public:
 	const std::vector<int64_t>& GetStackVars() const { return m_stackVarOffsets; }
 
 	const std::vector<uint32_t>& GetClobberedCalleeSavedRegisters() const { return m_clobberedCalleeSavedRegs; }
+	const Settings& GetSettings() const { return m_settings; }
 
-	bool AllocateRegisters(const Settings& settings);
+	bool AllocateRegisters();
 
-	virtual std::vector<uint32_t> GetCallerSavedRegisters(const Settings& settings) = 0;
-	virtual std::vector<uint32_t> GetCalleeSavedRegisters(const Settings& settings) = 0;
-	virtual std::set<uint32_t> GetRegisterClassInterferences(const Settings& settings, uint32_t cls) = 0;
-	virtual uint32_t GetSpecialRegisterAssignment(const Settings& settings, uint32_t reg) = 0;
+	virtual std::vector<uint32_t> GetCallerSavedRegisters() = 0;
+	virtual std::vector<uint32_t> GetCalleeSavedRegisters() = 0;
+	virtual std::set<uint32_t> GetRegisterClassInterferences(uint32_t cls) = 0;
+	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg) = 0;
 
-	virtual void AdjustStackFrame(const Settings& settings) = 0;
+	virtual void AdjustStackFrame() = 0;
 
 	virtual void PrintRegisterClass(uint32_t cls) = 0;
 	virtual void PrintRegister(uint32_t reg);

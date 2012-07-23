@@ -6,6 +6,11 @@
 using namespace std;
 
 
+SymInstrOperand::SymInstrOperand(): dataFlowBit((size_t)-1)
+{
+}
+
+
 void SymInstrOperand::Print(SymInstrFunction* f)
 {
 	switch (type)
@@ -29,7 +34,7 @@ void SymInstrOperand::Print(SymInstrFunction* f)
 		break;
 	}
 
-	if ((access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(reg)))
+	if ((access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(reg)) && (dataFlowBit != (size_t)-1))
 		fprintf(stderr, "{%d}", (int)dataFlowBit);
 
 	if (useDefChain.size() != 0)
@@ -286,7 +291,7 @@ void SymInstrBlock::Print(SymInstrFunction* func)
 }
 
 
-SymInstrFunction::SymInstrFunction()
+SymInstrFunction::SymInstrFunction(const Settings& settings): m_settings(settings)
 {
 }
 
@@ -600,7 +605,7 @@ uint32_t SymInstrFunction::AddStackVar(int64_t offset)
 }
 
 
-bool SymInstrFunction::AllocateRegisters(const Settings& settings)
+bool SymInstrFunction::AllocateRegisters()
 {
 	// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see
 	// if there are any that can be split into multiple registers to reduce register pressure when the same
@@ -666,14 +671,14 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 		}
 
 		// Add interference edges to native registers according to the register class
-		set<uint32_t> nativeInterference = GetRegisterClassInterferences(settings, m_symRegClass[i]);
+		set<uint32_t> nativeInterference = GetRegisterClassInterferences(m_symRegClass[i]);
 		m_regInterference[i].insert(nativeInterference.begin(), nativeInterference.end());
 	}
 
 	// For each call instruction, generate interferences with caller saved registers to cause them to be
 	// spilled to the stack
-	vector<uint32_t> callerSavedRegs = GetCallerSavedRegisters(settings);
-	vector<uint32_t> calleeSavedRegs = GetCalleeSavedRegisters(settings);
+	vector<uint32_t> callerSavedRegs = GetCallerSavedRegisters();
+	vector<uint32_t> calleeSavedRegs = GetCalleeSavedRegisters();
 	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
 	{
 		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
@@ -794,7 +799,7 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 			// Register available, add to set of available registers
 			available.push_back(*i);
 
-			if (!settings.polymorph)
+			if (!m_settings.polymorph)
 			{
 				// Not generating polymorphic code, so exit early once a register is found
 				break;
@@ -811,7 +816,7 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 
 		// Register is available, allocate it now
 		uint32_t choice;
-		if (settings.polymorph)
+		if (m_settings.polymorph)
 			choice = available[rand() % available.size()];
 		else
 			choice = available[0];
@@ -841,10 +846,12 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 			{
 				if (k->type != SYMOPERAND_REG)
 					continue;
+				if (k->reg == SYMREG_NONE)
+					continue;
 
 				uint32_t newReg;
 				if (k->reg >= SYMREG_MIN_SPECIAL_REG)
-					newReg = GetSpecialRegisterAssignment(settings, k->reg);
+					newReg = GetSpecialRegisterAssignment(k->reg);
 				else if (k->reg < m_symRegClass.size())
 					newReg = m_symRegAssignment[k->reg];
 
@@ -879,7 +886,7 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
 		{
 			vector<SymInstr*> replacement;
-			if ((*i)->GetInstructions()[j]->UpdateInstruction(this, settings, replacement))
+			if ((*i)->GetInstructions()[j]->UpdateInstruction(this, m_settings, replacement))
 			{
 				(*i)->ReplaceInstruction(j, replacement);
 				j += replacement.size() - 1;
@@ -887,7 +894,7 @@ bool SymInstrFunction::AllocateRegisters(const Settings& settings)
 		}
 	}
 
-	AdjustStackFrame(settings);
+	AdjustStackFrame();
 	return true;
 }
 
@@ -928,7 +935,7 @@ void SymInstrFunction::Print()
 			}
 			fprintf(stderr, ")");
 		}
-		if (m_regInterference[i].size() != 0)
+		if ((i < m_regInterference.size()) && (m_regInterference[i].size() != 0))
 		{
 			fprintf(stderr, " (interference: ");
 			for (set<uint32_t>::iterator j = m_regInterference[i].begin(); j != m_regInterference[i].end(); j++)
@@ -966,8 +973,11 @@ void SymInstrFunction::PrintRegister(uint32_t reg)
 	case SYMREG_IP:
 		fprintf(stderr, "ip");
 		break;
-	case SYMREG_ANY:
-		fprintf(stderr, "any");
+	case SYMREG_BASE:
+		fprintf(stderr, "base");
+		break;
+	case SYMREG_NONE:
+		fprintf(stderr, "none");
 		break;
 	default:
 		fprintf(stderr, "reg%u", reg);

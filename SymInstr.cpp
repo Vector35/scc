@@ -810,7 +810,10 @@ bool SymInstrFunction::AllocateRegisters()
 		{
 			// Register allocation failed, need to spill registers to reduce register pressure
 			// TODO: Spill registers
-			fprintf(stderr, "error: out of registers\n");
+			if (m_settings.internalDebug)
+				fprintf(stderr, "error: out of registers while allocating reg%d\n", reg);
+			else
+				fprintf(stderr, "error: out of registers\n");
 			return false;
 		}
 
@@ -972,9 +975,6 @@ void SymInstrFunction::PrintRegister(uint32_t reg)
 		break;
 	case SYMREG_IP:
 		fprintf(stderr, "ip");
-		break;
-	case SYMREG_BASE:
-		fprintf(stderr, "base");
 		break;
 	case SYMREG_NONE:
 		fprintf(stderr, "none");

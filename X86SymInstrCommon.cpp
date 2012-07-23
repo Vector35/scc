@@ -1286,17 +1286,17 @@ bool X86_SYMINSTR_CLASS(FstenvDataAddr)::EmitInstruction(SymInstrFunction* func,
 	size_t capturedOffset = out->len;
 	EMIT(fnop);
 #ifdef OUTPUT32
-	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), func->GetSettings().stackGrowsUp ? 4 : -28));
-	EMIT_RM(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), func->GetSettings().stackGrowsUp ? 4 : -28));
+	EMIT_RM(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 		func->GetSettings().stackGrowsUp ? 16 : -16));
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 4), 1));
+	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 32), 1));
 #else
-	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), func->GetSettings().stackGrowsUp ? 8 : -28));
-	EMIT_RM(mov_64, X86_REG_OF_SIZE(m_operands[0].reg, 8), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), func->GetSettings().stackGrowsUp ? 8 : -28));
+	EMIT_RM(mov_64, X86_REG_OF_SIZE(m_operands[0].reg, 64), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 		func->GetSettings().stackGrowsUp ? 20 : -16));
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 8), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 8), 1));
+	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 64), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 64), 1));
 #endif
 
 	*(int8_t*)((size_t)out->code + out->len - 1) = (int8_t)(out->len - capturedOffset);
@@ -1334,17 +1334,17 @@ bool X86_SYMINSTR_CLASS(FstenvCodeAddr)::EmitInstruction(SymInstrFunction* func,
 	size_t capturedOffset = out->len;
 	EMIT(fnop);
 #ifdef OUTPUT32
-	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), func->GetSettings().stackGrowsUp ? 4 : -28));
-	EMIT_RM(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), func->GetSettings().stackGrowsUp ? 4 : -28));
+	EMIT_RM(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 		func->GetSettings().stackGrowsUp ? 16 : -16));
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 4), 1));
+	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 32), 1));
 #else
-	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), func->GetSettings().stackGrowsUp ? 8 : -28));
-	EMIT_RM(mov_64, X86_REG_OF_SIZE(m_operands[0].reg, 8), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+	EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), func->GetSettings().stackGrowsUp ? 8 : -28));
+	EMIT_RM(mov_64, X86_REG_OF_SIZE(m_operands[0].reg, 64), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 		func->GetSettings().stackGrowsUp ? 20 : -16));
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 8), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 8), 1));
+	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 64), X86_MEM(X86_REG_OF_SIZE(m_operands[0].reg, 64), 1));
 #endif
 
 	*(int8_t*)((size_t)out->code + out->len - 1) = (int8_t)(out->len - capturedOffset);
@@ -1370,14 +1370,10 @@ void X86_SYMINSTR_CLASS(FstenvCodeAddr)::Print(SymInstrFunction* func)
 }
 
 
-X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)::X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)(uint32_t dest, int64_t offset)
+X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)::X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)(uint32_t dest, uint32_t base, int64_t offset)
 {
 	AddWriteRegisterOperand(dest);
-#ifdef OUTPUT32
-	AddReadRegisterOperand(SYMREG_BASE);
-#else
-	AddReadRegisterOperand(SYMREG_IP);
-#endif
+	AddReadRegisterOperand(base);
 	AddGlobalVarOperand(offset);
 }
 
@@ -1386,7 +1382,7 @@ bool X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)::EmitInstruction(SymInstrFunctio
 {
 #ifdef OUTPUT32
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 4), 1));
+	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_MEM(X86_REG_OF_SIZE(m_operands[1].reg, 32), 1));
 	*(int8_t*)((size_t)out->code + out->len - 1) = 0;
 	Relocation reloc;
 	reloc.type = DATA_RELOC_BASE_RELATIVE_8;
@@ -1396,7 +1392,7 @@ bool X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)::EmitInstruction(SymInstrFunctio
 	reloc.dataOffset = m_operands[2].immed;
 	out->relocs.push_back(reloc);
 #else
-	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 8), X86_MEM(REG_RIP, 0));
+	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 64), X86_MEM(REG_RIP, 0));
 	Relocation reloc;
 	reloc.type = DATA_RELOC_RELATIVE_32;
 	reloc.offset = out->len - 4;
@@ -1418,14 +1414,11 @@ void X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)::Print(SymInstrFunction* func)
 }
 
 
-X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)::X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)(uint32_t dest, Function* func, ILBlock* block)
+X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)::X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)(uint32_t dest, uint32_t base,
+	Function* func, ILBlock* block)
 {
 	AddWriteRegisterOperand(dest);
-#ifdef OUTPUT32
-	AddReadRegisterOperand(SYMREG_BASE);
-#else
-	AddReadRegisterOperand(SYMREG_IP);
-#endif
+	AddReadRegisterOperand(base);
 	AddBlockOperand(func, block);
 }
 
@@ -1434,7 +1427,7 @@ bool X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)::EmitInstruction(SymInstrFunctio
 {
 #ifdef OUTPUT32
 	size_t leaOffset = out->len;
-	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 4), 1));
+	EMIT_RM(lea_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), X86_MEM(X86_REG_OF_SIZE(m_operands[1].reg, 32), 1));
 	*(int8_t*)((size_t)out->code + out->len - 1) = 0;
 	Relocation reloc;
 	reloc.type = CODE_RELOC_BASE_RELATIVE_8;
@@ -1444,7 +1437,7 @@ bool X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)::EmitInstruction(SymInstrFunctio
 	reloc.target = m_operands[2].block;
 	out->relocs.push_back(reloc);
 #else
-	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 8), X86_MEM(REG_RIP, 0));
+	EMIT_RM(lea_64, X86_REG_OF_SIZE(m_operands[0].reg, 64), X86_MEM(REG_RIP, 0));
 
 	Relocation reloc;
 	reloc.type = CODE_RELOC_RELATIVE_32;
@@ -1477,7 +1470,7 @@ X86_SYMINSTR_CLASS(MovDataPtrAbsolute)::X86_SYMINSTR_CLASS(MovDataPtrAbsolute)(u
 bool X86_SYMINSTR_CLASS(MovDataPtrAbsolute)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
 #ifdef OUTPUT32
-	EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), 0);
+	EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), 0);
 	Relocation reloc;
 	reloc.type = DATA_RELOC_ABSOLUTE_32;
 	reloc.offset = out->len - 4;
@@ -1509,7 +1502,7 @@ X86_SYMINSTR_CLASS(MovCodePtrAbsolute)::X86_SYMINSTR_CLASS(MovCodePtrAbsolute)(u
 bool X86_SYMINSTR_CLASS(MovCodePtrAbsolute)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
 #ifdef OUTPUT32
-	EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 4), 0);
+	EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), 0);
 	Relocation reloc;
 	reloc.type = CODE_RELOC_ABSOLUTE_32;
 	reloc.offset = out->len - 4;
@@ -1682,7 +1675,7 @@ bool X86_SYMINSTR_CLASS(CallDirect)::EmitInstruction(SymInstrFunction* func, Out
 		if (func->GetSettings().basePointer != SYMREG_NONE)
 		{
 			size_t leaOffset = out->len;
-			EMIT_RM(lea_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 4), 1));
+			EMIT_RM(lea_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 32), 1));
 			*(int8_t*)((size_t)out->code + out->len - 1) = 0;
 			reloc.type = CODE_RELOC_BASE_RELATIVE_8;
 			reloc.overflow = BaseRelativeLeaOverflowHandler;
@@ -1712,16 +1705,16 @@ bool X86_SYMINSTR_CLASS(CallDirect)::EmitInstruction(SymInstrFunction* func, Out
 				capturedOffset = out->len;
 				EMIT(fnop);
 #ifdef OUTPUT32
-				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 					func->GetSettings().stackGrowsUp ? 4 : -28));
-				EMIT_RM(mov_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+				EMIT_RM(mov_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 					func->GetSettings().stackGrowsUp ? 16 : -16));
 				leaOffset = out->len;
 				EMIT_RM(lea_32, retAddr, X86_MEM(retAddr, 1));
 #else
-				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 					func->GetSettings().stackGrowsUp ? 8 : -28));
-				EMIT_RM(mov_64, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+				EMIT_RM(mov_64, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 					func->GetSettings().stackGrowsUp ? 20 : -16));
 				leaOffset = out->len;
 				EMIT_RM(lea_64, retAddr, X86_MEM(retAddr, 1));
@@ -1768,13 +1761,13 @@ bool X86_SYMINSTR_CLASS(CallDirect)::EmitInstruction(SymInstrFunction* func, Out
 		else
 		{
 #ifdef OUTPUT32
-			EMIT_RM(lea_32, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
-				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), func->GetSettings().stackGrowsUp ? 4 : -4));
-			EMIT_MR(mov_32, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), 0), retAddr);
+			EMIT_RM(lea_32, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
+				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), func->GetSettings().stackGrowsUp ? 4 : -4));
+			EMIT_MR(mov_32, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), 0), retAddr);
 #else
-			EMIT_RM(lea_64, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
-				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), func->GetSettings().stackGrowsUp ? 8 : -8));
-			EMIT_MR(mov_64, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), 0), retAddr);
+			EMIT_RM(lea_64, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
+				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), func->GetSettings().stackGrowsUp ? 8 : -8));
+			EMIT_MR(mov_64, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), 0), retAddr);
 #endif
 		}
 
@@ -1874,7 +1867,7 @@ bool X86_SYMINSTR_CLASS(CallIndirectReg)::EmitInstruction(SymInstrFunction* func
 		if (func->GetSettings().basePointer != SYMREG_NONE)
 		{
 			size_t leaOffset = out->len;
-			EMIT_RM(lea_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 4), 1));
+			EMIT_RM(lea_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 32), 1));
 			*(int8_t*)((size_t)out->code + out->len - 1) = 0;
 			reloc.type = CODE_RELOC_BASE_RELATIVE_8;
 			reloc.overflow = BaseRelativeLeaOverflowHandler;
@@ -1904,16 +1897,16 @@ bool X86_SYMINSTR_CLASS(CallIndirectReg)::EmitInstruction(SymInstrFunction* func
 				capturedOffset = out->len;
 				EMIT(fnop);
 #ifdef OUTPUT32
-				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 					func->GetSettings().stackGrowsUp ? 4 : -28));
-				EMIT_RM(mov_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+				EMIT_RM(mov_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 					func->GetSettings().stackGrowsUp ? 16 : -16));
 				leaOffset = out->len;
 				EMIT_RM(lea_32, retAddr, X86_MEM(retAddr, 1));
 #else
-				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 					func->GetSettings().stackGrowsUp ? 8 : -28));
-				EMIT_RM(mov_64, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+				EMIT_RM(mov_64, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 					func->GetSettings().stackGrowsUp ? 20 : -16));
 				leaOffset = out->len;
 				EMIT_RM(lea_64, retAddr, X86_MEM(retAddr, 1));
@@ -1961,13 +1954,13 @@ bool X86_SYMINSTR_CLASS(CallIndirectReg)::EmitInstruction(SymInstrFunction* func
 		else
 		{
 #ifdef OUTPUT32
-			EMIT_RM(lea_32, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
-				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), func->GetSettings().stackGrowsUp ? 4 : -4));
-			EMIT_MR(mov_32, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), 0), retAddr);
+			EMIT_RM(lea_32, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
+				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), func->GetSettings().stackGrowsUp ? 4 : -4));
+			EMIT_MR(mov_32, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), 0), retAddr);
 #else
-			EMIT_RM(lea_64, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
-				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), func->GetSettings().stackGrowsUp ? 8 : -8));
-			EMIT_MR(mov_64, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), 0), retAddr);
+			EMIT_RM(lea_64, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
+				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), func->GetSettings().stackGrowsUp ? 8 : -8));
+			EMIT_MR(mov_64, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), 0), retAddr);
 #endif
 		}
 
@@ -2064,7 +2057,7 @@ bool X86_SYMINSTR_CLASS(CallIndirectMem)::EmitInstruction(SymInstrFunction* func
 		if (func->GetSettings().basePointer != SYMREG_NONE)
 		{
 			size_t leaOffset = out->len;
-			EMIT_RM(lea_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 4), 1));
+			EMIT_RM(lea_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().basePointer, 32), 1));
 			*(int8_t*)((size_t)out->code + out->len - 1) = 0;
 			reloc.type = CODE_RELOC_BASE_RELATIVE_8;
 			reloc.overflow = BaseRelativeLeaOverflowHandler;
@@ -2094,16 +2087,16 @@ bool X86_SYMINSTR_CLASS(CallIndirectMem)::EmitInstruction(SymInstrFunction* func
 				capturedOffset = out->len;
 				EMIT(fnop);
 #ifdef OUTPUT32
-				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 					func->GetSettings().stackGrowsUp ? 4 : -28));
-				EMIT_RM(mov_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
+				EMIT_RM(mov_32, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
 					func->GetSettings().stackGrowsUp ? 16 : -16));
 				leaOffset = out->len;
 				EMIT_RM(lea_32, retAddr, X86_MEM(retAddr, 1));
 #else
-				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+				EMIT_M(fstenv, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 					func->GetSettings().stackGrowsUp ? 8 : -28));
-				EMIT_RM(mov_64, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
+				EMIT_RM(mov_64, retAddr, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
 					func->GetSettings().stackGrowsUp ? 20 : -16));
 				leaOffset = out->len;
 				EMIT_RM(lea_64, retAddr, X86_MEM(retAddr, 1));
@@ -2151,13 +2144,13 @@ bool X86_SYMINSTR_CLASS(CallIndirectMem)::EmitInstruction(SymInstrFunction* func
 		else
 		{
 #ifdef OUTPUT32
-			EMIT_RM(lea_32, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4),
-				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), func->GetSettings().stackGrowsUp ? 4 : -4));
-			EMIT_MR(mov_32, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 4), 0), retAddr);
+			EMIT_RM(lea_32, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32),
+				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), func->GetSettings().stackGrowsUp ? 4 : -4));
+			EMIT_MR(mov_32, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 32), 0), retAddr);
 #else
-			EMIT_RM(lea_64, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8),
-				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), func->GetSettings().stackGrowsUp ? 8 : -8));
-			EMIT_MR(mov_64, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 8), 0), retAddr);
+			EMIT_RM(lea_64, X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64),
+				X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), func->GetSettings().stackGrowsUp ? 8 : -8));
+			EMIT_MR(mov_64, X86_MEM(X86_REG_OF_SIZE(func->GetSettings().stackPointer, 64), 0), retAddr);
 #endif
 		}
 
@@ -2225,7 +2218,7 @@ X86_SYMINSTR_CLASS(Syscall)::X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t 
 {
 	AddWriteRegisterOperand(eax);
 	AddWriteRegisterOperand(edx);
-	AddTemporaryRegisterOperand(ecx);
+	AddWriteRegisterOperand(ecx);
 	for (vector<uint32_t>::const_iterator i = readRegs.begin(); i != readRegs.end(); i++)
 		AddReadRegisterOperand(*i);
 }
@@ -2255,7 +2248,7 @@ X86_SYMINSTR_CLASS(SyscallInt80)::X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax,
 {
 	AddWriteRegisterOperand(eax);
 	AddWriteRegisterOperand(edx);
-	AddTemporaryRegisterOperand(ecx);
+	AddWriteRegisterOperand(ecx);
 	for (vector<uint32_t>::const_iterator i = readRegs.begin(); i != readRegs.end(); i++)
 		AddReadRegisterOperand(*i);
 }
@@ -2560,6 +2553,7 @@ vector<uint32_t> X86_SYMINSTR_NAME(Function)::GetCalleeSavedRegisters()
 	vector<uint32_t> result;
 	// TODO: Handle alternate special registers
 #ifdef OUTPUT32
+	result.push_back(SYMREG_NATIVE_REG(REG_EBX));
 	result.push_back(SYMREG_NATIVE_REG(REG_ESI));
 	result.push_back(SYMREG_NATIVE_REG(REG_EDI));
 #else
@@ -2583,7 +2577,7 @@ set<uint32_t> X86_SYMINSTR_NAME(Function)::GetRegisterClassInterferences(uint32_
 
 #define ADD_REG_TO_LIST(reg, exclude) \
 	if ((SYMREG_NATIVE_REG(reg) != SYMREG_NATIVE_REG(exclude)) || (SYMREG_NATIVE_REG(reg) == m_settings.framePointer) || \
-		(SYMREG_NATIVE_REG(reg) == m_settings.stackPointer) || (SYMREG_NATIVE_REG(reg) == m_settings.basePointer)) \
+		(SYMREG_NATIVE_REG(reg) == m_settings.stackPointer)) \
 		result.insert(SYMREG_NATIVE_REG(reg));
 #ifdef OUTPUT32
 #define ALL_EXCEPT(exclude) \
@@ -2718,8 +2712,6 @@ uint32_t X86_SYMINSTR_NAME(Function)::GetSpecialRegisterAssignment(uint32_t reg)
 		return m_settings.stackPointer;
 	case SYMREG_BP:
 		return m_settings.framePointer;
-	case SYMREG_BASE:
-		return m_settings.basePointer;
 #ifdef OUTPUT64
 	case SYMREG_IP:
 		return SYMREG_NATIVE_REG(REG_RIP);
@@ -2837,8 +2829,8 @@ SymInstr* X86_SYMINSTR_NAME(CallPopDataAddr)(uint32_t dest, int64_t offset) { re
 SymInstr* X86_SYMINSTR_NAME(CallPopCodeAddr)(uint32_t dest, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(CallPopCodeAddr)(dest, func, block); }
 SymInstr* X86_SYMINSTR_NAME(FstenvDataAddr)(uint32_t dest, int64_t offset) { return new X86_SYMINSTR_CLASS(FstenvDataAddr)(dest, offset); }
 SymInstr* X86_SYMINSTR_NAME(FstenvCodeAddr)(uint32_t dest, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(FstenvCodeAddr)(dest, func, block); }
-SymInstr* X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(uint32_t dest, int64_t offset) { return new X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)(dest, offset); }
-SymInstr* X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(uint32_t dest, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)(dest, func, block); }
+SymInstr* X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(uint32_t dest, uint32_t base, int64_t offset) { return new X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)(dest, base, offset); }
+SymInstr* X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(uint32_t dest, uint32_t base, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)(dest, base, func, block); }
 SymInstr* X86_SYMINSTR_NAME(MovDataPtrAbsolute)(uint32_t dest, int64_t offset) { return new X86_SYMINSTR_CLASS(MovDataPtrAbsolute)(dest, offset); }
 SymInstr* X86_SYMINSTR_NAME(MovCodePtrAbsolute)(uint32_t dest, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(MovCodePtrAbsolute)(dest, func, block); }
 SymInstr* X86_SYMINSTR_NAME(CondJump)(uint8_t type, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(CondJump)(type, func, block); }

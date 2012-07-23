@@ -40,9 +40,8 @@ int dup2(int oldFd, int newFd)
 
 void redirect_io(int fd)
 {
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
+	for (int i = 0; i < 3; i++)
+		dup2(fd, i);
 }
 
 ssize_t read(int fd, void* buf, size_t count)

@@ -10,7 +10,6 @@
 #define SYMREG_BP   0xfffffff1
 #define SYMREG_LR   0xfffffff2
 #define SYMREG_IP   0xfffffff3
-#define SYMREG_BASE 0xfffffff4
 #define SYMREG_NONE 0xffffffff
 
 #define SYMREG_NATIVE_REG(r) ((r) | 0x80000000)

@@ -62,7 +62,7 @@ struct Settings
 {
 	std::vector<uint8_t> blacklist;
 	std::vector<std::string> preservedRegs;
-	std::string stackRegName, frameRegName, returnRegName, returnHighRegName, baseRegName;
+	std::string stackRegName, frameRegName, returnRegName, returnHighRegName;
 	uint32_t stackPointer, framePointer, returnReg, returnHighReg, basePointer;
 
 	std::vector<std::string> includeDirs;
@@ -78,7 +78,6 @@ struct Settings
 	bool execStack;
 	bool concat;
 	bool sharedLibrary;
-	bool multiStage;
 
 	bool stackGrowsUp;
 	bool encodePointers;

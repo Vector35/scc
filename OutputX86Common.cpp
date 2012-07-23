@@ -331,13 +331,15 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 
 		if (m_settings.basePointer != SYMREG_NONE)
 		{
-			out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(ptr, param.variable->GetDataSectionOffset()));
+			out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(ptr, m_settings.basePointer,
+				param.variable->GetDataSectionOffset()));
 			return true;
 		}
 
 		GetDataAddressFromInstructionPointer(out, ptr, param.variable->GetDataSectionOffset());
 #else
-		out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(ptr, param.variable->GetDataSectionOffset()));
+		out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(ptr, SYMREG_IP,
+			param.variable->GetDataSectionOffset()));
 #endif
 
 		return true;
@@ -388,7 +390,7 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(SymInstrBlock* out, Function* func, ILBl
 #ifdef OUTPUT32
 	if (m_settings.basePointer != SYMREG_NONE)
 	{
-		out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, func, block));
+		out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, m_settings.basePointer, func, block));
 	}
 	else if (m_settings.positionIndependent)
 	{
@@ -399,7 +401,7 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(SymInstrBlock* out, Function* func, ILBl
 		out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrAbsolute)(ref.reg, func, block));
 	}
 #else
-	out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, func, block));
+	out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, SYMREG_IP, func, block));
 #endif
 
 	if (m_settings.encodePointers)
@@ -4766,11 +4768,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	// Determine what the stack and frame pointers should be
 	m_settings.framePointer = DEFAULT_FRAME_POINTER;
 	m_settings.stackPointer = DEFAULT_STACK_POINTER;
-#ifdef OUTPUT32
-	m_settings.basePointer = m_settings.positionIndependent ? DEFAULT_BASE_POINTER : SYMREG_NONE;
-#else
 	m_settings.basePointer = SYMREG_NONE;
-#endif
 
 	// FIXME: There are bugs with ESP based addressing (pushing parameters on stack doesn't
 	// account for adjusted stack), so it is disabled for now
@@ -4781,8 +4779,6 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		m_settings.stackPointer = GetRegisterByName(m_settings.stackRegName);
 	if (m_settings.frameRegName.size() != 0)
 		m_settings.framePointer = GetRegisterByName(m_settings.frameRegName);
-	if ((m_settings.baseRegName.size() != 0) && m_settings.positionIndependent)
-		m_settings.basePointer = GetRegisterByName(m_settings.baseRegName);
 #else
 	if (m_settings.stackRegName.size() != 0)
 		m_settings.stackPointer = GetRegisterByName(m_settings.stackRegName);
@@ -4802,29 +4798,9 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		return false;
 	}
 
-#ifdef OUTPUT32
-	if ((m_settings.basePointer == SYMREG_NONE) && m_settings.positionIndependent)
-	{
-		fprintf(stderr, "error: invalid base pointer register\n");
-		return false;
-	}
-#endif
-
 	if (m_settings.stackPointer == m_settings.framePointer)
 	{
 		fprintf(stderr, "error: stack pointer and frame pointer cannot be the same register\n");
-		return false;
-	}
-
-	if (m_settings.stackPointer == m_settings.basePointer)
-	{
-		fprintf(stderr, "error: stack pointer and base pointer cannot be the same register\n");
-		return false;
-	}
-
-	if (m_settings.framePointer == m_settings.basePointer)
-	{
-		fprintf(stderr, "error: frame pointer and base pointer cannot be the same register\n");
 		return false;
 	}
 
@@ -4838,6 +4814,9 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	m_symFunc = &symFunc;
 
 	symFunc.InitializeBlocks(func);
+
+	if (m_settings.positionIndependent)
+		m_settings.basePointer = symFunc.AddRegister(X86REGCLASS_INTEGER);
 
 	// Generate stack frame
 	uint32_t offset = 0;
@@ -5079,10 +5058,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			}
 
 #ifdef OUTPUT32
-			if (m_settings.positionIndependent && ((func->GetName() == "_start") || m_settings.multiStage))
+			if (m_settings.positionIndependent)
 			{
 				// Capture base of code at start
-				GetCodeAddressFromInstructionPointer(out, SYMREG_BASE, func, func->GetIL()[0]);
+				GetCodeAddressFromInstructionPointer(out, m_settings.basePointer, func, func->GetIL()[0]);
 			}
 #endif
 

@@ -705,7 +705,7 @@ public:
 class X86_SYMINSTR_CLASS(MovDataPtrBaseRelative): public X86_SYMINSTR_NAME(Instr)
 {
 public:
-	X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)(uint32_t dest, int64_t offset);
+	X86_SYMINSTR_CLASS(MovDataPtrBaseRelative)(uint32_t dest, uint32_t base, int64_t offset);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -714,7 +714,7 @@ public:
 class X86_SYMINSTR_CLASS(MovCodePtrBaseRelative): public X86_SYMINSTR_NAME(Instr)
 {
 public:
-	X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)(uint32_t dest, Function* func, ILBlock* block);
+	X86_SYMINSTR_CLASS(MovCodePtrBaseRelative)(uint32_t dest, uint32_t base, Function* func, ILBlock* block);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -847,8 +847,8 @@ SymInstr* X86_SYMINSTR_NAME(CallPopDataAddr)(uint32_t dest, int64_t offset);
 SymInstr* X86_SYMINSTR_NAME(CallPopCodeAddr)(uint32_t dest, Function* func, ILBlock* block);
 SymInstr* X86_SYMINSTR_NAME(FstenvDataAddr)(uint32_t dest, int64_t offset);
 SymInstr* X86_SYMINSTR_NAME(FstenvCodeAddr)(uint32_t dest, Function* func, ILBlock* block);
-SymInstr* X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(uint32_t dest, int64_t offset);
-SymInstr* X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(uint32_t dest, Function* func, ILBlock* block);
+SymInstr* X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(uint32_t dest, uint32_t base, int64_t offset);
+SymInstr* X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(uint32_t dest, uint32_t base, Function* func, ILBlock* block);
 SymInstr* X86_SYMINSTR_NAME(MovDataPtrAbsolute)(uint32_t dest, int64_t offset);
 SymInstr* X86_SYMINSTR_NAME(MovCodePtrAbsolute)(uint32_t dest, Function* func, ILBlock* block);
 SymInstr* X86_SYMINSTR_NAME(CondJump)(uint8_t type, Function* func, ILBlock* block);

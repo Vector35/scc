@@ -8,10 +8,10 @@ is the definition of this function:
 
 ---------------------------------------
 def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
-	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
+	base=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
-	multi_stage=False, additional_options=None)
+	additional_options=None)
 ---------------------------------------
 
 This function will return a tuple of two elements.  The first element is the compiled code, or `None` on compilation
@@ -39,9 +39,6 @@ to ensure that it is in a safe location.
 
 The `base` parameter specifies the base address of the start of the output.  This can be a computed expression in terms
 of register contents at the start of the program.
-
-If the `base_reg` parameter is specified, the register that is used to hold the base of the program is forced to the
-specified register.
 
 If the `concat` parameter is `True`, the compiler will jump to the end of the output on completion instead of exiting the
 process.  This allows multiple pieces of code to be appended together to form a larger program.
@@ -83,10 +80,6 @@ register.  Using this option will significantly increase code size.
 The `include_dirs` specifies additional include directories, and should be a list of strings.
 
 The `align` parameter, if specified, provides the minimum alignment of the output in bytes.
-
-If the `multi_stage` parameter is `True`, the compiler will generate code assuming that it will be used in multi-stage
-execution.  Function pointers can be safely passed between stages when this option is specified.  This option should
-not be used with the `encode_pointers` option.
 
 The `additional_options` parameter can hold a list of additional link:scc.html[command line arguments].
 

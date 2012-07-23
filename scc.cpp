@@ -74,7 +74,6 @@ void Usage()
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
 	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
 	fprintf(stderr, "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
-	fprintf(stderr, "    --multi-stage                     Compile code to be used in multi-stage execution\n");
 	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
 	fprintf(stderr, "    -O0                               Do not run the optimizer\n");
 	fprintf(stderr, "    -Os                               Try to generate the smallest code possible\n");
@@ -138,7 +137,6 @@ int main(int argc, char* argv[])
 	settings.sharedLibrary = false;
 	settings.polymorph = false;
 	settings.mixedMode = false;
-	settings.multiStage = false;
 	settings.seed = 0;
 	settings.positionIndependent = true;
 	settings.base = 0;
@@ -217,18 +215,6 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--concat"))
 		{
 			settings.concat = true;
-			continue;
-		}
-		else if (!strcmp(argv[i], "--base-reg"))
-		{
-			if ((i + 1) >= argc)
-			{
-				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
-				return 1;
-			}
-
-			i++;
-			settings.baseRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--blacklist"))
@@ -418,11 +404,6 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--mixed-mode"))
 		{
 			settings.mixedMode = true;
-			continue;
-		}
-		else if (!strcmp(argv[i], "--multi-stage"))
-		{
-			settings.multiStage = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--pad"))

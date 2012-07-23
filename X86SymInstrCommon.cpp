@@ -378,6 +378,34 @@ X86_IMPLEMENT_2OP_MODRM_SIZE(name, size, firstAccess, secondAccess, flags) \
 X86_IMPLEMENT_2OP_IMM_SIZE(name, size, firstAccess, secondAccess, flags)
 
 
+#define X86_IMPLEMENT_XOR_SIZE(name, size) \
+X86_IMPLEMENT_2OP_RM_SIZE(name, size, ReadWrite, Read, SYMFLAG_WRITES_FLAGS) \
+X86_IMPLEMENT_2OP_MR_SIZE(name, size, ReadWrite, Read, SYMFLAG_WRITES_FLAGS) \
+X86_IMPLEMENT_2OP_IMM_SIZE(name, size, ReadWrite, Read, SYMFLAG_WRITES_FLAGS) \
+X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) \
+{ \
+	if (a == b) \
+		AddWriteRegisterOperand(a); \
+	else \
+		AddReadWriteRegisterOperand(a); \
+	AddWriteRegisterOperand(b); \
+	EnableFlag(SYMFLAG_WRITES_FLAGS); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT_RR(name ## _ ## size, X86_REG_OF_SIZE(m_operands[0].reg, size), X86_REG_OF_SIZE(m_operands[1].reg, size)); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_REG_OP(0, size); \
+	fprintf(stderr, ", "); \
+	X86_PRINT_REG_OP(1, size); \
+} \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(a, b); }
+
+
 #define X86_IMPLEMENT_MOV_SIZE(name, size) \
 X86_IMPLEMENT_2OP_RM_SIZE(name, size, Write, Read, SYMFLAG_COPY) \
 X86_IMPLEMENT_2OP_MR_SIZE(name, size, Write, Read, SYMFLAG_COPY) \
@@ -688,12 +716,12 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, 8, R)(uint32_t a, uint32_t eax) { retu
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, 8, M)(X86_MEM_OP_PARAM, uint32_t eax) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, 8, M)(X86_MEM_OP_PASS, eax); }
 
 
-#define X86_IMPLEMENT_MULDIV_SIZE(name, size) \
+#define X86_IMPLEMENT_MULDIV_SIZE(name, size, edxAccess) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, R)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, R)(uint32_t a, uint32_t eax, uint32_t edx) \
 { \
 	AddReadRegisterOperand(a); \
 	AddReadWriteRegisterOperand(eax); \
-	AddReadWriteRegisterOperand(edx); \
+	Add ## edxAccess ## RegisterOperand(edx); \
 	EnableFlag(SYMFLAG_WRITES_FLAGS); \
 } \
 bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, R)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
@@ -844,6 +872,10 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 8, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 16, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 32, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_XOR(name) \
+	X86_IMPLEMENT_XOR_SIZE(name, 8) \
+	X86_IMPLEMENT_XOR_SIZE(name, 16) \
+	X86_IMPLEMENT_XOR_SIZE(name, 32)
 #define X86_IMPLEMENT_MOV(name) \
 	X86_IMPLEMENT_MOV_SIZE(name, 8) \
 	X86_IMPLEMENT_MOV_SIZE(name, 16) \
@@ -861,10 +893,10 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_IMPLEMENT_MOVEXT_SIZE(name, 16, 8) \
 	X86_IMPLEMENT_MOVEXT_SIZE(name, 32, 8) \
 	X86_IMPLEMENT_MOVEXT_SIZE(name, 32, 16)
-#define X86_IMPLEMENT_MULDIV(name) \
+#define X86_IMPLEMENT_MULDIV(name, edxAccess) \
 	X86_IMPLEMENT_MULDIV8(name) \
-	X86_IMPLEMENT_MULDIV_SIZE(name, 16) \
-	X86_IMPLEMENT_MULDIV_SIZE(name, 32)
+	X86_IMPLEMENT_MULDIV_SIZE(name, 16, edxAccess) \
+	X86_IMPLEMENT_MULDIV_SIZE(name, 32, edxAccess)
 #define X86_IMPLEMENT_SHIFT_DOUBLE(name) \
 	X86_IMPLEMENT_SHIFT_DOUBLE_SIZE(name, 16) \
 	X86_IMPLEMENT_SHIFT_DOUBLE_SIZE(name, 32)
@@ -884,6 +916,11 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 16, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 32, firstAccess, secondAccess, flags) \
 	X86_IMPLEMENT_2OP_MODRM_IMM_SIZE(name, 64, firstAccess, secondAccess, flags)
+#define X86_IMPLEMENT_XOR(name) \
+	X86_IMPLEMENT_XOR_SIZE(name, 8) \
+	X86_IMPLEMENT_XOR_SIZE(name, 16) \
+	X86_IMPLEMENT_XOR_SIZE(name, 32) \
+	X86_IMPLEMENT_XOR_SIZE(name, 64)
 #define X86_IMPLEMENT_MOV(name) \
 	X86_IMPLEMENT_MOV_SIZE(name, 8) \
 	X86_IMPLEMENT_MOV_SIZE(name, 16) \
@@ -907,11 +944,11 @@ SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MRI)(X86_MEM_OP_PARAM, uint32_t 
 	X86_IMPLEMENT_MOVEXT_SIZE(name, 32, 16) \
 	X86_IMPLEMENT_MOVEXT_SIZE(name, 64, 8) \
 	X86_IMPLEMENT_MOVEXT_SIZE(name, 64, 16)
-#define X86_IMPLEMENT_MULDIV(name) \
+#define X86_IMPLEMENT_MULDIV(name, edxAccess) \
 	X86_IMPLEMENT_MULDIV8(name) \
-	X86_IMPLEMENT_MULDIV_SIZE(name, 16) \
-	X86_IMPLEMENT_MULDIV_SIZE(name, 32) \
-	X86_IMPLEMENT_MULDIV_SIZE(name, 64)
+	X86_IMPLEMENT_MULDIV_SIZE(name, 16, edxAccess) \
+	X86_IMPLEMENT_MULDIV_SIZE(name, 32, edxAccess) \
+	X86_IMPLEMENT_MULDIV_SIZE(name, 64, edxAccess)
 #define X86_IMPLEMENT_SHIFT_DOUBLE(name) \
 	X86_IMPLEMENT_SHIFT_DOUBLE_SIZE(name, 16) \
 	X86_IMPLEMENT_SHIFT_DOUBLE_SIZE(name, 32) \
@@ -1063,12 +1100,12 @@ X86_IMPLEMENT_2OP_MODRM_IMM(sub, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(test, Read, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM_IMM(or, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_MODRM(xchg, ReadWrite, ReadWrite, 0)
-X86_IMPLEMENT_2OP_MODRM_IMM(xor, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
+X86_IMPLEMENT_XOR(xor)
 
-X86_IMPLEMENT_MULDIV(div)
-X86_IMPLEMENT_MULDIV(mul)
-X86_IMPLEMENT_MULDIV(idiv)
-X86_IMPLEMENT_MULDIV(imul)
+X86_IMPLEMENT_MULDIV(div, ReadWrite)
+X86_IMPLEMENT_MULDIV(mul, Write)
+X86_IMPLEMENT_MULDIV(idiv, ReadWrite)
+X86_IMPLEMENT_MULDIV(imul, Write)
 X86_IMPLEMENT_2OP_RR_SIZE(imul, 16, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_2OP_RM_SIZE(imul, 16, ReadWrite, Read, SYMFLAG_WRITES_FLAGS)
 X86_IMPLEMENT_3OP_RRI_SIZE(imul, 16, Write, Read, SYMFLAG_WRITES_FLAGS)

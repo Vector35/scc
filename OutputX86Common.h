@@ -38,6 +38,7 @@ class OUTPUT_CLASS_NAME: public Output
 	{
 		uint32_t base, index;
 		uint8_t scale;
+		uint32_t var;
 		ssize_t offset;
 	};
 

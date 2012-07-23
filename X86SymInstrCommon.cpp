@@ -45,9 +45,13 @@ using namespace asmx86;
 	AddReadRegisterOperand(base); \
 	AddReadRegisterOperand(index); \
 	AddImmediateOperand(scale); \
-	AddImmediateOperand(offset);
+	if (stackVar == SYMREG_NONE) \
+		AddImmediateOperand(offset); \
+	else \
+		AddStackVarOperand(stackVar, offset);
 #define X86_MEM_OP(start) X86_MEM_INDEX(X86_NATIVE_REG(m_operands[start].reg), X86_NATIVE_REG(m_operands[(start) + 1].reg), \
-	(uint32_t)m_operands[(start) + 2].immed, m_operands[(start) + 3].immed)
+	(uint32_t)m_operands[(start) + 2].immed, (m_operands[(start) + 3].type == SYMOPERAND_STACK_VAR) ? \
+	(func->GetStackVars()[m_operands[(start) + 3].reg] + m_operands[(start) + 3].immed) : m_operands[(start) + 3].immed)
 
 
 #define X86_PRINT_REG_OP(i, size) \
@@ -86,8 +90,15 @@ using namespace asmx86;
 			if (m_operands[(start) + 2].immed != 1) \
 				fprintf(stderr, "*%d", (int)m_operands[(start) + 2].immed); \
 		} \
-		if (m_operands[(start) + 3].immed != 0) \
+		if (m_operands[(start) + 3].type == SYMOPERAND_STACK_VAR) \
+		{ \
+			fprintf(stderr, " + "); \
+			m_operands[(start) + 3].Print(func); \
+		} \
+		else if (m_operands[(start) + 3].immed != 0) \
+		{ \
 			fprintf(stderr, " + %lld", (long long)m_operands[(start) + 3].immed); \
+		} \
 	} \
 	else if (m_operands[(start) + 1].reg != SYMREG_NONE) \
 	{ \
@@ -95,12 +106,22 @@ using namespace asmx86;
 		m_operands[(start) + 1].Print(func); \
 		if (m_operands[(start) + 2].immed != 1) \
 			fprintf(stderr, "*%d", (int)m_operands[(start) + 2].immed); \
-		if (m_operands[(start) + 3].immed != 0) \
+		if (m_operands[(start) + 3].type == SYMOPERAND_STACK_VAR) \
+		{ \
+			fprintf(stderr, " + "); \
+			m_operands[(start) + 3].Print(func); \
+		} \
+		else if (m_operands[(start) + 3].immed != 0) \
+		{ \
 			fprintf(stderr, " + %lld", (long long)m_operands[(start) + 3].immed); \
+		} \
 	} \
 	else \
 	{ \
-		fprintf(stderr, "0x%llx", (long long)m_operands[(start) + 3].immed); \
+		if (m_operands[(start) + 3].type == SYMOPERAND_STACK_VAR) \
+			m_operands[(start) + 3].Print(func); \
+		else \
+			fprintf(stderr, "0x%llx", (long long)m_operands[(start) + 3].immed); \
 	} \
 	fprintf(stderr, "]");
 
@@ -2491,6 +2512,62 @@ bool X86_SYMINSTR_CLASS(SymReturn)::UpdateInstruction(SymInstrFunction* func, co
 }
 
 
+X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)::X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)()
+{
+}
+
+
+bool X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	// This pseudo-instruction should be replaced with function prologue code
+	return false;
+}
+
+
+void X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "saveregs");
+}
+
+
+bool X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)::UpdateInstruction(SymInstrFunction* func, const Settings& settings,
+	vector<SymInstr*>& replacement)
+{
+	vector<uint32_t> savedRegs = func->GetClobberedCalleeSavedRegisters();
+	for (size_t i = 0; i < savedRegs.size(); i++)
+		replacement.push_back(X86_SYMINSTR_NAME_OP(push, R)(savedRegs[i]));
+	return true;
+}
+
+
+X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)::X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)()
+{
+}
+
+
+bool X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	// This pseudo-instruction should be replaced with function epilog code
+	return false;
+}
+
+
+void X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "restoreregs");
+}
+
+
+bool X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)::UpdateInstruction(SymInstrFunction* func, const Settings& settings,
+	vector<SymInstr*>& replacement)
+{
+	vector<uint32_t> savedRegs = func->GetClobberedCalleeSavedRegisters();
+	for (size_t i = 0; i < savedRegs.size(); i++)
+		replacement.push_back(X86_SYMINSTR_NAME_OP(pop, R)(savedRegs[(savedRegs.size() - 1) - i]));
+	return true;
+}
+
+
 OperandType X86_SYMINSTR_NAME(Instr)::GetOperandOfSize(uint32_t reg, uint32_t size)
 {
 	reg &= 0x7fffffff;
@@ -2882,6 +2959,21 @@ uint32_t X86_SYMINSTR_NAME(Function)::GetSpecialRegisterAssignment(uint32_t reg)
 
 void X86_SYMINSTR_NAME(Function)::AdjustStackFrame()
 {
+	// Adjust parameter locations to account for callee saved registers
+	int64_t adjust = m_clobberedCalleeSavedRegs.size() * (X86_NATIVE_SIZE / 8);
+	for (vector<int64_t>::iterator i = m_stackVarOffsets.begin(); i != m_stackVarOffsets.end(); i++)
+	{
+		if (m_settings.stackGrowsUp)
+		{
+			if (*i <= 0)
+				*i -= adjust;
+		}
+		else
+		{
+			if (*i >= 0)
+				*i += adjust;
+		}
+	}
 }
 
 
@@ -3001,6 +3093,8 @@ SymInstr* X86_SYMINSTR_NAME(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, c
 SymInstr* X86_SYMINSTR_NAME(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs) { return new X86_SYMINSTR_CLASS(SyscallInt80)(eax, edx, ecx, readRegs); }
 SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax) { return new X86_SYMINSTR_CLASS(SyscallCorrectErrorCode)(eax); }
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS(SymReturn)(a, b); }
+SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)() { return new X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)(); }
+SymInstr* X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)() { return new X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)(); }
 
 
 #endif

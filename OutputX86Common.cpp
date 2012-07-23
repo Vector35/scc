@@ -38,8 +38,8 @@
 
 #define UNSAFE_STACK_PIVOT 0x1000
 
-#define X86_MEM_REF(ref) X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).offset)
-#define X86_MEM_REF_OFFSET(ref, ofs) X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).offset + (ofs))
+#define X86_MEM_REF(ref) X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).var, (ref).offset)
+#define X86_MEM_REF_OFFSET(ref, ofs) X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).var, (ref).offset + (ofs))
 
 #define EMIT(name)               out->AddInstruction(X86_SYMINSTR_NAME(name)())
 #define EMIT_R(name, a)          out->AddInstruction(X86_SYMINSTR_NAME_OP(name, R)(a))
@@ -83,6 +83,8 @@ bool OUTPUT_CLASS_NAME::OperandReference::operator==(const OperandReference& ref
 		if (mem.index != ref.mem.index)
 			return false;
 		if (mem.scale != ref.mem.scale)
+			return false;
+		if (mem.var != ref.mem.var)
 			return false;
 		if (mem.offset != ref.mem.offset)
 			return false;
@@ -320,6 +322,7 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 		ref.mem.base = ptr;
 		ref.mem.index = SYMREG_NONE;
 		ref.mem.scale = 1;
+		ref.mem.var = SYMREG_NONE;
 		ref.mem.offset = 0;
 
 #ifdef OUTPUT32
@@ -355,8 +358,8 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 		return true;
 	}
 
-	map<Variable*, int32_t>::iterator i = m_stackFrame.find(param.variable);
-	if (i == m_stackFrame.end())
+	map<Variable*, int32_t>::iterator i = m_stackVar.find(param.variable);
+	if (i == m_stackVar.end())
 		return false;
 	ref.type = OPERANDREF_MEM;
 	if (m_framePointerEnabled)
@@ -364,14 +367,16 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 		ref.mem.base = SYMREG_BP;
 		ref.mem.index = SYMREG_NONE;
 		ref.mem.scale = 1;
-		ref.mem.offset = i->second;
+		ref.mem.var = i->second;
+		ref.mem.offset = 0;
 	}
 	else
 	{
 		ref.mem.base = SYMREG_SP;
 		ref.mem.index = SYMREG_NONE;
 		ref.mem.scale = 1;
-		ref.mem.offset = i->second;
+		ref.mem.var = i->second;
+		ref.mem.offset = 0;
 	}
 	return true;
 }
@@ -1198,6 +1203,7 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOfMember(SymInstrBlock* out, const ILInst
 	deref.mem.base = src.reg;
 	deref.mem.scale = 1;
 	deref.mem.index = SYMREG_NONE;
+	deref.mem.var = SYMREG_NONE;
 	deref.mem.offset = member->offset;
 
 	temp.type = OPERANDREF_REG;
@@ -1243,6 +1249,7 @@ bool OUTPUT_CLASS_NAME::GenerateDeref(SymInstrBlock* out, const ILInstruction& i
 	deref.mem.base = src.reg;
 	deref.mem.scale = 1;
 	deref.mem.index = SYMREG_NONE;
+	deref.mem.var = SYMREG_NONE;
 	deref.mem.offset = 0;
 	return Move(out, dest, deref);
 }
@@ -1285,6 +1292,7 @@ bool OUTPUT_CLASS_NAME::GenerateDerefMember(SymInstrBlock* out, const ILInstruct
 	deref.mem.base = src.reg;
 	deref.mem.scale = 1;
 	deref.mem.index = SYMREG_NONE;
+	deref.mem.var = SYMREG_NONE;
 	deref.mem.offset = member->offset;
 	return Move(out, dest, deref);
 }
@@ -1320,6 +1328,7 @@ bool OUTPUT_CLASS_NAME::GenerateDerefAssign(SymInstrBlock* out, const ILInstruct
 	deref.mem.base = dest.reg;
 	deref.mem.scale = 1;
 	deref.mem.index = SYMREG_NONE;
+	deref.mem.var = SYMREG_NONE;
 	deref.mem.offset = 0;
 	return Move(out, deref, src);
 }
@@ -1362,6 +1371,7 @@ bool OUTPUT_CLASS_NAME::GenerateDerefMemberAssign(SymInstrBlock* out, const ILIn
 	deref.mem.base = dest.reg;
 	deref.mem.scale = 1;
 	deref.mem.index = SYMREG_NONE;
+	deref.mem.var = SYMREG_NONE;
 	deref.mem.offset = member->offset;
 	return Move(out, deref, src);
 }
@@ -1502,11 +1512,11 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& 
 #else
 			EMIT_RRI(imul_64, temp, b.reg, width);
 #endif
-			EMIT_RM(lea, dest.reg, X86_MEM_INDEX(a.reg, temp, 1, 0));
+			EMIT_RM(lea, dest.reg, X86_SYM_MEM_INDEX(a.reg, temp, 1, SYMREG_NONE, 0));
 		}
 		else
 		{
-			EMIT_RM(lea, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RM(lea, dest.reg, X86_SYM_MEM_INDEX(a.reg, b.reg, width, SYMREG_NONE, 0));
 		}
 	}
 	else
@@ -1526,7 +1536,7 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& 
 		}
 		else
 		{
-			EMIT_RM(lea, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RM(lea, temp, X86_SYM_MEM_INDEX(a.reg, b.reg, width, SYMREG_NONE, 0));
 #ifdef OUTPUT32
 			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
 #else
@@ -1599,11 +1609,11 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(SymInstrBlock* out, const ILInstruction& 
 #else
 			EMIT_RRI(imul_64, temp, b.reg, width);
 #endif
-			EMIT_RM(lea, dest.reg, X86_MEM_INDEX(a.reg, temp, 1, 0));
+			EMIT_RM(lea, dest.reg, X86_SYM_MEM_INDEX(a.reg, temp, 1, SYMREG_NONE, 0));
 		}
 		else
 		{
-			EMIT_RM(lea, dest.reg, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RM(lea, dest.reg, X86_SYM_MEM_INDEX(a.reg, b.reg, width, SYMREG_NONE, 0));
 		}
 	}
 	else
@@ -1623,7 +1633,7 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(SymInstrBlock* out, const ILInstruction& 
 		}
 		else
 		{
-			EMIT_RM(lea, temp, X86_MEM_INDEX(a.reg, b.reg, width, 0));
+			EMIT_RM(lea, temp, X86_SYM_MEM_INDEX(a.reg, b.reg, width, SYMREG_NONE, 0));
 #ifdef OUTPUT32
 			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
 #else
@@ -2841,7 +2851,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 #else
 			size_t paramSize = (param.width + 7) & (~7);
 #endif
-			EMIT_RM(lea, SYMREG_SP, X86_MEM(SYMREG_SP, m_settings.stackGrowsUp ? paramSize : -paramSize));
+			EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? paramSize : -paramSize));
 
 			OperandReference dest;
 			dest.type = OPERANDREF_MEM;
@@ -2849,6 +2859,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			dest.mem.base = SYMREG_SP;
 			dest.mem.index = SYMREG_NONE;
 			dest.mem.scale = 1;
+			dest.mem.var = SYMREG_NONE;
 			if (m_settings.stackGrowsUp)
 			{
 #ifdef OUTPUT32
@@ -3685,12 +3696,12 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 		{
 #ifdef OUTPUT32
 			EMIT_RR(mov_32, SYMREG_SP, SYMREG_BP);
-			EMIT_RM(mov_32, SYMREG_BP, X86_MEM(SYMREG_SP, 0));
-			EMIT_RM(lea, SYMREG_SP, X86_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -4 : 4));
+			EMIT_RM(mov_32, SYMREG_BP, X86_SYM_MEM(SYMREG_SP, 0));
+			EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -4 : 4));
 #else
 			EMIT_RR(mov_64, SYMREG_SP, SYMREG_BP);
-			EMIT_RM(mov_64, SYMREG_BP, X86_MEM(SYMREG_SP, 0));
-			EMIT_RM(lea, SYMREG_SP, X86_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -8 : 8));
+			EMIT_RM(mov_64, SYMREG_BP, X86_SYM_MEM(SYMREG_SP, 0));
+			EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -8 : 8));
 #endif
 		}
 	}
@@ -3717,15 +3728,17 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 		}
 	}
 
+	out->AddInstruction(X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)());
+
 	if (m_normalStack)
 	{
 		if (m_settings.encodePointers)
 		{
 			// Using encoded pointers, decode return address before returning
 #ifdef OUTPUT32
-			EMIT_MR(xor_32, X86_MEM(SYMREG_SP, 0), temp);
+			EMIT_MR(xor_32, X86_SYM_MEM(SYMREG_SP, 0), temp);
 #else
-			EMIT_MR(xor_64, X86_MEM(SYMREG_SP, 0), temp);
+			EMIT_MR(xor_64, X86_SYM_MEM(SYMREG_SP, 0), temp);
 #endif
 		}
 
@@ -3737,24 +3750,24 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 		{
 			// Using encoded pointers, decode return address before returning
 #ifdef OUTPUT32
-			EMIT_RM(xor_32, temp, X86_MEM(SYMREG_SP, 0));
+			EMIT_RM(xor_32, temp, X86_SYM_MEM(SYMREG_SP, 0));
 #else
-			EMIT_RM(xor_64, temp, X86_MEM(SYMREG_SP, 0));
+			EMIT_RM(xor_64, temp, X86_SYM_MEM(SYMREG_SP, 0));
 #endif
 		}
 		else
 		{
 #ifdef OUTPUT32
-			EMIT_RM(mov_32, temp, X86_MEM(SYMREG_SP, 0));
+			EMIT_RM(mov_32, temp, X86_SYM_MEM(SYMREG_SP, 0));
 #else
-			EMIT_RM(mov_64, temp, X86_MEM(SYMREG_SP, 0));
+			EMIT_RM(mov_64, temp, X86_SYM_MEM(SYMREG_SP, 0));
 #endif
 		}
 
 #ifdef OUTPUT32
-		EMIT_RM(lea, SYMREG_SP, X86_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -4 : 4));
+		EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -4 : 4));
 #else
-		EMIT_RM(lea, SYMREG_SP, X86_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -8 : 8));
+		EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -8 : 8));
 #endif
 		EMIT_R(jmpn, temp);
 	}
@@ -4970,6 +4983,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #endif
 		}
 
+		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var]);
+
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();
 #ifdef OUTPUT32
@@ -5007,16 +5022,19 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				EMIT_II(enter, 0, 0);
 #ifdef OUTPUT32
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_BP, -4 + stackAdjust));
+				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 				EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 				EMIT_RR(mov_32, SYMREG_BP, SYMREG_SP);
 #else
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_BP, -8 + stackAdjust));
+				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 				EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 				EMIT_RR(mov_64, SYMREG_BP, SYMREG_SP);
 #endif
 			}
 			else if (m_framePointerEnabled)
 			{
+				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 				if (m_normalStack)
 					EMIT_R(push, SYMREG_BP);
 				else
@@ -5035,6 +5053,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #else
 				EMIT_RR(mov_64, SYMREG_BP, SYMREG_SP);
 #endif
+			}
+			else
+			{
+				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 			}
 
 			if (m_stackFrameSize != 0)

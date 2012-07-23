@@ -83,11 +83,11 @@ enum X86RegisterClass
 #define X86_SYMINSTR_CLASS_2SIZE_OP(name, destSize, srcSize, op) X64Sym_ ## name ## _ ## destSize ## _ ## srcSize ## _ ## op ## _Instr
 #endif
 
-#define X86_MEM_OP_PARAM uint32_t base, uint32_t index, uint32_t scale, int64_t offset
-#define X86_MEM_OP_PASS base, index, scale, offset
+#define X86_MEM_OP_PARAM uint32_t base, uint32_t index, uint32_t scale, uint32_t stackVar, int64_t offset
+#define X86_MEM_OP_PASS base, index, scale, stackVar, offset
 
-#define X86_SYM_MEM(base, offset) base, SYMREG_NONE, 1, offset
-#define X86_SYM_MEM_INDEX(base, index, scale, offset) base, index, scale, offset
+#define X86_SYM_MEM(base, offset) base, SYMREG_NONE, 1, SYMREG_NONE, offset
+#define X86_SYM_MEM_INDEX(base, index, scale, stackVar, offset) base, index, scale, stackVar, offset
 
 
 class X86_SYMINSTR_NAME(Instr): public SymInstr
@@ -846,6 +846,26 @@ public:
 };
 
 
+class X86_SYMINSTR_CLASS(SaveCalleeSavedRegs): public X86_SYMINSTR_NAME(Instr)
+{
+public:
+	X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)();
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+};
+
+
+class X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs): public X86_SYMINSTR_NAME(Instr)
+{
+public:
+	X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)();
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+};
+
+
 class X86_SYMINSTR_NAME(Function): public SymInstrFunction
 {
 public:
@@ -887,6 +907,8 @@ SymInstr* X86_SYMINSTR_NAME(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, c
 SymInstr* X86_SYMINSTR_NAME(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs);
 SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax);
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b);
+SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)();
+SymInstr* X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)();
 
 
 #endif

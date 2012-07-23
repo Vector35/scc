@@ -51,7 +51,6 @@ tests = [
 	["shellcode, stack buffer", shellcode_stack_testcase, ["--unsafe-stack"]],
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
-	["fortress.c, multi-stage", fortress_testcase, ["--pie", "--multi-stage"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],
 	["fortress.c, stack grows up", fortress_testcase, ["--stack-grows-up"]],
 	["fortress.c, alternate stack ptr", fortress_testcase, ["--stack-reg", "ebx"]],

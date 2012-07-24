@@ -1738,6 +1738,66 @@ void QuarkSymInstrFunction::AdjustStackFrame()
 }
 
 
+bool QuarkSymInstrFunction::GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(QUARKREGCLASS_INTEGER);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		code.push_back(QuarkLoadStack8(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_INT16:
+		code.push_back(QuarkLoadStack16(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		code.push_back(QuarkLoadStack32(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_FLOAT:
+		code.push_back(QuarkLoadStackFS(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_DOUBLE:
+		code.push_back(QuarkLoadStackFD(reg, SYMREG_BP, var, offset, temp));
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+
+bool QuarkSymInstrFunction::GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(QUARKREGCLASS_INTEGER);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		code.push_back(QuarkStoreStack8(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_INT16:
+		code.push_back(QuarkStoreStack16(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		code.push_back(QuarkStoreStack32(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_FLOAT:
+		code.push_back(QuarkStoreStackFS(reg, SYMREG_BP, var, offset, temp));
+		break;
+	case ILTYPE_DOUBLE:
+		code.push_back(QuarkStoreStackFD(reg, SYMREG_BP, var, offset, temp));
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+
 void QuarkSymInstrFunction::PrintRegisterClass(uint32_t cls)
 {
 	switch (cls)

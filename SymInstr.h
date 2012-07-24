@@ -119,6 +119,7 @@ public:
 	std::vector<SymInstr*>& GetInstructions() { return m_instrs; }
 	void AddInstruction(SymInstr* instr) { m_instrs.push_back(instr); }
 	void ReplaceInstruction(size_t i, const std::vector<SymInstr*>& replacement);
+	void InsertInstructions(size_t i, const std::vector<SymInstr*>& code);
 
 	const std::set<SymInstrBlock*>& GetEntryBlocks() const { return m_entryBlocks; }
 	const std::set<SymInstrBlock*>& GetExitBlocks() const { return m_exitBlocks; }
@@ -152,8 +153,11 @@ protected:
 	std::map<ILBlock*, SymInstrBlock*> m_blockMap;
 	std::vector<uint32_t> m_symRegClass;
 	std::vector<uint32_t> m_symRegVar;
+	std::vector<int64_t> m_symRegOffset;
 	std::vector<uint32_t> m_symRegAssignment;
 	std::vector<int64_t> m_stackVarOffsets;
+	std::vector<size_t> m_stackVarWidths;
+	std::vector<ILParameterType> m_stackVarTypes;
 
 	std::set<SymInstrBlock*> m_exitBlocks;
 	BitVector m_exitReachingDefs;
@@ -169,6 +173,7 @@ protected:
 
 	void PerformDataFlowAnalysis();
 	void SplitRegisters();
+	bool SpillRegister(uint32_t reg);
 
 public:
 	SymInstrFunction(const Settings& settings);
@@ -177,13 +182,15 @@ public:
 	void InitializeBlocks(Function* func);
 	SymInstrBlock* GetBlock(ILBlock* block) const;
 
-	uint32_t AddRegister(uint32_t cls, uint32_t var = SYMREG_NONE);
+	uint32_t AddRegister(uint32_t cls, uint32_t var = SYMREG_NONE, int64_t offset = 0);
 	void AssignRegister(uint32_t reg, uint32_t native);
 	const std::vector<uint32_t>& GetRegisters() const { return m_symRegClass; }
 	uint32_t GetRegisterClass(uint32_t i) const { return m_symRegClass[i]; }
 
-	uint32_t AddStackVar(int64_t offset);
+	uint32_t AddStackVar(int64_t offset, size_t width, ILParameterType type);
 	const std::vector<int64_t>& GetStackVars() const { return m_stackVarOffsets; }
+	const std::vector<size_t>& GetStackVarWidths() const { return m_stackVarWidths; }
+	const std::vector<ILParameterType>& GetStackVarTypes() const { return m_stackVarTypes; }
 
 	const std::vector<uint32_t>& GetClobberedCalleeSavedRegisters() const { return m_clobberedCalleeSavedRegs; }
 	const Settings& GetSettings() const { return m_settings; }
@@ -197,6 +204,11 @@ public:
 	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg) = 0;
 
 	virtual void AdjustStackFrame() = 0;
+
+	virtual bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+		ILParameterType type, std::vector<SymInstr*>& code) = 0;
+	virtual bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+		ILParameterType type, std::vector<SymInstr*>& code) = 0;
 
 	virtual void PrintRegisterClass(uint32_t cls) = 0;
 	virtual void PrintRegister(uint32_t reg);

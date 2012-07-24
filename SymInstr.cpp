@@ -142,6 +142,12 @@ void SymInstrBlock::ReplaceInstruction(size_t i, const std::vector<SymInstr*>& r
 }
 
 
+void SymInstrBlock::InsertInstructions(size_t i, const std::vector<SymInstr*>& code)
+{
+	m_instrs.insert(m_instrs.begin() + i, code.begin(), code.end());
+}
+
+
 void SymInstrBlock::ResetDataFlowInfo(size_t defs, size_t regs)
 {
 	m_defPreserve.Reset(defs, true);
@@ -618,7 +624,7 @@ void SymInstrFunction::SplitRegisters()
 		for (size_t j = 1; j < sets; j++)
 		{
 			uint32_t fromReg = i->first;
-			uint32_t toReg = AddRegister(m_symRegClass[fromReg], m_symRegVar[fromReg]);
+			uint32_t toReg = AddRegister(m_symRegClass[fromReg], m_symRegVar[fromReg], m_symRegOffset[fromReg]);
 
 			for (size_t k = 0; k < i->second.size(); k++)
 			{
@@ -650,6 +656,123 @@ void SymInstrFunction::SplitRegisters()
 			}
 		}
 	}
+}
+
+
+bool SymInstrFunction::SpillRegister(uint32_t reg)
+{
+	vector< pair<SymInstrBlock*, size_t> > uses;
+
+	// Generate code to save register contents after each definition
+	for (vector<size_t>::iterator i = m_regDefs[reg].begin(); i != m_regDefs[reg].end(); i++)
+	{
+		SymInstrBlock* block = m_defLocs[*i].first;
+		size_t instr = m_defLocs[*i].second;
+		vector<SymInstr*> code;
+
+		// Let the architecture subclass generate the appropriate instructions for the store
+		if (!GenerateSpillStore(reg, m_symRegVar[reg], m_symRegOffset[reg], m_stackVarTypes[m_symRegVar[reg]], code))
+			return false;
+
+		// Place the instructions into the instruction stream
+		block->InsertInstructions(instr + 1, code);
+
+		// Update definition and use information to account for inserted code
+		for (vector< pair<SymInstrBlock*, size_t> >::iterator j = m_defLocs.begin(); j != m_defLocs.end(); j++)
+		{
+			if (j->first != block)
+				continue;
+			if (j->second <= instr)
+				continue;
+			j->second += code.size();
+		}
+
+		for (vector< pair<SymInstrBlock*, size_t> >::iterator j = uses.begin(); j != uses.end(); j++)
+		{
+			if (j->first != block)
+				continue;
+			if (j->second <= instr)
+				continue;
+			j->second += code.size();
+		}
+
+		for (vector< vector< pair<SymInstrBlock*, size_t> > >::iterator j = m_defUseChains.begin(); j != m_defUseChains.end(); j++)
+		{
+			for (vector< pair<SymInstrBlock*, size_t> >::iterator k = j->begin(); k != j->end(); k++)
+			{
+				if (k->first != block)
+					continue;
+				if (k->second <= instr)
+					continue;
+				k->second += code.size();
+			}
+		}
+
+		// Add uses of this definition to the global uses list
+		for (vector< pair<SymInstrBlock*, size_t> >::iterator j = m_defUseChains[*i].begin(); j != m_defUseChains[*i].end(); j++)
+		{
+			bool found = false;
+			for (vector< pair<SymInstrBlock*, size_t> >::iterator k = uses.begin(); k != uses.end(); k++)
+			{
+				if ((j->first == k->first) && (j->second == k->second))
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+				uses.push_back(*j);
+		}
+	}
+
+	// Generate code to restore register contents before each use
+	for (vector< pair<SymInstrBlock*, size_t> >::iterator i = uses.begin(); i != uses.end(); i++)
+	{
+		SymInstrBlock* block = i->first;
+		size_t instr = i->second;
+		vector<SymInstr*> code;
+
+		// Let the architecture subclass generate the appropriate instructions for the load
+		if (!GenerateSpillLoad(reg, m_symRegVar[reg], m_symRegOffset[reg], m_stackVarTypes[m_symRegVar[reg]], code))
+			return false;
+
+		// Place the instructions into the instruction stream
+		block->InsertInstructions(instr, code);
+
+		// Update definition and use information to account for inserted code
+		for (vector< pair<SymInstrBlock*, size_t> >::iterator j = m_defLocs.begin(); j != m_defLocs.end(); j++)
+		{
+			if (j->first != block)
+				continue;
+			if (j->second < instr)
+				continue;
+			j->second += code.size();
+		}
+
+		for (vector< pair<SymInstrBlock*, size_t> >::iterator j = uses.begin(); j != uses.end(); j++)
+		{
+			if (j->first != block)
+				continue;
+			if (j->second < instr)
+				continue;
+			j->second += code.size();
+		}
+
+		for (vector< vector< pair<SymInstrBlock*, size_t> > >::iterator j = m_defUseChains.begin(); j != m_defUseChains.end(); j++)
+		{
+			for (vector< pair<SymInstrBlock*, size_t> >::iterator k = j->begin(); k != j->end(); k++)
+			{
+				if (k->first != block)
+					continue;
+				if (k->second < instr)
+					continue;
+				k->second += code.size();
+			}
+		}
+	}
+
+	return true;
 }
 
 
@@ -693,11 +816,12 @@ SymInstrBlock* SymInstrFunction::GetBlock(ILBlock* il) const
 }
 
 
-uint32_t SymInstrFunction::AddRegister(uint32_t cls, uint32_t var)
+uint32_t SymInstrFunction::AddRegister(uint32_t cls, uint32_t var, int64_t offset)
 {
 	uint32_t i = (uint32_t)m_symRegClass.size();
 	m_symRegClass.push_back(cls);
 	m_symRegVar.push_back(var);
+	m_symRegOffset.push_back(offset);
 	m_symRegAssignment.push_back(SYMREG_NONE); // Will be filled in by register allocator
 	return i;
 }
@@ -709,21 +833,22 @@ void SymInstrFunction::AssignRegister(uint32_t reg, uint32_t native)
 }
 
 
-uint32_t SymInstrFunction::AddStackVar(int64_t offset)
+uint32_t SymInstrFunction::AddStackVar(int64_t offset, size_t width, ILParameterType type)
 {
 	uint32_t i = (uint32_t)m_stackVarOffsets.size();
 	m_stackVarOffsets.push_back(offset);
+	m_stackVarWidths.push_back(width);
+	m_stackVarTypes.push_back(type);
 	return i;
 }
 
 
 bool SymInstrFunction::AllocateRegisters()
 {
+	set<uint32_t> alreadySpilled;
+
 	while (true) // May need to spill one or more times
 	{
-		if (m_settings.internalDebug)
-			Print();
-
 		// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see
 		// if there are any that can be split into multiple registers to reduce register pressure when the same
 		// register is used for multiple non-overlapping purposes.  These are called "webs" in the literature.
@@ -869,6 +994,10 @@ bool SymInstrFunction::AllocateRegisters()
 			uint32_t reg = assignmentStack.top();
 			assignmentStack.pop();
 
+			// Ignore registers that are never defined
+			if (m_regDefs[reg].size() == 0)
+				continue;
+
 			// Get the list of available registers for assignment
 			vector<uint32_t> available;
 			for (vector<uint32_t>::iterator i = realRegs.begin(); i != realRegs.end(); i++)
@@ -919,6 +1048,12 @@ bool SymInstrFunction::AllocateRegisters()
 
 			for (vector<uint32_t>::iterator i = toProcess.begin(); i != toProcess.end(); i++)
 			{
+				if (alreadySpilled.count(*i) != 0)
+				{
+					// Spilled registers will be processed first
+					continue;
+				}
+
 				if (pruned[*i].size() < realRegs.size())
 				{
 					// This node has less edges than the number of real registers, so it is proven that at
@@ -934,15 +1069,18 @@ bool SymInstrFunction::AllocateRegisters()
 				// No potential nodes, pick a node and speculatively allocate.  Pick the one with the smallest
 				// sum of the number of uses and definitions, as this has the smallest spill cost (in terms
 				// of size, not speed)
-				size_t i = 0;
-				reg = toProcess[0];
+				size_t i = SYMREG_NONE;
+				reg = SYMREG_NONE;
+				size_t cost = (size_t)-1;
 
-				size_t cost = m_regDefs[reg].size();
-				for (vector<size_t>::iterator j = m_regDefs[reg].begin(); j != m_regDefs[reg].end(); j++)
-					cost += m_defUseChains[*j].size();
-
-				for (size_t j = 1; j < toProcess.size(); j++)
+				for (size_t j = 0; j < toProcess.size(); j++)
 				{
+					if (alreadySpilled.count(toProcess[j]) != 0)
+					{
+						// Spilled registers will be processed first
+						continue;
+					}
+
 					size_t curCost = m_regDefs[toProcess[j]].size();
 					for (vector<size_t>::iterator k = m_regDefs[toProcess[j]].begin(); k != m_regDefs[toProcess[j]].end(); k++)
 						curCost += m_defUseChains[*k].size();
@@ -955,6 +1093,9 @@ bool SymInstrFunction::AllocateRegisters()
 					}
 				}
 
+				if (reg == SYMREG_NONE)
+					break;
+
 				toProcess.erase(toProcess.begin() + i);
 			}
 
@@ -966,10 +1107,19 @@ bool SymInstrFunction::AllocateRegisters()
 				pruned[i].erase(reg);
 		}
 
+		// Any remaining registers are spilled registers, add them to the top of the assignment stack
+		for (vector<uint32_t>::iterator i = toProcess.begin(); i != toProcess.end(); i++)
+			assignmentStack.push(*i);
+
+		// Assign registers
 		while (!assignmentStack.empty())
 		{
 			uint32_t reg = assignmentStack.top();
 			assignmentStack.pop();
+
+			// Ignore registers that are never defined
+			if (m_regDefs[reg].size() == 0)
+				continue;
 
 			// Get the list of available registers for assignment
 			vector<uint32_t> available;
@@ -1012,6 +1162,13 @@ bool SymInstrFunction::AllocateRegisters()
 
 			if (available.size() == 0)
 			{
+				if (alreadySpilled.count(reg) != 0)
+				{
+					// Register was already spilled, generate error
+					fprintf(stderr, "error: trying to spill reg%d, which was already spilled\n", (int)reg);
+					return false;
+				}
+
 				// Register allocation failed, need to spill registers to reduce register pressure
 				if (m_settings.internalDebug)
 					fprintf(stderr, "Spilling reg%d\n", reg);
@@ -1035,8 +1192,34 @@ bool SymInstrFunction::AllocateRegisters()
 		if (spillCount > 0)
 		{
 			// Registers were spilled, need to emit spill code
-			fprintf(stderr, "error: out of registers\n");
-			return false;
+			for (size_t i = 0; i < spill.size(); i++)
+			{
+				if (spill[i])
+				{
+					if (m_symRegVar[i] == SYMREG_NONE)
+					{
+						fprintf(stderr, "error: spilling reg%d without stack variable\n", (int)i);
+						return false;
+					}
+
+					if (m_stackVarTypes[m_symRegVar[i]] == ILTYPE_VOID)
+					{
+						fprintf(stderr, "error: spilling reg%d with invalid type\n", (int)i);
+						return false;
+					}
+
+					if (!SpillRegister(i))
+					{
+						fprintf(stderr, "error: spill of reg%d failed\n", (int)i);
+						return false;
+					}
+
+					alreadySpilled.insert(i);
+				}
+			}
+
+			// Restart register allocator after spilling
+			continue;
 		}
 
 		// Determine set of callee saved registers that are clobbered

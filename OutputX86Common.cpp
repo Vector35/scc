@@ -3532,7 +3532,10 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(SymInstrBlock* out, const ILInst
 		else if (src.width == 4)
 		{
 			if (dest.type == OPERANDREF_REG)
+			{
+				EMIT_RR(mov_32, dest.reg, src.reg);
 				EMIT_RR(xor_32, dest.highReg, dest.highReg);
+			}
 			else
 			{
 				if (src.type == OPERANDREF_REG)
@@ -4894,7 +4897,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	// Create symbolic assembly registers for the variables in this function
 	for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
 	{
-		m_stackVar[i->first] = m_symFunc->AddStackVar(i->second);
+		m_stackVar[i->first] = m_symFunc->AddStackVar(i->second, i->first->GetType()->GetWidth(),
+			ILParameter::ReduceType(i->first->GetType()));
 
 		if ((i->first->GetType()->GetClass() != TYPE_STRUCT) && (i->first->GetType()->GetClass() != TYPE_ARRAY))
 		{
@@ -4984,7 +4988,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #endif
 		}
 
-		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var]);
+		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var], (*var)->GetType()->GetWidth(),
+			ILParameter::ReduceType((*var)->GetType()));
 
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();

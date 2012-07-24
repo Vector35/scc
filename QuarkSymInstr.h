@@ -431,6 +431,8 @@ public:
 	virtual bool IsRegisterClassFixed(uint32_t cls);
 	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg);
 	virtual void AdjustStackFrame();
+	virtual bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type, std::vector<SymInstr*>& code);
+	virtual bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type, std::vector<SymInstr*>& code);
 	virtual void PrintRegisterClass(uint32_t cls);
 	virtual void PrintRegister(uint32_t reg);
 };

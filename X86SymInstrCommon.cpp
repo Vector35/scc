@@ -3010,6 +3010,68 @@ void X86_SYMINSTR_NAME(Function)::AdjustStackFrame()
 }
 
 
+bool X86_SYMINSTR_NAME(Function)::GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	// FIXME: Handle functions without frame pointer
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 8, RM)(reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset)));
+		break;
+	case ILTYPE_INT16:
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 16, RM)(reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset)));
+		break;
+	case ILTYPE_INT32:
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 32, RM)(reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset)));
+		break;
+	case ILTYPE_INT64:
+#ifdef OUTPUT32
+		// Stored as two 32-bit registers
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 32, RM)(reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset)));
+#else
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 64, RM)(reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset)));
+#endif
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+
+bool X86_SYMINSTR_NAME(Function)::GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	// FIXME: Handle functions without frame pointer
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 8, MR)(X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset), reg));
+		break;
+	case ILTYPE_INT16:
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 16, MR)(X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset), reg));
+		break;
+	case ILTYPE_INT32:
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 32, MR)(X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset), reg));
+		break;
+	case ILTYPE_INT64:
+#ifdef OUTPUT32
+		// Stored as two 32-bit registers
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 32, MR)(X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset), reg));
+#else
+		code.push_back(X86_SYMINSTR_NAME_SIZE_OP(mov, 64, MR)(X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, var, offset), reg));
+#endif
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+
 void X86_SYMINSTR_NAME(Function)::PrintRegisterClass(uint32_t cls)
 {
 	switch (cls)

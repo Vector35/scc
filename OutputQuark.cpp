@@ -2578,7 +2578,8 @@ bool OutputQuark::GenerateCode(Function* func)
 	// Create symbolic assembly registers for the variables in this function
 	for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
 	{
-		m_stackVar[i->first] = m_symFunc->AddStackVar(i->second);
+		m_stackVar[i->first] = m_symFunc->AddStackVar(i->second, i->first->GetType()->GetWidth(),
+			ILParameter::ReduceType(i->first->GetType()));
 
 		if ((i->first->GetType()->GetClass() != TYPE_STRUCT) && (i->first->GetType()->GetClass() != TYPE_ARRAY))
 		{
@@ -2609,7 +2610,7 @@ bool OutputQuark::GenerateCode(Function* func)
 
 			// 64-bit variables take two adjacent registers
 			if ((i->first->GetType()->GetWidth() == 8) && (i->first->GetType()->GetClass() != TYPE_FLOAT))
-				m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, m_stackVar[i->first]);
+				m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, m_stackVar[i->first], 4);
 		}
 	}
 
@@ -2651,7 +2652,8 @@ bool OutputQuark::GenerateCode(Function* func)
 			m_stackFrame[*var] += 4 - paramSize;
 		}
 
-		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var]);
+		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var], (*var)->GetType()->GetWidth(),
+			ILParameter::ReduceType((*var)->GetType()));
 
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();

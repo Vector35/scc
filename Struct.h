@@ -46,6 +46,7 @@ class Struct: public RefCountObject
 	size_t m_width, m_alignment;
 	bool m_union;
 	bool m_fullyDefined;
+	bool m_packed;
 
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
@@ -54,7 +55,7 @@ class Struct: public RefCountObject
 
 public:
 	Struct();
-	Struct(bool isUnion);
+	Struct(bool isUnion, bool packed = false);
 
 	Struct* Duplicate(DuplicateContext& dup);
 
@@ -70,6 +71,9 @@ public:
 	bool HasMember(const std::string& name) const { return m_membersByName.find(name) != m_membersByName.end(); }
 	StructMember GetMember(ParserState* state, const std::string& name) const;
 	const StructMember* GetMember(const std::string& name) const;
+
+	void SetPacked(bool packed) { m_packed = packed; }
+	bool IsPacked() const { return m_packed; }
 
 	size_t GetWidth() const { return m_width; }
 	size_t GetAlignment() const { return m_alignment; }

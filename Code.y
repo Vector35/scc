@@ -126,7 +126,7 @@ void Code_error(ParserState* state, const char* msg)
 %token STATIC_TOK EXTERN_TOK
 %token UNDEFINED
 
-%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK
+%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK
 %token SYSCALL_TOK SYSCALL2_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
 %token NEXT_ARG PREV_ARG
@@ -135,7 +135,7 @@ void Code_error(ParserState* state, const char* msg)
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID TYPE_ID
 %destructor { $$->Release(); } var_type return_type primitive_type
-%destructor { $$->Release(); } struct_member_list union_member_list struct_member
+%destructor { $$->Release(); } struct_member_list struct_member_list_packed union_member_list union_member_list_packed struct_member
 %destructor { $$->Release(); } enum_member_list struct_declaration union_declaration enum_declaration
 %destructor { delete $$; } enum_member
 %destructor { delete $$; } param_list param_list_nonempty param
@@ -148,7 +148,7 @@ void Code_error(ParserState* state, const char* msg)
 %destructor { delete $$; } func_type func_attr_list func_attr_list_nonempty func_attr
 
 %type <type> var_type return_type primitive_type
-%type <type> struct_member_list union_member_list struct_member
+%type <type> struct_member_list struct_member_list_packed union_member_list union_member_list_packed struct_member
 %type <type> enum_member_list struct_declaration union_declaration enum_declaration
 %type <enumMember> enum_member
 %type <boolean> sign_type
@@ -306,6 +306,13 @@ struct_declaration: STRUCT ID LBRACE { state->DefineStructType($2, Type::StructT
 						state->DefineStructType($2, $5);
 						free($2);
 					}
+				|	STRUCT ID PACKED_TOK LBRACE { state->DefineStructType($2, Type::StructType(new Struct(true, true))); } struct_member_list_packed RBRACE 
+					{
+						$$ = $6;
+						$$->GetStruct()->Complete();
+						state->DefineStructType($2, $6);
+						free($2);
+					}
 				;
 
 union_declaration:	UNION ID LBRACE { state->DefineUnionType($2, Type::StructType(new Struct(false))); } union_member_list RBRACE
@@ -313,6 +320,13 @@ union_declaration:	UNION ID LBRACE { state->DefineUnionType($2, Type::StructType
 						$$ = $5;
 						$$->GetStruct()->Complete();
 						state->DefineUnionType($2, $5);
+						free($2);
+					}
+				|	UNION ID PACKED_TOK LBRACE { state->DefineUnionType($2, Type::StructType(new Struct(false, true))); } union_member_list_packed RBRACE
+					{
+						$$ = $6;
+						$$->GetStruct()->Complete();
+						state->DefineUnionType($2, $6);
 						free($2);
 					}
 				;
@@ -937,7 +951,9 @@ var_type:	primitive_type  { $$ = $1; }
 	|	CONST_TOK primitive_type ptr_decorator { $$ = Type::PointerType($2, $3); $$->AddRef(); $$->SetConst(true); }
 	|	CONST_TOK VOID_TOK ptr_decorator { $$ = Type::PointerType(Type::VoidType(), $3); $$->AddRef(); $$->SetConst(true); }
 	|	STRUCT LBRACE struct_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
+	|	STRUCT PACKED_TOK LBRACE struct_member_list_packed RBRACE { $$ = $4; $$->GetStruct()->Complete(); }
 	|	UNION LBRACE union_member_list RBRACE { $$ = $3; $$->GetStruct()->Complete(); }
+	|	UNION PACKED_TOK LBRACE union_member_list_packed RBRACE { $$ = $4; $$->GetStruct()->Complete(); }
 	|	ENUM LBRACE enum_member_list RBRACE  { $$ = $3; $$->GetEnum()->Complete(); }
 	;
 
@@ -1001,6 +1017,23 @@ struct_member_list:	struct_member_list struct_member
 			}
 		;
 
+struct_member_list_packed:	struct_member_list_packed struct_member
+					{
+						$$ = $1;
+						Struct* s = $1->GetStruct();
+						s->CopyMembers(state, $2->GetStruct());
+						$2->Release();
+					}
+				|	struct_member
+					{
+						Struct* s = new Struct(false, true);
+						s->CopyMembers(state, $1->GetStruct());
+						$$ = Type::StructType(s);
+						$$->AddRef();
+						$1->Release();
+					}
+				;
+
 union_member_list:	union_member_list struct_member
 			{
 				$$ = $1;
@@ -1017,6 +1050,23 @@ union_member_list:	union_member_list struct_member
 				$1->Release();
 			}
 		;
+
+union_member_list_packed:	union_member_list_packed struct_member
+					{
+						$$ = $1;
+						Struct* s = $1->GetStruct();
+						s->CopyMembers(state, $2->GetStruct());
+						$2->Release();
+					}
+				|	struct_member
+					{
+						Struct* s = new Struct(true, true);
+						s->CopyMembers(state, $1->GetStruct());
+						$$ = Type::StructType(s);
+						$$->AddRef();
+						$1->Release();
+					}
+				;
 
 struct_member:	var_type id_list SEMICOLON
 		{
@@ -1063,7 +1113,9 @@ struct_member:	var_type id_list SEMICOLON
 			delete $11;
 		}
 	|	STRUCT LBRACE struct_member_list RBRACE SEMICOLON  { $$ = $3; }
+	|	STRUCT PACKED_TOK LBRACE struct_member_list_packed RBRACE SEMICOLON  { $$ = $4; }
 	|	UNION LBRACE union_member_list RBRACE SEMICOLON  { $$ = $3; }
+	|	UNION PACKED_TOK LBRACE union_member_list_packed RBRACE SEMICOLON  { $$ = $4; }
 	;
 
 enum_member_list:	enum_member_list COMMA enum_member

@@ -1,0 +1,16 @@
+__packed
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+struct type __packed
+{
+	int member;
+	...
+};
+---------------------------------------------
+
+The `__packed` keyword disables alignment restrictions on a structure.  No padding will be added between members.
+
+IMPORTANT: Be careful with this keyword on architectures that require aligned memory access.
+

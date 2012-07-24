@@ -40,11 +40,12 @@ Struct::Struct()
 	m_alignment = 1;
 	m_union = false;
 	m_fullyDefined = false;
+	m_packed = false;
 	m_serializationIndexValid = false;
 }
 
 
-Struct::Struct(bool isUnion)
+Struct::Struct(bool isUnion, bool packed)
 {
 	char tempName[64];
 	sprintf(tempName, "<anonymous 0x%p>", this);
@@ -54,6 +55,7 @@ Struct::Struct(bool isUnion)
 	m_alignment = 1;
 	m_union = isUnion;
 	m_fullyDefined = false;
+	m_packed = packed;
 	m_serializationIndexValid = false;
 }
 
@@ -71,6 +73,7 @@ Struct* Struct::Duplicate(DuplicateContext& dup)
 	s->m_alignment = m_alignment;
 	s->m_union = m_union;
 	s->m_fullyDefined = m_fullyDefined;
+	s->m_packed = m_packed;
 
 	for (vector<StructMember>::iterator i = m_members.begin(); i != m_members.end(); i++)
 	{
@@ -94,14 +97,18 @@ void Struct::ReplaceWith(Struct* s)
 	m_alignment = s->m_alignment;
 	m_union = s->m_union;
 	m_fullyDefined = s->m_fullyDefined;
+	m_packed = s->m_packed;
 }
 
 
 void Struct::Complete()
 {
-	// Ensure alignment of entire structure
-	if ((m_width & (m_alignment - 1)) != 0)
-		m_width += m_alignment - (m_width & (m_alignment - 1));
+	if (!m_packed)
+	{
+		// Ensure alignment of entire structure
+		if ((m_width & (m_alignment - 1)) != 0)
+			m_width += m_alignment - (m_width & (m_alignment - 1));
+	}
 
 	m_fullyDefined = true;
 }
@@ -157,7 +164,7 @@ void Struct::AddMember(ParserState* state, Type* type, const string& name)
 	}
 	else
 	{
-		if ((m_width & (type->GetAlignment() - 1)) != 0)
+		if ((!m_packed) && ((m_width & (type->GetAlignment() - 1)) != 0))
 		{
 			// Needs alignment before adding this member
 			m_width += type->GetAlignment() - (m_width & (type->GetAlignment() - 1));
@@ -167,10 +174,13 @@ void Struct::AddMember(ParserState* state, Type* type, const string& name)
 		m_width += type->GetWidth();
 	}
 
-	// Entire structure's alignment is the largest alignment requirement
-	// of the individual elements
-	if (type->GetAlignment() > m_alignment)
-		m_alignment = type->GetAlignment();
+	if (!m_packed)
+	{
+		// Entire structure's alignment is the largest alignment requirement
+		// of the individual elements
+		if (type->GetAlignment() > m_alignment)
+			m_alignment = type->GetAlignment();
+	}
 
 	m_members.push_back(member);
 	m_membersByName[name] = member;
@@ -199,7 +209,7 @@ void Struct::CopyMembers(ParserState* state, Struct* s)
 	}
 	else
 	{
-		if ((m_width & (s->GetAlignment() - 1)) != 0)
+		if ((!m_packed) && ((m_width & (s->GetAlignment() - 1)) != 0))
 		{
 			// Needs alignment before adding these members
 			m_width += s->GetAlignment() - (m_width & (s->GetAlignment() - 1));
@@ -225,10 +235,13 @@ void Struct::CopyMembers(ParserState* state, Struct* s)
 		m_width += s->GetWidth();
 	}
 
-	// Entire structure's alignment is the largest alignment requirement
-	// of the individual elements
-	if (s->GetAlignment() > m_alignment)
-		m_alignment = s->GetAlignment();
+	if (!m_packed)
+	{
+		// Entire structure's alignment is the largest alignment requirement
+		// of the individual elements
+		if (s->GetAlignment() > m_alignment)
+			m_alignment = s->GetAlignment();
+	}
 }
 
 
@@ -260,6 +273,7 @@ void Struct::Serialize(OutputBlock* output)
 	output->WriteInteger(m_alignment);
 	output->WriteInteger(m_union ? 1 : 0);
 	output->WriteInteger(m_fullyDefined ? 1 : 0);
+	output->WriteInteger(m_packed ? 1 : 0);
 }
 
 
@@ -305,6 +319,8 @@ Struct* Struct::Deserialize(InputBlock* input)
 	if (!input->ReadBool(result->m_union))
 		return NULL;
 	if (!input->ReadBool(result->m_fullyDefined))
+		return NULL;
+	if (!input->ReadBool(result->m_packed))
 		return NULL;
 
 	return result;

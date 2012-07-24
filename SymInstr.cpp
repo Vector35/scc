@@ -646,6 +646,9 @@ void SymInstrFunction::SplitRegisters()
 				if (m_settings.internalDebug)
 					fprintf(stderr, "Splitting reg%d from def %d into reg%d\n", fromReg, (int)i->second[k], toReg);
 
+				if (m_alreadySpilled.count(fromReg) != 0)
+					m_alreadySpilled.insert(toReg);
+
 				SymInstrBlock* defBlock = m_defLocs[i->second[k]].first;
 				size_t defInstr = m_defLocs[i->second[k]].second;
 				for (vector<SymInstrOperand>::iterator operand = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
@@ -857,7 +860,7 @@ uint32_t SymInstrFunction::AddStackVar(int64_t offset, size_t width, ILParameter
 
 bool SymInstrFunction::AllocateRegisters()
 {
-	set<uint32_t> alreadySpilled;
+	m_alreadySpilled.clear();
 
 	while (true) // May need to spill one or more times
 	{
@@ -1048,9 +1051,17 @@ bool SymInstrFunction::AllocateRegisters()
 
 			for (vector<uint32_t>::iterator i = toProcess.begin(); i != toProcess.end(); i++)
 			{
-				if (alreadySpilled.count(*i) != 0)
+				if (m_alreadySpilled.count(*i) != 0)
 				{
 					// Spilled registers will be processed first
+					continue;
+				}
+
+				if (m_symRegVar[*i] == SYMREG_NONE)
+				{
+					// Let temporary variables that do not have a stack allocation get processed first, as they
+					// cannot yet be spilled
+					// TODO: Refactor stack variable system
 					continue;
 				}
 
@@ -1075,9 +1086,17 @@ bool SymInstrFunction::AllocateRegisters()
 
 				for (size_t j = 0; j < toProcess.size(); j++)
 				{
-					if (alreadySpilled.count(toProcess[j]) != 0)
+					if (m_alreadySpilled.count(toProcess[j]) != 0)
 					{
 						// Spilled registers will be processed first
+						continue;
+					}
+
+					if (m_symRegVar[toProcess[j]] == SYMREG_NONE)
+					{
+						// Let temporary variables that do not have a stack allocation get processed first, as they
+						// cannot yet be spilled
+						// TODO: Refactor stack variable system
 						continue;
 					}
 
@@ -1112,6 +1131,7 @@ bool SymInstrFunction::AllocateRegisters()
 			assignmentStack.push(*i);
 
 		// Assign registers
+		bool unassignedRegs = false;
 		while (!assignmentStack.empty())
 		{
 			uint32_t reg = assignmentStack.top();
@@ -1164,11 +1184,19 @@ bool SymInstrFunction::AllocateRegisters()
 
 			if (available.size() == 0)
 			{
-				if (alreadySpilled.count(reg) != 0)
+				if (m_alreadySpilled.count(reg) != 0)
 				{
 					// Register was already spilled, generate error
 					fprintf(stderr, "error: trying to spill reg%d, which was already spilled\n", (int)reg);
 					return false;
+				}
+
+				if (m_symRegVar[reg] == SYMREG_NONE)
+				{
+					// Don't try to spill temporary registers yet
+					// TODO: Refactor stack variable system
+					unassignedRegs = true;
+					continue;
 				}
 
 				// Register allocation failed, need to spill registers to reduce register pressure
@@ -1216,12 +1244,18 @@ bool SymInstrFunction::AllocateRegisters()
 						return false;
 					}
 
-					alreadySpilled.insert(i);
+					m_alreadySpilled.insert(i);
 				}
 			}
 
 			// Restart register allocator after spilling
 			continue;
+		}
+
+		if (unassignedRegs)
+		{
+			fprintf(stderr, "error: register allocation of temporary variables failed\n");
+			return false;
 		}
 
 		// Determine set of callee saved registers that are clobbered

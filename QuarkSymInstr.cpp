@@ -1575,81 +1575,6 @@ vector<uint32_t> QuarkSymInstrFunction::GetCalleeSavedRegisters()
 set<uint32_t> QuarkSymInstrFunction::GetRegisterClassInterferences(uint32_t cls)
 {
 	set<uint32_t> result;
-	// TODO: Floating point
-	// TODO: Support non-default special registers
-
-#define ALL_EXCEPT(r) \
-	for (uint32_t _i = 0; _i < 32; _i++) \
-	{ \
-		if (_i != (r)) \
-			result.insert(SYMREG_NATIVE_REG(_i)); \
-	}
-
-	switch (cls)
-	{
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
-		ALL_EXCEPT(1);
-		break;
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
-		ALL_EXCEPT(2);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_0:
-		ALL_EXCEPT(1);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_1:
-		ALL_EXCEPT(2);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_2:
-		ALL_EXCEPT(3);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_3:
-		ALL_EXCEPT(4);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_4:
-		ALL_EXCEPT(5);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_5:
-		ALL_EXCEPT(6);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_6:
-		ALL_EXCEPT(7);
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_7:
-		ALL_EXCEPT(8);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_0:
-		ALL_EXCEPT(1);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_1:
-		ALL_EXCEPT(2);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_2:
-		ALL_EXCEPT(3);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_3:
-		ALL_EXCEPT(4);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_4:
-		ALL_EXCEPT(5);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_5:
-		ALL_EXCEPT(6);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_6:
-		ALL_EXCEPT(7);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_7:
-		ALL_EXCEPT(8);
-		break;
-	case QUARKREGCLASS_SYSCALL_RESULT_1:
-		ALL_EXCEPT(1);
-		break;
-	case QUARKREGCLASS_SYSCALL_RESULT_2:
-		ALL_EXCEPT(2);
-		break;
-	default:
-		break;
-	}
 	return result;
 }
 
@@ -1681,6 +1606,57 @@ bool QuarkSymInstrFunction::IsRegisterClassFixed(uint32_t cls)
 		return true;
 	default:
 		return false;
+	}
+}
+
+
+uint32_t QuarkSymInstrFunction::GetFixedRegisterForClass(uint32_t cls)
+{
+	// TODO: Support non-default special registers
+	switch (cls)
+	{
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
+		return SYMREG_NATIVE_REG(2);
+	case QUARKREGCLASS_INTEGER_PARAM_0:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_INTEGER_PARAM_1:
+		return SYMREG_NATIVE_REG(2);
+	case QUARKREGCLASS_INTEGER_PARAM_2:
+		return SYMREG_NATIVE_REG(3);
+	case QUARKREGCLASS_INTEGER_PARAM_3:
+		return SYMREG_NATIVE_REG(4);
+	case QUARKREGCLASS_INTEGER_PARAM_4:
+		return SYMREG_NATIVE_REG(5);
+	case QUARKREGCLASS_INTEGER_PARAM_5:
+		return SYMREG_NATIVE_REG(6);
+	case QUARKREGCLASS_INTEGER_PARAM_6:
+		return SYMREG_NATIVE_REG(7);
+	case QUARKREGCLASS_INTEGER_PARAM_7:
+		return SYMREG_NATIVE_REG(8);
+	case QUARKREGCLASS_SYSCALL_PARAM_0:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_SYSCALL_PARAM_1:
+		return SYMREG_NATIVE_REG(2);
+	case QUARKREGCLASS_SYSCALL_PARAM_2:
+		return SYMREG_NATIVE_REG(3);
+	case QUARKREGCLASS_SYSCALL_PARAM_3:
+		return SYMREG_NATIVE_REG(4);
+	case QUARKREGCLASS_SYSCALL_PARAM_4:
+		return SYMREG_NATIVE_REG(5);
+	case QUARKREGCLASS_SYSCALL_PARAM_5:
+		return SYMREG_NATIVE_REG(6);
+	case QUARKREGCLASS_SYSCALL_PARAM_6:
+		return SYMREG_NATIVE_REG(7);
+	case QUARKREGCLASS_SYSCALL_PARAM_7:
+		return SYMREG_NATIVE_REG(8);
+	case QUARKREGCLASS_SYSCALL_RESULT_1:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_SYSCALL_RESULT_2:
+		return SYMREG_NATIVE_REG(2);
+	default:
+		return SYMREG_NONE;
 	}
 }
 

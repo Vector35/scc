@@ -2813,42 +2813,6 @@ set<uint32_t> X86_SYMINSTR_NAME(Function)::GetRegisterClassInterferences(uint32_
 {
 	set<uint32_t> result;
 	// TODO: Floating point
-	// TODO: Handle alternate special registers
-
-#define ADD_REG_TO_LIST(reg, exclude) \
-	if ((SYMREG_NATIVE_REG(reg) != SYMREG_NATIVE_REG(exclude)) || (SYMREG_NATIVE_REG(reg) == m_settings.framePointer) || \
-		(SYMREG_NATIVE_REG(reg) == m_settings.stackPointer)) \
-		result.insert(SYMREG_NATIVE_REG(reg));
-#ifdef OUTPUT32
-#define ALL_EXCEPT(exclude) \
-	ADD_REG_TO_LIST(REG_EAX, exclude) \
-	ADD_REG_TO_LIST(REG_ECX, exclude) \
-	ADD_REG_TO_LIST(REG_EDX, exclude) \
-	ADD_REG_TO_LIST(REG_EBX, exclude) \
-	ADD_REG_TO_LIST(REG_ESP, exclude) \
-	ADD_REG_TO_LIST(REG_EBP, exclude) \
-	ADD_REG_TO_LIST(REG_ESI, exclude) \
-	ADD_REG_TO_LIST(REG_EDI, exclude)
-#else
-#define ALL_EXCEPT(exclude) \
-	ADD_REG_TO_LIST(REG_EAX, exclude) \
-	ADD_REG_TO_LIST(REG_ECX, exclude) \
-	ADD_REG_TO_LIST(REG_EDX, exclude) \
-	ADD_REG_TO_LIST(REG_EBX, exclude) \
-	ADD_REG_TO_LIST(REG_ESP, exclude) \
-	ADD_REG_TO_LIST(REG_EBP, exclude) \
-	ADD_REG_TO_LIST(REG_ESI, exclude) \
-	ADD_REG_TO_LIST(REG_EDI, exclude) \
-	ADD_REG_TO_LIST(REG_R8D, exclude) \
-	ADD_REG_TO_LIST(REG_R9D, exclude) \
-	ADD_REG_TO_LIST(REG_R10D, exclude) \
-	ADD_REG_TO_LIST(REG_R11D, exclude) \
-	ADD_REG_TO_LIST(REG_R12D, exclude) \
-	ADD_REG_TO_LIST(REG_R13D, exclude) \
-	ADD_REG_TO_LIST(REG_R14D, exclude) \
-	ADD_REG_TO_LIST(REG_R15D, exclude)
-#endif
-
 	switch (cls)
 	{
 #ifdef OUTPUT32
@@ -2865,77 +2829,6 @@ set<uint32_t> X86_SYMINSTR_NAME(Function)::GetRegisterClassInterferences(uint32_
 		result.insert(SYMREG_NATIVE_REG(REG_R12D));
 		break;
 #endif
-	case X86REGCLASS_INTEGER_RETURN_VALUE:
-		ALL_EXCEPT(REG_EAX);
-		break;
-	case X86REGCLASS_INTEGER_RETURN_VALUE_HIGH:
-		ALL_EXCEPT(REG_EDX);
-		break;
-	case X86REGCLASS_EAX:
-		ALL_EXCEPT(REG_EAX);
-		break;
-	case X86REGCLASS_ECX:
-		ALL_EXCEPT(REG_ECX);
-		break;
-	case X86REGCLASS_EDX:
-		ALL_EXCEPT(REG_EDX);
-		break;
-	case X86REGCLASS_ESI:
-		ALL_EXCEPT(REG_ESI);
-		break;
-	case X86REGCLASS_EDI:
-		ALL_EXCEPT(REG_EDI);
-		break;
-	case X86REGCLASS_ESP:
-		ALL_EXCEPT(REG_ESP);
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_0:
-		ALL_EXCEPT(REG_EAX);
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_1:
-#ifdef OUTPUT32
-		ALL_EXCEPT(REG_EBX);
-#else
-		ALL_EXCEPT(REG_EDI);
-#endif
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_2:
-#ifdef OUTPUT32
-		ALL_EXCEPT(REG_ECX);
-#else
-		ALL_EXCEPT(REG_ESI);
-#endif
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_3:
-		ALL_EXCEPT(REG_EDX);
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_4:
-#ifdef OUTPUT32
-		ALL_EXCEPT(REG_ESI);
-#else
-		if (m_settings.os == OS_FREEBSD) { ALL_EXCEPT(REG_ECX); } else { ALL_EXCEPT(REG_R10D); }
-#endif
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_5:
-#ifdef OUTPUT32
-		ALL_EXCEPT(REG_EDI);
-#else
-		ALL_EXCEPT(REG_R8D);
-#endif
-		break;
-	case X86REGCLASS_SYSCALL_PARAM_6:
-#ifdef OUTPUT32
-		ALL_EXCEPT(REG_EBP);
-#else
-		ALL_EXCEPT(REG_R9D);
-#endif
-		break;
-	case X86REGCLASS_SYSCALL_RESULT_1:
-		ALL_EXCEPT(REG_EAX);
-		break;
-	case X86REGCLASS_SYSCALL_RESULT_2:
-		ALL_EXCEPT(REG_EDX);
-		break;
 	default:
 		break;
 	}
@@ -2968,6 +2861,75 @@ bool X86_SYMINSTR_NAME(Function)::IsRegisterClassFixed(uint32_t cls)
 		return true;
 	default:
 		return false;
+	}
+}
+
+
+uint32_t X86_SYMINSTR_NAME(Function)::GetFixedRegisterForClass(uint32_t cls)
+{
+	// TODO: Floating point
+	// TODO: Handle alternate special registers
+	switch (cls)
+	{
+	case X86REGCLASS_INTEGER_RETURN_VALUE:
+		return SYMREG_NATIVE_REG(REG_EAX);
+	case X86REGCLASS_INTEGER_RETURN_VALUE_HIGH:
+		return SYMREG_NATIVE_REG(REG_EDX);
+	case X86REGCLASS_EAX:
+		return SYMREG_NATIVE_REG(REG_EAX);
+	case X86REGCLASS_ECX:
+		return SYMREG_NATIVE_REG(REG_ECX);
+	case X86REGCLASS_EDX:
+		return SYMREG_NATIVE_REG(REG_EDX);
+	case X86REGCLASS_ESI:
+		return SYMREG_NATIVE_REG(REG_ESI);
+	case X86REGCLASS_EDI:
+		return SYMREG_NATIVE_REG(REG_EDI);
+	case X86REGCLASS_ESP:
+		return SYMREG_NATIVE_REG(REG_ESP);
+	case X86REGCLASS_SYSCALL_PARAM_0:
+		return SYMREG_NATIVE_REG(REG_EAX);
+	case X86REGCLASS_SYSCALL_PARAM_1:
+#ifdef OUTPUT32
+		return SYMREG_NATIVE_REG(REG_EBX);
+#else
+		return SYMREG_NATIVE_REG(REG_EDI);
+#endif
+	case X86REGCLASS_SYSCALL_PARAM_2:
+#ifdef OUTPUT32
+		return SYMREG_NATIVE_REG(REG_ECX);
+#else
+		return SYMREG_NATIVE_REG(REG_ESI);
+#endif
+	case X86REGCLASS_SYSCALL_PARAM_3:
+		return SYMREG_NATIVE_REG(REG_EDX);
+	case X86REGCLASS_SYSCALL_PARAM_4:
+#ifdef OUTPUT32
+		return SYMREG_NATIVE_REG(REG_ESI);
+#else
+		if (m_settings.os == OS_FREEBSD)
+			return SYMREG_NATIVE_REG(REG_ECX);
+		else
+			return SYMREG_NATIVE_REG(REG_R10D);
+#endif
+	case X86REGCLASS_SYSCALL_PARAM_5:
+#ifdef OUTPUT32
+		return SYMREG_NATIVE_REG(REG_EDI);
+#else
+		return SYMREG_NATIVE_REG(REG_R8D);
+#endif
+	case X86REGCLASS_SYSCALL_PARAM_6:
+#ifdef OUTPUT32
+		return SYMREG_NATIVE_REG(REG_EBP);
+#else
+		return SYMREG_NATIVE_REG(REG_R9D);
+#endif
+	case X86REGCLASS_SYSCALL_RESULT_1:
+		return SYMREG_NATIVE_REG(REG_EAX);
+	case X86REGCLASS_SYSCALL_RESULT_2:
+		return SYMREG_NATIVE_REG(REG_EDX);
+	default:
+		return SYMREG_NONE;
 	}
 }
 

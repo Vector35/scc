@@ -474,6 +474,12 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) && (k->access != SYMOPERAND_TEMPORARY) &&
 					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
+					if (m_regDefs[k->reg].size() == 0)
+					{
+						// Ignore registers that have no definitions
+						continue;
+					}
+
 					if (!(*i)->GetLiveDefinitions().GetBit(k->reg))
 					{
 						// Used before definition
@@ -489,6 +495,12 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (k->access != SYMOPERAND_TEMPORARY) &&
 					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
+					if (m_regDefs[k->reg].size() == 0)
+					{
+						// Ignore registers that have no definitions
+						continue;
+					}
+
 					if (!(*i)->GetLiveUses().GetBit(k->reg))
 					{
 						// Defined before use
@@ -994,42 +1006,30 @@ bool SymInstrFunction::AllocateRegisters()
 			uint32_t reg = assignmentStack.top();
 			assignmentStack.pop();
 
-			// Ignore registers that are never defined
-			if (m_regDefs[reg].size() == 0)
-				continue;
-
-			// Get the list of available registers for assignment
-			vector<uint32_t> available;
-			for (vector<uint32_t>::iterator i = realRegs.begin(); i != realRegs.end(); i++)
+			uint32_t assignment = GetFixedRegisterForClass(m_symRegClass[reg]);
+			if (assignment == SYMREG_NONE)
 			{
-				// Check edge nodes for conflicting assignments
-				bool valid = true;
-				for (set<uint32_t>::iterator j = m_regInterference[reg].begin(); j != m_regInterference[reg].end(); j++)
-				{
-					// Check for native register conflicts
-					if (*i == *j)
-					{
-						valid = false;
-						break;
-					}
+				fprintf(stderr, "error: register class ");
+				PrintRegisterClass(m_symRegClass[reg]);
+				fprintf(stderr, " has no register assignment\n");
+				return false;
+			}
 
-					// Check for interference between symbolic registers
-					if ((!SYMREG_IS_SPECIAL_REG(*j)) && (m_symRegAssignment[*j] == *i))
-					{
-						valid = false;
-						break;
-					}
-				}
-
-				if (valid)
+			// Check edge nodes for conflicting assignments
+			bool valid = true;
+			for (set<uint32_t>::iterator i = m_regInterference[reg].begin(); i != m_regInterference[reg].end(); i++)
+			{
+				if ((!SYMREG_IS_SPECIAL_REG(*i)) && (m_symRegAssignment[*i] == assignment))
 				{
-					// Found the correct register
-					available.push_back(*i);
+					fprintf(stderr, "error: register ");
+					PrintRegister(assignment);
+					fprintf(stderr, " already assigned to reg%d\n", *i);
+					valid = false;
 					break;
 				}
 			}
 
-			if (available.size() == 0)
+			if (!valid)
 			{
 				// Fixed register conflicts, this is a compiler bug
 				fprintf(stderr, "error: fixed registers conflict, cannot assign reg%d to ", (int)reg);
@@ -1038,7 +1038,7 @@ bool SymInstrFunction::AllocateRegisters()
 				return false;
 			}
 
-			m_symRegAssignment[reg] = available[0];
+			m_symRegAssignment[reg] = assignment;
 		}
 
 		// Attempt to assign registers by pruning nodes with less edges than the total number of real registers
@@ -1117,9 +1117,11 @@ bool SymInstrFunction::AllocateRegisters()
 			uint32_t reg = assignmentStack.top();
 			assignmentStack.pop();
 
-			// Ignore registers that are never defined
-			if (m_regDefs[reg].size() == 0)
-				continue;
+			if (IsRegisterClassFixed(m_symRegClass[reg]))
+			{
+				fprintf(stderr, "error: attempting to assign fixed reg%d at invalid state\n", (int)reg);
+				return false;
+			}
 
 			// Get the list of available registers for assignment
 			vector<uint32_t> available;

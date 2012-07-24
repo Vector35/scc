@@ -57,7 +57,7 @@ tests = [
 	["fortress.c, alternate frame ptr", fortress_testcase, ["--frame-reg", "ecx"]],
 	["fortress.c, alternate stack and frame ptr", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx"]],
 	["fortress.c, encode pointers", fortress_testcase, ["--encode-pointers"]],
-	["fortress.c, everything", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx", "--base-reg", "esi", "--encode-pointers", "--stack-grows-up", "--pie", "--polymorph", "--seed", "<SEED>"]],
+	["fortress.c, everything", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx", "--encode-pointers", "--stack-grows-up", "--pie", "--polymorph", "--seed", "<SEED>"]],
 ]
 
 seeds = [17, 42, 1024, 1337, 4096, 4141, 7331, 31337, 65536, 1048576]

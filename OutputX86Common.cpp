@@ -5089,7 +5089,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			if (m_settings.positionIndependent)
 			{
 				// Capture base of code at start
-				GetCodeAddressFromInstructionPointer(out, m_settings.basePointer, func, func->GetIL()[0]);
+				GetCodeAddressFromInstructionPointer(out, m_settings.basePointer, m_startFunc, m_startFunc->GetIL()[0]);
 			}
 #endif
 

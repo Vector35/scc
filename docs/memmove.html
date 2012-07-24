@@ -32,31 +32,23 @@ asciidoc.install();
 </div>
 <div id="layout-content">
 <div id="header">
-<h1>memcpy</h1>
+<h1>memmove</h1>
 </div>
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
 <div class="listingblock">
 <div class="content monospaced">
-<pre>void* memcpy(void* dest, const void* src, size_t len);</pre>
+<pre>void* memmove(void* dest, const void* src, size_t len);</pre>
 </div></div>
-<div class="paragraph"><p>Copies <span class="monospaced">len</span> bytes from <span class="monospaced">src</span> to <span class="monospaced">dest</span>.  Returns a pointer to <span class="monospaced">dest</span>.</p></div>
-<div class="admonitionblock">
-<table><tr>
-<td class="icon">
-<img src="./images/icons/important.png" alt="Important">
-</td>
-<td class="content">If the source and destination might overlap, use <span class="monospaced">memmove</span> instead.</td>
-</tr></table>
-</div>
+<div class="paragraph"><p>Copies <span class="monospaced">len</span> bytes from <span class="monospaced">src</span> to <span class="monospaced">dest</span>.  Returns a pointer to <span class="monospaced">dest</span>.  This function accounts for the
+possibility of overlapping source and destination.</p></div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="_see_also">See also</h2>
 <div class="sectionbody">
-<div class="paragraph"><p><a href="memmove.html">memmove</a>,
-<a href="memset.html">memset</a></p></div>
+<div class="paragraph"><p><a href="memcpy.html">memcpy</a></p></div>
 </div>
 </div>
 </div>

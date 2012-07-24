@@ -97,10 +97,26 @@ void* __memcpy(void* dest, const void* src, size_t len)
 	return dest;
 }
 
+void* __memcpy_reverse(void* dest, const void* src, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+		((char*)dest)[-i] = ((char*)src)[-i];
+	return dest;
+}
+
 void* __memset(void* dest, char ch, size_t len)
 {
 	for (size_t i = 0; i < len; i++)
 		((char*)dest)[i] = ch;
+	return dest;
+}
+
+void* memmove(void* dest, const void* src, size_t len)
+{
+	if (dest < src)
+		memcpy(dest, src, len);
+	else
+		__memcpy_reverse((void*)((size_t)dest + len - 1), (const void*)((size_t)src + len - 1), len);
 	return dest;
 }
 

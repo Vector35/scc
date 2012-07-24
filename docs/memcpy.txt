@@ -8,6 +8,9 @@ void* memcpy(void* dest, const void* src, size_t len);
 
 Copies `len` bytes from `src` to `dest`.  Returns a pointer to `dest`.
 
+IMPORTANT: If the source and destination might overlap, use `memmove` instead.
+
 See also
 --------
+link:memmove.html[memmove],
 link:memset.html[memset]

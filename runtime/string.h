@@ -32,7 +32,9 @@ char* strchr(const char* str, char ch);
 char* strrchr(const char* str, char ch);
 
 void* __memcpy(void* dest, const void* src, size_t len);
+void* __memcpy_reverse(void* dest, const void* src, size_t len);
 void* __memset(void* dest, char ch, size_t len);
+void* memmove(void* dest, const void* src, size_t len);
 
 int sprintf(char* out, const char* fmt, ...);
 int snprintf(char* out, size_t len, const char* fmt, ...);

@@ -1,0 +1,14 @@
+memmove
+=======
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+void* memmove(void* dest, const void* src, size_t len);
+---------------------------------------------
+
+Copies `len` bytes from `src` to `dest`.  Returns a pointer to `dest`.  This function accounts for the
+possibility of overlapping source and destination.
+
+See also
+--------
+link:memcpy.html[memcpy]

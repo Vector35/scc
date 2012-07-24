@@ -14,6 +14,12 @@ int main()
 	if (strrchr(str, '@'))
 		printf("strrchr bad\n");
 
+	memmove(str, &str[4], 5);
+	printf("%s\n", str);
+
+	memmove(&str[11], &str[10], 5);
+	printf("%s\n", str);
+
 	return 0;
 }
 

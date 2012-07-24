@@ -2466,12 +2466,22 @@ X86_SYMINSTR_CLASS(SyscallCorrectErrorCode)::X86_SYMINSTR_CLASS(SyscallCorrectEr
 bool X86_SYMINSTR_CLASS(SyscallCorrectErrorCode)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
 	// If carry flag is set, syscall failed, so place negative of error code into result
+#ifdef OUTPUT32
 	uint8_t* errorCode = (uint8_t*)out->PrepareWrite(4);
 	errorCode[0] = 0x73; // jnc noerror
 	errorCode[1] = 0x02;
 	errorCode[2] = 0xf7; // neg eax
 	errorCode[3] = 0xd8;
 	out->FinishWrite(4);
+#else
+	uint8_t* errorCode = (uint8_t*)out->PrepareWrite(5);
+	errorCode[0] = 0x73; // jnc noerror
+	errorCode[1] = 0x03;
+	errorCode[2] = 0x48; // neg rax
+	errorCode[2] = 0xf7;
+	errorCode[3] = 0xd8;
+	out->FinishWrite(5);
+#endif
 	return true;
 }
 

@@ -41,7 +41,7 @@
 { \
 	char* str = strdup(v + 1); \
 	str[strlen(str) - 1] = 0; \
-	YYLVAL->str = strdup(ParserState::ProcessEscapedString(str).c_str()); \
+	YYLVAL->str = str; \
 	return (t); \
 }
 %}

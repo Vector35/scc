@@ -1263,8 +1263,8 @@ optional_expression:	expression_with_comma  { $$ = $1; }
 
 expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 	|	FLOAT_VAL  { $$ = state->FloatExpr($1); $$->AddRef(); }
-	|	CHAR_VAL  { $$ = state->IntExpr(state->CharStringToValue($1)); $$->AddRef(); free($1); }
-	|	STRING_VAL  { $$ = state->StringExpr($1); $$->AddRef(); free($1); }
+	|	CHAR_VAL  { $$ = state->IntExpr(state->CharStringToValue(ParserState::ProcessEscapedString($1))); $$->AddRef(); free($1); }
+	|	STRING_VAL  { $$ = state->StringExpr(ParserState::ProcessEscapedString($1)); $$->AddRef(); free($1); }
 	|	TRUE_VAL  { $$ = state->BoolExpr(true); $$->AddRef(); }
 	|	FALSE_VAL  { $$ = state->BoolExpr(false); $$->AddRef(); }
 	|	ID  { $$ = state->ResolveIdentifierExpr($1); $$->AddRef(); free($1); }

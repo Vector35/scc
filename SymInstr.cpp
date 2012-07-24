@@ -34,7 +34,7 @@ void SymInstrOperand::Print(SymInstrFunction* f)
 		break;
 	}
 
-	if ((access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(reg)) && (dataFlowBit != (size_t)-1))
+	if ((access != SYMOPERAND_READ) && (access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(reg)) && (dataFlowBit != (size_t)-1))
 		fprintf(stderr, "{%d}", (int)dataFlowBit);
 
 	if (useDefChain.size() != 0)
@@ -69,7 +69,7 @@ void SymInstr::AddRegisterOperand(uint32_t reg, SymInstrOperandAccess access)
 	operand.reg = reg;
 	m_operands.push_back(operand);
 
-	if ((operand.access != SYMOPERAND_READ) && (reg == SYMREG_IP))
+	if ((operand.access != SYMOPERAND_READ) && (operand.access != SYMOPERAND_IGNORED) && (reg == SYMREG_IP))
 		EnableFlag(SYMFLAG_CONTROL_FLOW);
 }
 
@@ -164,7 +164,7 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 	// The register is always live for the instruction it is defined at
 	for (vector<SymInstrOperand>::iterator i = m_instrs[instr]->GetOperands().begin(); i != m_instrs[instr]->GetOperands().end(); i++)
 	{
-		if ((i->type == SYMOPERAND_REG) && (i->access != SYMOPERAND_READ) && (i->reg == reg))
+		if ((i->type == SYMOPERAND_REG) && (i->access != SYMOPERAND_READ) && (i->access != SYMOPERAND_IGNORED) && (i->reg == reg))
 			return true;
 	}
 
@@ -179,7 +179,7 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 			for (vector<SymInstrOperand>::iterator j = m_instrs[i]->GetOperands().begin(); j != m_instrs[i]->GetOperands().end(); j++)
 			{
 				if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) &&
-					(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
+					(j->access != SYMOPERAND_TEMPORARY) && (j->access != SYMOPERAND_IGNORED) && (j->reg == reg))
 					hasDefBeforeInstr = true;
 			}
 		}
@@ -199,14 +199,14 @@ bool SymInstrBlock::IsRegisterLiveAtDefinition(uint32_t reg, size_t instr)
 		for (vector<SymInstrOperand>::iterator j = m_instrs[i]->GetOperands().begin(); j != m_instrs[i]->GetOperands().end(); j++)
 		{
 			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_WRITE) &&
-				(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
+				(j->access != SYMOPERAND_TEMPORARY) && (j->access != SYMOPERAND_IGNORED) && (j->reg == reg))
 			{
 				// Register is being used before another definition, it is live
 				return true;
 			}
 
 			if ((j->type == SYMOPERAND_REG) && (j->access != SYMOPERAND_READ) &&
-				(j->access != SYMOPERAND_TEMPORARY) && (j->reg == reg))
+				(j->access != SYMOPERAND_TEMPORARY) && (j->access != SYMOPERAND_IGNORED) && (j->reg == reg))
 				written = true;
 		}
 
@@ -316,7 +316,8 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
-				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) &&
+					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					regDefs[k->reg].push_back(bitCount);
 					defs.push_back(pair<SymInstrBlock*, size_t>(*i, j));
@@ -341,7 +342,8 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
-				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) &&
+					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					// Kill other definitions of this register
 					if (regDef.find(k->reg) != regDef.end())
@@ -416,7 +418,8 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 			for (vector<SymInstrOperand>::iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
-				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) &&
+					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					// Add reachable definitions to the use->definition and definition->use chains
 					for (vector<size_t>::iterator n = regDefs[k->reg].begin(); n != regDefs[k->reg].end(); n++)
@@ -434,7 +437,8 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 			for (vector<SymInstrOperand>::const_iterator k = (*i)->GetInstructions()[j]->GetOperands().begin();
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
-				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) &&
+					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					// Instruction is a definition, update reaching definitions information according to the
 					// register being written
@@ -462,7 +466,7 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
 				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_WRITE) && (k->access != SYMOPERAND_TEMPORARY) &&
-					(!SYMREG_IS_SPECIAL_REG(k->reg)))
+					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					if (!(*i)->GetLiveDefinitions().GetBit(k->reg))
 					{
@@ -477,7 +481,7 @@ void SymInstrFunction::PerformDataFlowAnalysis()
 				k != (*i)->GetInstructions()[j]->GetOperands().end(); k++)
 			{
 				if ((k->type == SYMOPERAND_REG) && (k->access != SYMOPERAND_READ) && (k->access != SYMOPERAND_TEMPORARY) &&
-					(!SYMREG_IS_SPECIAL_REG(k->reg)))
+					(k->access != SYMOPERAND_IGNORED) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
 				{
 					if (!(*i)->GetLiveUses().GetBit(k->reg))
 					{
@@ -534,9 +538,117 @@ void SymInstrFunction::SplitRegisters()
 			continue;
 		}
 
-		// TODO: Combine definition->use chains that share uses in common.  A read/write register access
+		// Initialize definitions to be separate
+		vector<size_t> defSet;
+		size_t sets = i->second.size();
+		for (size_t j = 0; j < i->second.size(); j++)
+			defSet.push_back(j);
+
+		// Combine definition->use chains that share uses in common.  A read/write register access
 		// must force a merge of two definition->use chains.  Any that are not combined after this
 		// process are fully separate and can be assigned a new symbolic register.
+		for (size_t j = 0; j < i->second.size(); j++)
+		{
+			// Check all other definitions
+			for (size_t k = j + 1; k < i->second.size(); k++)
+			{
+				// Don't need to check definitions that are already in common
+				if (defSet[j] == defSet[k])
+					continue;
+
+				// Check for uses in common
+				// TODO: Use something better than O(n^2) here?
+				bool common = false;
+				for (vector< pair<SymInstrBlock*, size_t> >::iterator a = m_defUseChains[i->second[j]].begin();
+					a != m_defUseChains[i->second[j]].end(); a++)
+				{
+					for (vector< pair<SymInstrBlock*, size_t> >::iterator b = m_defUseChains[i->second[k]].begin();
+						b != m_defUseChains[i->second[k]].end(); b++)
+					{
+						if ((a->first == b->first) && (a->second == b->second))
+						{
+							common = true;
+							break;
+						}
+					}
+				}
+
+				// Check for read/write registers
+				for (vector< pair<SymInstrBlock*, size_t> >::iterator a = m_defUseChains[i->second[j]].begin();
+					a != m_defUseChains[i->second[j]].end(); a++)
+				{
+					for (vector<SymInstrOperand>::iterator operand = a->first->GetInstructions()[a->second]->GetOperands().begin();
+						operand != a->first->GetInstructions()[a->second]->GetOperands().end(); operand++)
+					{
+						if ((operand->type == SYMOPERAND_REG) && (operand->dataFlowBit == i->second[k]) &&
+							(operand->access = SYMOPERAND_READ_WRITE))
+							common = true;
+					}
+				}
+				for (vector< pair<SymInstrBlock*, size_t> >::iterator a = m_defUseChains[i->second[k]].begin();
+					a != m_defUseChains[i->second[k]].end(); a++)
+				{
+					for (vector<SymInstrOperand>::iterator operand = a->first->GetInstructions()[a->second]->GetOperands().begin();
+						operand != a->first->GetInstructions()[a->second]->GetOperands().end(); operand++)
+					{
+						if ((operand->type == SYMOPERAND_REG) && (operand->dataFlowBit == i->second[j]) &&
+							(operand->access = SYMOPERAND_READ_WRITE))
+							common = true;
+					}
+				}
+
+				if (common)
+				{
+					// These two definitions have uses in common, merge them into the same set and delete the merged set
+					size_t fromSet = defSet[k];
+					size_t toSet = defSet[j];
+					sets--;
+					for (size_t a = 0; a < i->second.size(); a++)
+					{
+						if (defSet[a] == fromSet)
+							defSet[a] = toSet;
+						else if (defSet[a] > fromSet)
+							defSet[a]--;
+					}
+				}
+			}
+		}
+
+		// Create a new register for each additional set of definitions and rewrite its uses
+		for (size_t j = 1; j < sets; j++)
+		{
+			uint32_t fromReg = i->first;
+			uint32_t toReg = AddRegister(m_symRegClass[fromReg], m_symRegVar[fromReg]);
+
+			for (size_t k = 0; k < i->second.size(); k++)
+			{
+				if (defSet[k] != j)
+					continue;
+
+				if (m_settings.internalDebug)
+					fprintf(stderr, "Splitting reg%d from def %d into reg%d\n", fromReg, (int)i->second[k], toReg);
+
+				SymInstrBlock* defBlock = m_defLocs[i->second[k]].first;
+				size_t defInstr = m_defLocs[i->second[k]].second;
+				for (vector<SymInstrOperand>::iterator operand = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
+					operand != defBlock->GetInstructions()[defInstr]->GetOperands().end(); operand++)
+				{
+					if ((operand->type == SYMOPERAND_REG) && (operand->reg == fromReg))
+						operand->reg = toReg;
+				}
+
+				for (vector< pair<SymInstrBlock*, size_t> >::iterator a = m_defUseChains[i->second[k]].begin();
+					a != m_defUseChains[i->second[k]].end(); a++)
+				{
+					for (vector<SymInstrOperand>::iterator operand = a->first->GetInstructions()[a->second]->GetOperands().begin();
+						operand != a->first->GetInstructions()[a->second]->GetOperands().end(); operand++)
+					{
+						if ((operand->type == SYMOPERAND_REG) && (operand->reg == fromReg))
+							operand->reg = toReg;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -607,10 +719,17 @@ uint32_t SymInstrFunction::AddStackVar(int64_t offset)
 
 bool SymInstrFunction::AllocateRegisters()
 {
+	if (m_settings.internalDebug)
+		Print();
+
 	// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see
 	// if there are any that can be split into multiple registers to reduce register pressure when the same
 	// register is used for multiple non-overlapping purposes.  These are called "webs" in the literature.
 	PerformDataFlowAnalysis();
+
+	if (m_settings.internalDebug)
+		Print();
+
 	SplitRegisters();
 
 	// Data flow information may have changed, recalculate it before continuing
@@ -694,7 +813,8 @@ bool SymInstrFunction::AllocateRegisters()
 				for (vector<SymInstrOperand>::iterator n = (*i)->GetInstructions()[j]->GetOperands().begin();
 					n != (*i)->GetInstructions()[j]->GetOperands().end(); n++)
 				{
-					if ((n->type == SYMOPERAND_REG) && (n->access != SYMOPERAND_READ) && (n->reg == k))
+					if ((n->type == SYMOPERAND_REG) && (n->access != SYMOPERAND_READ) &&
+						(n->access != SYMOPERAND_IGNORED) && (n->reg == k))
 					{
 						definedByCall = true;
 						break;

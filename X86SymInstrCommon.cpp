@@ -406,10 +406,15 @@ X86_IMPLEMENT_2OP_IMM_SIZE(name, size, ReadWrite, Read, SYMFLAG_WRITES_FLAGS) \
 X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) \
 { \
 	if (a == b) \
+	{ \
 		AddWriteRegisterOperand(a); \
+		AddIgnoredRegisterOperand(b); \
+	} \
 	else \
+	{ \
 		AddReadWriteRegisterOperand(a); \
-	AddWriteRegisterOperand(b); \
+		AddReadRegisterOperand(b); \
+	} \
 	EnableFlag(SYMFLAG_WRITES_FLAGS); \
 } \
 bool X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \

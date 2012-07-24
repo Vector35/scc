@@ -40,7 +40,8 @@ enum SymInstrOperandAccess
 	SYMOPERAND_READ,
 	SYMOPERAND_WRITE,
 	SYMOPERAND_READ_WRITE,
-	SYMOPERAND_TEMPORARY
+	SYMOPERAND_TEMPORARY,
+	SYMOPERAND_IGNORED
 };
 
 class SymInstrBlock;
@@ -87,6 +88,7 @@ public:
 	void AddWriteRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_WRITE); }
 	void AddReadWriteRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_READ_WRITE); }
 	void AddTemporaryRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_TEMPORARY); }
+	void AddIgnoredRegisterOperand(uint32_t reg) { AddRegisterOperand(reg, SYMOPERAND_IGNORED); }
 	void AddImmediateOperand(int64_t immed);
 	void AddStackVarOperand(uint32_t var, int64_t offset);
 	void AddGlobalVarOperand(int64_t dataOffset);

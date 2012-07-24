@@ -2995,6 +2995,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 #else
 		keyDest.width = 8;
 #endif
+		keyDest.reg = keyReg;
 		if (!PrepareLoad(out, keyParam, key))
 			return false;
 		if (!Move(out, keyDest, key))
@@ -4218,7 +4219,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		pushSize += 4;
 
 		uint32_t resultReg1 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_1);
-		uint32_t resultReg2 = twoDest ? m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2) : SYMREG_NONE;
+		uint32_t resultReg2 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2);
 		uint32_t ecx = m_symFunc->AddRegister(X86REGCLASS_ECX);
 
 		vector<uint32_t> readRegs; // Parameters are passed in on stack, so no read registers
@@ -4311,7 +4312,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 	}
 
 	uint32_t resultReg1 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_1);
-	uint32_t resultReg2 = twoDest ? m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2) : SYMREG_NONE;
+	uint32_t resultReg2 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2);
 	uint32_t ecx = m_symFunc->AddRegister(X86REGCLASS_ECX);
 
 #ifdef OUTPUT32
@@ -5095,10 +5096,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	}
 
 	if (m_settings.internalDebug)
-	{
 		fprintf(stderr, "\n%s:\n", func->GetName().c_str());
-		m_symFunc->Print();
-	}
 
 	// Allocate registers for symbolic code to produce final assembly
 	if (!m_symFunc->AllocateRegisters())

@@ -2695,6 +2695,9 @@ bool OutputQuark::GenerateCode(Function* func)
 			return false;
 	}
 
+	if (m_settings.internalDebug)
+		fprintf(stderr, "\n%s:\n", func->GetName().c_str());
+
 	// Allocate registers for symbolic code to produce final assembly
 	if (!m_symFunc->AllocateRegisters())
 	{

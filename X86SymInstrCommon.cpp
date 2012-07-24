@@ -2772,6 +2772,68 @@ void X86_SYMINSTR_NAME(Instr)::UnconditionalJumpOverflowHandler(OutputBlock* out
 }
 
 
+X86_SYMINSTR_CLASS(AntiDisassembly)::X86_SYMINSTR_CLASS(AntiDisassembly)(uint32_t reg)
+{
+	AddTemporaryRegisterOperand(reg);
+	EnableFlag(SYMFLAG_WRITES_FLAGS);
+}
+
+
+bool X86_SYMINSTR_CLASS(AntiDisassembly)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	uint8_t* code;
+	uint32_t a, b;
+	switch (rand() % 4)
+	{
+	case 0:
+		EMIT_R(dec_32, X86_REG_OF_SIZE(m_operands[0].reg, 32));
+		code = (uint8_t*)out->PrepareWrite(3);
+		code[0] = 0xeb;
+		code[1] = 0xff;
+		code[2] = 0xc0 + (X86_REG_OF_SIZE(m_operands[0].reg, 32) - REG_EAX);
+		out->FinishWrite(3);
+		break;
+	case 1:
+		a = rand() ^ (rand() << 16);
+		EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), a);
+		EMIT_RI(add_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), -a);
+		code = (uint8_t*)out->PrepareWrite(2);
+		code[0] = 0x75; // jne
+		code[1] = (uint8_t)(rand() & 0xff);
+		out->FinishWrite(2);
+		break;
+	case 2:
+		a = rand() ^ (rand() << 16);
+		b = rand() ^ (rand() << 16);
+		EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), a);
+		EMIT_RI(xor_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), b);
+		code = (uint8_t*)out->PrepareWrite(2);
+		code[0] = ((a ^ b) & 0x80000000) ? 0x79 : 0x78; // js/jns
+		code[1] = (uint8_t)(rand() & 0xff);
+		out->FinishWrite(2);
+		break;
+	default:
+		a = rand() ^ (rand() << 16);
+		EMIT_RI(mov_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), -a);
+		EMIT_RI(add_32, X86_REG_OF_SIZE(m_operands[0].reg, 32), a);
+		EMIT_R(inc_32, X86_REG_OF_SIZE(m_operands[0].reg, 32)); // Does not affect CF
+		code = (uint8_t*)out->PrepareWrite(2);
+		code[0] = 0x73; // jnc
+		code[1] = (uint8_t)(rand() & 0xff);
+		out->FinishWrite(2);
+		break;
+	}
+	return true;
+}
+
+
+void X86_SYMINSTR_CLASS(AntiDisassembly)::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "antidisasm ");
+	m_operands[0].Print(func);
+}
+
+
 X86_SYMINSTR_NAME(Function)::X86_SYMINSTR_NAME(Function)(const Settings& settings): SymInstrFunction(settings)
 {
 }
@@ -2837,6 +2899,16 @@ set<uint32_t> X86_SYMINSTR_NAME(Function)::GetRegisterClassInterferences(uint32_
 	case X86REGCLASS_INTEGER_INDEX:
 		result.insert(SYMREG_NATIVE_REG(REG_ESP));
 		result.insert(SYMREG_NATIVE_REG(REG_R12D));
+		break;
+	case X86REGCLASS_INTEGER_NO_REX:
+		result.insert(SYMREG_NATIVE_REG(REG_R8D));
+		result.insert(SYMREG_NATIVE_REG(REG_R9D));
+		result.insert(SYMREG_NATIVE_REG(REG_R10D));
+		result.insert(SYMREG_NATIVE_REG(REG_R11D));
+		result.insert(SYMREG_NATIVE_REG(REG_R12D));
+		result.insert(SYMREG_NATIVE_REG(REG_R13D));
+		result.insert(SYMREG_NATIVE_REG(REG_R14D));
+		result.insert(SYMREG_NATIVE_REG(REG_R15D));
 		break;
 #endif
 	default:
@@ -3057,6 +3129,9 @@ void X86_SYMINSTR_NAME(Function)::PrintRegisterClass(uint32_t cls)
 	case X86REGCLASS_INTEGER_INDEX:
 		fprintf(stderr, "index");
 		break;
+	case X86REGCLASS_INTEGER_NO_REX:
+		fprintf(stderr, "norex");
+		break;
 	case X86REGCLASS_FLOAT:
 		fprintf(stderr, "float");
 		break;
@@ -3162,6 +3237,7 @@ SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax) { return new 
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS(SymReturn)(a, b); }
 SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)() { return new X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)(); }
 SymInstr* X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)() { return new X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)(); }
+SymInstr* X86_SYMINSTR_NAME(AntiDisassembly)(uint32_t reg) { return new X86_SYMINSTR_CLASS(AntiDisassembly)(reg); }
 
 
 #endif

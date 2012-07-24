@@ -53,6 +53,8 @@ void Usage()
 	fprintf(stderr, "                                      Can be: x86 (default), x64\n");
 	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
+	fprintf(stderr, "    --anti-disasm                     Generate anti-disassembly blocks\n");
+	fprintf(stderr, "    --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> instructions\n");
 	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
 	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
 	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
@@ -137,6 +139,8 @@ int main(int argc, char* argv[])
 	settings.sharedLibrary = false;
 	settings.polymorph = false;
 	settings.mixedMode = false;
+	settings.antiDisasm = false;
+	settings.antiDisasmFrequency = DEFAULT_ANTIDISASM_FREQUENCY;
 	settings.seed = 0;
 	settings.positionIndependent = true;
 	settings.base = 0;
@@ -210,6 +214,28 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--allow-return"))
 		{
 			settings.allowReturn = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--anti-disasm"))
+		{
+			settings.antiDisasm = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--anti-disasm-freq"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.antiDisasmFrequency = atoi(argv[i]);
+			if (settings.antiDisasmFrequency == 0)
+			{
+				fprintf(stderr, "error: invalid anti-disassembly frequency\n");
+				return 1;
+			}
 			continue;
 		}
 		else if (!strcmp(argv[i], "--concat"))
@@ -581,7 +607,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize random seed if one is needed
-	if (settings.polymorph || settings.mixedMode || pad)
+	if (settings.polymorph || settings.mixedMode || settings.antiDisasm || pad)
 	{
 		if (!useSpecificSeed)
 		{

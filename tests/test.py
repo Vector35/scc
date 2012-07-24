@@ -52,6 +52,7 @@ tests = [
 	["fortress.c, normal", fortress_testcase, []],
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],
+	["fortress.c, anti-disassembly", fortress_testcase, ["--anti-disasm", "--seed", "<SEED>"]],
 	["fortress.c, stack grows up", fortress_testcase, ["--stack-grows-up"]],
 	["fortress.c, alternate stack ptr", fortress_testcase, ["--stack-reg", "ebx"]],
 	["fortress.c, alternate frame ptr", fortress_testcase, ["--frame-reg", "ecx"]],

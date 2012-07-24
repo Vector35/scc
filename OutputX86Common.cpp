@@ -4535,6 +4535,12 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 	vector<ILInstruction>::iterator i;
 	for (i = block->GetInstructions().begin(); i != block->GetInstructions().end(); i++)
 	{
+		if (m_settings.antiDisasm && ((rand() % m_settings.antiDisasmFrequency) == 0))
+		{
+			uint32_t reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_NO_REX);
+			out->AddInstruction(X86_SYMINSTR_NAME(AntiDisassembly)(reg));
+		}
+
 		bool end = false;
 		switch (i->operation)
 		{

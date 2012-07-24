@@ -29,6 +29,7 @@ enum X86RegisterClass
 	X86REGCLASS_INTEGER,
 	X86REGCLASS_INTEGER_8BIT,
 	X86REGCLASS_INTEGER_INDEX,
+	X86REGCLASS_INTEGER_NO_REX,
 	X86REGCLASS_FLOAT,
 	X86REGCLASS_INTEGER_RETURN_VALUE,
 	X86REGCLASS_INTEGER_RETURN_VALUE_HIGH,
@@ -866,6 +867,15 @@ public:
 };
 
 
+class X86_SYMINSTR_CLASS(AntiDisassembly): public X86_SYMINSTR_NAME(Instr)
+{
+public:
+	X86_SYMINSTR_CLASS(AntiDisassembly)(uint32_t reg);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+};
+
+
 class X86_SYMINSTR_NAME(Function): public SymInstrFunction
 {
 public:
@@ -913,6 +923,7 @@ SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax);
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b);
 SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)();
 SymInstr* X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)();
+SymInstr* X86_SYMINSTR_NAME(AntiDisassembly)(uint32_t reg);
 
 
 #endif

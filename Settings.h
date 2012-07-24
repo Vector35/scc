@@ -25,6 +25,8 @@
 #include <string>
 #include <stdint.h>
 
+#define DEFAULT_ANTIDISASM_FREQUENCY 20
+
 enum Architecture
 {
 	ARCH_X86,
@@ -85,6 +87,9 @@ struct Settings
 
 	bool polymorph, mixedMode;
 	uint32_t seed;
+
+	bool antiDisasm;
+	uint32_t antiDisasmFrequency;
 
 	bool positionIndependent;
 	uint64_t base;

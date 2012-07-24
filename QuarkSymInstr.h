@@ -420,6 +420,14 @@ public:
 	virtual void Print(SymInstrFunction* func);
 };
 
+class QuarkAntiDisassemblyInstr: public QuarkSymInstr
+{
+public:
+	QuarkAntiDisassemblyInstr(uint32_t reg);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+};
+
 
 class QuarkSymInstrFunction: public SymInstrFunction
 {
@@ -662,6 +670,7 @@ SymInstr* QuarkFmov(uint32_t a, int32_t immed);
 SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh);
 SymInstr* QuarkSaveCalleeSavedRegs();
 SymInstr* QuarkRestoreCalleeSavedRegs();
+SymInstr* QuarkAntiDisassembly(uint32_t reg);
 
 
 #endif

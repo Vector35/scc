@@ -572,6 +572,13 @@ QuarkRestoreCalleeSavedRegsInstr::QuarkRestoreCalleeSavedRegsInstr()
 }
 
 
+QuarkAntiDisassemblyInstr::QuarkAntiDisassemblyInstr(uint32_t reg)
+{
+	AddTemporaryRegisterOperand(reg);
+	EnableFlag(SYMFLAG_WRITES_FLAGS);
+}
+
+
 bool Quark1OpInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
 	out->WriteUInt32(__QUARK_INSTR(m_operation >> 8, m_operands[0].reg & 31, m_operation & 31, 0, 0));
@@ -817,6 +824,40 @@ bool QuarkBreakpointInstr::EmitInstruction(SymInstrFunction* func, OutputBlock* 
 bool QuarkPseudoInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
 	return false;
+}
+
+
+bool QuarkAntiDisassemblyInstr::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	int32_t a, b, cc, offset;
+	cc = rand() & 3;
+	offset = rand() & 0x7f;
+	if (rand() & 1)
+		offset = -offset;
+
+	if (rand() & 1)
+	{
+		a = rand() & 0x3ff;
+		out->WriteUInt32(QUARK_EMIT_2(ldi, m_operands[0].reg & 31, a));
+		out->WriteUInt32(QUARK_EMIT_3I(add, m_operands[0].reg, m_operands[0].reg & 31, -a));
+		out->WriteUInt32(QUARK_EMIT_3I(cmp, QUARK_COND(QUARK_COND_NE, cc), m_operands[0].reg, 0));
+		out->WriteUInt32(QUARK_EMIT_COND_1(jmp, QUARK_IF_TRUE(cc), offset));
+	}
+	else
+	{
+		a = rand() & 0x3ff;
+		b = rand() & 0x3ff;
+		if (rand() & 1)
+			a = -a;
+		if (rand() & 1)
+			b = -b;
+		out->WriteUInt32(QUARK_EMIT_2(ldi, m_operands[0].reg & 31, a));
+		out->WriteUInt32(QUARK_EMIT_3I(xor, m_operands[0].reg, m_operands[0].reg & 31, b));
+		out->WriteUInt32(QUARK_EMIT_3I(icmp, QUARK_COND(((a ^ b) & 0x80000000) ? QUARK_COND_GE : QUARK_COND_LT, cc),
+			m_operands[0].reg, 0));
+		out->WriteUInt32(QUARK_EMIT_COND_1(jmp, QUARK_IF_TRUE(cc), offset));
+	}
+	return true;
 }
 
 
@@ -1552,6 +1593,13 @@ void QuarkRestoreCalleeSavedRegsInstr::Print(SymInstrFunction* func)
 }
 
 
+void QuarkAntiDisassemblyInstr::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "antidisasm ");
+	m_operands[0].Print(func);
+}
+
+
 vector<uint32_t> QuarkSymInstrFunction::GetCallerSavedRegisters()
 {
 	vector<uint32_t> result;
@@ -2067,4 +2115,5 @@ SymInstr* QuarkFmov(uint32_t a, int32_t immed) { return new Quark2OpInstr(0x3f1f
 SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh) { return new QuarkSymReturnInstr(retVal, retValHigh); }
 SymInstr* QuarkSaveCalleeSavedRegs() { return new QuarkSaveCalleeSavedRegsInstr(); }
 SymInstr* QuarkRestoreCalleeSavedRegs() { return new QuarkRestoreCalleeSavedRegsInstr(); }
+SymInstr* QuarkAntiDisassembly(uint32_t reg) { return new QuarkAntiDisassemblyInstr(reg); }
 

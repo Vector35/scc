@@ -5188,12 +5188,22 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(OutputBlock* out, const ILInstruction& i
 	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MAC))
 	{
 		// If carry flag is set, syscall failed, so place negative of error code into result
+#ifdef OUTPUT32
 		uint8_t* errorCode = (uint8_t*)out->PrepareWrite(4);
 		errorCode[0] = 0x73; // jnc noerror
 		errorCode[1] = 0x02;
 		errorCode[2] = 0xf7; // neg eax
 		errorCode[3] = 0xd8;
 		out->FinishWrite(4);
+#else
+		uint8_t* errorCode = (uint8_t*)out->PrepareWrite(5);
+		errorCode[0] = 0x73; // jnc noerror
+		errorCode[1] = 0x03;
+		errorCode[2] = 0x48; // neg rax
+		errorCode[3] = 0xf7;
+		errorCode[4] = 0xd8;
+		out->FinishWrite(5);
+#endif
 	}
 
 	m_framePointer = m_origFramePointer;

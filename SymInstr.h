@@ -193,6 +193,7 @@ public:
 	virtual std::vector<uint32_t> GetCallerSavedRegisters() = 0;
 	virtual std::vector<uint32_t> GetCalleeSavedRegisters() = 0;
 	virtual std::set<uint32_t> GetRegisterClassInterferences(uint32_t cls) = 0;
+	virtual bool IsRegisterClassFixed(uint32_t cls) = 0;
 	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg) = 0;
 
 	virtual void AdjustStackFrame() = 0;

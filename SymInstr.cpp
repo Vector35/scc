@@ -719,306 +719,400 @@ uint32_t SymInstrFunction::AddStackVar(int64_t offset)
 
 bool SymInstrFunction::AllocateRegisters()
 {
-	if (m_settings.internalDebug)
-		Print();
-
-	// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see
-	// if there are any that can be split into multiple registers to reduce register pressure when the same
-	// register is used for multiple non-overlapping purposes.  These are called "webs" in the literature.
-	PerformDataFlowAnalysis();
-
-	if (m_settings.internalDebug)
-		Print();
-
-	SplitRegisters();
-
-	// Data flow information may have changed, recalculate it before continuing
-	PerformDataFlowAnalysis();
-
-	// Compute register interference graph
-	m_regInterference.clear();
-	m_regInterference.resize(m_symRegClass.size());
-
-	for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
+	while (true) // May need to spill one or more times
 	{
-		// Analyze each definition of the current register
-		for (vector<size_t>::iterator j = m_regDefs[i].begin(); j != m_regDefs[i].end(); j++)
+		if (m_settings.internalDebug)
+			Print();
+
+		// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see
+		// if there are any that can be split into multiple registers to reduce register pressure when the same
+		// register is used for multiple non-overlapping purposes.  These are called "webs" in the literature.
+		PerformDataFlowAnalysis();
+
+		if (m_settings.internalDebug)
+			Print();
+
+		SplitRegisters();
+
+		// Data flow information may have changed, recalculate it before continuing
+		PerformDataFlowAnalysis();
+
+		// Compute register interference graph
+		m_regInterference.clear();
+		m_regInterference.resize(m_symRegClass.size());
+
+		for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
 		{
-			SymInstrBlock* defBlock = m_defLocs[*j].first;
-			size_t defInstr = m_defLocs[*j].second;
-
-			// Check all other registers, if a register is live at this definition, the two registers interfere
-			for (uint32_t k = 0; k < (uint32_t)m_symRegClass.size(); k++)
+			// Analyze each definition of the current register
+			for (vector<size_t>::iterator j = m_regDefs[i].begin(); j != m_regDefs[i].end(); j++)
 			{
-				if (i == k)
-					continue;
+				SymInstrBlock* defBlock = m_defLocs[*j].first;
+				size_t defInstr = m_defLocs[*j].second;
 
-				if (defBlock->IsRegisterLiveAtDefinition(k, defInstr))
+				// Check all other registers, if a register is live at this definition, the two registers interfere
+				for (uint32_t k = 0; k < (uint32_t)m_symRegClass.size(); k++)
 				{
-					// Register is live at this definition, add to interference graph
-					m_regInterference[i].insert(k);
-					m_regInterference[k].insert(i);
-				}
-			}
+					if (i == k)
+						continue;
 
-			// If this is a temporary register usage, register interferes with all other registers used by this instruction
-			bool tempUse = false;
-			for (vector<SymInstrOperand>::iterator k = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
-				k != defBlock->GetInstructions()[defInstr]->GetOperands().end(); k++)
-			{
-				if ((k->type == SYMOPERAND_REG) && (k->access == SYMOPERAND_TEMPORARY) && (k->reg == i))
-				{
-					tempUse = true;
-					break;
+					if (defBlock->IsRegisterLiveAtDefinition(k, defInstr))
+					{
+						// Register is live at this definition, add to interference graph
+						m_regInterference[i].insert(k);
+						m_regInterference[k].insert(i);
+					}
 				}
-			}
 
-			if (tempUse)
-			{
-				// Using as temporary, interfere with any other registers, even reads, since the register is being
-				// used as part of the instruction itself
+				// If this is a temporary register usage, register interferes with all other registers used by this instruction
+				bool tempUse = false;
 				for (vector<SymInstrOperand>::iterator k = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
 					k != defBlock->GetInstructions()[defInstr]->GetOperands().end(); k++)
 				{
-					if ((k->type == SYMOPERAND_REG) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+					if ((k->type == SYMOPERAND_REG) && (k->access == SYMOPERAND_TEMPORARY) && (k->reg == i))
 					{
-						m_regInterference[i].insert(k->reg);
-						m_regInterference[k->reg].insert(i);
-					}
-				}
-			}
-		}
-
-		// Add interference edges to native registers according to the register class
-		set<uint32_t> nativeInterference = GetRegisterClassInterferences(m_symRegClass[i]);
-		m_regInterference[i].insert(nativeInterference.begin(), nativeInterference.end());
-	}
-
-	// For each call instruction, generate interferences with caller saved registers to cause them to be
-	// spilled to the stack
-	vector<uint32_t> callerSavedRegs = GetCallerSavedRegisters();
-	vector<uint32_t> calleeSavedRegs = GetCalleeSavedRegisters();
-	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
-	{
-		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
-		{
-			if (!(*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_CALL))
-				continue;
-
-			// Check all registers, if a register is live at this call, generate caller saved register interferences
-			for (uint32_t k = 0; k < (uint32_t)m_symRegClass.size(); k++)
-			{
-				// Skip registers that are defined by the call itself
-				bool definedByCall = false;
-				for (vector<SymInstrOperand>::iterator n = (*i)->GetInstructions()[j]->GetOperands().begin();
-					n != (*i)->GetInstructions()[j]->GetOperands().end(); n++)
-				{
-					if ((n->type == SYMOPERAND_REG) && (n->access != SYMOPERAND_READ) &&
-						(n->access != SYMOPERAND_IGNORED) && (n->reg == k))
-					{
-						definedByCall = true;
+						tempUse = true;
 						break;
 					}
 				}
-				if (definedByCall)
+
+				if (tempUse)
+				{
+					// Using as temporary, interfere with any other registers, even reads, since the register is being
+					// used as part of the instruction itself
+					for (vector<SymInstrOperand>::iterator k = defBlock->GetInstructions()[defInstr]->GetOperands().begin();
+						k != defBlock->GetInstructions()[defInstr]->GetOperands().end(); k++)
+					{
+						if ((k->type == SYMOPERAND_REG) && (!SYMREG_IS_SPECIAL_REG(k->reg)))
+						{
+							m_regInterference[i].insert(k->reg);
+							m_regInterference[k->reg].insert(i);
+						}
+					}
+				}
+			}
+
+			// Add interference edges to native registers according to the register class
+			set<uint32_t> nativeInterference = GetRegisterClassInterferences(m_symRegClass[i]);
+			m_regInterference[i].insert(nativeInterference.begin(), nativeInterference.end());
+		}
+
+		// For each call instruction, generate interferences with caller saved registers to cause them to be
+		// spilled to the stack
+		vector<uint32_t> callerSavedRegs = GetCallerSavedRegisters();
+		vector<uint32_t> calleeSavedRegs = GetCalleeSavedRegisters();
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+		{
+			for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+			{
+				if (!(*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_CALL))
 					continue;
 
-				if ((*i)->IsRegisterLiveAtDefinition(k, j))
+				// Check all registers, if a register is live at this call, generate caller saved register interferences
+				for (uint32_t k = 0; k < (uint32_t)m_symRegClass.size(); k++)
 				{
-					// Register is live at this call, add caller saved registers to interference graph
-					for (vector<uint32_t>::iterator n = callerSavedRegs.begin(); n != callerSavedRegs.end(); n++)
-						m_regInterference[k].insert(*n);
+					// Skip registers that are defined by the call itself
+					bool definedByCall = false;
+					for (vector<SymInstrOperand>::iterator n = (*i)->GetInstructions()[j]->GetOperands().begin();
+						n != (*i)->GetInstructions()[j]->GetOperands().end(); n++)
+					{
+						if ((n->type == SYMOPERAND_REG) && (n->access != SYMOPERAND_READ) &&
+							(n->access != SYMOPERAND_IGNORED) && (n->reg == k))
+						{
+							definedByCall = true;
+							break;
+						}
+					}
+					if (definedByCall)
+						continue;
+
+					if ((*i)->IsRegisterLiveAtDefinition(k, j))
+					{
+						// Register is live at this call, add caller saved registers to interference graph
+						for (vector<uint32_t>::iterator n = callerSavedRegs.begin(); n != callerSavedRegs.end(); n++)
+							m_regInterference[k].insert(*n);
+					}
 				}
 			}
 		}
-	}
 
-	// Initialize register allocation structures
-	vector<uint32_t> toProcess;
-	vector< set<uint32_t> > pruned = m_regInterference;
-	stack<uint32_t> assignmentStack;
-	vector<uint32_t> realRegs;
-	realRegs.insert(realRegs.end(), callerSavedRegs.begin(), callerSavedRegs.end());
-	realRegs.insert(realRegs.end(), calleeSavedRegs.begin(), calleeSavedRegs.end());
-	for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
-		toProcess.push_back(i);
-
-	// Attempt to assign registers by pruning nodes with less edges than the total number of real registers
-	while (toProcess.size() > 0)
-	{
-		bool found = false;
-		uint32_t reg;
-
-		for (vector<uint32_t>::iterator i = toProcess.begin(); i != toProcess.end(); i++)
-		{
-			if (pruned[*i].size() < realRegs.size())
-			{
-				// This node has less edges than the number of real registers, so it is proven that at
-				// least one real register will be available
-				found = true;
-				reg = *i;
-				toProcess.erase(i);
-				break;
-			}
-		}
-
-		if (!found)
-		{
-			// No potential nodes, pick a node and speculatively allocate
-			// TODO: Try to pick a more optimal register here
-			reg = toProcess[0];
-			toProcess.erase(toProcess.begin());
-		}
-
-		// Add the register to the stack for assignment
-		assignmentStack.push(reg);
-
-		// Remove the node from the graph and continue allocation
+		// Initialize register allocation structures
+		vector<uint32_t> toProcess;
+		vector< set<uint32_t> > pruned = m_regInterference;
+		stack<uint32_t> assignmentStack;
+		vector<uint32_t> realRegs;
+		vector<bool> spill;
+		size_t spillCount = 0;
+		realRegs.insert(realRegs.end(), callerSavedRegs.begin(), callerSavedRegs.end());
+		realRegs.insert(realRegs.end(), calleeSavedRegs.begin(), calleeSavedRegs.end());
 		for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
-			pruned[i].erase(reg);
-	}
-
-	// Graph processing complete, start assigning register values
-	for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
-		m_symRegAssignment[i] = SYMREG_NONE;
-
-	while (!assignmentStack.empty())
-	{
-		uint32_t reg = assignmentStack.top();
-		assignmentStack.pop();
-
-		// Get the list of available registers for assignment
-		vector<uint32_t> available;
-		for (vector<uint32_t>::iterator i = realRegs.begin(); i != realRegs.end(); i++)
 		{
-			// Check edge nodes for conflicting assignments
-			bool valid = true;
-			for (set<uint32_t>::iterator j = m_regInterference[reg].begin(); j != m_regInterference[reg].end(); j++)
+			m_symRegAssignment[i] = SYMREG_NONE;
+			toProcess.push_back(i);
+			spill.push_back(false);
+		}
+
+		// First place all symbolic registers that must be in a specific hardware register onto the assignment stack
+		for (size_t i = 0; i < toProcess.size(); i++)
+		{
+			uint32_t reg = toProcess[i];
+			if (IsRegisterClassFixed(m_symRegClass[reg]))
 			{
-				// Check for native register conflicts
-				if (*i == *j)
+				assignmentStack.push(reg);
+				toProcess.erase(toProcess.begin() + i);
+				i--;
+			}
+		}
+
+		// Assign fixed registers before doing anything else
+		while (!assignmentStack.empty())
+		{
+			uint32_t reg = assignmentStack.top();
+			assignmentStack.pop();
+
+			// Get the list of available registers for assignment
+			vector<uint32_t> available;
+			for (vector<uint32_t>::iterator i = realRegs.begin(); i != realRegs.end(); i++)
+			{
+				// Check edge nodes for conflicting assignments
+				bool valid = true;
+				for (set<uint32_t>::iterator j = m_regInterference[reg].begin(); j != m_regInterference[reg].end(); j++)
 				{
-					valid = false;
-					break;
+					// Check for native register conflicts
+					if (*i == *j)
+					{
+						valid = false;
+						break;
+					}
+
+					// Check for interference between symbolic registers
+					if ((!SYMREG_IS_SPECIAL_REG(*j)) && (m_symRegAssignment[*j] == *i))
+					{
+						valid = false;
+						break;
+					}
 				}
 
-				// Check for interference between symbolic registers
-				if ((!SYMREG_IS_SPECIAL_REG(*j)) && (m_symRegAssignment[*j] == *i))
+				if (valid)
 				{
-					valid = false;
+					// Found the correct register
+					available.push_back(*i);
 					break;
 				}
 			}
 
-			if (!valid)
+			if (available.size() == 0)
 			{
-				// Register not available
+				// Fixed register conflicts, this is a compiler bug
+				fprintf(stderr, "error: fixed registers conflict, cannot assign reg%d to ", (int)reg);
+				PrintRegisterClass(m_symRegClass[reg]);
+				fprintf(stderr, "\n");
+				return false;
+			}
+
+			m_symRegAssignment[reg] = available[0];
+		}
+
+		// Attempt to assign registers by pruning nodes with less edges than the total number of real registers
+		while (toProcess.size() > 0)
+		{
+			uint32_t reg = SYMREG_NONE;
+
+			for (vector<uint32_t>::iterator i = toProcess.begin(); i != toProcess.end(); i++)
+			{
+				if (pruned[*i].size() < realRegs.size())
+				{
+					// This node has less edges than the number of real registers, so it is proven that at
+					// least one real register will be available
+					reg = *i;
+					toProcess.erase(i);
+					break;
+				}
+			}
+
+			if (reg == SYMREG_NONE)
+			{
+				// No potential nodes, pick a node and speculatively allocate.  Pick the one with the smallest
+				// sum of the number of uses and definitions, as this has the smallest spill cost (in terms
+				// of size, not speed)
+				size_t i = 0;
+				reg = toProcess[0];
+
+				size_t cost = m_regDefs[reg].size();
+				for (vector<size_t>::iterator j = m_regDefs[reg].begin(); j != m_regDefs[reg].end(); j++)
+					cost += m_defUseChains[*j].size();
+
+				for (size_t j = 1; j < toProcess.size(); j++)
+				{
+					size_t curCost = m_regDefs[toProcess[j]].size();
+					for (vector<size_t>::iterator k = m_regDefs[toProcess[j]].begin(); k != m_regDefs[toProcess[j]].end(); k++)
+						curCost += m_defUseChains[*k].size();
+
+					if (curCost < cost)
+					{
+						i = j;
+						reg = toProcess[j];
+						cost = curCost;
+					}
+				}
+
+				toProcess.erase(toProcess.begin() + i);
+			}
+
+			// Add the register to the stack for assignment
+			assignmentStack.push(reg);
+
+			// Remove the node from the graph and continue allocation
+			for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
+				pruned[i].erase(reg);
+		}
+
+		while (!assignmentStack.empty())
+		{
+			uint32_t reg = assignmentStack.top();
+			assignmentStack.pop();
+
+			// Get the list of available registers for assignment
+			vector<uint32_t> available;
+			for (vector<uint32_t>::iterator i = realRegs.begin(); i != realRegs.end(); i++)
+			{
+				// Check edge nodes for conflicting assignments
+				bool valid = true;
+				for (set<uint32_t>::iterator j = m_regInterference[reg].begin(); j != m_regInterference[reg].end(); j++)
+				{
+					// Check for native register conflicts
+					if (*i == *j)
+					{
+						valid = false;
+						break;
+					}
+
+					// Check for interference between symbolic registers
+					if ((!SYMREG_IS_SPECIAL_REG(*j)) && (m_symRegAssignment[*j] == *i))
+					{
+						valid = false;
+						break;
+					}
+				}
+
+				if (!valid)
+				{
+					// Register not available
+					continue;
+				}
+
+				// Register available, add to set of available registers
+				available.push_back(*i);
+
+				if (!m_settings.polymorph)
+				{
+					// Not generating polymorphic code, so exit early once a register is found
+					break;
+				}
+			}
+
+			if (available.size() == 0)
+			{
+				// Register allocation failed, need to spill registers to reduce register pressure
+				if (m_settings.internalDebug)
+					fprintf(stderr, "Spilling reg%d\n", reg);
+				spill[reg] = true;
+				spillCount++;
+
+				// Do not assign a register, just continue processing to find other registers that
+				// might need to get spilled
 				continue;
 			}
 
-			// Register available, add to set of available registers
-			available.push_back(*i);
-
-			if (!m_settings.polymorph)
-			{
-				// Not generating polymorphic code, so exit early once a register is found
-				break;
-			}
+			// Register is available, allocate it now
+			uint32_t choice;
+			if (m_settings.polymorph)
+				choice = available[rand() % available.size()];
+			else
+				choice = available[0];
+			m_symRegAssignment[reg] = choice;
 		}
 
-		if (available.size() == 0)
+		if (spillCount > 0)
 		{
-			// Register allocation failed, need to spill registers to reduce register pressure
-			// TODO: Spill registers
-			if (m_settings.internalDebug)
-				fprintf(stderr, "error: out of registers while allocating reg%d\n", reg);
-			else
-				fprintf(stderr, "error: out of registers\n");
+			// Registers were spilled, need to emit spill code
+			fprintf(stderr, "error: out of registers\n");
 			return false;
 		}
 
-		// Register is available, allocate it now
-		uint32_t choice;
-		if (m_settings.polymorph)
-			choice = available[rand() % available.size()];
-		else
-			choice = available[0];
-		m_symRegAssignment[reg] = choice;
-	}
-
-	// Determine set of callee saved registers that are clobbered
-	m_clobberedCalleeSavedRegs.clear();
-	for (vector<uint32_t>::iterator i = calleeSavedRegs.begin(); i != calleeSavedRegs.end(); i++)
-	{
-		for (size_t j = 0; j < m_symRegClass.size(); j++)
+		// Determine set of callee saved registers that are clobbered
+		m_clobberedCalleeSavedRegs.clear();
+		for (vector<uint32_t>::iterator i = calleeSavedRegs.begin(); i != calleeSavedRegs.end(); i++)
 		{
-			if (m_symRegAssignment[j] == *i)
+			for (size_t j = 0; j < m_symRegClass.size(); j++)
 			{
-				m_clobberedCalleeSavedRegs.push_back(*i);
-				break;
-			}
-		}
-	}
-
-	// Register allocation complete, replace symbolic registers with the final register choices
-	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
-	{
-		for (vector<SymInstr*>::iterator j = (*i)->GetInstructions().begin(); j != (*i)->GetInstructions().end(); j++)
-		{
-			for (vector<SymInstrOperand>::iterator k = (*j)->GetOperands().begin(); k != (*j)->GetOperands().end(); k++)
-			{
-				if (k->type != SYMOPERAND_REG)
-					continue;
-				if (k->reg == SYMREG_NONE)
-					continue;
-
-				uint32_t newReg;
-				if (k->reg >= SYMREG_MIN_SPECIAL_REG)
-					newReg = GetSpecialRegisterAssignment(k->reg);
-				else if (k->reg < m_symRegClass.size())
-					newReg = m_symRegAssignment[k->reg];
-
-				if (newReg == SYMREG_NONE)
+				if (m_symRegAssignment[j] == *i)
 				{
-					fprintf(stderr, "error: register assignment for ");
-					PrintRegister(k->reg);
-					fprintf(stderr, " is not valid\n");
-					return false;
+					m_clobberedCalleeSavedRegs.push_back(*i);
+					break;
 				}
-
-				k->reg = newReg;
 			}
 		}
-	}
 
-	// Symbolic registers are no longer used, free unused information
-	for (vector<SymInstrBlock*>::const_iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
-		(*i)->ResetDataFlowInfo(0, 0);
-	m_symRegClass.clear();
-	m_symRegVar.clear();
-	m_symRegAssignment.clear();
-	m_regDefs.clear();
-	m_regInterference.clear();
-	m_exitReachingDefs.Reset(0, false);
-	m_defUseChains.clear();
-
-	// Replace instructions with the final forms.  For example, this step will generate code for saving and
-	// restoring callee saved registers onto the stack frame.
-	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
-	{
-		for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+		// Register allocation complete, replace symbolic registers with the final register choices
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
 		{
-			vector<SymInstr*> replacement;
-			if ((*i)->GetInstructions()[j]->UpdateInstruction(this, m_settings, replacement))
+			for (vector<SymInstr*>::iterator j = (*i)->GetInstructions().begin(); j != (*i)->GetInstructions().end(); j++)
 			{
-				(*i)->ReplaceInstruction(j, replacement);
-				j += replacement.size() - 1;
+				for (vector<SymInstrOperand>::iterator k = (*j)->GetOperands().begin(); k != (*j)->GetOperands().end(); k++)
+				{
+					if (k->type != SYMOPERAND_REG)
+						continue;
+					if (k->reg == SYMREG_NONE)
+						continue;
+
+					uint32_t newReg;
+					if (k->reg >= SYMREG_MIN_SPECIAL_REG)
+						newReg = GetSpecialRegisterAssignment(k->reg);
+					else if (k->reg < m_symRegClass.size())
+						newReg = m_symRegAssignment[k->reg];
+
+					if (newReg == SYMREG_NONE)
+					{
+						fprintf(stderr, "error: register assignment for ");
+						PrintRegister(k->reg);
+						fprintf(stderr, " is not valid\n");
+						return false;
+					}
+
+					k->reg = newReg;
+				}
 			}
 		}
-	}
 
-	AdjustStackFrame();
-	return true;
+		// Symbolic registers are no longer used, free unused information
+		for (vector<SymInstrBlock*>::const_iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+			(*i)->ResetDataFlowInfo(0, 0);
+		m_symRegClass.clear();
+		m_symRegVar.clear();
+		m_symRegAssignment.clear();
+		m_regDefs.clear();
+		m_regInterference.clear();
+		m_exitReachingDefs.Reset(0, false);
+		m_defUseChains.clear();
+
+		// Replace instructions with the final forms.  For example, this step will generate code for saving and
+		// restoring callee saved registers onto the stack frame.
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+		{
+			for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+			{
+				vector<SymInstr*> replacement;
+				if ((*i)->GetInstructions()[j]->UpdateInstruction(this, m_settings, replacement))
+				{
+					(*i)->ReplaceInstruction(j, replacement);
+					j += replacement.size() - 1;
+				}
+			}
+		}
+
+		AdjustStackFrame();
+		return true;
+	}
 }
 
 

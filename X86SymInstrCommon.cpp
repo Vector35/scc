@@ -2944,6 +2944,34 @@ set<uint32_t> X86_SYMINSTR_NAME(Function)::GetRegisterClassInterferences(uint32_
 }
 
 
+bool X86_SYMINSTR_NAME(Function)::IsRegisterClassFixed(uint32_t cls)
+{
+	switch (cls)
+	{
+	case X86REGCLASS_INTEGER_RETURN_VALUE:
+	case X86REGCLASS_INTEGER_RETURN_VALUE_HIGH:
+	case X86REGCLASS_EAX:
+	case X86REGCLASS_ECX:
+	case X86REGCLASS_EDX:
+	case X86REGCLASS_ESI:
+	case X86REGCLASS_EDI:
+	case X86REGCLASS_ESP:
+	case X86REGCLASS_SYSCALL_PARAM_0:
+	case X86REGCLASS_SYSCALL_PARAM_1:
+	case X86REGCLASS_SYSCALL_PARAM_2:
+	case X86REGCLASS_SYSCALL_PARAM_3:
+	case X86REGCLASS_SYSCALL_PARAM_4:
+	case X86REGCLASS_SYSCALL_PARAM_5:
+	case X86REGCLASS_SYSCALL_PARAM_6:
+	case X86REGCLASS_SYSCALL_RESULT_1:
+	case X86REGCLASS_SYSCALL_RESULT_2:
+		return true;
+	default:
+		return false;
+	}
+}
+
+
 uint32_t X86_SYMINSTR_NAME(Function)::GetSpecialRegisterAssignment(uint32_t reg)
 {
 	switch (reg)

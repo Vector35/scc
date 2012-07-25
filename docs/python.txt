@@ -11,7 +11,7 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	base=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
-	additional_options=None)
+	anti_disasm=False, anti_disasm_freq=None, additional_options=None)
 ---------------------------------------
 
 This function will return a tuple of two elements.  The first element is the compiled code, or `None` on compilation
@@ -80,6 +80,10 @@ register.  Using this option will significantly increase code size.
 The `include_dirs` specifies additional include directories, and should be a list of strings.
 
 The `align` parameter, if specified, provides the minimum alignment of the output in bytes.
+
+If the `anti_disasm` parameter is `True`, the compiler will emit anti-disassembly sequences in the output.  The frequency
+of the anti-disassembly sequences can be specified with the `anti_disasm_freq` parameter, which specifies the average
+number of operations between sequences.
 
 The `additional_options` parameter can hold a list of additional link:scc.html[command line arguments].
 

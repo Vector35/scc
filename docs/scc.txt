@@ -16,6 +16,8 @@ Options:
                                       Can be: x86 (default), x64
     --align <boundary>                Ensure output is aligned on the given boundary
     --allow-return                    Allow return from shellcode (default is to exit)
+    --anti-disasm                     Generate anti-disassembly blocks
+    --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> instructions
     --base <expr>                     Set base address of output (can be a runtime computed
                                       expression, such as "[eax+8]-12")
     --blacklist <byte>                Blacklist the given byte value

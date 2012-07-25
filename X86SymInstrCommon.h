@@ -812,8 +812,11 @@ public:
 
 class X86_SYMINSTR_CLASS(Syscall): public X86_SYMINSTR_NAME(Instr)
 {
+	std::vector<uint32_t> m_spilledRegs;
+
 public:
-	X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs);
+	X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs,
+		const std::vector<uint32_t> spilledRegs);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -821,8 +824,11 @@ public:
 
 class X86_SYMINSTR_CLASS(SyscallInt80): public X86_SYMINSTR_NAME(Instr)
 {
+	std::vector<uint32_t> m_spilledRegs;
+
 public:
-	X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs);
+	X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs,
+		const std::vector<uint32_t> spilledRegs);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -879,14 +885,16 @@ public:
 class X86_SYMINSTR_NAME(Function): public SymInstrFunction
 {
 public:
-	X86_SYMINSTR_NAME(Function)(const Settings& settings);
+	X86_SYMINSTR_NAME(Function)(const Settings& settings, Function* func);
 	virtual std::vector<uint32_t> GetCallerSavedRegisters();
 	virtual std::vector<uint32_t> GetCalleeSavedRegisters();
 	virtual std::set<uint32_t> GetRegisterClassInterferences(uint32_t cls);
 	virtual bool IsRegisterClassFixed(uint32_t cls);
 	virtual uint32_t GetFixedRegisterForClass(uint32_t cls);
 	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg);
-	virtual void AdjustStackFrame();
+	virtual bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls);
+	virtual size_t GetNativeSize();
+	virtual void LayoutStackFrame();
 	virtual bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type, std::vector<SymInstr*>& code);
 	virtual bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type, std::vector<SymInstr*>& code);
 	virtual void PrintRegisterClass(uint32_t cls);
@@ -917,8 +925,10 @@ SymInstr* X86_SYMINSTR_NAME(JumpRelative)(Function* func, ILBlock* block);
 SymInstr* X86_SYMINSTR_NAME(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
 SymInstr* X86_SYMINSTR_NAME(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
 SymInstr* X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
-SymInstr* X86_SYMINSTR_NAME(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs);
-SymInstr* X86_SYMINSTR_NAME(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs);
+SymInstr* X86_SYMINSTR_NAME(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t>& readRegs,
+	const std::vector<uint32_t>& spilledRegs);
+SymInstr* X86_SYMINSTR_NAME(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t>& readRegs,
+	const std::vector<uint32_t>& spilledRegs);
 SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax);
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b);
 SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)();

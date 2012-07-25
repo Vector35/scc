@@ -3711,25 +3711,8 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 	}
 	else
 	{
-		if (m_stackFrameSize != 0)
-		{
-			if (m_settings.stackGrowsUp)
-			{
-#ifdef OUTPUT32
-				EMIT_RI(sub_32, SYMREG_SP, m_stackFrameSize);
-#else
-				EMIT_RI(sub_64, SYMREG_SP, m_stackFrameSize);
-#endif
-			}
-			else
-			{
-#ifdef OUTPUT32
-				EMIT_RI(add_32, SYMREG_SP, m_stackFrameSize);
-#else
-				EMIT_RI(add_64, SYMREG_SP, m_stackFrameSize);
-#endif
-			}
-		}
+		// TODO: Support frames without a frame pointer
+		return false;
 	}
 
 	out->AddInstruction(X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)());
@@ -4225,8 +4208,8 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		uint32_t resultReg2 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2);
 		uint32_t ecx = m_symFunc->AddRegister(X86REGCLASS_ECX);
 
-		vector<uint32_t> readRegs; // Parameters are passed in on stack, so no read registers
-		out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs));
+		vector<uint32_t> readRegs, spilledRegs; // Parameters are passed in on stack, so no read registers
+		out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
 		out->AddInstruction(X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(resultReg1));
 
 		// Adjust stack pointer to pop off parameters
@@ -4262,6 +4245,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		X86REGCLASS_SYSCALL_PARAM_3, X86REGCLASS_SYSCALL_PARAM_4, X86REGCLASS_SYSCALL_PARAM_5, X86REGCLASS_SYSCALL_PARAM_6};
 
 	vector<uint32_t> readRegs;
+	vector<uint32_t> spilledRegs;
 	size_t regIndex = 0;
 	for (size_t i = destCount; i < instr.params.size(); i++)
 	{
@@ -4282,36 +4266,70 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		if (!PrepareLoad(out, instr.params[i], cur))
 			return false;
 
+		uint32_t regClass, highRegClass;
 #ifdef OUTPUT32
-		uint32_t reg, highReg;
 		if (instr.params[i].GetWidth() == 8)
 		{
-			reg = m_symFunc->AddRegister(regs[regIndex++]);
-			highReg = m_symFunc->AddRegister(regs[regIndex++]);
-			readRegs.push_back(reg);
-			readRegs.push_back(highReg);
+			regClass = regs[regIndex++];
+			highRegClass = regs[regIndex++];
 		}
 		else
 		{
-			reg = m_symFunc->AddRegister(regs[regIndex++]);
-			highReg = SYMREG_NONE;
-			readRegs.push_back(reg);
+			regClass = regs[regIndex++];
+			highRegClass = SYMREG_NONE;
 		}
 #else
-		uint32_t reg = m_symFunc->AddRegister(regs[regIndex++]);
-		readRegs.push_back(reg);
+		regClass = regs[regIndex++];
+		highRegClass = SYMREG_NONE;
 #endif
 
-		OperandReference dest;
-		dest.type = OPERANDREF_REG;
-		dest.width = cur.width;
-		dest.reg = reg;
-#ifdef OUTPUT32
-		dest.highReg = highReg;
-#endif
+		if (((regClass != SYMREG_NONE) && (m_symFunc->DoesRegisterClassConflictWithSpecialRegisters(regClass))) ||
+			((highRegClass != SYMREG_NONE) && (m_symFunc->DoesRegisterClassConflictWithSpecialRegisters(highRegClass))))
+		{
+			// Target register conflicts with stack or frame pointer, must use stack until ready for syscall
+			uint32_t reg, highReg = SYMREG_NONE;
+			reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+			spilledRegs.push_back(regClass);
+			if (highRegClass != SYMREG_NONE)
+			{
+				highReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+				spilledRegs.push_back(highRegClass);
+			}
 
-		if (!Move(out, dest, cur))
-			return false;
+			OperandReference dest;
+			dest.type = OPERANDREF_REG;
+			dest.width = cur.width;
+			dest.reg = reg;
+			dest.highReg = highReg;
+
+			if (!Move(out, dest, cur))
+				return false;
+
+			EMIT_R(push, reg);
+			if (highReg != SYMREG_NONE)
+				EMIT_R(push, highReg);
+		}
+		else
+		{
+			// Parameter can be stored directly in the target register
+			uint32_t reg, highReg = SYMREG_NONE;
+			reg = m_symFunc->AddRegister(regClass);
+			readRegs.push_back(reg);
+			if (highRegClass != SYMREG_NONE)
+			{
+				highReg = m_symFunc->AddRegister(highRegClass);
+				readRegs.push_back(highReg);
+			}
+
+			OperandReference dest;
+			dest.type = OPERANDREF_REG;
+			dest.width = cur.width;
+			dest.reg = reg;
+			dest.highReg = highReg;
+
+			if (!Move(out, dest, cur))
+				return false;
+		}
 	}
 
 	uint32_t resultReg1 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_1);
@@ -4319,12 +4337,12 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 	uint32_t ecx = m_symFunc->AddRegister(X86REGCLASS_ECX);
 
 #ifdef OUTPUT32
-	out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs));
+	out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
 #else
 	if (m_settings.os == OS_FREEBSD)
-		out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs));
+		out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
 	else
-		out->AddInstruction(X86_SYMINSTR_NAME(Syscall)(resultReg1, resultReg2, ecx, readRegs));
+		out->AddInstruction(X86_SYMINSTR_NAME(Syscall)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
 #endif
 
 	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MAC))
@@ -4793,8 +4811,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	m_settings.stackPointer = DEFAULT_STACK_POINTER;
 	m_settings.basePointer = SYMREG_NONE;
 
-	// FIXME: There are bugs with ESP based addressing (pushing parameters on stack doesn't
-	// account for adjusted stack), so it is disabled for now
+	// TODO: Stack variable system does not yet support frames without a frame pointer
 	m_framePointerEnabled = true;
 
 #ifdef OUTPUT32
@@ -4832,7 +4849,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		m_normalStack = false;
 
 	// Initialize symbolic assembly function
-	X86_SYMINSTR_NAME(Function) symFunc(m_settings);
+	X86_SYMINSTR_NAME(Function) symFunc(m_settings, func);
 	m_func = func;
 	m_symFunc = &symFunc;
 
@@ -4842,71 +4859,12 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		m_settings.basePointer = symFunc.AddRegister(X86REGCLASS_INTEGER);
 
 	// Generate stack frame
-	uint32_t offset = 0;
-	m_stackFrame.clear();
 	for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
 	{
 		if ((*i)->IsParameter())
 			continue;
 
-		if ((offset & ((*i)->GetType()->GetAlignment() - 1)) != 0)
-			offset += (uint32_t)((*i)->GetType()->GetAlignment() - (offset & ((*i)->GetType()->GetAlignment() - 1)));
-		m_stackFrame[*i] = offset;
-		offset += (uint32_t)((*i)->GetType()->GetWidth());
-	}
-
-	// Ensure stack is aligned to natural boundary
-#ifdef OUTPUT32
-	if (offset & 3)
-		offset += 4 - (offset & 3);
-#else
-	if (offset & 7)
-		offset += 8 - (offset & 7);
-#endif
-
-	if (m_settings.stackGrowsUp)
-	{
-		for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
-		{
-			if ((*i)->IsParameter())
-				continue;
-
-#ifdef OUTPUT32
-			m_stackFrame[*i] -= offset - 4;
-#else
-			m_stackFrame[*i] -= offset - 8;
-#endif
-		}
-	}
-
-	m_stackFrameSize = offset;
-	if (m_stackFrameSize != 0)
-	{
-		// Because memory references with the stack pointer are one byte larger than those that
-		// access the frame pointer, enable the frame pointer if there are going to be any
-		// stack variable references
-		m_framePointerEnabled = true;
-	}
-
-	if (m_framePointerEnabled)
-	{
-		// Adjust variable offsets to be relative to the frame pointer (negative offsets)
-		for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
-		{
-			if (m_settings.stackGrowsUp)
-				i->second += m_stackFrameSize;
-			else
-				i->second -= m_stackFrameSize;
-		}
-	}
-
-	// Create symbolic assembly registers for the variables in this function
-	for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
-	{
-		m_stackVar[i->first] = m_symFunc->AddStackVar(i->second, i->first->GetType()->GetWidth(),
-			ILParameter::ReduceType(i->first->GetType()));
-
-		if ((i->first->GetType()->GetClass() != TYPE_STRUCT) && (i->first->GetType()->GetClass() != TYPE_ARRAY))
+		if (((*i)->GetType()->GetClass() != TYPE_STRUCT) && ((*i)->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			// If the variable has its address taken, it cannot be stored in a register
 			bool addressTaken = false;
@@ -4917,7 +4875,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				{
 					if (k->operation != ILOP_ADDRESS_OF)
 						continue;
-					if (k->params[1].variable == i->first)
+					if (k->params[1].variable == *i)
 					{
 						addressTaken = true;
 						break;
@@ -4926,26 +4884,35 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			}
 
 			if (addressTaken)
+			{
+				m_stackVar[*i] = m_symFunc->AddStackVar(0, false, (*i)->GetType()->GetWidth(),
+					ILParameter::ReduceType((*i)->GetType()));
 				continue;
+			}
 
 			// Variable can be stored in a register
 			uint32_t reg;
-			if (i->first->GetType()->GetClass() == TYPE_FLOAT)
-				reg = m_symFunc->AddRegister(X86REGCLASS_FLOAT, m_stackVar[i->first]);
-			else if (i->first->GetType()->GetWidth() == 1)
-				reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT, m_stackVar[i->first]);
+			if ((*i)->GetType()->GetClass() == TYPE_FLOAT)
+				reg = m_symFunc->AddRegister(X86REGCLASS_FLOAT, ILParameter::ReduceType((*i)->GetType()));
+			else if ((*i)->GetType()->GetWidth() == 1)
+				reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT, ILParameter::ReduceType((*i)->GetType()));
 			else
-				reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER, m_stackVar[i->first]);
-			m_varReg[i->first] = reg;
+				reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER, ILParameter::ReduceType((*i)->GetType()));
+			m_varReg[*i] = reg;
 
 			// 64-bit variables take two adjacent registers
-			if ((i->first->GetType()->GetWidth() == 8) && (i->first->GetType()->GetClass() != TYPE_FLOAT))
-				m_symFunc->AddRegister(X86REGCLASS_INTEGER, m_stackVar[i->first]);
+			if (((*i)->GetType()->GetWidth() == 8) && ((*i)->GetType()->GetClass() != TYPE_FLOAT))
+				m_symFunc->AddRegister(X86REGCLASS_INTEGER, ILParameter::ReduceType((*i)->GetType()), 4);
+		}
+		else
+		{
+			// Structures and arrays cannot be stored in a register
+			m_stackVar[*i] = m_symFunc->AddStackVar(0, false, (*i)->GetType()->GetWidth(), ILTYPE_VOID);
 		}
 	}
 
 	// Generate parameter offsets
-	offset = 0;
+	int64_t offset = 0;
 
 	if ((func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
@@ -4971,30 +4938,24 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 		// Allocate stack space for this parameter
 #ifdef OUTPUT32
-		if (m_framePointerEnabled)
-			m_stackFrame[*var] = offset + 8;
-		else
-			m_stackFrame[*var] = offset + m_stackFrameSize + 4;
+		int64_t paramOffset = offset + 4;
 #else
-		if (m_framePointerEnabled)
-			m_stackFrame[*var] = offset + 16;
-		else
-			m_stackFrame[*var] = offset + m_stackFrameSize + 8;
+		int64_t paramOffset = offset + 8;
 #endif
 
 		if (m_settings.stackGrowsUp)
 		{
-			m_stackFrame[*var] = -m_stackFrame[*var];
+			paramOffset = -paramOffset;
 #ifdef OUTPUT32
 			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
-			m_stackFrame[*var] += 4 - paramSize;
+			paramOffset += 4 - paramSize;
 #else
 			size_t paramSize = ((*var)->GetType()->GetWidth() + 7) & (~7);
-			m_stackFrame[*var] += 8 - paramSize;
+			paramOffset += 8 - paramSize;
 #endif
 		}
 
-		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var], (*var)->GetType()->GetWidth(),
+		m_stackVar[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),
 			ILParameter::ReduceType((*var)->GetType()));
 
 		// Adjust offset for next parameter
@@ -5031,33 +4992,47 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			{
 				// If using alternate stack pointer, and this is the _start function, initialize stack pointer
 				size_t stackAdjust = m_settings.stackGrowsUp ? -0x10000 : 0;
+
+#ifdef OUTPUT32
+				if (m_func->DoesReturn())
+					stackAdjust -= 4;
+#else
+				if (m_func->DoesReturn())
+					stackAdjust -= 8;
+#endif
+
 				EMIT_II(enter, 0, 0);
 #ifdef OUTPUT32
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_BP, -4 + stackAdjust));
 				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
-				EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
+				if (m_func->DoesReturn())
+					EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 				EMIT_RR(mov_32, SYMREG_BP, SYMREG_SP);
 #else
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_BP, -8 + stackAdjust));
 				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
-				EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
+				if (m_func->DoesReturn())
+					EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 				EMIT_RR(mov_64, SYMREG_BP, SYMREG_SP);
 #endif
 			}
 			else if (m_framePointerEnabled)
 			{
-				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
-				if (m_normalStack)
-					EMIT_R(push, SYMREG_BP);
-				else
+				if (m_func->DoesReturn())
 				{
+					out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
+					if (m_normalStack)
+						EMIT_R(push, SYMREG_BP);
+					else
+					{
 #ifdef OUTPUT32
-					EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
-					EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
+						EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
+						EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 #else
-					EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? 8 : -8));
-					EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
+						EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? 8 : -8));
+						EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 #endif
+					}
 				}
 
 #ifdef OUTPUT32
@@ -5066,30 +5041,15 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				EMIT_RR(mov_64, SYMREG_BP, SYMREG_SP);
 #endif
 			}
-			else
+			else if (m_func->DoesReturn())
 			{
 				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 			}
 
-			if (m_stackFrameSize != 0)
-			{
-				if (m_settings.stackGrowsUp)
-				{
-#ifdef OUTPUT32
-					EMIT_RI(add_32, SYMREG_SP, m_stackFrameSize);
-#else
-					EMIT_RI(add_64, SYMREG_SP, m_stackFrameSize);
-#endif
-				}
-				else
-				{
-#ifdef OUTPUT32
-					EMIT_RI(sub_32, SYMREG_SP, m_stackFrameSize);
-#else
-					EMIT_RI(sub_64, SYMREG_SP, m_stackFrameSize);
-#endif
-				}
-			}
+			if (m_settings.stackGrowsUp)
+				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_FRAME_SIZE, 0));
+			else
+				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_NEG_FRAME_SIZE, 0));
 
 #ifdef OUTPUT32
 			if (m_settings.positionIndependent)

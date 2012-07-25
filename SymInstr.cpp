@@ -22,7 +22,12 @@ void SymInstrOperand::Print(SymInstrFunction* f)
 		fprintf(stderr, "%lld", (long long)immed);
 		break;
 	case SYMOPERAND_STACK_VAR:
-		fprintf(stderr, "stack%d", reg);
+		if (reg == SYMVAR_FRAME_SIZE)
+			fprintf(stderr, "framesize");
+		else if (reg == SYMVAR_NEG_FRAME_SIZE)
+			fprintf(stderr, "negframesize");
+		else
+			fprintf(stderr, "stack%d", reg);
 		if (immed != 0)
 			fprintf(stderr, "+%lld", (long long)immed);
 		break;
@@ -297,7 +302,7 @@ void SymInstrBlock::Print(SymInstrFunction* func)
 }
 
 
-SymInstrFunction::SymInstrFunction(const Settings& settings): m_settings(settings)
+SymInstrFunction::SymInstrFunction(const Settings& settings, Function* func): m_settings(settings), m_function(func)
 {
 }
 
@@ -636,7 +641,7 @@ void SymInstrFunction::SplitRegisters()
 		for (size_t j = 1; j < sets; j++)
 		{
 			uint32_t fromReg = i->first;
-			uint32_t toReg = AddRegister(m_symRegClass[fromReg], m_symRegVar[fromReg], m_symRegOffset[fromReg]);
+			uint32_t toReg = AddRegister(m_symRegClass[fromReg], m_symRegType[fromReg], m_symRegOffset[fromReg], m_symRegVar[fromReg]);
 
 			for (size_t k = 0; k < i->second.size(); k++)
 			{
@@ -831,10 +836,21 @@ SymInstrBlock* SymInstrFunction::GetBlock(ILBlock* il) const
 }
 
 
-uint32_t SymInstrFunction::AddRegister(uint32_t cls, uint32_t var, int64_t offset)
+int64_t SymInstrFunction::GetStackVarOffset(uint32_t var) const
+{
+	if (var == SYMVAR_FRAME_SIZE)
+		return m_stackFrameSize;
+	if (var == SYMVAR_NEG_FRAME_SIZE)
+		return -m_stackFrameSize;
+	return m_stackVarOffsets[var];
+}
+
+
+uint32_t SymInstrFunction::AddRegister(uint32_t cls, ILParameterType type, int64_t offset, uint32_t var)
 {
 	uint32_t i = (uint32_t)m_symRegClass.size();
 	m_symRegClass.push_back(cls);
+	m_symRegType.push_back(type);
 	m_symRegVar.push_back(var);
 	m_symRegOffset.push_back(offset);
 	m_symRegAssignment.push_back(SYMREG_NONE); // Will be filled in by register allocator
@@ -848,10 +864,11 @@ void SymInstrFunction::AssignRegister(uint32_t reg, uint32_t native)
 }
 
 
-uint32_t SymInstrFunction::AddStackVar(int64_t offset, size_t width, ILParameterType type)
+uint32_t SymInstrFunction::AddStackVar(int64_t offset, bool param, size_t width, ILParameterType type)
 {
 	uint32_t i = (uint32_t)m_stackVarOffsets.size();
 	m_stackVarOffsets.push_back(offset);
+	m_stackVarIsParam.push_back(param);
 	m_stackVarWidths.push_back(width);
 	m_stackVarTypes.push_back(type);
 	return i;
@@ -1057,14 +1074,6 @@ bool SymInstrFunction::AllocateRegisters()
 					continue;
 				}
 
-				if (m_symRegVar[*i] == SYMREG_NONE)
-				{
-					// Let temporary variables that do not have a stack allocation get processed first, as they
-					// cannot yet be spilled
-					// TODO: Refactor stack variable system
-					continue;
-				}
-
 				if (pruned[*i].size() < realRegs.size())
 				{
 					// This node has less edges than the number of real registers, so it is proven that at
@@ -1089,14 +1098,6 @@ bool SymInstrFunction::AllocateRegisters()
 					if (m_alreadySpilled.count(toProcess[j]) != 0)
 					{
 						// Spilled registers will be processed first
-						continue;
-					}
-
-					if (m_symRegVar[toProcess[j]] == SYMREG_NONE)
-					{
-						// Let temporary variables that do not have a stack allocation get processed first, as they
-						// cannot yet be spilled
-						// TODO: Refactor stack variable system
 						continue;
 					}
 
@@ -1131,7 +1132,6 @@ bool SymInstrFunction::AllocateRegisters()
 			assignmentStack.push(*i);
 
 		// Assign registers
-		bool unassignedRegs = false;
 		while (!assignmentStack.empty())
 		{
 			uint32_t reg = assignmentStack.top();
@@ -1186,16 +1186,34 @@ bool SymInstrFunction::AllocateRegisters()
 			{
 				if (m_alreadySpilled.count(reg) != 0)
 				{
-					// Register was already spilled, generate error
-					fprintf(stderr, "error: trying to spill reg%d, which was already spilled\n", (int)reg);
-					return false;
-				}
+					// Register was already spilled, try to spill one of the registers this one interferes with instead
+					vector<uint32_t> regsToSpill;
 
-				if (m_symRegVar[reg] == SYMREG_NONE)
-				{
-					// Don't try to spill temporary registers yet
-					// TODO: Refactor stack variable system
-					unassignedRegs = true;
+					for (set<uint32_t>::iterator i = m_regInterference[reg].begin(); i != m_regInterference[reg].end(); i++)
+					{
+						if (SYMREG_IS_SPECIAL_REG(*i))
+							continue;
+						if (m_alreadySpilled.count(*i) != 0)
+							continue;
+						regsToSpill.push_back(*i);
+					}
+
+					if (regsToSpill.size() == 0)
+					{
+						fprintf(stderr, "error: nothing left to spill while trying to allocate reg%d\n", (int)reg);
+						return false;
+					}
+
+					uint32_t spillReg;
+					if (m_settings.polymorph)
+						spillReg = regsToSpill[rand() % regsToSpill.size()];
+					else
+						spillReg = regsToSpill[0];
+
+					if (m_settings.internalDebug)
+						fprintf(stderr, "Spilling reg%d\n", spillReg);
+					spill[spillReg] = true;
+					spillCount++;
 					continue;
 				}
 
@@ -1228,8 +1246,55 @@ bool SymInstrFunction::AllocateRegisters()
 				{
 					if (m_symRegVar[i] == SYMREG_NONE)
 					{
-						fprintf(stderr, "error: spilling reg%d without stack variable\n", (int)i);
-						return false;
+						// There is no stack variable for this register, create one now
+						ILParameterType type = m_symRegType[i];
+						if (type == ILTYPE_VOID)
+						{
+							// Register does not have an assigned type, use the size of a register
+							switch (GetNativeSize())
+							{
+							case 2:
+								type = ILTYPE_INT16;
+								break;
+							case 4:
+								type = ILTYPE_INT32;
+								break;
+							case 8:
+								type = ILTYPE_INT64;
+								break;
+							default:
+								fprintf(stderr, "error: invalid native size\n");
+								return false;
+							}
+						}
+
+						size_t width;
+						switch (type)
+						{
+						case ILTYPE_INT8:
+							width = 1;
+							break;
+						case ILTYPE_INT16:
+							width = 2;
+							break;
+						case ILTYPE_INT32:
+							width = 4;
+							break;
+						case ILTYPE_INT64:
+							width = 8;
+							break;
+						case ILTYPE_FLOAT:
+							width = 4;
+							break;
+						case ILTYPE_DOUBLE:
+							width = 8;
+							break;
+						default:
+							fprintf(stderr, "error: spilling reg%d with invalid type\n", (int)i);
+							return false;
+						}
+
+						m_symRegVar[i] = AddStackVar(0, false, width, type);
 					}
 
 					if (m_stackVarTypes[m_symRegVar[i]] == ILTYPE_VOID)
@@ -1250,12 +1315,6 @@ bool SymInstrFunction::AllocateRegisters()
 
 			// Restart register allocator after spilling
 			continue;
-		}
-
-		if (unassignedRegs)
-		{
-			fprintf(stderr, "error: register allocation of temporary variables failed\n");
-			return false;
 		}
 
 		// Determine set of callee saved registers that are clobbered
@@ -1314,6 +1373,9 @@ bool SymInstrFunction::AllocateRegisters()
 		m_exitReachingDefs.Reset(0, false);
 		m_defUseChains.clear();
 
+		// Generate the final stack frame layout
+		LayoutStackFrame();
+
 		// Replace instructions with the final forms.  For example, this step will generate code for saving and
 		// restoring callee saved registers onto the stack frame.
 		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
@@ -1328,8 +1390,6 @@ bool SymInstrFunction::AllocateRegisters()
 				}
 			}
 		}
-
-		AdjustStackFrame();
 		return true;
 	}
 }
@@ -1385,8 +1445,9 @@ void SymInstrFunction::Print()
 		fprintf(stderr, "\n");
 	}
 
+	fprintf(stderr, "\tstack frame size: %lld\n", (long long)m_stackFrameSize);
 	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
-		fprintf(stderr, "\tstack%d: %lld\n", (int)i, (long long)m_stackVarOffsets[i]);
+		fprintf(stderr, "\tstack%d: %lld size %lld\n", (int)i, (long long)m_stackVarOffsets[i], (long long)m_stackVarWidths[i]);
 
 	for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
 		(*i)->Print(this);

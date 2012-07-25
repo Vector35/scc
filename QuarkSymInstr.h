@@ -339,8 +339,9 @@ public:
 class QuarkAddStackInstr: public QuarkStackInstrBase
 {
 public:
-	QuarkAddStackInstr(uint32_t a, uint32_t b, uint32_t var, int64_t offset, uint32_t scratch);
+	QuarkAddStackInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t var, int64_t offset, uint32_t scratch);
 	virtual void Print(SymInstrFunction* func);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 };
 
 class QuarkAddGlobalInstr: public QuarkGlobalInstrBase
@@ -432,14 +433,16 @@ public:
 class QuarkSymInstrFunction: public SymInstrFunction
 {
 public:
-	QuarkSymInstrFunction(const Settings& settings);
+	QuarkSymInstrFunction(const Settings& settings, Function* func);
 	virtual std::vector<uint32_t> GetCallerSavedRegisters();
 	virtual std::vector<uint32_t> GetCalleeSavedRegisters();
 	virtual std::set<uint32_t> GetRegisterClassInterferences(uint32_t cls);
 	virtual bool IsRegisterClassFixed(uint32_t cls);
 	virtual uint32_t GetFixedRegisterForClass(uint32_t cls);
 	virtual uint32_t GetSpecialRegisterAssignment(uint32_t reg);
-	virtual void AdjustStackFrame();
+	virtual bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls);
+	virtual size_t GetNativeSize();
+	virtual void LayoutStackFrame();
 	virtual bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type, std::vector<SymInstr*>& code);
 	virtual bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type, std::vector<SymInstr*>& code);
 	virtual void PrintRegisterClass(uint32_t cls);
@@ -543,6 +546,7 @@ SymInstr* QuarkAddGlobal(uint32_t a, uint32_t b, int64_t offset, uint32_t scratc
 SymInstr* QuarkAddBlock(uint32_t a, uint32_t b, Function* func, ILBlock* block, uint32_t scratch);
 SymInstr* QuarkSub(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkSub(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkSubStack(uint32_t a, uint32_t b, uint32_t var, int64_t offset, uint32_t scratch);
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkSubx(uint32_t a, uint32_t b, uint32_t c, uint32_t s);

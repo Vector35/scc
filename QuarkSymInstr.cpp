@@ -487,9 +487,9 @@ QuarkXchgInstr::QuarkXchgInstr(uint32_t a, uint32_t b)
 }
 
 
-QuarkAddStackInstr::QuarkAddStackInstr(uint32_t a, uint32_t b, uint32_t var, int64_t offset, uint32_t scratch)
+QuarkAddStackInstr::QuarkAddStackInstr(uint32_t op, uint32_t a, uint32_t b, uint32_t var, int64_t offset, uint32_t scratch)
 {
-	SetOperation(0x18);
+	SetOperation(op);
 	AddWriteRegisterOperand(a);
 	AddReadRegisterOperand(b);
 	AddStackVarOperand(var, offset);
@@ -628,7 +628,7 @@ bool Quark4OpInstr::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 
 bool QuarkStackInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
 {
-	int32_t offset = (int32_t)(func->GetStackVars()[m_operands[2].reg] + m_operands[2].immed);
+	int32_t offset = (int32_t)(func->GetStackVarOffset(m_operands[2].reg) + m_operands[2].immed);
 	if ((offset >= -0x400) && (offset <= 0x3ff))
 		out->WriteUInt32(__QUARK_IMM11(m_operation, m_operands[0].reg & 31, m_operands[1].reg & 31, offset));
 	else if ((offset >= -0x10000) && (offset <= 0xffff))
@@ -643,6 +643,16 @@ bool QuarkStackInstrBase::EmitInstruction(SymInstrFunction* func, OutputBlock* o
 		out->WriteUInt32(__QUARK_INSTR(m_operation, m_operands[0].reg & 31, m_operands[1].reg & 31, m_operands[3].reg & 31, 0));
 	}
 	return true;
+}
+
+
+bool QuarkAddStackInstr::UpdateInstruction(SymInstrFunction* func, const Settings& settings, vector<SymInstr*>& replacement)
+{
+	// Delete the instruction if it has no effect
+	int32_t offset = (int32_t)(func->GetStackVarOffset(m_operands[2].reg) + m_operands[2].immed);
+	if ((m_operands[0].reg == m_operands[1].reg) && (offset == 0))
+		return true;
+	return false;
 }
 
 
@@ -861,7 +871,7 @@ bool QuarkAntiDisassemblyInstr::EmitInstruction(SymInstrFunction* func, OutputBl
 }
 
 
-QuarkSymInstrFunction::QuarkSymInstrFunction(const Settings& settings): SymInstrFunction(settings)
+QuarkSymInstrFunction::QuarkSymInstrFunction(const Settings& settings, Function* func): SymInstrFunction(settings, func)
 {
 }
 
@@ -1728,8 +1738,66 @@ uint32_t QuarkSymInstrFunction::GetSpecialRegisterAssignment(uint32_t reg)
 }
 
 
-void QuarkSymInstrFunction::AdjustStackFrame()
+bool QuarkSymInstrFunction::DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls)
 {
+	return false;
+}
+
+
+size_t QuarkSymInstrFunction::GetNativeSize()
+{
+	return 4;
+}
+
+
+void QuarkSymInstrFunction::LayoutStackFrame()
+{
+	// Lay out stack variables
+	int64_t offset = 0;
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+
+		int64_t align = 1;
+		if (m_stackVarWidths[i] >= 4)
+			align = 4;
+		else if (m_stackVarWidths[i] >= 2)
+			align = 2;
+
+		if ((offset & (align - 1)) != 0)
+			offset += align - (offset & (align - 1));
+
+		m_stackVarOffsets[i] = offset;
+		offset += m_stackVarWidths[i];
+	}
+
+	// Ensure stack stays aligned on native boundary
+	if (offset & 3)
+		offset += 4 - (offset & 3);
+
+	m_stackFrameSize = offset;
+
+	// Adjust variable offsets to be relative to the frame pointer (negative offsets)
+	if (m_settings.stackGrowsUp)
+	{
+		for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+		{
+			if (!m_stackVarIsParam[i])
+				m_stackVarOffsets[i] -= offset;
+		}
+	}
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] += m_stackFrameSize;
+		else
+			m_stackVarOffsets[i] -= m_stackFrameSize;
+	}
+
 	// Analyze callee saved registers
 	uint32_t min = 29;
 	for (vector<uint32_t>::iterator i = m_clobberedCalleeSavedRegs.begin(); i != m_clobberedCalleeSavedRegs.end(); i++)
@@ -1746,18 +1814,15 @@ void QuarkSymInstrFunction::AdjustStackFrame()
 	else
 		adjust = (31 - min) * 4;
 
-	for (vector<int64_t>::iterator i = m_stackVarOffsets.begin(); i != m_stackVarOffsets.end(); i++)
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
 	{
+		if (!m_stackVarIsParam[i])
+			continue;
+
 		if (m_settings.stackGrowsUp)
-		{
-			if (*i <= 0)
-				*i -= adjust;
-		}
+			m_stackVarOffsets[i] -= adjust;
 		else
-		{
-			if (*i >= 0)
-				*i += adjust;
-		}
+			m_stackVarOffsets[i] += adjust;
 	}
 }
 
@@ -1981,11 +2046,12 @@ SymInstr* QuarkSyscallImmed(int32_t immed, const vector<uint32_t>& writes, const
 
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpInstr(0x18, a, b, c, s); }
 SymInstr* QuarkAdd(uint32_t a, uint32_t b, int32_t immed) { return new Quark3OpInstr(0x18, a, b, immed); }
-SymInstr* QuarkAddStack(uint32_t a, uint32_t b, uint32_t var, int64_t o, uint32_t scratch) { return new QuarkAddStackInstr(a, b, var, o, scratch); }
+SymInstr* QuarkAddStack(uint32_t a, uint32_t b, uint32_t var, int64_t o, uint32_t scratch) { return new QuarkAddStackInstr(0x18, a, b, var, o, scratch); }
 SymInstr* QuarkAddGlobal(uint32_t a, uint32_t b, int64_t offset, uint32_t scratch) { return new QuarkAddGlobalInstr(a, b, offset, scratch); }
 SymInstr* QuarkAddBlock(uint32_t a, uint32_t b, Function* func, ILBlock* block, uint32_t scratch) { return new QuarkAddBlockInstr(a, b, func, block, scratch); }
 SymInstr* QuarkSub(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpInstr(0x19, a, b, c, s); }
 SymInstr* QuarkSub(uint32_t a, uint32_t b, int32_t immed) { return new Quark3OpInstr(0x19, a, b, immed); }
+SymInstr* QuarkSubStack(uint32_t a, uint32_t b, uint32_t var, int64_t o, uint32_t scratch) { return new QuarkAddStackInstr(0x19, a, b, var, o, scratch); }
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpExInstr(0x1a, a, b, c, s); }
 SymInstr* QuarkAddx(uint32_t a, uint32_t b, int32_t immed) { return new Quark3OpExInstr(0x1a, a, b, immed); }
 SymInstr* QuarkSubx(uint32_t a, uint32_t b, uint32_t c, uint32_t s) { return new Quark3OpExInstr(0x1b, a, b, c, s); }

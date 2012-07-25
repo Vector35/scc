@@ -1343,7 +1343,7 @@ bool SymInstrFunction::AllocateRegisters()
 					if (k->reg == SYMREG_NONE)
 						continue;
 
-					uint32_t newReg;
+					uint32_t newReg = SYMREG_NONE;
 					if (k->reg >= SYMREG_MIN_SPECIAL_REG)
 						newReg = GetSpecialRegisterAssignment(k->reg);
 					else if (k->reg < m_symRegClass.size())

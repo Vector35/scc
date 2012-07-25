@@ -355,6 +355,8 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 		ref.reg = m_varReg[param.variable];
 		if ((!param.IsFloat()) && (param.variable->GetType()->GetWidth() == 8))
 			ref.highReg = ref.reg + 1;
+		else
+			ref.highReg = SYMREG_NONE;
 		return true;
 	}
 
@@ -1776,6 +1778,10 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(SymInstrBlock* out, const ILInstructi
 		temp.type = OPERANDREF_REG;
 		temp.width = a.width;
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#ifdef OUTPUT32
+		if (temp.width == 8)
+			temp.highReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#endif
 		if (!Move(out, temp, b))
 			return false;
 		b = temp;
@@ -1846,6 +1852,10 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(SymInstrBlock* out, const ILInstruc
 		temp.type = OPERANDREF_REG;
 		temp.width = a.width;
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#ifdef OUTPUT32
+		if (temp.width == 8)
+			temp.highReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#endif
 		if (!Move(out, temp, b))
 			return false;
 		b = temp;
@@ -3533,15 +3543,16 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(SymInstrBlock* out, const ILInst
 		{
 			if (dest.type == OPERANDREF_REG)
 			{
-				EMIT_RR(mov_32, dest.reg, src.reg);
+				if (src.type == OPERANDREF_REG)
+					EMIT_RR(mov_32, dest.reg, src.reg);
+				else
+					EMIT_RM(mov_32, dest.reg, X86_MEM_REF(src.mem));
 				EMIT_RR(xor_32, dest.highReg, dest.highReg);
 			}
 			else
 			{
 				if (src.type == OPERANDREF_REG)
-				{
 					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), src.reg);
-				}
 				else
 				{
 					uint32_t tmp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);

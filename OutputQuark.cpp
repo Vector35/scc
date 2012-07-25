@@ -312,7 +312,7 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		ref.type = OPERANDREF_REG;
 		ref.sign = true;
 		ref.width = param.GetWidth();
-		ref.reg = SYMREG_ANY;
+		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		return true;
 	default:
 		return false;
@@ -2065,12 +2065,10 @@ bool OutputQuark::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& in
 	{
 		out->AddInstruction(QuarkMov(SYMREG_SP, SYMREG_BP, 0));
 	}
-	else if (m_stackFrameSize != 0)
+	else
 	{
-		if (m_settings.stackGrowsUp)
-			SubImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
-		else
-			AddImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
+		// TODO: Support frames without a frame pointer
+		return false;
 	}
 
 	out->AddInstruction(QuarkRestoreCalleeSavedRegs());
@@ -2286,6 +2284,12 @@ bool OutputQuark::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 	vector<ILInstruction>::iterator i;
 	for (i = block->GetInstructions().begin(); i != block->GetInstructions().end(); i++)
 	{
+		if (m_settings.antiDisasm && ((rand() % m_settings.antiDisasmFrequency) == 0))
+		{
+			uint32_t reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+			out->AddInstruction(QuarkAntiDisassembly(reg));
+		}
+
 		bool end = false;
 		switch (i->operation)
 		{
@@ -2509,7 +2513,7 @@ fail:
 
 bool OutputQuark::GenerateCode(Function* func)
 {
-	QuarkSymInstrFunction symFunc;
+	QuarkSymInstrFunction symFunc(m_settings, func);
 	m_func = func;
 	m_symFunc = &symFunc;
 
@@ -2521,66 +2525,16 @@ bool OutputQuark::GenerateCode(Function* func)
 
 	symFunc.InitializeBlocks(func);
 
-	if (func->IsVariableSizedStackFrame())
-		m_framePointerEnabled = true;
-	else
-		m_framePointerEnabled = false;
+	// TODO: Stack variable system does not yet support frames without a frame pointer
+	m_framePointerEnabled = true;
 
 	// Generate stack frame
-	uint32_t offset = 0;
-	m_stackFrame.clear();
 	for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
 	{
 		if ((*i)->IsParameter())
 			continue;
 
-		if ((offset & ((*i)->GetType()->GetAlignment() - 1)) != 0)
-			offset += (uint32_t)((*i)->GetType()->GetAlignment() - (offset & ((*i)->GetType()->GetAlignment() - 1)));
-		m_stackFrame[*i] = offset;
-		offset += (uint32_t)((*i)->GetType()->GetWidth());
-	}
-
-	// Ensure stack is aligned to natural boundary
-	if (offset & 3)
-		offset += 4 - (offset & 3);
-
-	if (m_settings.stackGrowsUp)
-	{
-		for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
-		{
-			if ((*i)->IsParameter())
-				continue;
-
-#ifdef OUTPUT32
-			m_stackFrame[*i] -= offset - 4;
-#else
-			m_stackFrame[*i] -= offset - 8;
-#endif
-		}
-	}
-
-	m_stackFrameSize = offset;
-	if (m_stackFrameSize != 0)
-		m_framePointerEnabled = true;
-
-	if (m_framePointerEnabled)
-	{
-		// Adjust variable offsets to be relative to the frame pointer (negative offsets)
-		for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
-		{
-			if (m_settings.stackGrowsUp)
-				i->second += m_stackFrameSize;
-			else
-				i->second -= m_stackFrameSize;
-		}
-	}
-
-	// Create symbolic assembly registers for the variables in this function
-	for (map<Variable*, int32_t>::iterator i = m_stackFrame.begin(); i != m_stackFrame.end(); i++)
-	{
-		m_stackVar[i->first] = m_symFunc->AddStackVar(i->second);
-
-		if ((i->first->GetType()->GetClass() != TYPE_STRUCT) && (i->first->GetType()->GetClass() != TYPE_ARRAY))
+		if (((*i)->GetType()->GetClass() != TYPE_STRUCT) && ((*i)->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			// If the variable has its address taken, it cannot be stored in a register
 			bool addressTaken = false;
@@ -2591,7 +2545,7 @@ bool OutputQuark::GenerateCode(Function* func)
 				{
 					if (k->operation != ILOP_ADDRESS_OF)
 						continue;
-					if (k->params[1].variable == i->first)
+					if (k->params[1].variable == *i)
 					{
 						addressTaken = true;
 						break;
@@ -2600,21 +2554,30 @@ bool OutputQuark::GenerateCode(Function* func)
 			}
 
 			if (addressTaken)
+			{
+				m_stackVar[*i] = m_symFunc->AddStackVar(0, false, (*i)->GetType()->GetWidth(),
+					ILParameter::ReduceType((*i)->GetType()));
 				continue;
+			}
 
 			// Variable can be stored in a register
-			uint32_t reg = m_symFunc->AddRegister((i->first->GetType()->GetClass() == TYPE_FLOAT) ?
-				QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER, i->second);
-			m_varReg[i->first] = reg;
+			uint32_t reg = m_symFunc->AddRegister(((*i)->GetType()->GetClass() == TYPE_FLOAT) ?
+				QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER, ILParameter::ReduceType((*i)->GetType()));
+			m_varReg[*i] = reg;
 
 			// 64-bit variables take two adjacent registers
-			if ((i->first->GetType()->GetWidth() == 8) && (i->first->GetType()->GetClass() != TYPE_FLOAT))
-				m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, i->second);
+			if (((*i)->GetType()->GetWidth() == 8) && ((*i)->GetType()->GetClass() != TYPE_FLOAT))
+				m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, ILParameter::ReduceType((*i)->GetType()), 4);
+		}
+		else
+		{
+			// Structures and arrays cannot be stored in a register
+			m_stackVar[*i] = m_symFunc->AddStackVar(0, false, (*i)->GetType()->GetWidth(), ILTYPE_VOID);
 		}
 	}
 
 	// Generate parameter offsets
-	offset = 0;
+	int64_t offset = 0;
 
 	if ((func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
@@ -2639,19 +2602,17 @@ bool OutputQuark::GenerateCode(Function* func)
 		}
 
 		// Allocate stack space for this parameter
-		if (m_framePointerEnabled)
-			m_stackFrame[*var] = offset;
-		else
-			m_stackFrame[*var] = offset + m_stackFrameSize;
+		int64_t paramOffset = offset;
 
 		if (m_settings.stackGrowsUp)
 		{
-			m_stackFrame[*var] = -m_stackFrame[*var];
+			paramOffset = -paramOffset;
 			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
-			m_stackFrame[*var] += 4 - paramSize;
+			paramOffset += 4 - paramSize;
 		}
 
-		m_stackVar[*var] = m_symFunc->AddStackVar(m_stackFrame[*var]);
+		m_stackVar[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),
+			ILParameter::ReduceType((*var)->GetType()));
 
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();
@@ -2678,10 +2639,11 @@ bool OutputQuark::GenerateCode(Function* func)
 			{
 				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 				out->AddInstruction(QuarkMov(SYMREG_BP, SYMREG_SP, 0));
+				uint32_t temp = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 				if (m_settings.stackGrowsUp)
-					AddImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
+					out->AddInstruction(QuarkAddStack(SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp));
 				else
-					SubImm(out, SYMREG_SP, SYMREG_SP, m_stackFrameSize);
+					out->AddInstruction(QuarkSubStack(SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp));
 			}
 			else
 			{
@@ -2695,8 +2657,11 @@ bool OutputQuark::GenerateCode(Function* func)
 			return false;
 	}
 
+	if (m_settings.internalDebug)
+		fprintf(stderr, "\n%s:\n", func->GetName().c_str());
+
 	// Allocate registers for symbolic code to produce final assembly
-	if (!m_symFunc->AllocateRegisters(m_settings))
+	if (!m_symFunc->AllocateRegisters())
 	{
 		if (m_settings.internalDebug)
 		{

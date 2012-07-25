@@ -73,7 +73,6 @@ class OutputQuark: public Output
 	std::map<Variable*, int32_t> m_stackFrame;
 	std::map<Variable*, int32_t> m_stackVar;
 	std::map<Variable*, uint32_t> m_varReg;
-	uint32_t m_stackFrameSize;
 	bool m_framePointerEnabled;
 	ILBlock* m_currentBlock;
 

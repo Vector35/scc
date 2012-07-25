@@ -53,6 +53,8 @@ void Usage()
 	fprintf(stderr, "                                      Can be: x86 (default), x64\n");
 	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
+	fprintf(stderr, "    --anti-disasm                     Generate anti-disassembly blocks\n");
+	fprintf(stderr, "    --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> instructions\n");
 	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
 	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
 	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
@@ -74,7 +76,6 @@ void Usage()
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
 	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
 	fprintf(stderr, "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
-	fprintf(stderr, "    --multi-stage                     Compile code to be used in multi-stage execution\n");
 	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
 	fprintf(stderr, "    -O0                               Do not run the optimizer\n");
 	fprintf(stderr, "    -Os                               Try to generate the smallest code possible\n");
@@ -138,7 +139,8 @@ int main(int argc, char* argv[])
 	settings.sharedLibrary = false;
 	settings.polymorph = false;
 	settings.mixedMode = false;
-	settings.multiStage = false;
+	settings.antiDisasm = false;
+	settings.antiDisasmFrequency = DEFAULT_ANTIDISASM_FREQUENCY;
 	settings.seed = 0;
 	settings.positionIndependent = true;
 	settings.base = 0;
@@ -214,12 +216,12 @@ int main(int argc, char* argv[])
 			settings.allowReturn = true;
 			continue;
 		}
-		else if (!strcmp(argv[i], "--concat"))
+		else if (!strcmp(argv[i], "--anti-disasm"))
 		{
-			settings.concat = true;
+			settings.antiDisasm = true;
 			continue;
 		}
-		else if (!strcmp(argv[i], "--base-reg"))
+		else if (!strcmp(argv[i], "--anti-disasm-freq"))
 		{
 			if ((i + 1) >= argc)
 			{
@@ -228,7 +230,17 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.baseReg = argv[i];
+			settings.antiDisasmFrequency = atoi(argv[i]);
+			if (settings.antiDisasmFrequency == 0)
+			{
+				fprintf(stderr, "error: invalid anti-disassembly frequency\n");
+				return 1;
+			}
+			continue;
+		}
+		else if (!strcmp(argv[i], "--concat"))
+		{
+			settings.concat = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--blacklist"))
@@ -310,7 +322,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.frameReg = argv[i];
+			settings.frameRegName = argv[i];
 			continue;
 		}
 		else if ((!strcmp(argv[i], "--format")) || (!strcmp(argv[i], "-f")))
@@ -420,11 +432,6 @@ int main(int argc, char* argv[])
 			settings.mixedMode = true;
 			continue;
 		}
-		else if (!strcmp(argv[i], "--multi-stage"))
-		{
-			settings.multiStage = true;
-			continue;
-		}
 		else if (!strcmp(argv[i], "--pad"))
 		{
 			pad = true;
@@ -518,7 +525,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.returnReg = argv[i];
+			settings.returnRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--return-high-reg"))
@@ -530,7 +537,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.returnHighReg = argv[i];
+			settings.returnHighRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--seed"))
@@ -565,7 +572,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			settings.stackReg = argv[i];
+			settings.stackRegName = argv[i];
 			continue;
 		}
 		else if (!strcmp(argv[i], "--stdin"))
@@ -600,7 +607,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize random seed if one is needed
-	if (settings.polymorph || settings.mixedMode || pad)
+	if (settings.polymorph || settings.mixedMode || settings.antiDisasm || pad)
 	{
 		if (!useSpecificSeed)
 		{

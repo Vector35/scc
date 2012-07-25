@@ -18,7 +18,6 @@ Options:
     --allow-return                    Allow return from shellcode (default is to exit)
     --base <expr>                     Set base address of output (can be a runtime computed
                                       expression, such as "[eax+8]-12")
-    --base-reg <reg>                  Global register that will hold base of code
     --blacklist <byte>                Blacklist the given byte value
     --concat                          Jump to end of output on return for concatenating code
     --decoder <source>                Use decoder to decode shellcode before executing
@@ -37,7 +36,6 @@ Options:
     --map <file>                      Generate map file
     --max-length <value>              Do not let output size exceed given number of bytes
     --mixed-mode                      Randomly choose subarchitecture for each function
-    --multi-stage                     Compile code to be used in multi-stage execution
     -o <filename>                     Set output filename (default is hex dump to stdout)
     -O0                               Do not run the optimizer
     -Os                               Try to generate the smallest code possible

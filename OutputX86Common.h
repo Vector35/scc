@@ -22,15 +22,23 @@
 
 #include <map>
 #include "Output.h"
-#include "asmx86.h"
+#include "SymInstr.h"
+
+
+#ifdef OUTPUT32
+class X86Sym_Function;
+#else
+class X64Sym_Function;
+#endif
 
 
 class OUTPUT_CLASS_NAME: public Output
 {
 	struct X86MemoryReference
 	{
-		asmx86::OperandType base, index;
+		uint32_t base, index;
 		uint8_t scale;
+		uint32_t var;
 		ssize_t offset;
 	};
 
@@ -49,8 +57,8 @@ class OUTPUT_CLASS_NAME: public Output
 		{
 			struct
 			{
-				asmx86::OperandType reg;
-				asmx86::OperandType highReg;
+				uint32_t reg;
+				uint32_t highReg;
 			};
 			X86MemoryReference mem;
 			int64_t immed;
@@ -86,112 +94,101 @@ class OUTPUT_CLASS_NAME: public Output
 		USAGE_INDEX
 	};
 
+	Function* m_func;
+#ifdef OUTPUT32
+	X86Sym_Function* m_symFunc;
+#else
+	X64Sym_Function* m_symFunc;
+#endif
 	std::map<Variable*, int32_t> m_stackFrame;
-	uint32_t m_stackFrameSize;
+	std::map<Variable*, int32_t> m_stackVar;
+	std::map<Variable*, uint32_t> m_varReg;
 	bool m_framePointerEnabled;
-	asmx86::OperandType m_stackPointer, m_origStackPointer;
-	asmx86::OperandType m_framePointer, m_origFramePointer;
-	asmx86::OperandType m_basePointer, m_origBasePointer;
 	bool m_normalStack;
 	ILBlock* m_currentBlock;
 
-	asmx86::OperandType m_temporaryRegisters[16];
-	size_t m_maxTemporaryRegisters;
-	bool m_alloc[16];
-	bool m_reserved[16];
+	uint32_t GetRegisterByName(const std::string& name);
 
-	asmx86::OperandType GetRegisterOfSize(asmx86::OperandType base, size_t size);
-	bool IsRegisterValid(asmx86::OperandType reg);
-	bool IsValidIndexRegister(asmx86::OperandType reg);
-	asmx86::OperandType AllocateTemporaryRegister(OutputBlock* out, size_t size, RegisterUsageType usage = USAGE_NORMAL);
-	void ReserveRegisters(OutputBlock* out, ...);
-	void ClearReservedRegisters(OutputBlock* out);
-	asmx86::OperandType GetRegisterByName(const std::string& name);
+	void GetDataAddressFromInstructionPointer(SymInstrBlock* out, uint32_t reg, int64_t offset);
+	void GetCodeAddressFromInstructionPointer(SymInstrBlock* out, uint32_t reg, Function* func, ILBlock* block);
+	bool AccessVariableStorage(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
+	bool LoadCodePointer(SymInstrBlock* out, Function* func, ILBlock* block, OperandReference& ref);
+	bool PrepareLoad(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
+	bool PrepareStore(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
 
-	static void LeaOverflowHandler(OutputBlock* out, Relocation& reloc);
-	static void BaseRelativeLeaOverflowHandler(OutputBlock* out, Relocation& reloc);
-	static void ConditionalJumpOverflowHandler(OutputBlock* out, Relocation& reloc);
-	static void UnconditionalJumpOverflowHandler(OutputBlock* out, Relocation& reloc);
-
-	size_t GetInstructionPointer(OutputBlock* out, asmx86::OperandType reg);
-	bool AccessVariableStorage(OutputBlock* out, const ILParameter& param, X86MemoryReference& ref);
-	bool LoadCodePointer(OutputBlock* out, ILBlock* block, OperandReference& ref);
-	bool PrepareLoad(OutputBlock* out, const ILParameter& param, OperandReference& ref);
-	bool PrepareStore(OutputBlock* out, const ILParameter& param, OperandReference& ref);
-
-	bool Move(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool Add(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool Sub(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool And(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool Or(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool Xor(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool ShiftLeft(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool ShiftRightUnsigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool ShiftRightSigned(OutputBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool Neg(OutputBlock* out, const OperandReference& dest);
-	bool Not(OutputBlock* out, const OperandReference& dest);
-	bool Increment(OutputBlock* out, const OperandReference& dest);
-	bool Decrement(OutputBlock* out, const OperandReference& dest);
-	void ConditionalJump(OutputBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
-	void UnconditionalJump(OutputBlock* out, ILBlock* block, bool canOmit = true);
+	bool Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Add(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Sub(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool And(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Or(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Xor(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftLeft(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftRightUnsigned(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftRightSigned(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool Neg(SymInstrBlock* out, const OperandReference& dest);
+	bool Not(SymInstrBlock* out, const OperandReference& dest);
+	bool Increment(SymInstrBlock* out, const OperandReference& dest);
+	bool Decrement(SymInstrBlock* out, const OperandReference& dest);
+	void ConditionalJump(SymInstrBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
+	void UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit = true);
 #ifdef OUTPUT32
-	bool Mult64(OutputBlock* out, const OperandReference& dest, const OperandReference& a, const OperandReference& b);
+	bool Mult64(SymInstrBlock* out, const OperandReference& dest, const OperandReference& a, const OperandReference& b);
 #endif
 
-	bool GenerateAssign(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateAddressOf(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateAddressOfMember(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateDeref(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateDerefMember(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateDerefAssign(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateDerefMemberAssign(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateArrayIndex(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateArrayIndexAssign(OutputBlock* out, const ILInstruction& instr);
-	bool GeneratePtrAdd(OutputBlock* out, const ILInstruction& instr);
-	bool GeneratePtrSub(OutputBlock* out, const ILInstruction& instr);
-	bool GeneratePtrDiff(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateAdd(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSub(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSignedMult(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateUnsignedMult(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSignedDiv(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateUnsignedDiv(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSignedMod(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateUnsignedMod(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateAnd(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateOr(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateXor(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateShl(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateShr(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSar(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateNeg(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateNot(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateIfTrue(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateIfLessThan(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateIfLessThanEqual(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateIfBelow(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateIfBelowEqual(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateIfEqual(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateGoto(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateCall(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSignedConvert(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateUnsignedConvert(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateReturn(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateReturnVoid(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateAlloca(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateMemcpy(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateMemset(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateStrlen(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateSyscall(OutputBlock* out, const ILInstruction& instr, bool twoDest);
-	bool GenerateRdtsc(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateRdtscLow(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateRdtscHigh(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateNextArg(OutputBlock* out, const ILInstruction& instr);
-	bool GeneratePrevArg(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateByteSwap(OutputBlock* out, const ILInstruction& instr);
-	bool GenerateBreakpoint(OutputBlock* out, const ILInstruction& instr);
+	bool GenerateAssign(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAddressOf(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAddressOfMember(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateDeref(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateDerefMember(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateDerefAssign(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateDerefMemberAssign(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateArrayIndex(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateArrayIndexAssign(SymInstrBlock* out, const ILInstruction& instr);
+	bool GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& instr);
+	bool GeneratePtrSub(SymInstrBlock* out, const ILInstruction& instr);
+	bool GeneratePtrDiff(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAdd(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSub(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSignedMult(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedMult(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSignedDiv(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedDiv(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSignedMod(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedMod(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAnd(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateOr(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateXor(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateShl(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateShr(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSar(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateNeg(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateNot(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateIfTrue(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateIfLessThan(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateIfLessThanEqual(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateIfBelow(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateIfBelowEqual(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateIfEqual(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateGoto(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateCall(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSignedConvert(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateUnsignedConvert(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateReturn(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateMemcpy(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateMemset(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateStrlen(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr, bool twoDest);
+	bool GenerateRdtsc(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateRdtscLow(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateRdtscHigh(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr);
+	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateBreakpoint(SymInstrBlock* out, const ILInstruction& instr);
 
-	bool GenerateCodeBlock(OutputBlock* out, ILBlock* block);
+	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 
 public:
 	OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc);

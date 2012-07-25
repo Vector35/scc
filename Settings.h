@@ -25,6 +25,8 @@
 #include <string>
 #include <stdint.h>
 
+#define DEFAULT_ANTIDISASM_FREQUENCY 20
+
 enum Architecture
 {
 	ARCH_X86,
@@ -62,7 +64,8 @@ struct Settings
 {
 	std::vector<uint8_t> blacklist;
 	std::vector<std::string> preservedRegs;
-	std::string stackReg, frameReg, returnReg, returnHighReg, baseReg;
+	std::string stackRegName, frameRegName, returnRegName, returnHighRegName;
+	uint32_t stackPointer, framePointer, returnReg, returnHighReg, basePointer;
 
 	std::vector<std::string> includeDirs;
 
@@ -77,7 +80,6 @@ struct Settings
 	bool execStack;
 	bool concat;
 	bool sharedLibrary;
-	bool multiStage;
 
 	bool stackGrowsUp;
 	bool encodePointers;
@@ -85,6 +87,9 @@ struct Settings
 
 	bool polymorph, mixedMode;
 	uint32_t seed;
+
+	bool antiDisasm;
+	uint32_t antiDisasmFrequency;
 
 	bool positionIndependent;
 	uint64_t base;

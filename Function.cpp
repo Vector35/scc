@@ -409,6 +409,7 @@ ParameterLocation Function::GetParameterLocation(size_t i) const
 	{
 		ParameterLocation loc;
 		loc.type = PARAM_STACK;
+		loc.reg = 0;
 		return loc;
 	}
 

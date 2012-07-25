@@ -53,7 +53,6 @@ Options:
     --allow-return                    Allow return from shellcode (default is to exit)
     --base &lt;expr&gt;                     Set base address of output (can be a runtime computed
                                       expression, such as "[eax+8]-12")
-    --base-reg &lt;reg&gt;                  Global register that will hold base of code
     --blacklist &lt;byte&gt;                Blacklist the given byte value
     --concat                          Jump to end of output on return for concatenating code
     --decoder &lt;source&gt;                Use decoder to decode shellcode before executing
@@ -72,7 +71,6 @@ Options:
     --map &lt;file&gt;                      Generate map file
     --max-length &lt;value&gt;              Do not let output size exceed given number of bytes
     --mixed-mode                      Randomly choose subarchitecture for each function
-    --multi-stage                     Compile code to be used in multi-stage execution
     -o &lt;filename&gt;                     Set output filename (default is hex dump to stdout)
     -O0                               Do not run the optimizer
     -Os                               Try to generate the smallest code possible

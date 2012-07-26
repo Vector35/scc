@@ -1,0 +1,17 @@
+mprotect
+========
+:title: Shellcode Compiler Runtime
+
+---------------------------------------------
+int mprotect(void* addr, size_t len, int prot);
+---------------------------------------------
+
+Changes the protection on a block of memory of `len` bytes starting at `addr` to `prot`.
+
+The protection flags in `prot` can include one or more of `PROT_READ`, `PROT_WRITE`, and `PROT_EXEC`.
+
+Returns zero on success, or the negation of the error code on failure.
+
+See also
+--------
+link:mmap.html[mmap]

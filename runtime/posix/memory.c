@@ -44,3 +44,8 @@ char* strdup(const char* str)
 	return dest;
 }
 
+int mprotect(void* addr, size_t len, int prot)
+{
+	return __syscall(SYS_mprotect, addr, len, prot);
+}
+

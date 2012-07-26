@@ -28,6 +28,7 @@ char* strdup(const char* str);
 
 void* mmap(void* addr, size_t len, int prot, int flags, int fd, uint64_t offset);
 void* munmap(void* addr, size_t len);
+int mprotect(void* addr, size_t len, int prot);
 
 #endif
 

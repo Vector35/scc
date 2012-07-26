@@ -1792,18 +1792,84 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 			retValHigh = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH);
 	}
 
-	// Push parameters from right to left
-	for (size_t i = instr.params.size() - 1; i >= 2; i--)
+	// First try to place parameters in registers
+	uint32_t intParamRegs[9] = {QUARKREGCLASS_INTEGER_PARAM_0, QUARKREGCLASS_INTEGER_PARAM_1, QUARKREGCLASS_INTEGER_PARAM_2,
+		QUARKREGCLASS_INTEGER_PARAM_3, QUARKREGCLASS_INTEGER_PARAM_4, QUARKREGCLASS_INTEGER_PARAM_5, QUARKREGCLASS_INTEGER_PARAM_6,
+		QUARKREGCLASS_INTEGER_PARAM_7, SYMREG_NONE};
+	uint32_t curIntParamReg = 0;
+	vector<bool> paramOnStack;
+	vector<uint32_t> reads;
+
+	for (size_t i = 3; i < instr.params.size(); i++)
 	{
+		if ((i - 3) >= (size_t)instr.params[2].integerValue)
+		{
+			// Additional parameters to variable argument functions must be on stack
+			paramOnStack.push_back(true);
+			continue;
+		}
+
+		size_t width = instr.params[i].GetWidth();
+		if (width == 0)
+		{
+			// Indefinite width (used for immediates, for example), use native size
+			width = 4;
+		}
+
+		bool stackParam = false;
+		if (width <= 4)
+		{
+			if (intParamRegs[curIntParamReg] == SYMREG_NONE)
+				stackParam = true;
+			else
+			{
+				OperandReference dest, src;
+				if (!Load(out, instr.params[i], src))
+					return false;
+
+				dest.type = OPERANDREF_REG;
+				dest.width = src.width;
+				dest.sign = src.sign;
+				dest.reg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
+				if (!Move(out, dest, src))
+					return false;
+				reads.push_back(dest.reg);
+			}
+		}
+		else
+		{
+			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+				stackParam = true;
+			else
+			{
+				OperandReference dest, src;
+				if (!Load(out, instr.params[i], src))
+					return false;
+
+				dest.type = OPERANDREF_REG;
+				dest.width = src.width;
+				dest.sign = src.sign;
+				dest.reg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
+				dest.highReg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
+				if (!Move(out, dest, src))
+					return false;
+				reads.push_back(dest.reg);
+				reads.push_back(dest.highReg);
+			}
+		}
+
+		paramOnStack.push_back(stackParam);
+	}
+
+	// Push parameters from right to left
+	for (size_t i = instr.params.size() - 1; i >= 3; i--)
+	{
+		if (!paramOnStack[i - 3])
+			continue;
+
 		OperandReference param;
 		if (!Load(out, instr.params[i], param, true))
 			return false;
-
-		if (param.width == 0)
-		{
-			// Indefinite width (used for immediates, for example), use native size
-			param.width = 4;
-		}
 
 		if (m_settings.stackGrowsUp)
 		{
@@ -1867,12 +1933,13 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 			}
 
 			// Jump to function
+			// TODO: Mark register parameters as read
 			UnconditionalJump(out, instr.params[1].function->GetIL()[0], false);
 		}
 		else
 		{
 			// Normal call
-			out->AddInstruction(QuarkCall(instr.params[1].function, instr.params[1].function->GetIL()[0], retVal, retValHigh));
+			out->AddInstruction(QuarkCall(instr.params[1].function, instr.params[1].function->GetIL()[0], retVal, retValHigh, reads));
 		}
 	}
 	else
@@ -1904,11 +1971,12 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 			}
 
 			// Jump to function
+			// TODO: Mark register parameters as read
 			out->AddInstruction(QuarkMov(SYMREG_IP, func.reg, 0));
 		}
 		else
 		{
-			out->AddInstruction(QuarkCall(func.reg, retVal, retValHigh));
+			out->AddInstruction(QuarkCall(func.reg, retVal, retValHigh, reads));
 		}
 	}
 
@@ -2218,6 +2286,25 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 }
 
 
+bool OutputQuark::GenerateInitialVararg(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, result;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	result.type = OPERANDREF_REG;
+	result.width = 4;
+	result.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+
+	uint32_t scratch = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+	out->AddInstruction(QuarkAddStack(result.reg, SYMREG_BP, m_varargStart, 0, scratch));
+
+	if (!Move(out, dest, result))
+		return false;
+	return true;
+}
+
+
 bool OutputQuark::GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr)
 {
 	if (m_settings.stackGrowsUp)
@@ -2477,6 +2564,10 @@ bool OutputQuark::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 			if (!GenerateSyscall(out, *i, true))
 				goto fail;
 			break;
+		case ILOP_INITIAL_VARARG:
+			if (!GenerateInitialVararg(out, *i))
+				goto fail;
+			break;
 		case ILOP_NEXT_ARG:
 			if (!GenerateNextArg(out, *i))
 				goto fail;
@@ -2582,6 +2673,12 @@ bool OutputQuark::GenerateCode(Function* func)
 	if ((func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
 
+	uint32_t intParamRegs[9] = {QUARKREGCLASS_INTEGER_PARAM_0, QUARKREGCLASS_INTEGER_PARAM_1, QUARKREGCLASS_INTEGER_PARAM_2,
+		QUARKREGCLASS_INTEGER_PARAM_3, QUARKREGCLASS_INTEGER_PARAM_4, QUARKREGCLASS_INTEGER_PARAM_5, QUARKREGCLASS_INTEGER_PARAM_6,
+		QUARKREGCLASS_INTEGER_PARAM_7, SYMREG_NONE};
+	uint32_t curIntParamReg = 0;
+	vector<IncomingParameterCopy> paramCopy;
+
 	for (size_t i = 0; i < func->GetParameters().size(); i++)
 	{
 		// Find variable object for this parameter
@@ -2595,9 +2692,80 @@ bool OutputQuark::GenerateCode(Function* func)
 			}
 		}
 
+		size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
+
+		// See if a register is used for this parameter
+		// TODO: Floating point registers
+		uint32_t reg = SYMREG_NONE;
+		if (paramSize <= 4)
+		{
+			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				if (var != func->GetVariables().end())
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+			}
+		}
+		else
+		{
+			if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				uint32_t highRegClass = intParamRegs[curIntParamReg++];
+				if (var != func->GetVariables().end())
+				{
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+					m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
+				}
+			}
+		}
+
 		if (var == func->GetVariables().end())
 		{
 			// Variable not named, so it won't be referenced
+			continue;
+		}
+
+		if (reg != SYMREG_NONE)
+		{
+			// If the variable has its address taken, it must be stored on the stack
+			bool addressTaken = false;
+			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
+			{
+				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
+					k != (*j)->GetInstructions().end(); k++)
+				{
+					if (k->operation != ILOP_ADDRESS_OF)
+						continue;
+					if (k->params[1].variable == *var)
+					{
+						addressTaken = true;
+						break;
+					}
+				}
+			}
+
+			if (addressTaken)
+			{
+				// Must spill register to stack
+				m_stackVar[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),
+					ILParameter::ReduceType((*var)->GetType()));
+
+				IncomingParameterCopy copy;
+				copy.var = *var;
+				copy.incomingReg = reg;
+				copy.stackVar = m_stackVar[*var];
+				paramCopy.push_back(copy);
+				continue;
+			}
+
+			m_varReg[*var] = reg;
+
+			IncomingParameterCopy copy;
+			copy.var = *var;
+			copy.incomingReg = reg;
+			copy.stackVar = SYMREG_NONE;
+			paramCopy.push_back(copy);
 			continue;
 		}
 
@@ -2607,7 +2775,6 @@ bool OutputQuark::GenerateCode(Function* func)
 		if (m_settings.stackGrowsUp)
 		{
 			paramOffset = -paramOffset;
-			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
 			paramOffset += 4 - paramSize;
 		}
 
@@ -2620,6 +2787,13 @@ bool OutputQuark::GenerateCode(Function* func)
 			offset += 4 - (offset & 3);
 	}
 
+	// Generate a variable to mark the start of additional paramaters
+	int64_t paramOffset = offset;
+	if (m_settings.stackGrowsUp)
+		paramOffset = -paramOffset;
+	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
+
+	// Generate code
 	bool first = true;
 	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
 	{
@@ -2639,15 +2813,80 @@ bool OutputQuark::GenerateCode(Function* func)
 			{
 				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 				out->AddInstruction(QuarkMov(SYMREG_BP, SYMREG_SP, 0));
+			}
+			else
+			{
+				out->AddInstruction(QuarkSaveCalleeSavedRegs());
+			}
+
+			// Generate a pseudo instruction to ensure the incoming parameters are defined
+			vector<uint32_t> incomingRegs;
+			for (vector<IncomingParameterCopy>::iterator j = paramCopy.begin(); j != paramCopy.end(); j++)
+			{
+				if (j->stackVar != SYMREG_NONE)
+					continue;
+
+				incomingRegs.push_back(j->incomingReg);
+				if (j->var->GetType()->GetWidth() == 8)
+					incomingRegs.push_back(j->incomingReg + 1);
+			}
+
+			if (incomingRegs.size() != 0)
+				out->AddInstruction(QuarkRegParam(incomingRegs));
+
+			// Copy parameters into variables so that they can be spilled if needed
+			for (vector<IncomingParameterCopy>::iterator j = paramCopy.begin(); j != paramCopy.end(); j++)
+			{
+				if (j->stackVar != SYMREG_NONE)
+				{
+					// Parameter was spilled onto stack
+					switch (j->var->GetType()->GetWidth())
+					{
+					case 1:
+						out->AddInstruction(QuarkStoreStack8(j->incomingReg, SYMREG_BP, j->stackVar, 0,
+							m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
+						break;
+					case 2:
+						out->AddInstruction(QuarkStoreStack16(j->incomingReg, SYMREG_BP, j->stackVar, 0,
+							m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
+						break;
+					case 4:
+						out->AddInstruction(QuarkStoreStack32(j->incomingReg, SYMREG_BP, j->stackVar, 0,
+							m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
+						break;
+					case 8:
+						out->AddInstruction(QuarkStoreStack32(j->incomingReg, SYMREG_BP, j->stackVar, 0,
+							m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
+						out->AddInstruction(QuarkStoreStack32(j->incomingReg + 1, SYMREG_BP, j->stackVar, 4,
+							m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
+						break;
+					default:
+						fprintf(stderr, "error: spilling invalid parameter\n");
+						return false;
+					}
+				}
+				else
+				{
+					// Parameter is in a register
+					uint32_t newReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+					uint32_t newHighReg = SYMREG_NONE;
+					if (j->var->GetType()->GetWidth() == 8)
+						newHighReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+
+					out->AddInstruction(QuarkMov(newReg, j->incomingReg, 0));
+					if (newHighReg != SYMREG_NONE)
+						out->AddInstruction(QuarkMov(newHighReg, j->incomingReg + 1, 0));
+					m_varReg[j->var] = newReg;
+				}
+			}
+
+			if (m_framePointerEnabled)
+			{
 				uint32_t temp = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 				if (m_settings.stackGrowsUp)
 					out->AddInstruction(QuarkAddStack(SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp));
 				else
 					out->AddInstruction(QuarkSubStack(SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp));
-			}
-			else
-			{
-				out->AddInstruction(QuarkSaveCalleeSavedRegs());
 			}
 
 			first = false;

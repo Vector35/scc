@@ -285,14 +285,14 @@ public:
 class QuarkCallInstr: public QuarkBranchInstrBase
 {
 public:
-	QuarkCallInstr(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh);
+	QuarkCallInstr(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, const std::vector<uint32_t>& reads);
 	virtual void Print(SymInstrFunction* func);
 };
 
 class QuarkCallRegInstr: public Quark1OpInstrBase
 {
 public:
-	QuarkCallRegInstr(uint32_t a, uint32_t retVal, uint32_t retValHigh);
+	QuarkCallRegInstr(uint32_t a, uint32_t retVal, uint32_t retValHigh, const std::vector<uint32_t>& reads);
 	virtual void Print(SymInstrFunction* func);
 };
 
@@ -395,6 +395,14 @@ class QuarkPseudoInstrBase: public QuarkSymInstr
 {
 public:
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+};
+
+class QuarkRegParamInstr: public QuarkPseudoInstrBase
+{
+public:
+	QuarkRegParamInstr(const std::vector<uint32_t>& regs);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual void Print(SymInstrFunction* func);
 };
 
 class QuarkSymReturnInstr: public QuarkPseudoInstrBase
@@ -534,8 +542,8 @@ SymInstr* QuarkLoadImmHigh(uint32_t a, int32_t immed);
 
 SymInstr* QuarkJump(Function* func, ILBlock* block);
 SymInstr* QuarkCondJump(uint32_t b, uint32_t value, Function* func, ILBlock* block);
-SymInstr* QuarkCall(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh);
-SymInstr* QuarkCall(uint32_t reg, uint32_t retVal, uint32_t retValHigh);
+SymInstr* QuarkCall(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, const std::vector<uint32_t>& reads);
+SymInstr* QuarkCall(uint32_t reg, uint32_t retVal, uint32_t retValHigh, const std::vector<uint32_t>& reads);
 SymInstr* QuarkSyscallReg(uint32_t a, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
 SymInstr* QuarkSyscallImmed(int32_t immed, const std::vector<uint32_t>& writes, const std::vector<uint32_t>& reads);
 
@@ -671,6 +679,7 @@ SymInstr* QuarkFlog10(uint32_t a, int32_t immed);
 SymInstr* QuarkFmov(uint32_t a, uint32_t b);
 SymInstr* QuarkFmov(uint32_t a, int32_t immed);
 
+SymInstr* QuarkRegParam(const std::vector<uint32_t> regs);
 SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh);
 SymInstr* QuarkSaveCalleeSavedRegs();
 SymInstr* QuarkRestoreCalleeSavedRegs();

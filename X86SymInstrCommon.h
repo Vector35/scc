@@ -37,6 +37,8 @@ enum X86RegisterClass
 	X86REGCLASS_INTEGER_PARAM_1,
 	X86REGCLASS_INTEGER_PARAM_2,
 	X86REGCLASS_INTEGER_PARAM_3,
+	X86REGCLASS_INTEGER_PARAM_4,
+	X86REGCLASS_INTEGER_PARAM_5,
 	X86REGCLASS_EAX,
 	X86REGCLASS_ECX,
 	X86REGCLASS_EDX,
@@ -48,6 +50,8 @@ enum X86RegisterClass
 	X86REGCLASS_FLOAT_PARAM_1,
 	X86REGCLASS_FLOAT_PARAM_2,
 	X86REGCLASS_FLOAT_PARAM_3,
+	X86REGCLASS_FLOAT_PARAM_4,
+	X86REGCLASS_FLOAT_PARAM_5,
 	X86REGCLASS_SYSCALL_PARAM_0,
 	X86REGCLASS_SYSCALL_PARAM_1,
 	X86REGCLASS_SYSCALL_PARAM_2,
@@ -786,7 +790,8 @@ public:
 class X86_SYMINSTR_CLASS(CallDirect): public X86_SYMINSTR_NAME(Instr)
 {
 public:
-	X86_SYMINSTR_CLASS(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
+	X86_SYMINSTR_CLASS(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key,
+		uint32_t scratch, const std::vector<uint32_t>& reads);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -795,7 +800,8 @@ public:
 class X86_SYMINSTR_CLASS(CallIndirectReg): public X86_SYMINSTR_NAME(Instr)
 {
 public:
-	X86_SYMINSTR_CLASS(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
+	X86_SYMINSTR_CLASS(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch,
+		const std::vector<uint32_t>& reads);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -804,7 +810,8 @@ public:
 class X86_SYMINSTR_CLASS(CallIndirectMem): public X86_SYMINSTR_NAME(Instr)
 {
 public:
-	X86_SYMINSTR_CLASS(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
+	X86_SYMINSTR_CLASS(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch,
+		const std::vector<uint32_t>& reads);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -840,6 +847,16 @@ public:
 	X86_SYMINSTR_CLASS(SyscallCorrectErrorCode)(uint32_t eax);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
+};
+
+
+class X86_SYMINSTR_CLASS(RegParam): public X86_SYMINSTR_NAME(Instr)
+{
+public:
+	X86_SYMINSTR_CLASS(RegParam)(const std::vector<uint32_t>& regs);
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
+	virtual void Print(SymInstrFunction* func);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 };
 
 
@@ -922,14 +939,15 @@ SymInstr* X86_SYMINSTR_NAME(MovDataPtrAbsolute)(uint32_t dest, int64_t offset);
 SymInstr* X86_SYMINSTR_NAME(MovCodePtrAbsolute)(uint32_t dest, Function* func, ILBlock* block);
 SymInstr* X86_SYMINSTR_NAME(CondJump)(uint8_t type, Function* func, ILBlock* block);
 SymInstr* X86_SYMINSTR_NAME(JumpRelative)(Function* func, ILBlock* block);
-SymInstr* X86_SYMINSTR_NAME(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
-SymInstr* X86_SYMINSTR_NAME(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
-SymInstr* X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch);
+SymInstr* X86_SYMINSTR_NAME(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const std::vector<uint32_t>& reads);
+SymInstr* X86_SYMINSTR_NAME(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const std::vector<uint32_t>& reads);
+SymInstr* X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const std::vector<uint32_t>& reads);
 SymInstr* X86_SYMINSTR_NAME(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t>& readRegs,
 	const std::vector<uint32_t>& spilledRegs);
 SymInstr* X86_SYMINSTR_NAME(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t>& readRegs,
 	const std::vector<uint32_t>& spilledRegs);
 SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax);
+SymInstr* X86_SYMINSTR_NAME(RegParam)(const std::vector<uint32_t>& regs);
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b);
 SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)();
 SymInstr* X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)();

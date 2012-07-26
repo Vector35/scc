@@ -2837,9 +2837,89 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 {
 	size_t pushSize = 0;
 
-	// Push parameters from right to left
-	for (size_t i = instr.params.size() - 1; i >= 2; i--)
+	// First try to place parameters in registers
+#ifdef OUTPUT32
+	// FIXME: Register parameter passing increases size on 32-bit
+	uint32_t intParamRegs[1] = {SYMREG_NONE};
+#else
+	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2,
+		X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4, X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
+#endif
+	uint32_t curIntParamReg = 0;
+	vector<bool> paramOnStack;
+	vector<uint32_t> reads;
+
+	for (size_t i = 3; i < instr.params.size(); i++)
 	{
+		if ((i - 3) >= (size_t)instr.params[2].integerValue)
+		{
+			// Additional parameters to variable argument functions must be on stack
+			paramOnStack.push_back(true);
+			continue;
+		}
+
+		size_t width = instr.params[i].GetWidth();
+		if (width == 0)
+		{
+			// Indefinite width (used for immediates, for example), use native size
+#ifdef OUTPUT32
+			width = 4;
+#else
+			width = 8;
+#endif
+		}
+
+		bool stackParam = false;
+#ifdef OUTPUT32
+		if (width == 8)
+		{
+			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+				stackParam = true;
+			else
+			{
+				OperandReference dest, src;
+				if (!PrepareLoad(out, instr.params[i], src))
+					return false;
+
+				dest.type = OPERANDREF_REG;
+				dest.width = src.width;
+				dest.reg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
+				dest.highReg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
+				if (!Move(out, dest, src))
+					return false;
+				reads.push_back(dest.reg);
+				reads.push_back(dest.highReg);
+			}
+		}
+		else
+#endif
+		{
+			if (intParamRegs[curIntParamReg] == SYMREG_NONE)
+				stackParam = true;
+			else
+			{
+				OperandReference dest, src;
+				if (!PrepareLoad(out, instr.params[i], src))
+					return false;
+
+				dest.type = OPERANDREF_REG;
+				dest.width = src.width;
+				dest.reg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
+				if (!Move(out, dest, src))
+					return false;
+				reads.push_back(dest.reg);
+			}
+		}
+
+		paramOnStack.push_back(stackParam);
+	}
+
+	// Push parameters from right to left
+	for (size_t i = instr.params.size() - 1; i >= 3; i--)
+	{
+		if (!paramOnStack[i - 3])
+			continue;
+
 		OperandReference param;
 		if (!PrepareLoad(out, instr.params[i], param))
 			return false;
@@ -3028,7 +3108,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	if (instr.params[1].cls == ILPARAM_FUNC)
 	{
 		out->AddInstruction(X86_SYMINSTR_NAME(CallDirect)(instr.params[1].function, instr.params[1].function->GetIL()[0],
-			retValReg, retValHighReg, keyReg, scratch));
+			retValReg, retValHighReg, keyReg, scratch, reads));
 	}
 	else
 	{
@@ -3039,11 +3119,11 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		switch (func.type)
 		{
 		case OPERANDREF_REG:
-			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(func.reg, retValReg, retValHighReg, keyReg, scratch));
+			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(func.reg, retValReg, retValHighReg, keyReg, scratch, reads));
 			break;
 		case OPERANDREF_MEM:
 			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_REF(func.mem), retValReg, retValHighReg,
-				keyReg, scratch));
+				keyReg, scratch, reads));
 			break;
 		default:
 			return false;
@@ -4448,6 +4528,25 @@ bool OUTPUT_CLASS_NAME::GenerateRdtscHigh(SymInstrBlock* out, const ILInstructio
 }
 
 
+bool OUTPUT_CLASS_NAME::GenerateInitialVararg(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest, src;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	src.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+	src.width = 4;
+#else
+	src.width = 8;
+#endif
+	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+
+	EMIT_RM(lea, src.reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, m_varargStart, 0));
+	return Move(out, dest, src);
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, a, b;
@@ -4781,6 +4880,10 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 			if (!GenerateRdtscHigh(out, *i))
 				goto fail;
 			break;
+		case ILOP_INITIAL_VARARG:
+			if (!GenerateInitialVararg(out, *i))
+				goto fail;
+			break;
 		case ILOP_NEXT_ARG:
 			if (!GenerateNextArg(out, *i))
 				goto fail;
@@ -4928,6 +5031,16 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	if ((func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
 
+#ifdef OUTPUT32
+	// FIXME: Register parameter passing increases size on 32-bit
+	uint32_t intParamRegs[1] = {SYMREG_NONE};
+#else
+	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2,
+		X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4, X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
+#endif
+	uint32_t curIntParamReg = 0;
+	vector<IncomingParameterCopy> paramCopy;
+
 	for (size_t i = 0; i < func->GetParameters().size(); i++)
 	{
 		// Find variable object for this parameter
@@ -4941,9 +5054,88 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			}
 		}
 
+		// See if a register is used for this parameter
+		// TODO: Floating point registers
+		uint32_t reg = SYMREG_NONE;
+#ifdef OUTPUT32
+		size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
+		if (paramSize <= 4)
+		{
+			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				if (var != func->GetVariables().end())
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+			}
+		}
+		else
+		{
+			if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				uint32_t highRegClass = intParamRegs[curIntParamReg++];
+				if (var != func->GetVariables().end())
+				{
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+					m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
+				}
+			}
+		}
+#else
+		if (intParamRegs[curIntParamReg] != SYMREG_NONE)
+		{
+			uint32_t regClass = intParamRegs[curIntParamReg++];
+			if (var != func->GetVariables().end())
+				reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+		}
+#endif
+
 		if (var == func->GetVariables().end())
 		{
 			// Variable not named, so it won't be referenced
+			continue;
+		}
+
+		if (reg != SYMREG_NONE)
+		{
+			// If the variable has its address taken, it must be stored on the stack
+			bool addressTaken = false;
+			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
+			{
+				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
+					k != (*j)->GetInstructions().end(); k++)
+				{
+					if (k->operation != ILOP_ADDRESS_OF)
+						continue;
+					if (k->params[1].variable == *var)
+					{
+						addressTaken = true;
+						break;
+					}
+				}
+			}
+
+			if (addressTaken)
+			{
+				// Must spill register to stack
+				m_stackVar[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),
+					ILParameter::ReduceType((*var)->GetType()));
+
+				IncomingParameterCopy copy;
+				copy.var = *var;
+				copy.incomingReg = reg;
+				copy.stackVar = m_stackVar[*var];
+				paramCopy.push_back(copy);
+				continue;
+			}
+
+			m_varReg[*var] = reg;
+
+			IncomingParameterCopy copy;
+			copy.var = *var;
+			copy.incomingReg = reg;
+			copy.stackVar = SYMREG_NONE;
+			paramCopy.push_back(copy);
 			continue;
 		}
 
@@ -4980,6 +5172,17 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #endif
 	}
 
+	// Generate a variable to mark the start of additional paramaters
+#ifdef OUTPUT32
+	int64_t paramOffset = offset + 4;
+#else
+	int64_t paramOffset = offset + 8;
+#endif
+	if (m_settings.stackGrowsUp)
+		paramOffset = -paramOffset;
+	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
+
+	// Generate code
 	bool first = true;
 	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
 	{
@@ -5061,6 +5264,97 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_FRAME_SIZE, 0));
 			else
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_NEG_FRAME_SIZE, 0));
+
+			// Generate a pseudo instruction to ensure the incoming parameters are defined
+			vector<uint32_t> incomingRegs;
+			for (vector<IncomingParameterCopy>::iterator j = paramCopy.begin(); j != paramCopy.end(); j++)
+			{
+				if (j->stackVar != SYMREG_NONE)
+					continue;
+
+				incomingRegs.push_back(j->incomingReg);
+#ifdef OUTPUT32
+				if (j->var->GetType()->GetWidth() == 8)
+					incomingRegs.push_back(j->incomingReg + 1);
+#endif
+			}
+
+			if (incomingRegs.size() != 0)
+				out->AddInstruction(X86_SYMINSTR_NAME(RegParam)(incomingRegs));
+
+			// Copy parameters into variables so that they can be spilled if needed
+			for (vector<IncomingParameterCopy>::iterator j = paramCopy.begin(); j != paramCopy.end(); j++)
+			{
+				if (j->stackVar != SYMREG_NONE)
+				{
+					// Parameter was spilled onto stack
+					switch (j->var->GetType()->GetWidth())
+					{
+					case 1:
+						EMIT_MR(mov_8, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						break;
+					case 2:
+						EMIT_MR(mov_16, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						break;
+					case 4:
+						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						break;
+#ifdef OUTPUT32
+					case 8:
+						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 4), j->incomingReg + 1);
+						break;
+#else
+					case 8:
+						EMIT_MR(mov_64, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						break;
+#endif
+					default:
+						fprintf(stderr, "error: spilling invalid parameter\n");
+						return false;
+					}
+				}
+				else
+				{
+					// Parameter is in a register
+					uint32_t newReg;
+					if (j->var->GetType()->GetWidth() == 1)
+						newReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT);
+					else
+						newReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+					uint32_t newHighReg = SYMREG_NONE;
+					if (j->var->GetType()->GetWidth() == 8)
+						newHighReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+
+					switch (j->var->GetType()->GetWidth())
+					{
+					case 1:
+						EMIT_RR(mov_8, newReg, j->incomingReg);
+						break;
+					case 2:
+						EMIT_RR(mov_16, newReg, j->incomingReg);
+						break;
+					case 4:
+						EMIT_RR(mov_32, newReg, j->incomingReg);
+						break;
+#ifdef OUTPUT32
+					case 8:
+						EMIT_RR(mov_32, newReg, j->incomingReg);
+						EMIT_RR(mov_32, newHighReg, j->incomingReg + 1);
+						break;
+#else
+					case 8:
+						EMIT_RR(mov_64, newReg, j->incomingReg);
+						break;
+#endif
+					default:
+						fprintf(stderr, "error: invalid parameter\n");
+						return false;
+					}
+
+					m_varReg[j->var] = newReg;
+				}
+			}
 
 #ifdef OUTPUT32
 			if (m_settings.positionIndependent)

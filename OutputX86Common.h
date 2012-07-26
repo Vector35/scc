@@ -94,6 +94,13 @@ class OUTPUT_CLASS_NAME: public Output
 		USAGE_INDEX
 	};
 
+	struct IncomingParameterCopy
+	{
+		Variable* var;
+		uint32_t incomingReg;
+		uint32_t stackVar;
+	};
+
 	Function* m_func;
 #ifdef OUTPUT32
 	X86Sym_Function* m_symFunc;
@@ -106,6 +113,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool m_framePointerEnabled;
 	bool m_normalStack;
 	ILBlock* m_currentBlock;
+	uint32_t m_varargStart;
 
 	uint32_t GetRegisterByName(const std::string& name);
 
@@ -183,6 +191,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateRdtsc(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscLow(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscHigh(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateInitialVararg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);

@@ -531,6 +531,19 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+	const ILParameter& d, const ILParameter& e, const ILParameter& f)
+{
+	operation = op;
+	params.push_back(a);
+	params.push_back(b);
+	params.push_back(c);
+	params.push_back(d);
+	params.push_back(e);
+	params.push_back(f);
+}
+
+
 ILInstruction::ILInstruction(ILOperation op, const vector<ILParameter>& list)
 {
 	operation = op;
@@ -628,6 +641,7 @@ bool ILInstruction::WritesToFirstParameter() const
 	case ILOP_RDTSC:
 	case ILOP_RDTSC_LOW:
 	case ILOP_RDTSC_HIGH:
+	case ILOP_INITIAL_VARARG:
 	case ILOP_NEXT_ARG:
 	case ILOP_PREV_ARG:
 	case ILOP_BYTESWAP:
@@ -764,6 +778,7 @@ void ILInstruction::Print() const
 	case ILOP_RDTSC:  params[0].Print(); fprintf(stderr, " = rdtsc"); break;
 	case ILOP_RDTSC_LOW:  params[0].Print(); fprintf(stderr, " = rdtsc_low"); break;
 	case ILOP_RDTSC_HIGH:  params[0].Print(); fprintf(stderr, " = rdtsc_high"); break;
+	case ILOP_INITIAL_VARARG:  params[0].Print(); fprintf(stderr, " = initial_vararg"); break;
 	case ILOP_NEXT_ARG:  params[0].Print(); fprintf(stderr, " = next_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_PREV_ARG:  params[0].Print(); fprintf(stderr, " = prev_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_BYTESWAP:  params[0].Print(); fprintf(stderr, " = byteswap "); params[1].Print(); break;
@@ -772,7 +787,7 @@ void ILInstruction::Print() const
 		params[0].Print();
 		fprintf(stderr, " = ");
 		params[1].Print();
-		fprintf(stderr, "(");
+		fprintf(stderr, "<%d>(", (int)params[2].integerValue);
 		for (size_t i = 2; i < params.size(); i++)
 		{
 			if (i > 2)

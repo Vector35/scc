@@ -915,7 +915,7 @@ void Optimize::InlineFunction(Function* func, Function* target)
 			if (!(*j)->IsParameter())
 				continue;
 
-			ILParameter param = instr.params[2 + (*j)->GetParameterIndex()];
+			ILParameter param = instr.params[3 + (*j)->GetParameterIndex()];
 			if ((*j)->IsWritten())
 			{
 				// Parameter is written, make a copy

@@ -1176,6 +1176,9 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_RDTSC_HIGH:
 		m_type = Type::IntType(4, false);
 		break;
+	case EXPR_INITIAL_VARARG:
+		m_type = Type::PointerType(Type::VoidType(), 1);
+		break;
 	case EXPR_NEXT_ARG:
 	case EXPR_PREV_ARG:
 		m_type = m_children[0]->GetType();
@@ -2151,7 +2154,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2180,7 +2183,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2223,7 +2226,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2249,7 +2252,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2611,6 +2614,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			result = func->CreateTempVariable(m_type);
 		params.push_back(result);
 		params.push_back(m_children[0]->GenerateIL(state, func, block));
+		params.push_back(ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetParams().size()));
 		for (size_t i = 1; i < m_children.size(); i++)
 			params.push_back(m_children[i]->GenerateIL(state, func, block));
 		block->AddInstruction(ILOP_CALL, params);
@@ -2699,7 +2703,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b, c);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
 		}
 		result = a;
 		break;
@@ -2720,7 +2724,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a, b, c);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
 		}
 		result = a;
 		break;
@@ -2740,7 +2744,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), a);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)1), a);
 		}
 		break;
 	case EXPR_CAST:
@@ -2949,6 +2953,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 	case EXPR_RDTSC_HIGH:
 		result = func->CreateTempVariable(m_type);
 		block->AddInstruction(ILOP_RDTSC_HIGH, result);
+		break;
+	case EXPR_INITIAL_VARARG:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_INITIAL_VARARG, result);
 		break;
 	case EXPR_NEXT_ARG:
 		result = func->CreateTempVariable(m_type);
@@ -3622,6 +3630,7 @@ void Expr::Print(size_t indent)
 	case EXPR_RDTSC:  fprintf(stderr, "__rdtsc()"); break;
 	case EXPR_RDTSC_LOW:  fprintf(stderr, "__rdtsc_low()"); break;
 	case EXPR_RDTSC_HIGH:  fprintf(stderr, "__rdtsc_high()"); break;
+	case EXPR_INITIAL_VARARG:  fprintf(stderr, "__initial_vararg()"); break;
 	case EXPR_NEXT_ARG:
 		fprintf(stderr, "__next_arg(");
 		m_children[0]->Print(indent);

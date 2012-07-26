@@ -68,6 +68,13 @@ class OutputQuark: public Output
 		bool operator!=(const OperandReference& ref) const;
 	};
 
+	struct IncomingParameterCopy
+	{
+		Variable* var;
+		uint32_t incomingReg;
+		uint32_t stackVar;
+	};
+
 	Function* m_func;
 	QuarkSymInstrFunction* m_symFunc;
 	std::map<Variable*, int32_t> m_stackFrame;
@@ -75,6 +82,7 @@ class OutputQuark: public Output
 	std::map<Variable*, uint32_t> m_varReg;
 	bool m_framePointerEnabled;
 	ILBlock* m_currentBlock;
+	uint32_t m_varargStart;
 
 	bool IsSigned11Bit(int64_t imm);
 	bool IsSigned17Bit(int64_t imm);
@@ -139,6 +147,7 @@ class OutputQuark: public Output
 	bool GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr, bool twoDest);
+	bool GenerateInitialVararg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);

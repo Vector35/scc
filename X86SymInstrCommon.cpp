@@ -770,7 +770,7 @@ X86_SYMINSTR_CLASS_SIZE_OP(name, size, M)::X86_SYMINSTR_CLASS_SIZE_OP(name, size
 { \
 	X86_ADD_MEM_OP; \
 	AddReadWriteRegisterOperand(eax); \
-	AddReadWriteRegisterOperand(edx); \
+	Add ## edxAccess ## RegisterOperand(edx); \
 	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
 	EnableFlag(SYMFLAG_WRITES_FLAGS); \
 } \
@@ -1838,13 +1838,15 @@ void X86_SYMINSTR_CLASS(JumpRelative)::Print(SymInstrFunction* func)
 
 
 X86_SYMINSTR_CLASS(CallDirect)::X86_SYMINSTR_CLASS(CallDirect)(Function* func, ILBlock* block,
-	uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch)
+	uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const vector<uint32_t>& reads)
 {
 	AddBlockOperand(func, block);
 	AddWriteRegisterOperand(retVal);
 	AddWriteRegisterOperand(retValHigh);
 	AddReadRegisterOperand(key);
 	AddTemporaryRegisterOperand(scratch);
+	for (vector<uint32_t>::const_iterator i = reads.begin(); i != reads.end(); i++)
+		AddReadRegisterOperand(*i);
 	EnableFlag(SYMFLAG_CONTROL_FLOW);
 	EnableFlag(SYMFLAG_CALL);
 }
@@ -2021,17 +2023,24 @@ void X86_SYMINSTR_CLASS(CallDirect)::Print(SymInstrFunction* func)
 	X86_PRINT_REG_OP(3, X86_NATIVE_SIZE);
 	fprintf(stderr, ", scratch ");
 	X86_PRINT_REG_OP(4, X86_NATIVE_SIZE);
+	for (size_t i = 5; i < m_operands.size(); i++)
+	{
+		fprintf(stderr, ", ");
+		m_operands[i].Print(func);
+	}
 }
 
 
 X86_SYMINSTR_CLASS(CallIndirectReg)::X86_SYMINSTR_CLASS(CallIndirectReg)(uint32_t func,
-	uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch)
+	uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const vector<uint32_t>& reads)
 {
 	AddReadRegisterOperand(func);
 	AddWriteRegisterOperand(retVal);
 	AddWriteRegisterOperand(retValHigh);
 	AddReadRegisterOperand(key);
 	AddTemporaryRegisterOperand(scratch);
+	for (vector<uint32_t>::const_iterator i = reads.begin(); i != reads.end(); i++)
+		AddReadRegisterOperand(*i);
 	EnableFlag(SYMFLAG_CONTROL_FLOW);
 	EnableFlag(SYMFLAG_CALL);
 }
@@ -2207,17 +2216,24 @@ void X86_SYMINSTR_CLASS(CallIndirectReg)::Print(SymInstrFunction* func)
 	X86_PRINT_REG_OP(3, X86_NATIVE_SIZE);
 	fprintf(stderr, ", scratch ");
 	X86_PRINT_REG_OP(4, X86_NATIVE_SIZE);
+	for (size_t i = 5; i < m_operands.size(); i++)
+	{
+		fprintf(stderr, ", ");
+		m_operands[i].Print(func);
+	}
 }
 
 
 X86_SYMINSTR_CLASS(CallIndirectMem)::X86_SYMINSTR_CLASS(CallIndirectMem)(X86_MEM_OP_PARAM,
-	uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch)
+	uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const vector<uint32_t>& reads)
 {
 	X86_ADD_MEM_OP;
 	AddWriteRegisterOperand(retVal);
 	AddWriteRegisterOperand(retValHigh);
 	AddReadRegisterOperand(key);
 	AddTemporaryRegisterOperand(scratch);
+	for (vector<uint32_t>::const_iterator i = reads.begin(); i != reads.end(); i++)
+		AddReadRegisterOperand(*i);
 	EnableFlag(SYMFLAG_CONTROL_FLOW);
 	EnableFlag(SYMFLAG_CALL);
 	EnableFlag(SYMFLAG_MEMORY_BARRIER);
@@ -2393,6 +2409,11 @@ void X86_SYMINSTR_CLASS(CallIndirectMem)::Print(SymInstrFunction* func)
 	X86_PRINT_REG_OP(6, X86_NATIVE_SIZE);
 	fprintf(stderr, ", scratch ");
 	X86_PRINT_REG_OP(7, X86_NATIVE_SIZE);
+	for (size_t i = 8; i < m_operands.size(); i++)
+	{
+		fprintf(stderr, ", ");
+		m_operands[i].Print(func);
+	}
 }
 
 
@@ -2527,6 +2548,39 @@ void X86_SYMINSTR_CLASS(SyscallCorrectErrorCode)::Print(SymInstrFunction* func)
 {
 	fprintf(stderr, "errorcode ");
 	X86_PRINT_REG_OP(0, 32);
+}
+
+
+X86_SYMINSTR_CLASS(RegParam)::X86_SYMINSTR_CLASS(RegParam)(const vector<uint32_t>& regs)
+{
+	for (vector<uint32_t>::const_iterator i = regs.begin(); i != regs.end(); i++)
+		AddWriteRegisterOperand(*i);
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
+}
+
+
+bool X86_SYMINSTR_CLASS(RegParam)::EmitInstruction(SymInstrFunction* func, OutputBlock* out)
+{
+	return true;
+}
+
+
+void X86_SYMINSTR_CLASS(RegParam)::Print(SymInstrFunction* func)
+{
+	fprintf(stderr, "regparam ");
+	for (size_t i = 0; i < m_operands.size(); i++)
+	{
+		if (i != 0)
+			fprintf(stderr, ", ");
+		X86_PRINT_REG_OP(i, X86_NATIVE_SIZE);
+	}
+}
+
+
+bool X86_SYMINSTR_CLASS(RegParam)::UpdateInstruction(SymInstrFunction* func, const Settings& settings, vector<SymInstr*>& replacement)
+{
+	// This pseudo-instruction is only present for data flow analysis, replace with nothing
+	return true;
 }
 
 
@@ -2966,6 +3020,12 @@ bool X86_SYMINSTR_NAME(Function)::IsRegisterClassFixed(uint32_t cls)
 	{
 	case X86REGCLASS_INTEGER_RETURN_VALUE:
 	case X86REGCLASS_INTEGER_RETURN_VALUE_HIGH:
+	case X86REGCLASS_INTEGER_PARAM_0:
+	case X86REGCLASS_INTEGER_PARAM_1:
+	case X86REGCLASS_INTEGER_PARAM_2:
+	case X86REGCLASS_INTEGER_PARAM_3:
+	case X86REGCLASS_INTEGER_PARAM_4:
+	case X86REGCLASS_INTEGER_PARAM_5:
 	case X86REGCLASS_EAX:
 	case X86REGCLASS_ECX:
 	case X86REGCLASS_EDX:
@@ -2998,6 +3058,20 @@ uint32_t X86_SYMINSTR_NAME(Function)::GetFixedRegisterForClass(uint32_t cls)
 		return SYMREG_NATIVE_REG(REG_EAX);
 	case X86REGCLASS_INTEGER_RETURN_VALUE_HIGH:
 		return SYMREG_NATIVE_REG(REG_EDX);
+	case X86REGCLASS_INTEGER_PARAM_0:
+		return SYMREG_NATIVE_REG(REG_EAX);
+	case X86REGCLASS_INTEGER_PARAM_1:
+		return SYMREG_NATIVE_REG(REG_EDX);
+	case X86REGCLASS_INTEGER_PARAM_2:
+		return SYMREG_NATIVE_REG(REG_ECX);
+#ifdef OUTPUT64
+	case X86REGCLASS_INTEGER_PARAM_3:
+		return SYMREG_NATIVE_REG(REG_R8D);
+	case X86REGCLASS_INTEGER_PARAM_4:
+		return SYMREG_NATIVE_REG(REG_R9D);
+	case X86REGCLASS_INTEGER_PARAM_5:
+		return SYMREG_NATIVE_REG(REG_R10D);
+#endif
 	case X86REGCLASS_EAX:
 		return SYMREG_NATIVE_REG(REG_EAX);
 	case X86REGCLASS_ECX:
@@ -3261,12 +3335,16 @@ void X86_SYMINSTR_NAME(Function)::PrintRegisterClass(uint32_t cls)
 	case X86REGCLASS_INTEGER_PARAM_1:
 	case X86REGCLASS_INTEGER_PARAM_2:
 	case X86REGCLASS_INTEGER_PARAM_3:
+	case X86REGCLASS_INTEGER_PARAM_4:
+	case X86REGCLASS_INTEGER_PARAM_5:
 		fprintf(stderr, "intparam%d", cls - X86REGCLASS_INTEGER_PARAM_0);
 		break;
 	case X86REGCLASS_FLOAT_PARAM_0:
 	case X86REGCLASS_FLOAT_PARAM_1:
 	case X86REGCLASS_FLOAT_PARAM_2:
 	case X86REGCLASS_FLOAT_PARAM_3:
+	case X86REGCLASS_FLOAT_PARAM_4:
+	case X86REGCLASS_FLOAT_PARAM_5:
 		fprintf(stderr, "floatparam%d", cls - X86REGCLASS_FLOAT_PARAM_0);
 		break;
 	case X86REGCLASS_EAX:
@@ -3341,12 +3419,13 @@ SymInstr* X86_SYMINSTR_NAME(MovDataPtrAbsolute)(uint32_t dest, int64_t offset) {
 SymInstr* X86_SYMINSTR_NAME(MovCodePtrAbsolute)(uint32_t dest, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(MovCodePtrAbsolute)(dest, func, block); }
 SymInstr* X86_SYMINSTR_NAME(CondJump)(uint8_t type, Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(CondJump)(type, func, block); }
 SymInstr* X86_SYMINSTR_NAME(JumpRelative)(Function* func, ILBlock* block) { return new X86_SYMINSTR_CLASS(JumpRelative)(func, block); }
-SymInstr* X86_SYMINSTR_NAME(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch) { return new X86_SYMINSTR_CLASS(CallDirect)(func, block, retVal, retValHigh, key, scratch); }
-SymInstr* X86_SYMINSTR_NAME(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch) { return new X86_SYMINSTR_CLASS(CallIndirectReg)(func, retVal, retValHigh, key, scratch); }
-SymInstr* X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch) { return new X86_SYMINSTR_CLASS(CallIndirectMem)(X86_MEM_OP_PASS, retVal, retValHigh, key, scratch); }
+SymInstr* X86_SYMINSTR_NAME(CallDirect)(Function* func, ILBlock* block, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const vector<uint32_t>& reads) { return new X86_SYMINSTR_CLASS(CallDirect)(func, block, retVal, retValHigh, key, scratch, reads); }
+SymInstr* X86_SYMINSTR_NAME(CallIndirectReg)(uint32_t func, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const vector<uint32_t>& reads) { return new X86_SYMINSTR_CLASS(CallIndirectReg)(func, retVal, retValHigh, key, scratch, reads); }
+SymInstr* X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_OP_PARAM, uint32_t retVal, uint32_t retValHigh, uint32_t key, uint32_t scratch, const vector<uint32_t>& reads) { return new X86_SYMINSTR_CLASS(CallIndirectMem)(X86_MEM_OP_PASS, retVal, retValHigh, key, scratch, reads); }
 SymInstr* X86_SYMINSTR_NAME(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const vector<uint32_t>& readRegs, const vector<uint32_t>& spilledRegs) { return new X86_SYMINSTR_CLASS(Syscall)(eax, edx, ecx, readRegs, spilledRegs); }
 SymInstr* X86_SYMINSTR_NAME(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const vector<uint32_t>& readRegs, const vector<uint32_t>& spilledRegs) { return new X86_SYMINSTR_CLASS(SyscallInt80)(eax, edx, ecx, readRegs, spilledRegs); }
 SymInstr* X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(uint32_t eax) { return new X86_SYMINSTR_CLASS(SyscallCorrectErrorCode)(eax); }
+SymInstr* X86_SYMINSTR_NAME(RegParam)(const vector<uint32_t>& regs) { return new X86_SYMINSTR_CLASS(RegParam)(regs); }
 SymInstr* X86_SYMINSTR_NAME(SymReturn)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS(SymReturn)(a, b); }
 SymInstr* X86_SYMINSTR_NAME(SaveCalleeSavedRegs)() { return new X86_SYMINSTR_CLASS(SaveCalleeSavedRegs)(); }
 SymInstr* X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)() { return new X86_SYMINSTR_CLASS(RestoreCalleeSavedRegs)(); }

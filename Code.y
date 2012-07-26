@@ -129,7 +129,7 @@ void Code_error(ParserState* state, const char* msg)
 %token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK
 %token SYSCALL_TOK SYSCALL2_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
-%token NEXT_ARG PREV_ARG
+%token INITIAL_VARARG NEXT_ARG PREV_ARG
 %token BYTESWAP BREAKPOINT
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
@@ -1541,6 +1541,7 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 	|	RDTSC_TOK LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC); $$->AddRef(); }
 	|	RDTSC_LOW LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_LOW); $$->AddRef(); }
 	|	RDTSC_HIGH LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_HIGH); $$->AddRef(); }
+	|	INITIAL_VARARG LPAREN RPAREN  { $$ = new Expr(EXPR_INITIAL_VARARG); $$->AddRef(); }
 	|	NEXT_ARG LPAREN expression COMMA expression RPAREN
 		{
 			$$ = state->BinaryExpr(EXPR_NEXT_ARG, $3, $5);

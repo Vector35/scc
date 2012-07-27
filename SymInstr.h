@@ -172,6 +172,8 @@ protected:
 	std::vector< std::pair<SymInstrBlock*, size_t> > m_defLocs;
 	std::vector< std::vector< std::pair<SymInstrBlock*, size_t> > > m_defUseChains;
 	std::vector< std::set<uint32_t> > m_regInterference;
+	std::vector< std::set<uint32_t> > m_preferSameReg;
+	std::vector< std::map<uint32_t, size_t> > m_preferSameRegCount;
 	std::set<uint32_t> m_alreadySpilled;
 
 	std::vector<uint32_t> m_clobberedCalleeSavedRegs;

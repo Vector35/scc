@@ -897,6 +897,10 @@ bool SymInstrFunction::AllocateRegisters()
 		// Compute register interference graph
 		m_regInterference.clear();
 		m_regInterference.resize(m_symRegClass.size());
+		m_preferSameReg.clear();
+		m_preferSameReg.resize(m_symRegClass.size());
+		m_preferSameRegCount.clear();
+		m_preferSameRegCount.resize(m_symRegClass.size());
 
 		for (uint32_t i = 0; i < (uint32_t)m_symRegClass.size(); i++)
 		{
@@ -992,6 +996,64 @@ bool SymInstrFunction::AllocateRegisters()
 			}
 		}
 
+		// For copying instructions, prefer that the two symbolic registers occupy the same physical register if possible
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+		{
+			for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+			{
+				if (!(*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_COPY))
+					continue;
+				if ((*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_MEMORY_BARRIER))
+					continue;
+				if ((*i)->GetInstructions()[j]->GetOperands().size() != 2)
+					continue;
+
+				uint32_t writeReg = SYMREG_NONE;
+				uint32_t readReg = SYMREG_NONE;
+
+				for (size_t k = 0; k < 2; k++)
+				{
+					if (((*i)->GetInstructions()[j]->GetOperands()[k].type == SYMOPERAND_REG) &&
+						((*i)->GetInstructions()[j]->GetOperands()[k].access == SYMOPERAND_READ))
+						readReg = (*i)->GetInstructions()[j]->GetOperands()[k].reg;
+					else if (((*i)->GetInstructions()[j]->GetOperands()[k].type == SYMOPERAND_REG) &&
+						((*i)->GetInstructions()[j]->GetOperands()[k].access == SYMOPERAND_WRITE))
+						writeReg = (*i)->GetInstructions()[j]->GetOperands()[k].reg;
+				}
+
+				if ((SYMREG_IS_SPECIAL_REG(readReg)) || (SYMREG_IS_SPECIAL_REG(writeReg)))
+					continue;
+
+				m_preferSameReg[readReg].insert(writeReg);
+				m_preferSameReg[writeReg].insert(readReg);
+
+				if (m_preferSameRegCount[readReg].find(writeReg) != m_preferSameRegCount[readReg].end())
+					m_preferSameRegCount[readReg][writeReg] = 0;
+				if (m_preferSameRegCount[writeReg].find(readReg) != m_preferSameRegCount[writeReg].end())
+					m_preferSameRegCount[writeReg][readReg] = 0;
+
+				m_preferSameRegCount[readReg][writeReg]++;
+				m_preferSameRegCount[writeReg][readReg]++;
+			}
+		}
+
+		// Get the list of temporary variables
+		set<uint32_t> temporaryVars;
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+		{
+			for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+			{
+				for (size_t k = 0; k < (*i)->GetInstructions()[j]->GetOperands().size(); k++)
+				{
+					if ((*i)->GetInstructions()[j]->GetOperands()[k].type != SYMOPERAND_REG)
+						continue;
+					if ((*i)->GetInstructions()[j]->GetOperands()[k].access != SYMOPERAND_TEMPORARY)
+						continue;
+					temporaryVars.insert((*i)->GetInstructions()[j]->GetOperands()[k].reg);
+				}
+			}
+		}
+
 		// Initialize register allocation structures
 		vector<uint32_t> toProcess;
 		vector< set<uint32_t> > pruned = m_regInterference;
@@ -1074,6 +1136,12 @@ bool SymInstrFunction::AllocateRegisters()
 					continue;
 				}
 
+				if (temporaryVars.count(*i) != 0)
+				{
+					// Let temporary variables get assigned early
+					continue;
+				}
+
 				if (pruned[*i].size() < realRegs.size())
 				{
 					// This node has less edges than the number of real registers, so it is proven that at
@@ -1098,6 +1166,12 @@ bool SymInstrFunction::AllocateRegisters()
 					if (m_alreadySpilled.count(toProcess[j]) != 0)
 					{
 						// Spilled registers will be processed first
+						continue;
+					}
+
+					if (temporaryVars.count(toProcess[j]) != 0)
+					{
+						// Let temporary variables get assigned early
 						continue;
 					}
 
@@ -1174,12 +1248,6 @@ bool SymInstrFunction::AllocateRegisters()
 
 				// Register available, add to set of available registers
 				available.push_back(*i);
-
-				if (!m_settings.polymorph)
-				{
-					// Not generating polymorphic code, so exit early once a register is found
-					break;
-				}
 			}
 
 			if (available.size() == 0)
@@ -1226,6 +1294,76 @@ bool SymInstrFunction::AllocateRegisters()
 				// Do not assign a register, just continue processing to find other registers that
 				// might need to get spilled
 				continue;
+			}
+
+			// Check for preferred registers
+			uint32_t preferredReg = SYMREG_NONE;
+			size_t preferredRegCount = 0;
+			vector<uint32_t> preferredAvailable = available;
+			for (set<uint32_t>::iterator i = m_preferSameReg[reg].begin(); i != m_preferSameReg[reg].end(); i++)
+			{
+				if (m_symRegAssignment[*i] != SYMREG_NONE)
+				{
+					// This symbolic register has already been assigned, add to list of preferred registers if the
+					// assignment is available and not already added
+					bool ok = false;
+					for (vector<uint32_t>::iterator j = available.begin(); j != available.end(); j++)
+					{
+						if (*j == m_symRegAssignment[*i])
+							ok = true;
+					}
+
+					if (ok && ((preferredReg == SYMREG_NONE) || (m_preferSameRegCount[reg][*i] > preferredRegCount)))
+					{
+						preferredReg = m_symRegAssignment[*i];
+						preferredRegCount = m_preferSameRegCount[reg][*i];
+					}
+				}
+				else
+				{
+					// No assignment for this register, but remove any native register interferences from the desired
+					// available register list
+					for (set<uint32_t>::iterator j = m_preferSameReg[reg].begin(); j != m_preferSameReg[reg].end(); j++)
+					{
+						uint32_t curReg = *j;
+						for (size_t k = 0; k < preferredAvailable.size(); k++)
+						{
+							bool valid = true;
+							for (set<uint32_t>::iterator a = m_regInterference[curReg].begin();
+								a != m_regInterference[curReg].end(); a++)
+							{
+								if (preferredAvailable[k] == *a)
+								{
+									valid = false;
+									break;
+								}
+
+								if ((!SYMREG_IS_SPECIAL_REG(*a)) && (m_symRegAssignment[*a] == preferredAvailable[k]))
+								{
+									valid = false;
+									break;
+								}
+							}
+
+							if (!valid)
+							{
+								// Register not available
+								preferredAvailable.erase(preferredAvailable.begin() + k);
+								k--;
+							}
+						}
+					}
+				}
+			}
+
+			if (preferredReg != SYMREG_NONE)
+			{
+				available.clear();
+				available.push_back(preferredReg);
+			}
+			else if (preferredAvailable.size() != 0)
+			{
+				available = preferredAvailable;
 			}
 
 			// Register is available, allocate it now

@@ -411,6 +411,7 @@ QuarkCallRegInstr::QuarkCallRegInstr(uint32_t a, uint32_t retVal, uint32_t retVa
 QuarkSyscallImmInstr::QuarkSyscallImmInstr(int32_t immed, const vector<uint32_t>& writes, const vector<uint32_t>& reads)
 {
 	SetOperation(0x2c);
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
 	AddImmediateOperand(immed);
 	for (vector<uint32_t>::const_iterator i = writes.begin(); i != writes.end(); i++)
 		AddWriteRegisterOperand(*i);
@@ -422,6 +423,7 @@ QuarkSyscallImmInstr::QuarkSyscallImmInstr(int32_t immed, const vector<uint32_t>
 QuarkSyscallRegInstr::QuarkSyscallRegInstr(uint32_t a, const vector<uint32_t>& writes, const vector<uint32_t>& reads)
 {
 	SetOperation(0x1f10);
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
 	AddReadRegisterOperand(a);
 	for (vector<uint32_t>::const_iterator i = writes.begin(); i != writes.end(); i++)
 		AddWriteRegisterOperand(*i);

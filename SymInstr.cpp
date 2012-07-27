@@ -879,6 +879,63 @@ bool SymInstrFunction::AllocateRegisters()
 {
 	m_alreadySpilled.clear();
 
+	// Delete instructions that aren't used
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+
+		PerformDataFlowAnalysis();
+
+		for (vector<SymInstrBlock*>::iterator i = m_blocks.begin(); i != m_blocks.end(); i++)
+		{
+			for (size_t j = 0; j < (*i)->GetInstructions().size(); j++)
+			{
+				if ((*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_CONTROL_FLOW))
+					continue;
+				if ((*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_MEMORY_BARRIER))
+					continue;
+				if ((*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_CALL))
+					continue;
+				if ((*i)->GetInstructions()[j]->IsFlagSet(SYMFLAG_STACK))
+					continue;
+
+				// If all variables defined by the instruction have no uses, the instruction can be deleted
+				bool canDelete = false;
+				for (size_t k = 0; k < (*i)->GetInstructions()[j]->GetOperands().size(); k++)
+				{
+					if (((*i)->GetInstructions()[j]->GetOperands()[k].access == SYMOPERAND_READ) ||
+						((*i)->GetInstructions()[j]->GetOperands()[k].access == SYMOPERAND_TEMPORARY) ||
+						((*i)->GetInstructions()[j]->GetOperands()[k].access == SYMOPERAND_IGNORED))
+						continue;
+
+					if (SYMREG_IS_SPECIAL_REG((*i)->GetInstructions()[j]->GetOperands()[k].reg))
+					{
+						canDelete = false;
+						break;
+					}
+
+					if (m_defUseChains[(*i)->GetInstructions()[j]->GetOperands()[k].dataFlowBit].size() != 0)
+					{
+						canDelete = false;
+						break;
+					}
+
+					canDelete = true;
+				}
+
+				if (!canDelete)
+					continue;
+
+				// Instruction can be deleted
+				vector<SymInstr*> empty;
+				(*i)->ReplaceInstruction(j, empty);
+				j--;
+				changed = true;
+			}
+		}
+	}
+
 	while (true) // May need to spill one or more times
 	{
 		// Perform an initial data flow analysis path so that we can analyze the symbolic register usage and see

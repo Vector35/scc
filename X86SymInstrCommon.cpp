@@ -247,7 +247,7 @@ X86_IMPLEMENT_1OP_M_SIZE(name, size, access, flags)
 #define X86_IMPLEMENT_SETCC(name) \
 X86_SYMINSTR_CLASS_OP(name, R)::X86_SYMINSTR_CLASS_OP(name, R)(uint32_t a) \
 { \
-	AddWriteRegisterOperand(a); \
+	AddReadWriteRegisterOperand(a); \
 	EnableFlag(SYMFLAG_USES_FLAGS); \
 } \
 bool X86_SYMINSTR_CLASS_OP(name, R)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
@@ -2425,6 +2425,7 @@ X86_SYMINSTR_CLASS(Syscall)::X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t 
 	AddWriteRegisterOperand(ecx);
 	for (vector<uint32_t>::const_iterator i = readRegs.begin(); i != readRegs.end(); i++)
 		AddReadRegisterOperand(*i);
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
 }
 
 
@@ -2474,6 +2475,7 @@ X86_SYMINSTR_CLASS(SyscallInt80)::X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax,
 	AddWriteRegisterOperand(ecx);
 	for (vector<uint32_t>::const_iterator i = readRegs.begin(); i != readRegs.end(); i++)
 		AddReadRegisterOperand(*i);
+	EnableFlag(SYMFLAG_CONTROL_FLOW);
 }
 
 

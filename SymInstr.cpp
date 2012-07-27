@@ -1435,78 +1435,97 @@ bool SymInstrFunction::AllocateRegisters()
 		if (spillCount > 0)
 		{
 			// Registers were spilled, need to emit spill code
-			for (size_t i = 0; i < spill.size(); i++)
+			uint32_t toSpill = SYMREG_NONE;
+			size_t cost = (size_t)-1;
+
+			for (size_t i = 0; i < m_symRegClass.size(); i++)
 			{
-				if (spill[i])
+				if (!spill[i])
+					continue;
+
+				size_t curCost = m_regDefs[spill[i]].size();
+				for (vector<size_t>::iterator j = m_regDefs[spill[i]].begin(); j != m_regDefs[spill[i]].end(); j++)
+					curCost += m_defUseChains[*j].size();
+
+				if (curCost < cost)
 				{
-					if (m_symRegVar[i] == SYMREG_NONE)
-					{
-						// There is no stack variable for this register, create one now
-						ILParameterType type = m_symRegType[i];
-						if (type == ILTYPE_VOID)
-						{
-							// Register does not have an assigned type, use the size of a register
-							switch (GetNativeSize())
-							{
-							case 2:
-								type = ILTYPE_INT16;
-								break;
-							case 4:
-								type = ILTYPE_INT32;
-								break;
-							case 8:
-								type = ILTYPE_INT64;
-								break;
-							default:
-								fprintf(stderr, "error: invalid native size\n");
-								return false;
-							}
-						}
-
-						size_t width;
-						switch (type)
-						{
-						case ILTYPE_INT8:
-							width = 1;
-							break;
-						case ILTYPE_INT16:
-							width = 2;
-							break;
-						case ILTYPE_INT32:
-							width = 4;
-							break;
-						case ILTYPE_INT64:
-							width = 8;
-							break;
-						case ILTYPE_FLOAT:
-							width = 4;
-							break;
-						case ILTYPE_DOUBLE:
-							width = 8;
-							break;
-						default:
-							fprintf(stderr, "error: spilling reg%d with invalid type\n", (int)i);
-							return false;
-						}
-
-						m_symRegVar[i] = AddStackVar(0, false, width, type);
-					}
-
-					if (m_stackVarTypes[m_symRegVar[i]] == ILTYPE_VOID)
-					{
-						fprintf(stderr, "error: spilling reg%d with invalid type\n", (int)i);
-						return false;
-					}
-
-					if (!SpillRegister(i))
-					{
-						fprintf(stderr, "error: spill of reg%d failed\n", (int)i);
-						return false;
-					}
-
-					m_alreadySpilled.insert(i);
+					toSpill = i;
+					cost = curCost;
 				}
 			}
+
+			if (toSpill == SYMREG_NONE)
+			{
+				fprintf(stderr, "error: invalid spill\n");
+				return false;
+			}
+
+			if (m_symRegVar[toSpill] == SYMREG_NONE)
+			{
+				// There is no stack variable for this register, create one now
+				ILParameterType type = m_symRegType[toSpill];
+				if (type == ILTYPE_VOID)
+				{
+					// Register does not have an assigned type, use the size of a register
+					switch (GetNativeSize())
+					{
+					case 2:
+						type = ILTYPE_INT16;
+						break;
+					case 4:
+						type = ILTYPE_INT32;
+						break;
+					case 8:
+						type = ILTYPE_INT64;
+						break;
+					default:
+						fprintf(stderr, "error: invalid native size\n");
+						return false;
+					}
+				}
+
+				size_t width;
+				switch (type)
+				{
+				case ILTYPE_INT8:
+					width = 1;
+					break;
+				case ILTYPE_INT16:
+					width = 2;
+					break;
+				case ILTYPE_INT32:
+					width = 4;
+					break;
+				case ILTYPE_INT64:
+					width = 8;
+					break;
+				case ILTYPE_FLOAT:
+					width = 4;
+					break;
+				case ILTYPE_DOUBLE:
+					width = 8;
+					break;
+				default:
+					fprintf(stderr, "error: spilling reg%d with invalid type\n", (int)toSpill);
+					return false;
+				}
+
+				m_symRegVar[toSpill] = AddStackVar(0, false, width, type);
+			}
+
+			if (m_stackVarTypes[m_symRegVar[toSpill]] == ILTYPE_VOID)
+			{
+				fprintf(stderr, "error: spilling reg%d with invalid type\n", (int)toSpill);
+				return false;
+			}
+
+			if (!SpillRegister(toSpill))
+			{
+				fprintf(stderr, "error: spill of reg%d failed\n", (int)toSpill);
+				return false;
+			}
+
+			m_alreadySpilled.insert(toSpill);
 
 			// Restart register allocator after spilling
 			continue;

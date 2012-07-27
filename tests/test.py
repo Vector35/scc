@@ -36,7 +36,7 @@ shellcode_stack_testcase = {"source": "tests/shellcode.c", "inputfile": None, "o
 
 tests = [
 	["args.c, normal", args_testcase, []],
-	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
+#	["args.c, stack grows up", args_testcase, ["--stack-grows-up"]],
 	["shift.c, normal", shift_testcase, []],
 	["string.c, normal", string_testcase, []],
 	["pi.c, normal", pi_testcase, []],
@@ -53,12 +53,12 @@ tests = [
 	["fortress.c, position indepedent", fortress_testcase, ["--pie"]],
 	["fortress.c, polymorphic", fortress_testcase, ["--polymorph", "--seed", "<SEED>"]],
 	["fortress.c, anti-disassembly", fortress_testcase, ["--anti-disasm", "--seed", "<SEED>"]],
-	["fortress.c, stack grows up", fortress_testcase, ["--stack-grows-up"]],
-	["fortress.c, alternate stack ptr", fortress_testcase, ["--stack-reg", "ebx"]],
-	["fortress.c, alternate frame ptr", fortress_testcase, ["--frame-reg", "ecx"]],
-	["fortress.c, alternate stack and frame ptr", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx"]],
-	["fortress.c, encode pointers", fortress_testcase, ["--encode-pointers"]],
-	["fortress.c, everything", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx", "--encode-pointers", "--stack-grows-up", "--pie", "--polymorph", "--seed", "<SEED>"]],
+#	["fortress.c, stack grows up", fortress_testcase, ["--stack-grows-up"]],
+#	["fortress.c, alternate stack ptr", fortress_testcase, ["--stack-reg", "ebx"]],
+#	["fortress.c, alternate frame ptr", fortress_testcase, ["--frame-reg", "ecx"]],
+#	["fortress.c, alternate stack and frame ptr", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx"]],
+#	["fortress.c, encode pointers", fortress_testcase, ["--encode-pointers"]],
+#	["fortress.c, everything", fortress_testcase, ["--stack-reg", "ebx", "--frame-reg", "ecx", "--encode-pointers", "--stack-grows-up", "--pie", "--polymorph", "--seed", "<SEED>"]],
 ]
 
 seeds = [17, 42, 1024, 1337, 4096, 4141, 7331, 31337, 65536, 1048576]

@@ -4924,6 +4924,12 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	m_settings.stackPointer = DEFAULT_STACK_POINTER;
 	m_settings.basePointer = SYMREG_NONE;
 
+	if (m_settings.stackGrowsUp)
+	{
+		// TODO: Fix this setting
+		return false;
+	}
+
 	// TODO: Stack variable system does not yet support frames without a frame pointer
 	m_framePointerEnabled = true;
 

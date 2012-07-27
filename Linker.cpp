@@ -1067,6 +1067,20 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		codeSection.FinishWrite(block->len);
 	}
 
+	if (m_settings.sizeInfo)
+	{
+		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		{
+			size_t size = 0;
+			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+				size += (*j)->GetOutputBlock()->len;
+
+			fprintf(stderr, "%-32s  %d bytes\n", (*i)->GetName().c_str(), (int)size);
+		}
+
+		fprintf(stderr, "%-32s  %d bytes\n", "data section", (int)dataSection.len);
+	}
+
 	if ((m_settings.alignment > 1) && ((codeSection.len % m_settings.alignment) != 0))
 	{
 		// Pad code section with random bytes (respecting blacklist)

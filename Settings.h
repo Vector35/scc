@@ -97,6 +97,7 @@ struct Settings
 	uint32_t alignment;
 
 	bool internalDebug;
+	bool sizeInfo;
 };
 
 #endif

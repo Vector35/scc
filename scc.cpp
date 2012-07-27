@@ -145,6 +145,7 @@ int main(int argc, char* argv[])
 	settings.positionIndependent = true;
 	settings.base = 0;
 	settings.internalDebug = false;
+	settings.sizeInfo = false;
 	settings.alignment = 1;
 
 	for (int i = 1; i < argc; i++)
@@ -556,6 +557,11 @@ int main(int argc, char* argv[])
 		else if (!strcmp(argv[i], "--shared"))
 		{
 			settings.sharedLibrary = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--size-info"))
+		{
+			settings.sizeInfo = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--stack-grows-up"))

@@ -875,7 +875,13 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	for (vector< Ref<Variable> >::iterator i = m_variables.begin(); i != m_variables.end(); i++)
 	{
 		if (addr & ((*i)->GetType()->GetAlignment() - 1))
-			addr += (*i)->GetType()->GetAlignment() - (addr & ((*i)->GetType()->GetAlignment() - 1));
+		{
+			size_t padding = (size_t)((*i)->GetType()->GetAlignment() - (addr & ((*i)->GetType()->GetAlignment() - 1)));
+			uint8_t zero = 0;
+			addr += padding;
+			for (size_t j = 0; j < padding; j++)
+				dataSection.Write(&zero, 1);
+		}
 
 		(*i)->SetDataSectionOffset(addr);
 

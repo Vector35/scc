@@ -84,6 +84,7 @@ public:
 	size_t GetAlignment() const;
 	bool IsSigned() const { return m_signed; }
 	bool IsConst() const { return m_const; }
+	bool IsFloat() const { return m_class == TYPE_FLOAT; }
 	Type* GetChildType() const { return m_childType; }
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }
 	const std::vector< Ref<Type> >& GetParams() const { return m_params; }

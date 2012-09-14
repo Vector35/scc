@@ -91,6 +91,7 @@ typedef enum
 	ILPARAM_VOID,
 	ILPARAM_INT,
 	ILPARAM_FLOAT,
+	ILPARAM_FLOAT_CONST_REF,
 	ILPARAM_STRING,
 	ILPARAM_FIELD,
 	ILPARAM_BOOL,
@@ -144,6 +145,7 @@ struct ILParameter
 	ILParameter(const std::string& str);
 	ILParameter(Struct* s, const std::string& name);
 	ILParameter(Variable* var);
+	ILParameter(ILParameterType t, Variable* var);
 	ILParameter(Function* func);
 	ILParameter(ILBlock* b);
 	ILParameter(const ILParameter& obj, Type* objType, const std::string& str);

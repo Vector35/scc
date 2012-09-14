@@ -45,7 +45,7 @@ class OutputQuark: public Output
 	{
 		OperandReferenceType type;
 		size_t width;
-		bool sign;
+		bool sign, fpu;
 		union
 		{
 			struct

@@ -63,6 +63,8 @@ enum QuarkRegisterClass
 #define QUARKREGCLASS_FLOAT_PARAM(n)   ((QuarkRegisterClass)(QUARKREGCLASS_FLOAT_PARAM_0 + (n)))
 #define QUARKREGCLASS_SYSCALL_PARAM(n) ((QuarkRegisterClass)(QUARKREGCLASS_SYSCALL_PARAM_0 + (n)))
 
+#define QUARK_FPU_REG(n) SYMREG_NATIVE_REG((n) + 32)
+
 
 class QuarkSymInstr: public SymInstr
 {
@@ -165,6 +167,14 @@ class QuarkMovInstr: public Quark2OpInstrBase
 public:
 	QuarkMovInstr(uint32_t a, uint32_t b, uint32_t shift);
 	QuarkMovInstr(uint32_t a, int32_t immed);
+	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual void Print(SymInstrFunction* func);
+};
+
+class QuarkFmovInstr: public Quark2OpInstrBase
+{
+public:
+	QuarkFmovInstr(uint32_t a, uint32_t b);
 	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -588,19 +598,19 @@ SymInstr* QuarkRol(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkRor(uint32_t a, uint32_t b, uint32_t c, uint32_t s);
 SymInstr* QuarkRor(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFadd(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFadd(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFaddImmed(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFsub(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFsub(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFsubImmed(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFmul(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFmul(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFmulImmed(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFdiv(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFdiv(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFdivImmed(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFmod(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFmod(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFmodImmed(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFpow(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFpow(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFpowImmed(uint32_t a, uint32_t b, int32_t immed);
 SymInstr* QuarkFlog(uint32_t a, uint32_t b, uint32_t c);
-SymInstr* QuarkFlog(uint32_t a, uint32_t b, int32_t immed);
+SymInstr* QuarkFlogImmed(uint32_t a, uint32_t b, int32_t immed);
 
 SymInstr* QuarkCmp(uint32_t b, uint32_t op, uint32_t a, uint32_t c, uint32_t s);
 SymInstr* QuarkCmp(uint32_t b, uint32_t op, uint32_t a, int32_t immed);
@@ -648,11 +658,11 @@ SymInstr* Quark2toXImmed(uint32_t a, int32_t immed);
 SymInstr* Quark10toXReg(uint32_t a, uint32_t b);
 SymInstr* Quark10toXImmed(uint32_t a, int32_t immed);
 SymInstr* QuarkSqrt(uint32_t a, uint32_t b);
-SymInstr* QuarkSqrt(uint32_t a, int32_t immed);
+SymInstr* QuarkSqrtImmed(uint32_t a, int32_t immed);
 SymInstr* QuarkRecip(uint32_t a, uint32_t b);
-SymInstr* QuarkRecip(uint32_t a, int32_t immed);
+SymInstr* QuarkRecipImmed(uint32_t a, int32_t immed);
 SymInstr* QuarkRecipSqrt(uint32_t a, uint32_t b);
-SymInstr* QuarkRecipSqrt(uint32_t a, int32_t immed);
+SymInstr* QuarkRecipSqrtImmed(uint32_t a, int32_t immed);
 SymInstr* QuarkFneg(uint32_t a, uint32_t b);
 SymInstr* QuarkFsin(uint32_t a, uint32_t b);
 SymInstr* QuarkFcos(uint32_t a, uint32_t b);
@@ -671,13 +681,13 @@ SymInstr* QuarkFacosh(uint32_t a, uint32_t b);
 SymInstr* QuarkFatanh(uint32_t a, uint32_t b);
 SymInstr* QuarkFabs(uint32_t a, uint32_t b);
 SymInstr* QuarkFln(uint32_t a, uint32_t b);
-SymInstr* QuarkFln(uint32_t a, int32_t immed);
+SymInstr* QuarkFlnImmed(uint32_t a, int32_t immed);
 SymInstr* QuarkFlog2(uint32_t a, uint32_t b);
-SymInstr* QuarkFlog2(uint32_t a, int32_t immed);
+SymInstr* QuarkFlog2Immed(uint32_t a, int32_t immed);
 SymInstr* QuarkFlog10(uint32_t a, uint32_t b);
-SymInstr* QuarkFlog10(uint32_t a, int32_t immed);
+SymInstr* QuarkFlog10Immed(uint32_t a, int32_t immed);
 SymInstr* QuarkFmov(uint32_t a, uint32_t b);
-SymInstr* QuarkFmov(uint32_t a, int32_t immed);
+SymInstr* QuarkFmovImmed(uint32_t a, int32_t immed);
 
 SymInstr* QuarkRegParam(const std::vector<uint32_t> regs);
 SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh);

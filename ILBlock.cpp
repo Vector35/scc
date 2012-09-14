@@ -108,6 +108,14 @@ ILParameter::ILParameter(Variable* var)
 }
 
 
+ILParameter::ILParameter(ILParameterType t, Variable* var)
+{
+	cls = ILPARAM_FLOAT_CONST_REF;
+	variable = var;
+	type = t;
+}
+
+
 ILParameter::ILParameter(Function* func)
 {
 	cls = ILPARAM_FUNC;
@@ -357,6 +365,7 @@ void ILParameter::Serialize(OutputBlock* output)
 		output->WriteInteger(boolValue ? 1 : 0);
 		break;
 	case ILPARAM_VAR:
+	case ILPARAM_FLOAT_CONST_REF:
 		variable->Serialize(output);
 		break;
 	case ILPARAM_FUNC:
@@ -415,6 +424,7 @@ bool ILParameter::Deserialize(InputBlock* input)
 			return false;
 		break;
 	case ILPARAM_VAR:
+	case ILPARAM_FLOAT_CONST_REF:
 		variable = Variable::Deserialize(input);
 		if (!variable)
 			return false;
@@ -460,6 +470,7 @@ void ILParameter::Print() const
 	case ILPARAM_INT:  fprintf(stderr, "%lld {%d}", (long long)integerValue, (int)GetWidth()); break;
 #endif
 	case ILPARAM_FLOAT:  fprintf(stderr, "%f", floatValue); break;
+	case ILPARAM_FLOAT_CONST_REF:  fprintf(stderr, "const<%s>", variable->GetName().c_str()); break;
 	case ILPARAM_STRING:  fprintf(stderr, "\"%s\"", stringValue.c_str()); break;
 	case ILPARAM_FIELD:  fprintf(stderr, "%s::%s", structure->GetName().c_str(), stringValue.c_str()); break;
 	case ILPARAM_BOOL:  fprintf(stderr, "%s", boolValue ? "true" : "false"); break;

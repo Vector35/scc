@@ -135,6 +135,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 	{
 		ref.type = OPERANDREF_MEM;
 		ref.sign = param.variable->GetType()->IsSigned();
+		ref.fpu = param.variable->GetType()->IsFloat();
 		ref.memType = MEMORYREF_GLOBAL_VAR;
 		ref.base = SYMREG_IP;
 		ref.offset = param.variable->GetDataSectionOffset();
@@ -147,6 +148,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 		// Variable has a register associated with it
 		ref.type = OPERANDREF_REG;
 		ref.sign = param.variable->GetType()->IsSigned();
+		ref.fpu = param.variable->GetType()->IsFloat();
 		ref.reg = m_varReg[param.variable];
 		if ((!param.IsFloat()) && (ref.width == 8))
 			ref.highReg = ref.reg + 1;
@@ -158,6 +160,7 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 		return false;
 	ref.type = OPERANDREF_MEM;
 	ref.sign = param.variable->GetType()->IsSigned();
+	ref.fpu = param.variable->GetType()->IsFloat();
 	ref.memType = MEMORYREF_STACK_VAR;
 	ref.base = m_framePointerEnabled ? SYMREG_BP : SYMREG_SP;
 	ref.var = i->second;
@@ -169,6 +172,8 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 
 bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandReference& ref, bool forceReg)
 {
+	uint32_t reg;
+
 	ref.width = param.GetWidth();
 
 	switch (param.cls)
@@ -181,7 +186,7 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		if (ref.type == OPERANDREF_MEM)
 		{
 			// Load memory references into a register
-			uint32_t reg, highReg = SYMREG_NONE;
+			uint32_t highReg = SYMREG_NONE;
 			reg = m_symFunc->AddRegister(param.IsFloat() ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
 			if ((!param.IsFloat()) && (ref.width == 8))
 				highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
@@ -275,12 +280,14 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		{
 			ref.type = OPERANDREF_IMMED;
 			ref.sign = true;
+			ref.fpu = false;
 			ref.immed = param.integerValue;
 			return true;
 		}
 
 		ref.type = OPERANDREF_REG;
 		ref.sign = true;
+		ref.fpu = false;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		if (ref.width == 8)
 			ref.highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
@@ -288,6 +295,43 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		LoadImm(out, ref.reg, (int32_t)param.integerValue);
 		if (ref.width == 8)
 			LoadImm(out, ref.highReg, (int32_t)(param.integerValue >> 32));
+		return true;
+	case ILPARAM_FLOAT:
+		// Floating point values that cannot be represented as an integer immedate will have
+		// been converted to ILPARAM_FLOAT_CONST_REF earlier
+		if ((!forceReg) && IsSigned11Bit(param.integerValue))
+		{
+			ref.type = OPERANDREF_IMMED;
+			ref.sign = true;
+			ref.fpu = true;
+			ref.immed = (int32_t)param.floatValue;
+			return true;
+		}
+
+		ref.type = OPERANDREF_REG;
+		ref.sign = true;
+		ref.fpu = true;
+		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_FLOAT);
+		out->AddInstruction(QuarkFmovImmed(ref.reg, (int32_t)param.floatValue));
+		return true;
+	case ILPARAM_FLOAT_CONST_REF:
+		ref.type = OPERANDREF_MEM;
+		ref.sign = param.variable->GetType()->IsSigned();
+		ref.memType = MEMORYREF_GLOBAL_VAR;
+		ref.base = SYMREG_IP;
+		ref.offset = param.variable->GetDataSectionOffset();
+		ref.scratch = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+
+		reg = m_symFunc->AddRegister(param.IsFloat() ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
+		if (ref.width == 4)
+			out->AddInstruction(QuarkLoadGlobalFS(reg, ref.base, ref.offset, ref.scratch));
+		else
+			out->AddInstruction(QuarkLoadGlobalFD(reg, ref.base, ref.offset, ref.scratch));
+
+		ref.type = OPERANDREF_REG;
+		ref.reg = reg;
+		ref.sign = true;
+		ref.fpu = true;
 		return true;
 	case ILPARAM_BOOL:
 		if (!forceReg)
@@ -298,12 +342,14 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		}
 		ref.type = OPERANDREF_REG;
 		ref.sign = false;
+		ref.fpu = false;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		LoadImm(out, ref.reg, param.boolValue ? 1 : 0);
 		return true;
 	case ILPARAM_FUNC:
 		ref.type = OPERANDREF_REG;
 		ref.sign = false;
+		ref.fpu = false;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		out->AddInstruction(QuarkAddBlock(ref.reg, SYMREG_IP, param.function, param.function->GetIL()[0],
 			m_symFunc->AddRegister(QUARKREGCLASS_INTEGER)));
@@ -311,6 +357,7 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 	case ILPARAM_UNDEFINED:
 		ref.type = OPERANDREF_REG;
 		ref.sign = true;
+		ref.fpu = param.IsFloat();
 		ref.width = param.GetWidth();
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		return true;
@@ -347,6 +394,15 @@ bool OutputQuark::LoadIntoRegister(SymInstrBlock* out, const OperandReference& r
 	{
 		reg.type = OPERANDREF_REG;
 		reg.width = ref.width;
+		reg.fpu = ref.fpu;
+
+		if (reg.fpu)
+		{
+			reg.reg = m_symFunc->AddRegister(QUARKREGCLASS_FLOAT);
+			out->AddInstruction(QuarkFmovImmed(reg.reg, (int32_t)ref.immed));
+			return true;
+		}
+
 		reg.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 		LoadImm(out, reg.reg, (int32_t)ref.immed);
 		if (ref.width == 8)
@@ -369,9 +425,16 @@ bool OutputQuark::GetDestRegister(SymInstrBlock* out, const OperandReference& de
 	{
 		reg.type = OPERANDREF_REG;
 		reg.width = dest.width;
-		reg.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
-		if (reg.width == 8)
-			reg.highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		reg.fpu = dest.fpu;
+
+		if (reg.fpu)
+			reg.reg = m_symFunc->AddRegister(QUARKREGCLASS_FLOAT);
+		else
+		{
+			reg.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+			if (reg.width == 8)
+				reg.highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		}
 	}
 	return true;
 }
@@ -379,6 +442,47 @@ bool OutputQuark::GetDestRegister(SymInstrBlock* out, const OperandReference& de
 
 bool OutputQuark::Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src, bool enforceSize)
 {
+	if (dest.fpu)
+	{
+		if (dest.type == OPERANDREF_REG)
+		{
+			if (src.type == OPERANDREF_IMMED)
+				out->AddInstruction(QuarkFmovImmed(dest.reg, (int32_t)src.immed));
+			else
+				out->AddInstruction(QuarkFmov(dest.reg, src.reg));
+			return true;
+		}
+
+		if (dest.type == OPERANDREF_MEM)
+		{
+			OperandReference srcReg;
+			if (!LoadIntoRegister(out, src, srcReg))
+				return false;
+
+			switch (dest.width)
+			{
+			case 4:
+				if (dest.memType == MEMORYREF_STACK_VAR)
+					out->AddInstruction(QuarkStoreStackFS(srcReg.reg, dest.base, dest.var, dest.offset, dest.scratch));
+				else
+					out->AddInstruction(QuarkStoreGlobalFS(srcReg.reg, dest.base, dest.offset, dest.scratch));
+				break;
+			case 8:
+				if (dest.memType == MEMORYREF_STACK_VAR)
+					out->AddInstruction(QuarkStoreStackFD(srcReg.reg, dest.base, dest.var, dest.offset, dest.scratch));
+				else
+					out->AddInstruction(QuarkStoreGlobalFD(srcReg.reg, dest.base, dest.offset, dest.scratch));
+				break;
+			default:
+				return false;
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
 	if (dest.type == OPERANDREF_REG)
 	{
 		if (src.type == OPERANDREF_IMMED)
@@ -988,34 +1092,51 @@ bool OutputQuark::GenerateAdd(SymInstrBlock* out, const ILInstruction& instr)
 	if (!GetDestRegister(out, dest, result))
 		return false;
 
-	switch (right.type)
+	if (dest.fpu)
 	{
-	case OPERANDREF_REG:
-		if (result.width == 8)
+		switch (right.type)
 		{
-			out->AddInstruction(QuarkClrCC(3));
-			out->AddInstruction(QuarkAddx(result.reg, left.reg, right.reg, 0));
-			out->AddInstruction(QuarkAddx(result.highReg, left.highReg, right.highReg, 0));
+		case OPERANDREF_REG:
+			out->AddInstruction(QuarkFadd(result.reg, left.reg, right.reg));
+			break;
+		case OPERANDREF_IMMED:
+			out->AddInstruction(QuarkFaddImmed(result.reg, left.reg, (int32_t)right.immed));
+			break;
+		default:
+			return false;
 		}
-		else
+	}
+	else
+	{
+		switch (right.type)
 		{
-			out->AddInstruction(QuarkAdd(result.reg, left.reg, right.reg, 0));
+		case OPERANDREF_REG:
+			if (result.width == 8)
+			{
+				out->AddInstruction(QuarkClrCC(3));
+				out->AddInstruction(QuarkAddx(result.reg, left.reg, right.reg, 0));
+				out->AddInstruction(QuarkAddx(result.highReg, left.highReg, right.highReg, 0));
+			}
+			else
+			{
+				out->AddInstruction(QuarkAdd(result.reg, left.reg, right.reg, 0));
+			}
+			break;
+		case OPERANDREF_IMMED:
+			if (result.width == 8)
+			{
+				out->AddInstruction(QuarkClrCC(3));
+				out->AddInstruction(QuarkAddx(result.reg, left.reg, (int32_t)right.immed));
+				out->AddInstruction(QuarkAddx(result.highReg, left.highReg, (int32_t)(right.immed >> 32)));
+			}
+			else
+			{
+				out->AddInstruction(QuarkAdd(result.reg, left.reg, (int32_t)right.immed));
+			}
+			break;
+		default:
+			return false;
 		}
-		break;
-	case OPERANDREF_IMMED:
-		if (result.width == 8)
-		{
-			out->AddInstruction(QuarkClrCC(3));
-			out->AddInstruction(QuarkAddx(result.reg, left.reg, (int32_t)right.immed));
-			out->AddInstruction(QuarkAddx(result.highReg, left.highReg, (int32_t)(right.immed >> 32)));
-		}
-		else
-		{
-			out->AddInstruction(QuarkAdd(result.reg, left.reg, (int32_t)right.immed));
-		}
-		break;
-	default:
-		return false;
 	}
 
 	return Move(out, dest, result, true);
@@ -1830,6 +1951,7 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 				dest.type = OPERANDREF_REG;
 				dest.width = src.width;
 				dest.sign = src.sign;
+				dest.fpu = false;
 				dest.reg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
 				if (!Move(out, dest, src))
 					return false;
@@ -1849,6 +1971,7 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 				dest.type = OPERANDREF_REG;
 				dest.width = src.width;
 				dest.sign = src.sign;
+				dest.fpu = false;
 				dest.reg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
 				dest.highReg = m_symFunc->AddRegister(intParamRegs[curIntParamReg++]);
 				if (!Move(out, dest, src))
@@ -1995,6 +2118,7 @@ bool OutputQuark::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 		OperandReference retValOperand;
 		retValOperand.type = OPERANDREF_REG;
 		retValOperand.width = instr.params[0].GetWidth();
+		retValOperand.fpu = false;
 		retValOperand.reg = retVal;
 		retValOperand.highReg = retValHigh;
 
@@ -2019,21 +2143,39 @@ bool OutputQuark::GenerateSignedConvert(SymInstrBlock* out, const ILInstruction&
 	if (!GetDestRegister(out, dest, result))
 		return false;
 
-	switch (src.width)
+	if (dest.fpu)
 	{
-	case 1:
-		out->AddInstruction(QuarkSxb(result.reg, src.reg));
-		break;
-	case 2:
-		out->AddInstruction(QuarkSxh(result.reg, src.reg));
-		break;
-	default:
-		out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
-		break;
+		if (src.fpu)
+			out->AddInstruction(QuarkFmov(result.reg, src.reg));
+		else
+			out->AddInstruction(QuarkLoadFI(result.reg, src.reg));
 	}
+	else if (src.fpu)
+	{
+		// TODO: Implement float conversion to 64-bit integer
+		if (dest.width == 8)
+			return false;
 
-	if (instr.params[0].GetWidth() == 8)
-		out->AddInstruction(QuarkSar(result.highReg, result.reg, 31));
+		out->AddInstruction(QuarkStoreFI(result.reg, src.reg));
+	}
+	else
+	{
+		switch (src.width)
+		{
+		case 1:
+			out->AddInstruction(QuarkSxb(result.reg, src.reg));
+			break;
+		case 2:
+			out->AddInstruction(QuarkSxh(result.reg, src.reg));
+			break;
+		default:
+			out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
+			break;
+		}
+
+		if (instr.params[0].GetWidth() == 8)
+			out->AddInstruction(QuarkSar(result.highReg, result.reg, 31));
+	}
 
 	return Move(out, dest, result);
 }
@@ -2169,6 +2311,7 @@ bool OutputQuark::GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr)
 	OperandReference stack;
 	stack.type = OPERANDREF_REG;
 	stack.width = 4;
+	stack.fpu = false;
 	stack.reg = SYMREG_SP;
 
 	if (m_settings.stackGrowsUp)
@@ -2238,6 +2381,7 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 		OperandReference dest;
 		dest.type = OPERANDREF_REG;
 		dest.width = cur.width;
+		dest.fpu = false;
 		dest.reg = reg;
 		dest.highReg = highReg;
 
@@ -2252,6 +2396,7 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 	OperandReference result, result2;
 	result.type = OPERANDREF_REG;
 	result.width = 4;
+	result.fpu = false;
 	result.reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_RESULT_1);
 	writes.push_back(result.reg);
 
@@ -2259,6 +2404,7 @@ bool OutputQuark::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr
 	{
 		result2.type = OPERANDREF_REG;
 		result2.width = 4;
+		result2.fpu = false;
 		result2.reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_RESULT_2);
 		writes.push_back(result2.reg);
 	}
@@ -2294,6 +2440,7 @@ bool OutputQuark::GenerateInitialVararg(SymInstrBlock* out, const ILInstruction&
 
 	result.type = OPERANDREF_REG;
 	result.width = 4;
+	result.fpu = false;
 	result.reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
 
 	uint32_t scratch = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);

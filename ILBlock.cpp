@@ -656,6 +656,7 @@ bool ILInstruction::WritesToFirstParameter() const
 	case ILOP_NEXT_ARG:
 	case ILOP_PREV_ARG:
 	case ILOP_BYTESWAP:
+	case ILOP_POW:
 		// These instructions write to the first parameter
 		return true;
 	case ILOP_DEREF_ASSIGN:
@@ -794,6 +795,7 @@ void ILInstruction::Print() const
 	case ILOP_PREV_ARG:  params[0].Print(); fprintf(stderr, " = prev_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_BYTESWAP:  params[0].Print(); fprintf(stderr, " = byteswap "); params[1].Print(); break;
 	case ILOP_BREAKPOINT:  fprintf(stderr, "breakpoint"); break;
+	case ILOP_POW:  params[0].Print(); fprintf(stderr, " = pow "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
 	case ILOP_CALL:
 		params[0].Print();
 		fprintf(stderr, " = ");

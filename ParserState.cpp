@@ -580,6 +580,12 @@ bool ParserState::HasIntrinsicShift64()
 }
 
 
+bool ParserState::HasIntrinsicPow()
+{
+	return true;
+}
+
+
 void ParserState::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(m_types.size());

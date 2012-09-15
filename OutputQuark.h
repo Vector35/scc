@@ -152,6 +152,7 @@ class OutputQuark: public Output
 	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateBreakpoint(SymInstrBlock* out, const ILInstruction& instr);
+	bool GeneratePow(SymInstrBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 

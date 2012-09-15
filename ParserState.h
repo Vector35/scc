@@ -134,6 +134,7 @@ public:
 	bool HasIntrinsicMemset();
 	bool HasIntrinsicDivide64();
 	bool HasIntrinsicShift64();
+	bool HasIntrinsicPow();
 
 	Expr* BasicExpr(ExprClass cls) { return new Expr(GetLocation(), cls); }
 	Expr* BoolExpr(bool value) { return Expr::BoolExpr(GetLocation(), value); }

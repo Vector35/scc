@@ -83,7 +83,8 @@ typedef enum
 	ILOP_NEXT_ARG,
 	ILOP_PREV_ARG,
 	ILOP_BYTESWAP,
-	ILOP_BREAKPOINT
+	ILOP_BREAKPOINT,
+	ILOP_POW
 } ILOperation;
 
 typedef enum

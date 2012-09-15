@@ -2206,8 +2206,8 @@ SymInstr* QuarkCmp(uint32_t op, uint32_t b, uint32_t a, uint32_t c, uint32_t s) 
 SymInstr* QuarkCmp(uint32_t op, uint32_t b, uint32_t a, int32_t immed) { return new QuarkCmpInstr(0x2d, op, b, a, immed); }
 SymInstr* QuarkIcmp(uint32_t op, uint32_t b, uint32_t a, uint32_t c, uint32_t s) { return new QuarkCmpInstr(0x2e, op, b, a, c, s); }
 SymInstr* QuarkIcmp(uint32_t op, uint32_t b, uint32_t a, int32_t immed) { return new QuarkCmpInstr(0x2e, op, b, a, immed); }
-SymInstr* QuarkFcmp(uint32_t op, uint32_t b, uint32_t a, uint32_t c, uint32_t s) { return new QuarkCmpInstr(0x2f, op, b, a, c, s); }
-SymInstr* QuarkFcmp(uint32_t op, uint32_t b, uint32_t a, int32_t immed) { return new QuarkCmpInstr(0x2f, op, b, a, immed); }
+SymInstr* QuarkFcmp(uint32_t op, uint32_t b, uint32_t a, uint32_t c) { return new QuarkCmpInstr(0x2f, op, b, a, c, 0); }
+SymInstr* QuarkFcmpImmed(uint32_t op, uint32_t b, uint32_t a, int32_t immed) { return new QuarkCmpInstr(0x2f, op, b, a, immed); }
 SymInstr* QuarkCondCmp(uint32_t cc, uint32_t val, uint32_t op, uint32_t b, uint32_t a, uint32_t c, uint32_t s) { return new QuarkCondCmpInstr(0x2d, cc, val, op, b, a, c, s); }
 SymInstr* QuarkCondCmp(uint32_t cc, uint32_t val, uint32_t op, uint32_t b, uint32_t a, int32_t immed) { return new QuarkCondCmpInstr(0x2d, cc, val, op, b, a, immed); }
 SymInstr* QuarkCondIcmp(uint32_t cc, uint32_t val, uint32_t op, uint32_t b, uint32_t a, uint32_t c, uint32_t s) { return new QuarkCondCmpInstr(0x2e, cc, val, op, b, a, c, s); }

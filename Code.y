@@ -119,7 +119,7 @@ void Code_error(ParserState* state, const char* msg)
 %token GOTO
 %token SWITCH CASE DEFAULT
 %token VOID_TOK
-%token MIN MAX ABS
+%token MIN MAX ABS POW
 %token ALLOCA MEMCPY MEMSET STRLEN
 %token SIZEOF
 %token TYPEDEF
@@ -1497,6 +1497,13 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 	|	MIN LPAREN arg_list_nonempty RPAREN  { $$ = state->BuiltinCallExpr(EXPR_MIN, *$3); $$->AddRef(); delete $3; }
 	|	MAX LPAREN arg_list_nonempty RPAREN  { $$ = state->BuiltinCallExpr(EXPR_MAX, *$3); $$->AddRef(); delete $3; }
 	|	ABS LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_ABS, $3); $$->AddRef(); $3->Release(); }
+	|	POW LPAREN expression COMMA expression RPAREN
+		{
+			$$ = state->BinaryExpr(EXPR_POW, $3, $5);
+			$$->AddRef();
+			$3->Release();
+			$5->Release();
+		}
 	|	ALLOCA LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_ALLOCA, $3); $$->AddRef(); $3->Release(); }
 	|	MEMCPY LPAREN expression COMMA expression COMMA expression RPAREN
 		{

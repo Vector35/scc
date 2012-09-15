@@ -924,6 +924,50 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 				m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
+	case EXPR_POW:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+		{
+			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
+				m_type = Type::FloatType(8);
+			else if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
+				m_type = m_children[1]->GetType();
+			else
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				m_type = Type::VoidType();
+			}
+		}
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+		{
+			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
+				m_type = m_children[0]->GetType();
+			else if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
+			{
+				if (m_children[0]->GetType()->GetWidth() > m_children[1]->GetType()->GetWidth())
+					m_type = m_children[0]->GetType();
+				else
+					m_type = m_children[1]->GetType();
+			}
+			else
+			{
+				state->Error();
+				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+					m_location.lineNumber);
+				m_type = Type::VoidType();
+			}
+		}
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		m_children[0] = m_children[0]->ConvertToType(state, m_type);
+		m_children[1] = m_children[1]->ConvertToType(state, m_type);
+		break;
 	case EXPR_ALLOCA:
 		m_type = Type::PointerType(Type::VoidType(), 1);
 		if (m_children[0]->GetType()->GetClass() != TYPE_INT)
@@ -1495,8 +1539,6 @@ Expr* Expr::Simplify(ParserState* state)
 	case EXPR_ABS:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::IntExpr(m_location, llabs(m_children[0]->GetIntValue()));
-		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, fabs(m_children[0]->GetIntValue()));
 		return this;
 	case EXPR_CAST:
 		if (m_children[0]->GetClass() == EXPR_INT)
@@ -2139,7 +2181,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if ((!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2168,7 +2210,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if ((!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2678,6 +2720,31 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			trueBlock->AddInstruction(ILOP_NEG, result, a);
 			trueBlock->AddInstruction(ILOP_GOTO, ILParameter(falseBlock));
 			block = falseBlock;
+		}
+		break;
+	case EXPR_POW:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		b = m_children[1]->GenerateIL(state, func, block);
+		if (!state->HasIntrinsicPow())
+		{
+			string name;
+			if (m_type->GetWidth() == 4)
+				name = "__powf";
+			else
+				name = "__powd";
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
+					name.c_str());
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+		}
+		else
+		{
+			block->AddInstruction(ILOP_POW, result, a, b);
 		}
 		break;
 	case EXPR_ALLOCA:

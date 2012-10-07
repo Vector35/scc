@@ -218,6 +218,18 @@ void OutputBlock::WriteUInt64(uint64_t value)
 }
 
 
+void OutputBlock::WriteFloat(float value)
+{
+	Write(&value, sizeof(value));
+}
+
+
+void OutputBlock::WriteDouble(double value)
+{
+	Write(&value, sizeof(value));
+}
+
+
 bool InputBlock::Read(void* data, size_t readLen)
 {
 	if ((offset + readLen) > len)

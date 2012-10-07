@@ -82,6 +82,9 @@ struct OutputBlock
 	void WriteUInt32(uint32_t value);
 	void WriteUInt64(uint64_t value);
 
+	void WriteFloat(float value);
+	void WriteDouble(double value);
+
 	void ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset);
 };
 

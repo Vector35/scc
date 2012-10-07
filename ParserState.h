@@ -70,6 +70,9 @@ class ParserState
 	Ref<Expr> m_initExpression;
 	std::map< std::string, Ref<Function> > m_functions;
 
+	std::map<float, Variable*> m_floatImmed;
+	std::map<double, Variable*> m_doubleImmed;
+
 	Scope* m_globalScope;
 	Scope* m_currentScope;
 
@@ -135,6 +138,9 @@ public:
 	bool HasIntrinsicDivide64();
 	bool HasIntrinsicShift64();
 	bool HasIntrinsicPow();
+
+	bool IsValidFloatImmediate(double value);
+	Variable* GetFloatImmediateVariable(Type* type, double value);
 
 	Expr* BasicExpr(ExprClass cls) { return new Expr(GetLocation(), cls); }
 	Expr* BoolExpr(bool value) { return Expr::BoolExpr(GetLocation(), value); }

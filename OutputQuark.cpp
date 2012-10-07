@@ -298,7 +298,7 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		return true;
 	case ILPARAM_FLOAT:
 		// Floating point values that cannot be represented as an integer immedate will have
-		// been converted to ILPARAM_FLOAT_CONST_REF earlier
+		// been converted to variables earlier
 		if ((!forceReg) && IsSigned11Bit(param.integerValue))
 		{
 			ref.type = OPERANDREF_IMMED;
@@ -313,25 +313,6 @@ bool OutputQuark::Load(SymInstrBlock* out, const ILParameter& param, OperandRefe
 		ref.fpu = true;
 		ref.reg = m_symFunc->AddRegister(QUARKREGCLASS_FLOAT);
 		out->AddInstruction(QuarkFmovImmed(ref.reg, (int32_t)param.floatValue));
-		return true;
-	case ILPARAM_FLOAT_CONST_REF:
-		ref.type = OPERANDREF_MEM;
-		ref.sign = param.variable->GetType()->IsSigned();
-		ref.memType = MEMORYREF_GLOBAL_VAR;
-		ref.base = SYMREG_IP;
-		ref.offset = param.variable->GetDataSectionOffset();
-		ref.scratch = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
-
-		reg = m_symFunc->AddRegister(param.IsFloat() ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
-		if (ref.width == 4)
-			out->AddInstruction(QuarkLoadGlobalFS(reg, ref.base, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkLoadGlobalFD(reg, ref.base, ref.offset, ref.scratch));
-
-		ref.type = OPERANDREF_REG;
-		ref.reg = reg;
-		ref.sign = true;
-		ref.fpu = true;
 		return true;
 	case ILPARAM_BOOL:
 		if (!forceReg)

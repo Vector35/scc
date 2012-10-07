@@ -586,6 +586,54 @@ bool ParserState::HasIntrinsicPow()
 }
 
 
+bool ParserState::IsValidFloatImmediate(double value)
+{
+	if (m_settings.architecture == ARCH_QUARK)
+	{
+		if (((double)(int32_t)value) == value)
+		{
+			int32_t i = (int32_t)value;
+			if (i < -1024)
+				return false;
+			if (i > 1023)
+				return false;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+Variable* ParserState::GetFloatImmediateVariable(Type* type, double value)
+{
+	if (type->GetWidth() == 4)
+	{
+		map<float, Variable*>::iterator i = m_floatImmed.find((float)value);
+		if (i != m_floatImmed.end())
+			return i->second;
+
+		char name[32];
+		sprintf(name, "@%ff", value);
+		Variable* var = m_globalScope->DefineVariable(VAR_GLOBAL, type, name);
+		var->GetData().WriteFloat((float)value);
+		return var;
+	}
+	else
+	{
+		map<double, Variable*>::iterator i = m_doubleImmed.find((double)value);
+		if (i != m_doubleImmed.end())
+			return i->second;
+
+		char name[32];
+		sprintf(name, "@%f", value);
+		Variable* var = m_globalScope->DefineVariable(VAR_GLOBAL, type, name);
+		var->GetData().WriteDouble(value);
+		return var;
+	}
+}
+
+
 void ParserState::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(m_types.size());

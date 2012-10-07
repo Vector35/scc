@@ -1937,7 +1937,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(m_type, m_intValue);
 		break;
 	case EXPR_FLOAT:
-		result = ILParameter(m_type, m_floatValue);
+		if (state->IsValidFloatImmediate(m_floatValue))
+			result = ILParameter(m_type, m_floatValue);
+		else
+			result = ILParameter(state->GetFloatImmediateVariable(m_type, m_floatValue));
 		break;
 	case EXPR_STRING:
 		result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));

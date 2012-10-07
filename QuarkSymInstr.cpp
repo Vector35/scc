@@ -1085,10 +1085,13 @@ bool QuarkSaveCalleeSavedRegsInstr::UpdateInstruction(SymInstrFunction* func, co
 {
 	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
 	uint32_t min = 29;
+	set<uint32_t> fpu;
 	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
 	{
-		uint32_t reg = (*i) & 31;
-		if (reg < min)
+		uint32_t reg = (*i) & 63;
+		if (reg >= 32)
+			fpu.insert(reg & 31);
+		else if (reg < min)
 			min = reg;
 	}
 
@@ -1097,10 +1100,20 @@ bool QuarkSaveCalleeSavedRegsInstr::UpdateInstruction(SymInstrFunction* func, co
 	{
 		for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
 			replacement.push_back(QuarkStoreUpdate32(SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(0), 4));
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(i) != 0)
+				replacement.push_back(QuarkStoreUpdateFD(QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), 8));
+		}
 	}
 	else
 	{
 		replacement.push_back(QuarkStoreMultipleUpdate(SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(0), (min - 31) * 4));
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(i) != 0)
+				replacement.push_back(QuarkStoreUpdateFD(QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), -8));
+		}
 	}
 
 	return true;
@@ -1112,23 +1125,53 @@ bool QuarkRestoreCalleeSavedRegsInstr::UpdateInstruction(SymInstrFunction* func,
 {
 	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
 	uint32_t min = 29;
+	set<uint32_t> fpu;
+	uint32_t stackSize = 0;
 	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
 	{
-		uint32_t reg = (*i) & 31;
-		if (reg < min)
+		uint32_t reg = (*i) & 63;
+		if (reg >= 32)
+		{
+			fpu.insert(reg & 31);
+			stackSize += 8;
+		}
+		else if (reg < min)
+		{
 			min = reg;
+			if (settings.stackGrowsUp)
+				stackSize += 4;
+		}
 	}
 
 	// TODO: Support non-default stack pointer
+	int32_t offset = 0;
 	if (settings.stackGrowsUp)
 	{
-		int32_t offset = 0;
 		for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++, offset += 4)
-			replacement.push_back(QuarkLoad32(SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(0), (clobbered.size() * -4) + offset));
-		replacement.push_back(QuarkSub(SYMREG_NATIVE_REG(0), SYMREG_NATIVE_REG(0), clobbered.size() * 4));
+			replacement.push_back(QuarkLoad32(SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(0), -stackSize + offset));
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(i) != 0)
+			{
+				replacement.push_back(QuarkLoadFD(QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), -stackSize + offset));
+				offset += 8;
+			}
+		}
+		if (stackSize != 0)
+			replacement.push_back(QuarkSub(SYMREG_NATIVE_REG(0), SYMREG_NATIVE_REG(0), stackSize));
 	}
 	else
 	{
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(i) != 0)
+			{
+				replacement.push_back(QuarkLoadFD(QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), offset));
+				offset += 8;
+			}
+		}
+		if (stackSize != 0)
+			replacement.push_back(QuarkAdd(SYMREG_NATIVE_REG(0), SYMREG_NATIVE_REG(0), stackSize));
 		replacement.push_back(QuarkLoadMultipleUpdate(SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(0), 0));
 	}
 
@@ -1734,6 +1777,15 @@ bool QuarkSymInstrFunction::IsRegisterClassFixed(uint32_t cls)
 	case QUARKREGCLASS_INTEGER_PARAM_5:
 	case QUARKREGCLASS_INTEGER_PARAM_6:
 	case QUARKREGCLASS_INTEGER_PARAM_7:
+	case QUARKREGCLASS_FLOAT_RETURN_VALUE:
+	case QUARKREGCLASS_FLOAT_PARAM_0:
+	case QUARKREGCLASS_FLOAT_PARAM_1:
+	case QUARKREGCLASS_FLOAT_PARAM_2:
+	case QUARKREGCLASS_FLOAT_PARAM_3:
+	case QUARKREGCLASS_FLOAT_PARAM_4:
+	case QUARKREGCLASS_FLOAT_PARAM_5:
+	case QUARKREGCLASS_FLOAT_PARAM_6:
+	case QUARKREGCLASS_FLOAT_PARAM_7:
 	case QUARKREGCLASS_SYSCALL_PARAM_0:
 	case QUARKREGCLASS_SYSCALL_PARAM_1:
 	case QUARKREGCLASS_SYSCALL_PARAM_2:
@@ -1901,19 +1953,27 @@ void QuarkSymInstrFunction::LayoutStackFrame()
 
 	// Analyze callee saved registers
 	uint32_t min = 29;
+	set<uint32_t> fpu;
+	int64_t adjust = 0;
 	for (vector<uint32_t>::iterator i = m_clobberedCalleeSavedRegs.begin(); i != m_clobberedCalleeSavedRegs.end(); i++)
 	{
-		uint32_t reg = (*i) & 31;
-		if (reg < min)
+		uint32_t reg = (*i) & 63;
+		if (reg >= 32)
+		{
+			fpu.insert(reg & 31);
+			adjust += 8;
+		}
+		else if (reg < min)
+		{
 			min = reg;
+			if (m_settings.stackGrowsUp)
+				adjust += 4;
+		}
 	}
 
 	// Adjust parameter locations to account for callee saved registers
-	int64_t adjust;
-	if (m_settings.stackGrowsUp)
-		adjust = m_clobberedCalleeSavedRegs.size() * 4;
-	else
-		adjust = (31 - min) * 4;
+	if (!m_settings.stackGrowsUp)
+		adjust += (31 - min) * 4;
 
 	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
 	{

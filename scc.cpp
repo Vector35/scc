@@ -74,6 +74,7 @@ void Usage()
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
+	fprintf(stderr, "    --markov-chain <file>             Use file for generating random instruction sequences\n");
 	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
 	fprintf(stderr, "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
 	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
@@ -118,8 +119,6 @@ int main(int argc, char* argv[])
 	bool osIsExplicit = false;
 	string decoder, encoder;
 	bool execute = false;
-	uint32_t maxLength = 0;
-	bool pad = false;
 	bool useSpecificSeed = false;
 	bool positionIndependentExplicit = false;
 	bool alignmentExplicit = false;
@@ -134,6 +133,8 @@ int main(int argc, char* argv[])
 	settings.unsafeStack = false;
 	settings.execStack = false;
 	settings.concat = false;
+	settings.pad = false;
+	settings.maxLength = 0;
 	settings.encodePointers = false;
 	settings.stackGrowsUp = false;
 	settings.sharedLibrary = false;
@@ -416,6 +417,18 @@ int main(int argc, char* argv[])
 			mapFile = argv[i];
 			continue;
 		}
+		else if (!strcmp(argv[i], "--markov-chain"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.markovFile = argv[i];
+			continue;
+		}
 		else if (!strcmp(argv[i], "--max-length"))
 		{
 			if ((i + 1) >= argc)
@@ -425,7 +438,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
-			maxLength = strtoul(argv[i], NULL, 0);
+			settings.maxLength = strtoul(argv[i], NULL, 0);
 			continue;
 		}
 		else if (!strcmp(argv[i], "--mixed-mode"))
@@ -435,7 +448,7 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "--pad"))
 		{
-			pad = true;
+			settings.pad = true;
 			continue;
 		}
 		else if (!strcmp(argv[i] ,"-o"))
@@ -613,7 +626,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize random seed if one is needed
-	if (settings.polymorph || settings.mixedMode || settings.antiDisasm || pad)
+	if (settings.polymorph || settings.mixedMode || settings.antiDisasm || settings.pad)
 	{
 		if (!useSpecificSeed)
 		{
@@ -633,10 +646,10 @@ int main(int argc, char* argv[])
 		settings.sharedLibrary = false;
 	}
 
-	if ((maxLength != 0) && (settings.format != FORMAT_BIN))
+	if ((settings.maxLength != 0) && (settings.format != FORMAT_BIN))
 	{
 		fprintf(stderr, "warning: maximum size only supported in raw binary output mode\n");
-		maxLength = 0;
+		settings.maxLength = 0;
 	}
 
 	if ((settings.blacklist.size() > 0) && (settings.format != FORMAT_BIN))
@@ -860,15 +873,14 @@ int main(int argc, char* argv[])
 			return 1;
 	}
 
-	fprintf(stderr, "Output is %u bytes\n", (uint32_t)finalBinary.len);
-
-	if ((maxLength != 0) && (finalBinary.len > maxLength))
+	if ((settings.maxLength != 0) && (finalBinary.len > settings.maxLength))
 	{
+		fprintf(stderr, "Output is %u bytes\n", (uint32_t)finalBinary.len);
 		fprintf(stderr, "error: unable to satisfy size constraint\n");
 		return 1;
 	}
 
-	if (pad && (finalBinary.len < maxLength))
+	if (settings.pad && (finalBinary.len < settings.maxLength))
 	{
 		// Pad binary with random bytes (respecting blacklist)
 		vector<uint8_t> available;
@@ -888,13 +900,15 @@ int main(int argc, char* argv[])
 				available.push_back((uint8_t)i);
 		}
 
-		for (size_t i = finalBinary.len; i < maxLength; i++)
+		for (size_t i = finalBinary.len; i < settings.maxLength; i++)
 		{
 			uint8_t choice = available[rand() % available.size()];
 			*(uint8_t*)finalBinary.PrepareWrite(1) = choice;
 			finalBinary.FinishWrite(1);
 		}
 	}
+
+	fprintf(stderr, "Output is %u bytes\n", (uint32_t)finalBinary.len);
 
 	if (execute)
 	{

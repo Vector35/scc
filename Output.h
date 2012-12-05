@@ -64,7 +64,7 @@ struct Relocation
 struct OutputBlock
 {
 	void* code;
-	size_t len, maxLen;
+	size_t len, maxLen, randomLen;
 	std::vector<Relocation> relocs;
 
 	void* PrepareWrite(size_t desiredLen);

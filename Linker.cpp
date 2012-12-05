@@ -32,6 +32,7 @@
 #include "MachOOutput.h"
 
 using namespace std;
+using namespace asmx86;
 
 
 // Internal libraries
@@ -106,11 +107,178 @@ extern void Code_set_lineno(int line, void* yyscanner);
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
 	m_precompileState(settings, "precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
 {
+	m_markovReady = false;
 }
 
 
 Linker::~Linker()
 {
+}
+
+
+void Linker::PrepareMarkovInstructions(const string& filename)
+{
+	// Markov chain generation only supported on x86 for now
+	if (m_settings.architecture != ARCH_X86)
+		return;
+
+	FILE* fp = fopen(filename.c_str(), "rb");
+	if (!fp)
+		return;
+	fseek(fp, 0, SEEK_END);
+	size_t len = (size_t)ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	uint8_t* data = new uint8_t[len];
+	if (fread(data, len, 1, fp) <= 0)
+	{
+		fclose(fp);
+		return;
+	}
+
+	fclose(fp);
+
+	uint16_t prev = 0x90;
+	for (size_t i = 0; i < len; )
+	{
+		Instruction instr;
+		size_t maxLen = len - i;
+		if (maxLen > 15)
+			maxLen = 15;
+
+		if (m_settings.preferredBits == 32)
+		{
+			if (!Disassemble32(&data[i], i, maxLen, &instr))
+			{
+				i++;
+				continue;
+			}
+		}
+		else
+		{
+			if (!Disassemble64(&data[i], i, maxLen, &instr))
+			{
+				i++;
+				continue;
+			}
+		}
+
+		if (instr.length == 0)
+		{
+			i++;
+			continue;
+		}
+
+		// Skip instructions that don't satisfy the blacklist
+		bool ok = true;
+		for (size_t j = 0; j < instr.length; j++)
+		{
+			for (vector<uint8_t>::iterator k = m_settings.blacklist.begin(); k != m_settings.blacklist.end(); k++)
+			{
+				if (data[i + j] == *k)
+				{
+					ok = false;
+					break;
+				}
+			}
+
+			if (!ok)
+				break;
+		}
+
+		if (ok)
+		{
+			m_markovChain[prev][string((char*)&data[i], instr.length)]++;
+
+			// Insert all instructions into slot 0xffff (invalid for X86), this will be what is used when inserting
+			// an instruction from a fresh state (or one which has no valid transitions)
+			m_markovChain[0xffff][string((char*)&data[i], instr.length)]++;
+
+			if (instr.length == 1)
+				prev = data[i];
+			else
+				prev = ((uint16_t)data[i] << 8) | ((uint16_t)data[i + 1]);
+		}
+
+		i += instr.length;
+	}
+
+	m_markovReady = true;
+}
+
+
+void Linker::InsertMarkovInstructions(OutputBlock* block, size_t len)
+{
+	uint16_t prev = 0xffff;
+	while (len > 0)
+	{
+		size_t total = 0;
+		for (map<string, size_t>::iterator i = m_markovChain[prev].begin(); i != m_markovChain[prev].end(); i++)
+			total += i->second;
+
+		if (total == 0)
+		{
+			if (prev == 0xffff)
+			{
+				// No valid starting instructions, just generate random data
+				vector<uint8_t> available;
+				for (size_t i = 0; i < 256; i++)
+				{
+					bool ok = true;
+					for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+					{
+						if (i == *j)
+						{
+							ok = false;
+							break;
+						}
+					}
+
+					if (ok)
+						available.push_back((uint8_t)i);
+				}
+
+				for (size_t i = 0; i < len; i++)
+				{
+					uint8_t choice = available[rand() % available.size()];
+					*(uint8_t*)block->PrepareWrite(1) = choice;
+					block->FinishWrite(1);
+				}
+
+				return;
+			}
+
+			// No valid transition states, start from the top
+			prev = 0xffff;
+			continue;
+		}
+
+		// Pick a random instruction, ensuring that the weighting is correct
+		size_t cur = 0;
+		size_t pick = rand() % total;
+		string instruction;
+		for (map<string, size_t>::iterator i = m_markovChain[prev].begin(); i != m_markovChain[prev].end(); i++)
+		{
+			cur += i->second;
+			if (cur > pick)
+			{
+				instruction = i->first;
+				break;
+			}
+		}
+
+		if (instruction.size() == 1)
+			prev = instruction[0];
+		else
+			prev = ((uint16_t)instruction[0] << 8) | ((uint16_t)instruction[1]);
+
+		memcpy(block->PrepareWrite(instruction.size()), instruction.c_str(), instruction.size());
+		block->FinishWrite(instruction.size());
+
+		if (instruction.size() > len)
+			break;
+		len -= instruction.size();
+	}
 }
 
 
@@ -841,6 +1009,50 @@ bool Linker::FinalizeLink()
 }
 
 
+bool Linker::LayoutCode(vector<ILBlock*>& codeBlocks)
+{
+	// Check relocations and ensure that everything is within bounds, and expand any references that are not
+	while (true)
+	{
+		// Lay out address space for code
+		uint64_t addr = m_settings.base;
+		for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+		{
+			(*i)->SetAddress(addr);
+			addr += (*i)->GetOutputBlock()->len;
+		}
+		if ((m_settings.alignment > 1) && ((addr % m_settings.alignment) != 0))
+			addr += m_settings.alignment - (addr % m_settings.alignment);
+
+		m_settings.dataSectionBase = addr;
+		if (m_settings.format == FORMAT_ELF)
+			m_settings.dataSectionBase = AdjustDataSectionBaseForElfFile(m_settings.dataSectionBase);
+		else if (m_settings.format == FORMAT_MACHO)
+			m_settings.dataSectionBase = AdjustDataSectionBaseForMachOFile(m_settings.dataSectionBase);
+
+		// Check relocations and gather the overflow list
+		vector<RelocationReference> overflows;
+		for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+		{
+			if (!(*i)->CheckRelocations(m_settings.base, m_settings.dataSectionBase, overflows))
+				return false;
+		}
+
+		if (overflows.size() == 0)
+		{
+			// All relocations are within limits, ready to finalize
+			break;
+		}
+
+		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
+		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
+			i->reloc->overflow(i->block, *i->reloc);
+	}
+
+	return true;
+}
+
+
 bool Linker::OutputCode(OutputBlock* finalBinary)
 {
 	// Create output classes for the requested architecture
@@ -1009,42 +1221,98 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		}
 	}
 
-	// Check relocations and ensure that everything is within bounds, and expand any references that are not
-	while (true)
+	// Perform address space layout of code section, also handling overflows in relocations
+	if (!LayoutCode(codeBlocks))
+		return false;
+
+	if (m_settings.pad)
 	{
-		// Lay out address space for code
-		addr = m_settings.base;
-		for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+		if ((!m_markovReady) && (m_settings.markovFile.size() != 0))
 		{
-			(*i)->SetAddress(addr);
-			addr += (*i)->GetOutputBlock()->len;
+			// Initialize the markov chain instruction generator
+			PrepareMarkovInstructions(m_settings.markovFile);
 		}
-		if ((m_settings.alignment > 1) && ((addr % m_settings.alignment) != 0))
-			addr += m_settings.alignment - (addr % m_settings.alignment);
 
-		m_settings.dataSectionBase = addr;
-		if (m_settings.format == FORMAT_ELF)
-			m_settings.dataSectionBase = AdjustDataSectionBaseForElfFile(m_settings.dataSectionBase);
-		else if (m_settings.format == FORMAT_MACHO)
-			m_settings.dataSectionBase = AdjustDataSectionBaseForMachOFile(m_settings.dataSectionBase);
-
-		// Check relocations and gather the overflow list
-		vector<RelocationReference> overflows;
-		for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+		// Padding is enabled, insert random code in between blocks to get the code closer to the target size
+		while (true)
 		{
-			if (!(*i)->CheckRelocations(m_settings.base, m_settings.dataSectionBase, overflows))
+			size_t totalSize = dataSection.len;
+			for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+				totalSize += (*i)->GetOutputBlock()->len;
+
+			ssize_t remaining = m_settings.maxLength - totalSize;
+			if (remaining < 0)
+			{
+				// Oops, added too many bytes in a previous loop, need to remove some of the random bytes
+				for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+				{
+					if ((*i)->GetOutputBlock()->randomLen > 0)
+					{
+						remaining += (*i)->GetOutputBlock()->randomLen;
+						(*i)->GetOutputBlock()->len -= (*i)->GetOutputBlock()->randomLen;
+						(*i)->GetOutputBlock()->randomLen = 0;
+					}
+
+					if (remaining >= 0)
+						break;
+				}
+				break;
+			}
+
+			// Don't try to add more bytes if there isn't much room left
+			if (remaining < 32)
+				break;
+
+			remaining /= 2;
+			while (remaining > 0)
+			{
+				ssize_t insertSize = rand() & 31;
+				if (insertSize > remaining)
+					insertSize = remaining;
+
+				OutputBlock* block = codeBlocks[rand() % codeBlocks.size()]->GetOutputBlock();
+
+				if (m_markovReady)
+				{
+					// Insert random valid instructions
+					InsertMarkovInstructions(block, insertSize);
+				}
+				else
+				{
+					// Pad block with random bytes (respecting blacklist)
+					vector<uint8_t> available;
+					for (size_t i = 0; i < 256; i++)
+					{
+						bool ok = true;
+						for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+						{
+							if (i == *j)
+							{
+								ok = false;
+								break;
+							}
+						}
+
+						if (ok)
+							available.push_back((uint8_t)i);
+					}
+
+					for (ssize_t i = 0; i < insertSize; i++)
+					{
+						uint8_t choice = available[rand() % available.size()];
+						*(uint8_t*)block->PrepareWrite(1) = choice;
+						block->FinishWrite(1);
+					}
+				}
+
+				block->randomLen += insertSize;
+				remaining -= insertSize;
+			}
+
+			// Need to update layout of code section, and resolve any new overflows in relocations
+			if (!LayoutCode(codeBlocks))
 				return false;
 		}
-
-		if (overflows.size() == 0)
-		{
-			// All relocations are within limits, ready to finalize
-			break;
-		}
-
-		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
-		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
-			i->reloc->overflow(i->block, *i->reloc);
 	}
 
 	// Resolve relocations
@@ -1085,7 +1353,6 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	{
 		// Pad code section with random bytes (respecting blacklist)
 		size_t alignSize = (size_t)(m_settings.alignment - (codeSection.len % m_settings.alignment));
-		addr += alignSize;
 
 		if (m_settings.polymorph || (m_settings.blacklist.size() > 0))
 		{

@@ -1121,7 +1121,7 @@ void OUTPUT_CLASS_NAME::ConditionalJump(SymInstrBlock* out, ConditionalJumpType 
 
 void OUTPUT_CLASS_NAME::UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit)
 {
-	if (canOmit && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
+	if (canOmit && (!m_settings.pad) && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
 	{
 		// The destination block is the one just after the current one, just fall through
 		return;
@@ -5396,6 +5396,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		out->code = NULL;
 		out->len = 0;
 		out->maxLen = 0;
+		out->randomLen = 0;
 
 		if (!m_symFunc->GetBlock(*i)->EmitCode(m_symFunc, out))
 		{

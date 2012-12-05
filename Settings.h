@@ -81,12 +81,16 @@ struct Settings
 	bool concat;
 	bool sharedLibrary;
 
+	bool pad;
+	size_t maxLength;
+
 	bool stackGrowsUp;
 	bool encodePointers;
 	Ref<Variable> encodePointerKey;
 
 	bool polymorph, mixedMode;
 	uint32_t seed;
+	std::string markovFile;
 
 	bool antiDisasm;
 	uint32_t antiDisasmFrequency;

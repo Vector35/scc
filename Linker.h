@@ -40,6 +40,14 @@ class Linker
 	Ref<Expr> m_initExpression;
 	Ref<Function> m_startFunction;
 
+	bool m_markovReady;
+	std::map< uint16_t, std::map< std::string, size_t> > m_markovChain;
+
+	void PrepareMarkovInstructions(const std::string& filename);
+	void InsertMarkovInstructions(OutputBlock* block, size_t len);
+
+	bool LayoutCode(std::vector<ILBlock*>& codeBlocks);
+
 public:
 	Linker(const Settings& settings);
 	~Linker();

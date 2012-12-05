@@ -36,6 +36,7 @@ Options:
     -L <lib>                          Include pre-built library
     -m32, -m64                        Specify target address size
     --map <file>                      Generate map file
+    --markov-chain <file>             Use file for generating random instruction sequences
     --max-length <value>              Do not let output size exceed given number of bytes
     --mixed-mode                      Randomly choose subarchitecture for each function
     -o <filename>                     Set output filename (default is hex dump to stdout)

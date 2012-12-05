@@ -553,7 +553,7 @@ void OutputQuark::ConditionalJump(SymInstrBlock* out, ILBlock* block, int cond, 
 
 void OutputQuark::UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit)
 {
-	if (canOmit && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
+	if (canOmit && (!m_settings.pad) && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
 	{
 		// The destination block is the one just after the current one, just fall through
 		return;
@@ -3362,6 +3362,7 @@ bool OutputQuark::GenerateCode(Function* func)
 		out->code = NULL;
 		out->len = 0;
 		out->maxLen = 0;
+		out->randomLen = 0;
 
 		if (!m_symFunc->GetBlock(*i)->EmitCode(m_symFunc, out))
 		{

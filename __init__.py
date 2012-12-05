@@ -30,7 +30,7 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
-	anti_disasm=False, anti_disasm_freq=None, additional_options=None):
+	anti_disasm=False, anti_disasm_freq=None, markov_chain=None, additional_options=None):
 	if sys.executable.lower().find('python') == -1:
 		base_path = os.path.dirname(sys.executable)
 	else:
@@ -90,6 +90,8 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 		cmd += ["--anti-disasm"]
 	if anti_disasm_freq:
 		cmd += ["--anti-disasm-freq", str(anti_disasm_freq)]
+	if markov_chain:
+		cmd += ["--markov-chain", markov_chain]
 	if additional_options:
 		cmd += additional_options
 

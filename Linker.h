@@ -43,7 +43,9 @@ class Linker
 	bool m_markovReady;
 	std::map< uint16_t, std::map< std::string, size_t> > m_markovChain;
 
-	void PrepareMarkovInstructions(const std::string& filename);
+	size_t AddInstructionToMarkovChain(uint16_t& prev, uint8_t* data, size_t len);
+	void PrepareMarkovInstructionsFromFile(const std::string& filename);
+	void PrepareMarkovInstructionsFromBlocks(const std::vector<ILBlock*>& codeBlocks);
 	void InsertMarkovInstructions(OutputBlock* block, size_t len);
 
 	bool LayoutCode(std::vector<ILBlock*>& codeBlocks);

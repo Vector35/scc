@@ -116,7 +116,59 @@ Linker::~Linker()
 }
 
 
-void Linker::PrepareMarkovInstructions(const string& filename)
+size_t Linker::AddInstructionToMarkovChain(uint16_t& prev, uint8_t* data, size_t len)
+{
+	Instruction instr;
+	if (m_settings.preferredBits == 32)
+	{
+		if (!Disassemble32(data, 0, len, &instr))
+			return 1;
+	}
+	else
+	{
+		if (!Disassemble64(data, 0, len, &instr))
+			return 1;
+	}
+
+	if (instr.length == 0)
+		return 1;
+
+	// Skip instructions that don't satisfy the blacklist
+	bool ok = true;
+	for (size_t j = 0; j < instr.length; j++)
+	{
+		for (vector<uint8_t>::iterator k = m_settings.blacklist.begin(); k != m_settings.blacklist.end(); k++)
+		{
+			if (data[j] == *k)
+			{
+				ok = false;
+				break;
+			}
+		}
+
+		if (!ok)
+			break;
+	}
+
+	if (ok)
+	{
+		m_markovChain[prev][string((char*)data, instr.length)]++;
+
+		// Insert all instructions into slot 0xffff (invalid for X86), this will be what is used when inserting
+		// an instruction from a fresh state (or one which has no valid transitions)
+		m_markovChain[0xffff][string((char*)data, instr.length)]++;
+
+		if (instr.length == 1)
+			prev = data[0];
+		else
+			prev = ((uint16_t)data[0]) | ((uint16_t)data[1] << 8);
+	}
+
+	return instr.length;
+}
+
+
+void Linker::PrepareMarkovInstructionsFromFile(const string& filename)
 {
 	// Markov chain generation only supported on x86 for now
 	if (m_settings.architecture != ARCH_X86)
@@ -141,66 +193,34 @@ void Linker::PrepareMarkovInstructions(const string& filename)
 	uint16_t prev = 0x90;
 	for (size_t i = 0; i < len; )
 	{
-		Instruction instr;
 		size_t maxLen = len - i;
 		if (maxLen > 15)
 			maxLen = 15;
 
-		if (m_settings.preferredBits == 32)
+		i += AddInstructionToMarkovChain(prev, &data[i], maxLen);
+	}
+
+	m_markovReady = true;
+}
+
+
+void Linker::PrepareMarkovInstructionsFromBlocks(const vector<ILBlock*>& codeBlocks)
+{
+	// Markov chain generation only supported on x86 for now
+	if (m_settings.architecture != ARCH_X86)
+		return;
+
+	uint16_t prev = 0x90;
+	for (vector<ILBlock*>::const_iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
+	{
+		for (size_t j = 0; j < (*i)->GetOutputBlock()->len; j++)
 		{
-			if (!Disassemble32(&data[i], i, maxLen, &instr))
-			{
-				i++;
-				continue;
-			}
+			size_t maxLen = (*i)->GetOutputBlock()->len - j;
+			if (maxLen > 15)
+				maxLen = 15;
+
+			j += AddInstructionToMarkovChain(prev, &((uint8_t*)(*i)->GetOutputBlock()->code)[j], maxLen);
 		}
-		else
-		{
-			if (!Disassemble64(&data[i], i, maxLen, &instr))
-			{
-				i++;
-				continue;
-			}
-		}
-
-		if (instr.length == 0)
-		{
-			i++;
-			continue;
-		}
-
-		// Skip instructions that don't satisfy the blacklist
-		bool ok = true;
-		for (size_t j = 0; j < instr.length; j++)
-		{
-			for (vector<uint8_t>::iterator k = m_settings.blacklist.begin(); k != m_settings.blacklist.end(); k++)
-			{
-				if (data[i + j] == *k)
-				{
-					ok = false;
-					break;
-				}
-			}
-
-			if (!ok)
-				break;
-		}
-
-		if (ok)
-		{
-			m_markovChain[prev][string((char*)&data[i], instr.length)]++;
-
-			// Insert all instructions into slot 0xffff (invalid for X86), this will be what is used when inserting
-			// an instruction from a fresh state (or one which has no valid transitions)
-			m_markovChain[0xffff][string((char*)&data[i], instr.length)]++;
-
-			if (instr.length == 1)
-				prev = data[i];
-			else
-				prev = ((uint16_t)data[i] << 8) | ((uint16_t)data[i + 1]);
-		}
-
-		i += instr.length;
 	}
 
 	m_markovReady = true;
@@ -270,7 +290,7 @@ void Linker::InsertMarkovInstructions(OutputBlock* block, size_t len)
 		if (instruction.size() == 1)
 			prev = instruction[0];
 		else
-			prev = ((uint16_t)instruction[0] << 8) | ((uint16_t)instruction[1]);
+			prev = ((uint16_t)instruction[0]) | ((uint16_t)instruction[1] << 8);
 
 		memcpy(block->PrepareWrite(instruction.size()), instruction.c_str(), instruction.size());
 		block->FinishWrite(instruction.size());
@@ -1227,10 +1247,15 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 	if (m_settings.pad)
 	{
-		if ((!m_markovReady) && (m_settings.markovFile.size() != 0))
+		if ((!m_markovReady) && m_settings.markovChains && (m_settings.markovFile.size() != 0))
 		{
-			// Initialize the markov chain instruction generator
-			PrepareMarkovInstructions(m_settings.markovFile);
+			// Initialize the markov chain instruction generator with file contents
+			PrepareMarkovInstructionsFromFile(m_settings.markovFile);
+		}
+		else if ((!m_markovReady) && m_settings.markovChains)
+		{
+			// Initialize the markov chain instruction generator with existing code blocks
+			PrepareMarkovInstructionsFromBlocks(codeBlocks);
 		}
 
 		// Padding is enabled, insert random code in between blocks to get the code closer to the target size

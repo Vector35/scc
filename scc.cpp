@@ -74,7 +74,8 @@ void Usage()
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
-	fprintf(stderr, "    --markov-chain <file>             Use file for generating random instruction sequences\n");
+	fprintf(stderr, "    --markov-chain                    Generate random instruction sequences for padding\n");
+	fprintf(stderr, "    --markov-chain-file <file>        Use file for generating random instruction sequences\n");
 	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
 	fprintf(stderr, "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
 	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
@@ -143,6 +144,7 @@ int main(int argc, char* argv[])
 	settings.antiDisasm = false;
 	settings.antiDisasmFrequency = DEFAULT_ANTIDISASM_FREQUENCY;
 	settings.seed = 0;
+	settings.markovChains = false;
 	settings.positionIndependent = true;
 	settings.base = 0;
 	settings.internalDebug = false;
@@ -419,6 +421,11 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "--markov-chain"))
 		{
+			settings.markovChains = true;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--markov-chain-file"))
+		{
 			if ((i + 1) >= argc)
 			{
 				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
@@ -426,6 +433,7 @@ int main(int argc, char* argv[])
 			}
 
 			i++;
+			settings.markovChains = true;
 			settings.markovFile = argv[i];
 			continue;
 		}

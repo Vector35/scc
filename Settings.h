@@ -90,6 +90,7 @@ struct Settings
 
 	bool polymorph, mixedMode;
 	uint32_t seed;
+	bool markovChains;
 	std::string markovFile;
 
 	bool antiDisasm;

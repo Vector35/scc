@@ -85,6 +85,15 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 	int64_t value;
 	switch (m_class)
 	{
+	case EXPR_SEQUENCE:
+		if (m_children.size() != 1)
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: expected constant integer expression\n", m_location.fileName.c_str(),
+				m_location.lineNumber);
+			return 0;
+		}
+		return m_children[0]->ComputeIntegerValue(state);
 	case EXPR_INT:
 		return m_intValue;
 	case EXPR_PLUS:

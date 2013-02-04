@@ -99,7 +99,9 @@ void Code_error(ParserState* state, const char* msg)
 %token SHIFT_LEFT SHIFT_RIGHT
 %token ELLIPSIS
 %token <intval> INT_VAL
+%token <intval> INT64_VAL
 %token <floatval> FLOAT_VAL
+%token <floatval> DOUBLE_VAL
 %token <str> STRING_VAL CHAR_VAL
 %token <str> ID TYPE_ID
 
@@ -119,7 +121,8 @@ void Code_error(ParserState* state, const char* msg)
 %token GOTO
 %token SWITCH CASE DEFAULT
 %token VOID_TOK
-%token MIN MAX ABS POW
+%token MIN MAX ABS POW FLOOR CEIL SQRT
+%token SIN COS TAN ASIN ACOS ATAN
 %token ALLOCA MEMCPY MEMSET STRLEN
 %token SIZEOF
 %token TYPEDEF
@@ -1262,7 +1265,9 @@ optional_expression:	expression_with_comma  { $$ = $1; }
 		;
 
 expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
-	|	FLOAT_VAL  { $$ = state->FloatExpr($1); $$->AddRef(); }
+	|	INT64_VAL  { $$ = state->Int64Expr($1); $$->AddRef(); }
+	|	FLOAT_VAL  { $$ = state->FloatExpr($1, 4); $$->AddRef(); }
+	|	DOUBLE_VAL  { $$ = state->FloatExpr($1, 8); $$->AddRef(); }
 	|	CHAR_VAL  { $$ = state->IntExpr(state->CharStringToValue(ParserState::ProcessEscapedString($1))); $$->AddRef(); free($1); }
 	|	STRING_VAL  { $$ = state->StringExpr(ParserState::ProcessEscapedString($1)); $$->AddRef(); free($1); }
 	|	TRUE_VAL  { $$ = state->BoolExpr(true); $$->AddRef(); }
@@ -1504,6 +1509,15 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 			$3->Release();
 			$5->Release();
 		}
+	|	FLOOR LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_FLOOR, $3); $$->AddRef(); $3->Release(); }
+	|	CEIL LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_CEIL, $3); $$->AddRef(); $3->Release(); }
+	|	SQRT LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_SQRT, $3); $$->AddRef(); $3->Release(); }
+	|	SIN LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_SIN, $3); $$->AddRef(); $3->Release(); }
+	|	COS LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_COS, $3); $$->AddRef(); $3->Release(); }
+	|	TAN LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_TAN, $3); $$->AddRef(); $3->Release(); }
+	|	ASIN LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_ASIN, $3); $$->AddRef(); $3->Release(); }
+	|	ACOS LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_ACOS, $3); $$->AddRef(); $3->Release(); }
+	|	ATAN LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_ATAN, $3); $$->AddRef(); $3->Release(); }
 	|	ALLOCA LPAREN expression RPAREN  { $$ = state->UnaryExpr(EXPR_ALLOCA, $3); $$->AddRef(); $3->Release(); }
 	|	MEMCPY LPAREN expression COMMA expression COMMA expression RPAREN
 		{

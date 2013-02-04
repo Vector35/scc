@@ -153,6 +153,15 @@ class OutputQuark: public Output
 	bool GenerateByteSwap(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateBreakpoint(SymInstrBlock* out, const ILInstruction& instr);
 	bool GeneratePow(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateFloor(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateCeil(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSqrt(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateSin(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateCos(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateTan(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAsin(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAcos(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateAtan(SymInstrBlock* out, const ILInstruction& instr);
 
 	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 

@@ -82,6 +82,9 @@ Variable* Variable::Duplicate(DuplicateContext& dup)
 	var->m_name = m_name;
 	var->m_location = m_location;
 
+	if (m_data.len > 0)
+		var->m_data.Write(m_data.code, m_data.len);
+
 	return var;
 }
 
@@ -105,6 +108,9 @@ void Variable::Serialize(OutputBlock* output)
 	m_type->Serialize(output);
 	output->WriteString(m_name);
 
+	output->WriteInteger(m_data.len);
+	output->Write(m_data.code, m_data.len);
+
 	if ((m_class != VAR_TEMP) && (m_class != VAR_LOCAL) && (m_class != VAR_PARAM))
 	{
 		output->WriteString(m_location.fileName);
@@ -127,6 +133,18 @@ bool Variable::DeserializeInternal(InputBlock* input)
 		return false;
 	if (!input->ReadString(m_name))
 		return false;
+
+	size_t len;
+	if (!input->ReadNativeInteger(len))
+		return false;
+	void* data = malloc(len);
+	if (!input->Read(data, len))
+	{
+		free(data);
+		return false;
+	}
+	m_data.Write(data, len);
+	free(data);
 
 	if ((m_class != VAR_TEMP) && (m_class != VAR_LOCAL) && (m_class != VAR_PARAM))
 	{

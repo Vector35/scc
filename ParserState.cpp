@@ -615,7 +615,7 @@ Variable* ParserState::GetFloatImmediateVariable(Type* type, double value)
 
 		char name[32];
 		sprintf(name, "@%ff", value);
-		Variable* var = m_globalScope->DefineVariable(VAR_GLOBAL, type, name);
+		Variable* var = m_globalScope->DefineVariable(VAR_FILE_SCOPE, type, name);
 		var->GetData().WriteFloat((float)value);
 		return var;
 	}
@@ -627,7 +627,7 @@ Variable* ParserState::GetFloatImmediateVariable(Type* type, double value)
 
 		char name[32];
 		sprintf(name, "@%f", value);
-		Variable* var = m_globalScope->DefineVariable(VAR_GLOBAL, type, name);
+		Variable* var = m_globalScope->DefineVariable(VAR_FILE_SCOPE, type, name);
 		var->GetData().WriteDouble(value);
 		return var;
 	}

@@ -125,6 +125,8 @@ bool OutputQuark::AccessVariableStorage(SymInstrBlock* out, const ILParameter& p
 			return false;
 
 		ref.offset += member->offset;
+		ref.sign = member->type->IsSigned();
+		ref.fpu = member->type->IsFloat();
 		return true;
 	}
 
@@ -612,9 +614,22 @@ bool OutputQuark::GenerateAddressOfMember(SymInstrBlock* out, const ILInstructio
 		return false;
 
 	if (ref.type == OPERANDREF_REG)
-		out->AddInstruction(QuarkAdd(addr.reg, ref.reg, member->offset));
+	{
+		size_t offset = member->offset;
+		if (IsSigned11Bit(offset))
+			out->AddInstruction(QuarkAdd(addr.reg, ref.reg, offset));
+		else
+		{
+			int reg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+			LoadImm(out, reg, offset);
+			out->AddInstruction(QuarkAdd(addr.reg, ref.reg, reg, 0));
+		}
+	}
 	else
+	{
 		LoadImm(out, addr.reg, (uint32_t)ref.immed + member->offset);
+	}
+
 	return Move(out, dest, addr);
 }
 
@@ -629,23 +644,40 @@ bool OutputQuark::GenerateDeref(SymInstrBlock* out, const ILInstruction& instr)
 	if (!GetDestRegister(out, dest, value))
 		return false;
 
-	switch (value.width)
+	if (value.fpu)
 	{
-	case 1:
-		out->AddInstruction(QuarkLoad8(value.reg, addr.reg, 0));
-		break;
-	case 2:
-		out->AddInstruction(QuarkLoad16(value.reg, addr.reg, 0));
-		break;
-	case 4:
-		out->AddInstruction(QuarkLoad32(value.reg, addr.reg, 0));
-		break;
-	case 8:
-		out->AddInstruction(QuarkLoad32(value.reg, addr.reg, 0));
-		out->AddInstruction(QuarkLoad32(value.highReg, addr.reg, 4));
-		break;
-	default:
-		return false;
+		switch (value.width)
+		{
+		case 4:
+			out->AddInstruction(QuarkLoadFS(value.reg, addr.reg, 0));
+			break;
+		case 8:
+			out->AddInstruction(QuarkLoadFD(value.reg, addr.reg, 0));
+			break;
+		default:
+			return false;
+		}
+	}
+	else
+	{
+		switch (value.width)
+		{
+		case 1:
+			out->AddInstruction(QuarkLoad8(value.reg, addr.reg, 0));
+			break;
+		case 2:
+			out->AddInstruction(QuarkLoad16(value.reg, addr.reg, 0));
+			break;
+		case 4:
+			out->AddInstruction(QuarkLoad32(value.reg, addr.reg, 0));
+			break;
+		case 8:
+			out->AddInstruction(QuarkLoad32(value.reg, addr.reg, 0));
+			out->AddInstruction(QuarkLoad32(value.highReg, addr.reg, 4));
+			break;
+		default:
+			return false;
+		}
 	}
 
 	return Move(out, dest, value);
@@ -678,23 +710,40 @@ bool OutputQuark::GenerateDerefMember(SymInstrBlock* out, const ILInstruction& i
 		offset = 0;
 	}
 
-	switch (value.width)
+	if (value.fpu)
 	{
-	case 1:
-		out->AddInstruction(QuarkLoad8(value.reg, addr.reg, offset));
-		break;
-	case 2:
-		out->AddInstruction(QuarkLoad16(value.reg, addr.reg, offset));
-		break;
-	case 4:
-		out->AddInstruction(QuarkLoad32(value.reg, addr.reg, offset));
-		break;
-	case 8:
-		out->AddInstruction(QuarkLoad32(value.reg, addr.reg, offset));
-		out->AddInstruction(QuarkLoad32(value.highReg, addr.reg, offset + 4));
-		break;
-	default:
-		return false;
+		switch (value.width)
+		{
+		case 4:
+			out->AddInstruction(QuarkLoadFS(value.reg, addr.reg, offset));
+			break;
+		case 8:
+			out->AddInstruction(QuarkLoadFD(value.reg, addr.reg, offset));
+			break;
+		default:
+			return false;
+		}
+	}
+	else
+	{
+		switch (value.width)
+		{
+		case 1:
+			out->AddInstruction(QuarkLoad8(value.reg, addr.reg, offset));
+			break;
+		case 2:
+			out->AddInstruction(QuarkLoad16(value.reg, addr.reg, offset));
+			break;
+		case 4:
+			out->AddInstruction(QuarkLoad32(value.reg, addr.reg, offset));
+			break;
+		case 8:
+			out->AddInstruction(QuarkLoad32(value.reg, addr.reg, offset));
+			out->AddInstruction(QuarkLoad32(value.highReg, addr.reg, offset + 4));
+			break;
+		default:
+			return false;
+		}
 	}
 
 	return Move(out, dest, value);
@@ -709,23 +758,40 @@ bool OutputQuark::GenerateDerefAssign(SymInstrBlock* out, const ILInstruction& i
 	if (!Load(out, instr.params[1], value, true))
 		return false;
 
-	switch (value.width)
+	if (value.fpu)
 	{
-	case 1:
-		out->AddInstruction(QuarkStore8(value.reg, addr.reg, 0));
-		break;
-	case 2:
-		out->AddInstruction(QuarkStore16(value.reg, addr.reg, 0));
-		break;
-	case 4:
-		out->AddInstruction(QuarkStore32(value.reg, addr.reg, 0));
-		break;
-	case 8:
-		out->AddInstruction(QuarkStore32(value.reg, addr.reg, 0));
-		out->AddInstruction(QuarkStore32(value.highReg, addr.reg, 4));
-		break;
-	default:
-		return false;
+		switch (value.width)
+		{
+		case 4:
+			out->AddInstruction(QuarkStoreFS(value.reg, addr.reg, 0));
+			break;
+		case 8:
+			out->AddInstruction(QuarkStoreFD(value.reg, addr.reg, 0));
+			break;
+		default:
+			return false;
+		}
+	}
+	else
+	{
+		switch (value.width)
+		{
+		case 1:
+			out->AddInstruction(QuarkStore8(value.reg, addr.reg, 0));
+			break;
+		case 2:
+			out->AddInstruction(QuarkStore16(value.reg, addr.reg, 0));
+			break;
+		case 4:
+			out->AddInstruction(QuarkStore32(value.reg, addr.reg, 0));
+			break;
+		case 8:
+			out->AddInstruction(QuarkStore32(value.reg, addr.reg, 0));
+			out->AddInstruction(QuarkStore32(value.highReg, addr.reg, 4));
+			break;
+		default:
+			return false;
+		}
 	}
 
 	return true;
@@ -754,23 +820,40 @@ bool OutputQuark::GenerateDerefMemberAssign(SymInstrBlock* out, const ILInstruct
 		offset = 0;
 	}
 
-	switch (value.width)
+	if (value.fpu)
 	{
-	case 1:
-		out->AddInstruction(QuarkStore8(value.reg, addr.reg, offset));
-		break;
-	case 2:
-		out->AddInstruction(QuarkStore16(value.reg, addr.reg, offset));
-		break;
-	case 4:
-		out->AddInstruction(QuarkStore32(value.reg, addr.reg, offset));
-		break;
-	case 8:
-		out->AddInstruction(QuarkStore32(value.reg, addr.reg, offset));
-		out->AddInstruction(QuarkStore32(value.highReg, addr.reg, offset + 4));
-		break;
-	default:
-		return false;
+		switch (value.width)
+		{
+		case 4:
+			out->AddInstruction(QuarkStoreFS(value.reg, addr.reg, offset));
+			break;
+		case 8:
+			out->AddInstruction(QuarkStoreFD(value.reg, addr.reg, offset));
+			break;
+		default:
+			return false;
+		}
+	}
+	else
+	{
+		switch (value.width)
+		{
+		case 1:
+			out->AddInstruction(QuarkStore8(value.reg, addr.reg, offset));
+			break;
+		case 2:
+			out->AddInstruction(QuarkStore16(value.reg, addr.reg, offset));
+			break;
+		case 4:
+			out->AddInstruction(QuarkStore32(value.reg, addr.reg, offset));
+			break;
+		case 8:
+			out->AddInstruction(QuarkStore32(value.reg, addr.reg, offset));
+			out->AddInstruction(QuarkStore32(value.highReg, addr.reg, offset + 4));
+			break;
+		default:
+			return false;
+		}
 	}
 
 	return true;
@@ -809,40 +892,63 @@ bool OutputQuark::GenerateArrayIndex(SymInstrBlock* out, const ILInstruction& in
 		return false;
 	}
 
-	switch (value.width)
+	if (value.fpu)
 	{
-	case 1:
-		if (ref.memType == MEMORYREF_STACK_VAR)
-			out->AddInstruction(QuarkLoadStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkLoadGlobal8(value.reg, ref.base, ref.offset, ref.scratch));
-		break;
-	case 2:
-		if (ref.memType == MEMORYREF_STACK_VAR)
-			out->AddInstruction(QuarkLoadStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkLoadGlobal16(value.reg, ref.base, ref.offset, ref.scratch));
-		break;
-	case 4:
-		if (ref.memType == MEMORYREF_STACK_VAR)
-			out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkLoadGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-		break;
-	case 8:
-		if (ref.memType == MEMORYREF_STACK_VAR)
+		switch (value.width)
 		{
-			out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			out->AddInstruction(QuarkLoadStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
+		case 4:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkLoadStackFS(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkLoadGlobalFS(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 8:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkLoadStackFD(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkLoadGlobalFD(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		default:
+			return false;
 		}
-		else
+	}
+	else
+	{
+		switch (value.width)
 		{
-			out->AddInstruction(QuarkLoadGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-			out->AddInstruction(QuarkLoadGlobal32(value.highReg, ref.base, ref.offset + 4, ref.scratch));
+		case 1:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkLoadStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkLoadGlobal8(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 2:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkLoadStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkLoadGlobal16(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 4:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkLoadGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 8:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+			{
+				out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				out->AddInstruction(QuarkLoadStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
+			}
+			else
+			{
+				out->AddInstruction(QuarkLoadGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
+				out->AddInstruction(QuarkLoadGlobal32(value.highReg, ref.base, ref.offset + 4, ref.scratch));
+			}
+			break;
+		default:
+			return false;
 		}
-		break;
-	default:
-		return false;
 	}
 
 	return Move(out, dest, value);
@@ -879,40 +985,63 @@ bool OutputQuark::GenerateArrayIndexAssign(SymInstrBlock* out, const ILInstructi
 		return false;
 	}
 
-	switch (value.width)
+	if (value.fpu)
 	{
-	case 1:
-		if (ref.memType == MEMORYREF_STACK_VAR)
-			out->AddInstruction(QuarkStoreStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkStoreGlobal8(value.reg, ref.base, ref.offset, ref.scratch));
-		break;
-	case 2:
-		if (ref.memType == MEMORYREF_STACK_VAR)
-			out->AddInstruction(QuarkStoreStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkStoreGlobal16(value.reg, ref.base, ref.offset, ref.scratch));
-		break;
-	case 4:
-		if (ref.memType == MEMORYREF_STACK_VAR)
-			out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-		else
-			out->AddInstruction(QuarkStoreGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-		break;
-	case 8:
-		if (ref.memType == MEMORYREF_STACK_VAR)
+		switch (value.width)
 		{
-			out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			out->AddInstruction(QuarkStoreStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
+		case 4:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkStoreStackFS(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkStoreGlobalFS(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 8:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkStoreStackFD(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkStoreGlobalFD(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		default:
+			return false;
 		}
-		else
+	}
+	else
+	{
+		switch (value.width)
 		{
-			out->AddInstruction(QuarkStoreGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-			out->AddInstruction(QuarkStoreGlobal32(value.highReg, ref.base, ref.offset + 4, ref.scratch));
+		case 1:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkStoreStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkStoreGlobal8(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 2:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkStoreStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkStoreGlobal16(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 4:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+				out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+			else
+				out->AddInstruction(QuarkStoreGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
+			break;
+		case 8:
+			if (ref.memType == MEMORYREF_STACK_VAR)
+			{
+				out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				out->AddInstruction(QuarkStoreStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
+			}
+			else
+			{
+				out->AddInstruction(QuarkStoreGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
+				out->AddInstruction(QuarkStoreGlobal32(value.highReg, ref.base, ref.offset + 4, ref.scratch));
+			}
+			break;
+		default:
+			return false;
 		}
-		break;
-	default:
-		return false;
 	}
 
 	return true;
@@ -2403,21 +2532,39 @@ bool OutputQuark::GenerateUnsignedConvert(SymInstrBlock* out, const ILInstructio
 	if (!GetDestRegister(out, dest, result))
 		return false;
 
-	switch (src.width)
+	if (dest.fpu)
 	{
-	case 1:
-		out->AddInstruction(QuarkZxb(result.reg, src.reg));
-		break;
-	case 2:
-		out->AddInstruction(QuarkZxh(result.reg, src.reg));
-		break;
-	default:
-		out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
-		break;
+		if (src.fpu)
+			out->AddInstruction(QuarkFmov(result.reg, src.reg));
+		else
+			out->AddInstruction(QuarkLoadFI(result.reg, src.reg, 0));
 	}
+	else if (src.fpu)
+	{
+		// TODO: Implement float conversion to 64-bit integer
+		if (dest.width == 8)
+			return false;
 
-	if (instr.params[0].GetWidth() == 8)
-		out->AddInstruction(QuarkLoadImm(result.highReg, 0));
+		out->AddInstruction(QuarkStoreFI(result.reg, src.reg));
+	}
+	else
+	{
+		switch (src.width)
+		{
+		case 1:
+			out->AddInstruction(QuarkZxb(result.reg, src.reg));
+			break;
+		case 2:
+			out->AddInstruction(QuarkZxh(result.reg, src.reg));
+			break;
+		default:
+			out->AddInstruction(QuarkMov(result.reg, src.reg, 0));
+			break;
+		}
+
+		if (instr.params[0].GetWidth() == 8)
+			out->AddInstruction(QuarkLoadImm(result.highReg, 0));
+	}
 
 	return Move(out, dest, result);
 }
@@ -2766,6 +2913,170 @@ bool OutputQuark::GeneratePow(SymInstrBlock* out, const ILInstruction& instr)
 }
 
 
+bool OutputQuark::GenerateFloor(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFloor(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateCeil(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkCeil(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateSqrt(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	switch (src.type)
+	{
+	case OPERANDREF_REG:
+		out->AddInstruction(QuarkSqrt(result.reg, src.reg));
+		break;
+	case OPERANDREF_IMMED:
+		out->AddInstruction(QuarkSqrtImmed(result.reg, (int32_t)src.immed));
+		break;
+	default:
+		return false;
+	}
+
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateSin(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFsin(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateCos(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFcos(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateTan(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFtan(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateAsin(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFasin(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateAcos(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFacos(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
+bool OutputQuark::GenerateAtan(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference src, dest, result;
+	if (!Load(out, instr.params[1], src, true))
+		return false;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+	if (!GetDestRegister(out, dest, result))
+		return false;
+	if (!dest.fpu)
+		return false;
+
+	out->AddInstruction(QuarkFatan(result.reg, src.reg));
+	return Move(out, dest, result, true);
+}
+
+
 bool OutputQuark::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 {
 	m_currentBlock = block;
@@ -2988,6 +3299,42 @@ bool OutputQuark::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 			break;
 		case ILOP_POW:
 			if (!GeneratePow(out, *i))
+				goto fail;
+			break;
+		case ILOP_FLOOR:
+			if (!GenerateFloor(out, *i))
+				goto fail;
+			break;
+		case ILOP_CEIL:
+			if (!GenerateCeil(out, *i))
+				goto fail;
+			break;
+		case ILOP_SQRT:
+			if (!GenerateSqrt(out, *i))
+				goto fail;
+			break;
+		case ILOP_SIN:
+			if (!GenerateSin(out, *i))
+				goto fail;
+			break;
+		case ILOP_COS:
+			if (!GenerateCos(out, *i))
+				goto fail;
+			break;
+		case ILOP_TAN:
+			if (!GenerateTan(out, *i))
+				goto fail;
+			break;
+		case ILOP_ASIN:
+			if (!GenerateAsin(out, *i))
+				goto fail;
+			break;
+		case ILOP_ACOS:
+			if (!GenerateAcos(out, *i))
+				goto fail;
+			break;
+		case ILOP_ATAN:
+			if (!GenerateAtan(out, *i))
 				goto fail;
 			break;
 		default:

@@ -977,6 +977,123 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
 		m_children[1] = m_children[1]->ConvertToType(state, m_type);
 		break;
+	case EXPR_FLOOR:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'floor'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_CEIL:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'ceil'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_SQRT:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'sqrt'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_SIN:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'sin'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_COS:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'cos'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_TAN:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'tan'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_ASIN:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'asin'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_ACOS:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'acos'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
+	case EXPR_ATAN:
+		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
+			m_type = Type::FloatType(8);
+		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
+			m_type = m_children[0]->GetType();
+		else
+		{
+			state->Error();
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'atan'\n",
+				m_location.fileName.c_str(), m_location.lineNumber);
+			m_type = Type::VoidType();
+		}
+		break;
 	case EXPR_ALLOCA:
 		m_type = Type::PointerType(Type::VoidType(), 1);
 		if (m_children[0]->GetType()->GetClass() != TYPE_INT)
@@ -1313,31 +1430,58 @@ Expr* Expr::Simplify(ParserState* state)
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() + m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() + m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() + m_children[1]->GetFloatValue(),
+				m_children[1]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() + (double)m_children[1]->GetIntValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() + (double)m_children[1]->GetIntValue(),
+				m_children[0]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() + m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() + m_children[1]->GetFloatValue(),
+				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+		}
 		return this;
 	case EXPR_MINUS:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() - m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() - m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() - m_children[1]->GetFloatValue(),
+				m_children[1]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() - (double)m_children[1]->GetIntValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() - (double)m_children[1]->GetIntValue(),
+				m_children[0]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() - m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() - m_children[1]->GetFloatValue(),
+				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+		}
 		return this;
 	case EXPR_MULT:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() * m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() * m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() * m_children[1]->GetFloatValue(),
+				m_children[1]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() * (double)m_children[1]->GetIntValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() * (double)m_children[1]->GetIntValue(),
+				m_children[0]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() * m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() * m_children[1]->GetFloatValue(),
+				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+		}
 		return this;
 	case EXPR_DIV:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
@@ -1352,11 +1496,20 @@ Expr* Expr::Simplify(ParserState* state)
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() / m_children[1]->GetIntValue());
 		}
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() / m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() / m_children[1]->GetFloatValue(),
+				m_children[1]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() / (double)m_children[1]->GetIntValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() / (double)m_children[1]->GetIntValue(),
+				m_children[0]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() / m_children[1]->GetFloatValue());
+		{
+			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() / m_children[1]->GetFloatValue(),
+				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+		}
 		return this;
 	case EXPR_MOD:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
@@ -1371,11 +1524,20 @@ Expr* Expr::Simplify(ParserState* state)
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() % m_children[1]->GetIntValue());
 		}
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetIntValue(), m_children[1]->GetFloatValue()));
+		{
+			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetIntValue(), m_children[1]->GetFloatValue()),
+				m_children[1]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetFloatValue(), m_children[1]->GetIntValue()));
+		{
+			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetFloatValue(), m_children[1]->GetIntValue()),
+				m_children[0]->GetType()->GetWidth());
+		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetFloatValue(), m_children[1]->GetFloatValue()));
+		{
+			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetFloatValue(), m_children[1]->GetFloatValue()),
+				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+		}
 		return this;
 	case EXPR_AND:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
@@ -1401,7 +1563,7 @@ Expr* Expr::Simplify(ParserState* state)
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::IntExpr(m_location, -m_children[0]->GetIntValue());
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, -m_children[0]->GetFloatValue());
+			return Expr::FloatExpr(m_location, -m_children[0]->GetFloatValue(), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_NOT:
 		if (m_children[0]->GetClass() == EXPR_INT)
@@ -1549,6 +1711,60 @@ Expr* Expr::Simplify(ParserState* state)
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::IntExpr(m_location, llabs(m_children[0]->GetIntValue()));
 		return this;
+	case EXPR_FLOOR:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, m_children[0]->GetIntValue(), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, floor(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_CEIL:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, m_children[0]->GetIntValue(), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, ceil(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_SQRT:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, sqrt(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, sqrt(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_SIN:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, sin(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, sin(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_COS:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, cos(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, cos(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_TAN:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, tan(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, tan(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_ASIN:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, asin(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, asin(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_ACOS:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, acos(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, acos(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
+	case EXPR_ATAN:
+		if (m_children[0]->GetClass() == EXPR_INT)
+			return Expr::FloatExpr(m_location, atan(m_children[0]->GetIntValue()), 8);
+		if (m_children[0]->GetClass() == EXPR_FLOAT)
+			return Expr::FloatExpr(m_location, atan(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+		return this;
 	case EXPR_CAST:
 		if (m_children[0]->GetClass() == EXPR_INT)
 		{
@@ -1560,7 +1776,7 @@ Expr* Expr::Simplify(ParserState* state)
 			}
 			else if (m_type->GetClass() == TYPE_FLOAT)
 			{
-				Expr* result = Expr::FloatExpr(m_location, (double)m_children[0]->m_intValue);
+				Expr* result = Expr::FloatExpr(m_location, (double)m_children[0]->m_intValue, m_type->GetWidth());
 				result->SetType(m_type);
 				return result;
 			}
@@ -2759,6 +2975,51 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			block->AddInstruction(ILOP_POW, result, a, b);
 		}
 		break;
+	case EXPR_FLOOR:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_FLOOR, result, a);
+		break;
+	case EXPR_CEIL:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_CEIL, result, a);
+		break;
+	case EXPR_SQRT:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_SQRT, result, a);
+		break;
+	case EXPR_SIN:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_SIN, result, a);
+		break;
+	case EXPR_COS:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_COS, result, a);
+		break;
+	case EXPR_TAN:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_TAN, result, a);
+		break;
+	case EXPR_ASIN:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_ASIN, result, a);
+		break;
+	case EXPR_ACOS:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_ACOS, result, a);
+		break;
+	case EXPR_ATAN:
+		result = func->CreateTempVariable(m_type);
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_ATAN, result, a);
+		break;
 	case EXPR_ALLOCA:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
@@ -3082,10 +3343,20 @@ Expr* Expr::IntExpr(const Location& loc, int64_t value)
 }
 
 
-Expr* Expr::FloatExpr(const Location& loc, double value)
+Expr* Expr::Int64Expr(const Location& loc, int64_t value)
+{
+	Expr* expr = new Expr(loc, EXPR_INT);
+	expr->m_intValue = value;
+	expr->m_type = Type::IntType(8, true);
+	return expr;
+}
+
+
+Expr* Expr::FloatExpr(const Location& loc, double value, size_t size)
 {
 	Expr* expr = new Expr(loc, EXPR_FLOAT);
 	expr->m_floatValue = value;
+	expr->m_type = Type::FloatType(size);
 	return expr;
 }
 
@@ -3646,6 +3917,15 @@ void Expr::Print(size_t indent)
 		fprintf(stderr, ")");
 		break;
 	case EXPR_ABS:  fprintf(stderr, "abs("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_FLOOR:  fprintf(stderr, "floor("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_CEIL:  fprintf(stderr, "ceil("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_SQRT:  fprintf(stderr, "sqrt("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_SIN:  fprintf(stderr, "sin("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_COS:  fprintf(stderr, "cos("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_TAN:  fprintf(stderr, "tan("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_ASIN:  fprintf(stderr, "asin("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_ACOS:  fprintf(stderr, "acos("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_ATAN:  fprintf(stderr, "atan("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
 	case EXPR_ALLOCA:  fprintf(stderr, "alloca("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
 	case EXPR_MEMCPY:
 		fprintf(stderr, "memcpy(");

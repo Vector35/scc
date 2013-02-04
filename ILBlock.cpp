@@ -646,6 +646,15 @@ bool ILInstruction::WritesToFirstParameter() const
 	case ILOP_PREV_ARG:
 	case ILOP_BYTESWAP:
 	case ILOP_POW:
+	case ILOP_FLOOR:
+	case ILOP_CEIL:
+	case ILOP_SQRT:
+	case ILOP_SIN:
+	case ILOP_COS:
+	case ILOP_TAN:
+	case ILOP_ASIN:
+	case ILOP_ACOS:
+	case ILOP_ATAN:
 		// These instructions write to the first parameter
 		return true;
 	case ILOP_DEREF_ASSIGN:
@@ -785,6 +794,15 @@ void ILInstruction::Print() const
 	case ILOP_BYTESWAP:  params[0].Print(); fprintf(stderr, " = byteswap "); params[1].Print(); break;
 	case ILOP_BREAKPOINT:  fprintf(stderr, "breakpoint"); break;
 	case ILOP_POW:  params[0].Print(); fprintf(stderr, " = pow "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
+	case ILOP_FLOOR:  params[0].Print(); fprintf(stderr, " = floor "); params[1].Print(); break;
+	case ILOP_CEIL:  params[0].Print(); fprintf(stderr, " = ceil "); params[1].Print(); break;
+	case ILOP_SQRT:  params[0].Print(); fprintf(stderr, " = sqrt "); params[1].Print(); break;
+	case ILOP_SIN:  params[0].Print(); fprintf(stderr, " = sin "); params[1].Print(); break;
+	case ILOP_COS:  params[0].Print(); fprintf(stderr, " = cos "); params[1].Print(); break;
+	case ILOP_TAN:  params[0].Print(); fprintf(stderr, " = tan "); params[1].Print(); break;
+	case ILOP_ASIN:  params[0].Print(); fprintf(stderr, " = asin "); params[1].Print(); break;
+	case ILOP_ACOS:  params[0].Print(); fprintf(stderr, " = acos "); params[1].Print(); break;
+	case ILOP_ATAN:  params[0].Print(); fprintf(stderr, " = atan "); params[1].Print(); break;
 	case ILOP_CALL:
 		params[0].Print();
 		fprintf(stderr, " = ");

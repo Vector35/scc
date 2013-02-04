@@ -1151,9 +1151,9 @@ bool QuarkRestoreCalleeSavedRegsInstr::UpdateInstruction(SymInstrFunction* func,
 			replacement.push_back(QuarkLoad32(SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(0), -stackSize + offset));
 		for (uint32_t i = 0; i < 32; i++)
 		{
-			if (fpu.count(i) != 0)
+			if (fpu.count(31 - i) != 0)
 			{
-				replacement.push_back(QuarkLoadFD(QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), -stackSize + offset));
+				replacement.push_back(QuarkLoadFD(QUARK_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), -stackSize + offset));
 				offset += 8;
 			}
 		}
@@ -1164,9 +1164,9 @@ bool QuarkRestoreCalleeSavedRegsInstr::UpdateInstruction(SymInstrFunction* func,
 	{
 		for (uint32_t i = 0; i < 32; i++)
 		{
-			if (fpu.count(i) != 0)
+			if (fpu.count(31 - i) != 0)
 			{
-				replacement.push_back(QuarkLoadFD(QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), offset));
+				replacement.push_back(QuarkLoadFD(QUARK_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), offset));
 				offset += 8;
 			}
 		}

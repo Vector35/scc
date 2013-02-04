@@ -145,7 +145,8 @@ public:
 	Expr* BasicExpr(ExprClass cls) { return new Expr(GetLocation(), cls); }
 	Expr* BoolExpr(bool value) { return Expr::BoolExpr(GetLocation(), value); }
 	Expr* IntExpr(int64_t value) { return Expr::IntExpr(GetLocation(), value); }
-	Expr* FloatExpr(double value) { return Expr::FloatExpr(GetLocation(), value); }
+	Expr* Int64Expr(int64_t value) { return Expr::Int64Expr(GetLocation(), value); }
+	Expr* FloatExpr(double value, size_t size) { return Expr::FloatExpr(GetLocation(), value, size); }
 	Expr* StringExpr(const std::string& value) { return Expr::StringExpr(GetLocation(), value); }
 	Expr* VariableExpr(Variable* var) { return Expr::VariableExpr(GetLocation(), var); }
 	Expr* FunctionExpr(Function* func) { return Expr::FunctionExpr(GetLocation(), func); }

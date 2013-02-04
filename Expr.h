@@ -79,6 +79,15 @@ enum ExprClass
 	EXPR_MAX,
 	EXPR_ABS,
 	EXPR_POW,
+	EXPR_FLOOR,
+	EXPR_CEIL,
+	EXPR_SQRT,
+	EXPR_SIN,
+	EXPR_COS,
+	EXPR_TAN,
+	EXPR_ASIN,
+	EXPR_ACOS,
+	EXPR_ATAN,
 	EXPR_ALLOCA,
 	EXPR_MEMCPY,
 	EXPR_MEMSET,
@@ -173,7 +182,8 @@ public:
 
 	static Expr* BoolExpr(const Location& loc, bool value);
 	static Expr* IntExpr(const Location& loc, int64_t value);
-	static Expr* FloatExpr(const Location& loc, double value);
+	static Expr* Int64Expr(const Location& loc, int64_t value);
+	static Expr* FloatExpr(const Location& loc, double value, size_t size);
 	static Expr* StringExpr(const Location& loc, const std::string& value);
 	static Expr* VariableExpr(const Location& loc, Variable* var);
 	static Expr* FunctionExpr(const Location& loc, Function* func);

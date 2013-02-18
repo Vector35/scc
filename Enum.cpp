@@ -126,7 +126,7 @@ Enum* Enum::Deserialize(InputBlock* input)
 
 	size_t memberCount;
 	if (!input->ReadNativeInteger(memberCount))
-		return false;
+		return NULL;
 	for (size_t j = 0; j < memberCount; j++)
 	{
 		EnumMember member;

@@ -177,6 +177,9 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (settings.preferredBits == 64)
 			commonHeader.arch = 62;
 		break;
+	case ARCH_QUARK:
+		commonHeader.arch = 4242;
+		break;
 	default:
 		return false;
 	}

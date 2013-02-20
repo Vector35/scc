@@ -867,87 +867,118 @@ bool OutputQuark::GenerateArrayIndex(SymInstrBlock* out, const ILInstruction& in
 		return false;
 	if (!AccessVariableStorage(out, instr.params[1], ref))
 		return false;
-	if (!Load(out, instr.params[2], i))
-		return false;
 	if (!GetDestRegister(out, dest, value))
 		return false;
 	if (ref.type != OPERANDREF_MEM)
 		return false;
 
-	uint32_t shiftCount;
-	uint32_t addr = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
-	ref.width = (uint32_t)instr.params[3].integerValue;
-	switch (i.type)
+	if (ref.memType == MEMORYREF_GLOBAL_VAR)
 	{
-	case OPERANDREF_REG:
+		if (!Load(out, instr.params[2], i, true))
+			return false;
+
+		uint32_t addr = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		out->AddInstruction(QuarkAddGlobal(addr, ref.base, ref.offset, ref.scratch));
+
+		uint32_t shiftCount;
+		ref.width = (uint32_t)instr.params[3].integerValue;
 		if (!IsPowerOfTwo(instr.params[3].integerValue, shiftCount))
 			return false;
-		out->AddInstruction(QuarkAdd(addr, ref.base, i.reg, shiftCount));
-		ref.base = addr;
-		break;
-	case OPERANDREF_IMMED:
-		ref.offset += i.immed * instr.params[3].integerValue;
-		break;
-	default:
-		return false;
-	}
 
-	if (value.fpu)
-	{
-		switch (value.width)
+		if (value.fpu)
 		{
-		case 4:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkLoadStackFS(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkLoadGlobalFS(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		case 8:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkLoadStackFD(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkLoadGlobalFD(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		default:
-			return false;
+			switch (value.width)
+			{
+			case 4:
+				out->AddInstruction(QuarkLoadFS(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 8:
+				out->AddInstruction(QuarkLoadFD(value.reg, addr, i.reg, shiftCount));
+				break;
+			default:
+				return false;
+			}
+		}
+		else
+		{
+			switch (value.width)
+			{
+			case 1:
+				out->AddInstruction(QuarkLoad8(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 2:
+				out->AddInstruction(QuarkLoad16(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 4:
+				out->AddInstruction(QuarkLoad32(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 8:
+				out->AddInstruction(QuarkAdd(addr, addr, i.reg, shiftCount));
+				out->AddInstruction(QuarkLoad32(value.reg, addr, 0));
+				out->AddInstruction(QuarkLoad32(value.highReg, addr, 4));
+				break;
+			default:
+				return false;
+			}
 		}
 	}
 	else
 	{
-		switch (value.width)
+		if (!Load(out, instr.params[2], i))
+			return false;
+
+		uint32_t shiftCount;
+		uint32_t addr = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		ref.width = (uint32_t)instr.params[3].integerValue;
+		switch (i.type)
 		{
-		case 1:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkLoadStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkLoadGlobal8(value.reg, ref.base, ref.offset, ref.scratch));
+		case OPERANDREF_REG:
+			if (!IsPowerOfTwo(instr.params[3].integerValue, shiftCount))
+				return false;
+			out->AddInstruction(QuarkAdd(addr, ref.base, i.reg, shiftCount));
+			ref.base = addr;
 			break;
-		case 2:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkLoadStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkLoadGlobal16(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		case 4:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkLoadGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		case 8:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-			{
-				out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-				out->AddInstruction(QuarkLoadStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
-			}
-			else
-			{
-				out->AddInstruction(QuarkLoadGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-				out->AddInstruction(QuarkLoadGlobal32(value.highReg, ref.base, ref.offset + 4, ref.scratch));
-			}
+		case OPERANDREF_IMMED:
+			ref.offset += i.immed * instr.params[3].integerValue;
 			break;
 		default:
 			return false;
+		}
+
+		if (value.fpu)
+		{
+			switch (value.width)
+			{
+			case 4:
+				out->AddInstruction(QuarkLoadStackFS(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 8:
+				out->AddInstruction(QuarkLoadStackFD(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			default:
+				return false;
+			}
+		}
+		else
+		{
+			switch (value.width)
+			{
+			case 1:
+				out->AddInstruction(QuarkLoadStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 2:
+				out->AddInstruction(QuarkLoadStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 4:
+				out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 8:
+				out->AddInstruction(QuarkLoadStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				out->AddInstruction(QuarkLoadStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
+				break;
+			default:
+				return false;
+			}
 		}
 	}
 
@@ -960,87 +991,118 @@ bool OutputQuark::GenerateArrayIndexAssign(SymInstrBlock* out, const ILInstructi
 	OperandReference ref, i, value;
 	if (!AccessVariableStorage(out, instr.params[0], ref))
 		return false;
-	if (!Load(out, instr.params[1], i))
-		return false;
 	if (!Load(out, instr.params[3], value, true))
 		return false;
 	if (ref.type != OPERANDREF_MEM)
 		return false;
 
-	uint32_t shiftCount;
-	uint32_t addr = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
-	ref.width = (uint32_t)instr.params[2].integerValue;
-	switch (i.type)
+	if (ref.memType == MEMORYREF_GLOBAL_VAR)
 	{
-	case OPERANDREF_REG:
+		if (!Load(out, instr.params[1], i, true))
+			return false;
+
+		uint32_t addr = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		out->AddInstruction(QuarkAddGlobal(addr, ref.base, ref.offset, ref.scratch));
+
+		uint32_t shiftCount;
+		ref.width = (uint32_t)instr.params[2].integerValue;
 		if (!IsPowerOfTwo(instr.params[2].integerValue, shiftCount))
 			return false;
-		out->AddInstruction(QuarkAdd(addr, ref.base, i.reg, shiftCount));
-		ref.base = addr;
-		break;
-	case OPERANDREF_IMMED:
-		ref.offset += i.immed * instr.params[2].integerValue;
-		break;
-	default:
-		return false;
-	}
 
-	if (value.fpu)
-	{
-		switch (value.width)
+		if (value.fpu)
 		{
-		case 4:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkStoreStackFS(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkStoreGlobalFS(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		case 8:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkStoreStackFD(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkStoreGlobalFD(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		default:
-			return false;
+			switch (value.width)
+			{
+			case 4:
+				out->AddInstruction(QuarkStoreFS(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 8:
+				out->AddInstruction(QuarkStoreFD(value.reg, addr, i.reg, shiftCount));
+				break;
+			default:
+				return false;
+			}
+		}
+		else
+		{
+			switch (value.width)
+			{
+			case 1:
+				out->AddInstruction(QuarkStore8(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 2:
+				out->AddInstruction(QuarkStore16(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 4:
+				out->AddInstruction(QuarkStore32(value.reg, addr, i.reg, shiftCount));
+				break;
+			case 8:
+				out->AddInstruction(QuarkAdd(addr, addr, i.reg, shiftCount));
+				out->AddInstruction(QuarkStore32(value.reg, addr, 0));
+				out->AddInstruction(QuarkStore32(value.highReg, addr, 4));
+				break;
+			default:
+				return false;
+			}
 		}
 	}
 	else
 	{
-		switch (value.width)
+		if (!Load(out, instr.params[1], i))
+			return false;
+
+		uint32_t shiftCount;
+		uint32_t addr = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER);
+		ref.width = (uint32_t)instr.params[2].integerValue;
+		switch (i.type)
 		{
-		case 1:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkStoreStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkStoreGlobal8(value.reg, ref.base, ref.offset, ref.scratch));
+		case OPERANDREF_REG:
+			if (!IsPowerOfTwo(instr.params[2].integerValue, shiftCount))
+				return false;
+			out->AddInstruction(QuarkAdd(addr, ref.base, i.reg, shiftCount));
+			ref.base = addr;
 			break;
-		case 2:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkStoreStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkStoreGlobal16(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		case 4:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-				out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-			else
-				out->AddInstruction(QuarkStoreGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-			break;
-		case 8:
-			if (ref.memType == MEMORYREF_STACK_VAR)
-			{
-				out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
-				out->AddInstruction(QuarkStoreStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
-			}
-			else
-			{
-				out->AddInstruction(QuarkStoreGlobal32(value.reg, ref.base, ref.offset, ref.scratch));
-				out->AddInstruction(QuarkStoreGlobal32(value.highReg, ref.base, ref.offset + 4, ref.scratch));
-			}
+		case OPERANDREF_IMMED:
+			ref.offset += i.immed * instr.params[2].integerValue;
 			break;
 		default:
 			return false;
+		}
+
+		if (value.fpu)
+		{
+			switch (value.width)
+			{
+			case 4:
+				out->AddInstruction(QuarkStoreStackFS(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 8:
+				out->AddInstruction(QuarkStoreStackFD(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			default:
+				return false;
+			}
+		}
+		else
+		{
+			switch (value.width)
+			{
+			case 1:
+				out->AddInstruction(QuarkStoreStack8(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 2:
+				out->AddInstruction(QuarkStoreStack16(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 4:
+				out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				break;
+			case 8:
+				out->AddInstruction(QuarkStoreStack32(value.reg, ref.base, ref.var, ref.offset, ref.scratch));
+				out->AddInstruction(QuarkStoreStack32(value.highReg, ref.base, ref.var, ref.offset + 4, ref.scratch));
+				break;
+			default:
+				return false;
+			}
 		}
 	}
 

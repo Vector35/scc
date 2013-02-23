@@ -60,6 +60,7 @@ void Usage()
 	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
 	fprintf(stderr, "    --blacklist <byte>                Blacklist the given byte value\n");
 	fprintf(stderr, "    --concat                          Jump to end of output on return for concatenating code\n");
+	fprintf(stderr, "    -D <define>[=<value>]             Define a preprocessor macro\n");
 	fprintf(stderr, "    --decoder <source>                Use decoder to decode shellcode before executing\n");
 	fprintf(stderr, "    --encode-pointers                 All code pointers are encoded with a random canary\n");
 	fprintf(stderr, "    --encoder <source>                Use encoder to encode shellcode\n");
@@ -113,6 +114,7 @@ int main(int argc, char* argv[])
 	vector<string> sourceFiles;
 	string library;
 	vector<string> precompiledHeaders;
+	vector<string> defines;
 	string outputFile = "";
 	string mapFile = "";
 	bool hexOutput = true;
@@ -257,6 +259,18 @@ int main(int argc, char* argv[])
 
 			i++;
 			settings.blacklist.push_back((uint8_t)strtoul(argv[i], NULL, 0));
+			continue;
+		}
+		else if (!strcmp(argv[i], "-D"))
+		{
+			if ((i + 1) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			defines.push_back(argv[i]);
 			continue;
 		}
 		else if (!strcmp(argv[i], "--decoder"))
@@ -755,6 +769,33 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	if (defines.size() != 0)
+	{
+		// Add the defines from the command line
+		for (vector<string>::iterator i = defines.begin(); i != defines.end(); i++)
+		{
+			string source = "#define ";
+
+			size_t equals = i->find('=');
+			if (equals == string::npos)
+				source += *i;
+			else
+			{
+				source += i->substr(0, equals);
+				source += " ";
+				source += i->substr(equals + 1);
+			}
+
+			source += "\n";
+
+			if (!linker.PrecompileSource(source))
+			{
+				fprintf(stderr, "error: invalid define '%s'\n", i->c_str());
+				return 1;
+			}
+		}
+	}
+
 	if (precompiledHeaders.size() != 0)
 	{
 		// Process the precompiled headers
@@ -763,7 +804,10 @@ int main(int argc, char* argv[])
 			if (!linker.PrecompileHeader(*i))
 				return 1;
 		}
+	}
 
+	if ((precompiledHeaders.size() != 0) || (defines.size() != 0))
+	{
 		// Parse the precompiled headers
 		if (!linker.FinalizePrecompiledHeaders())
 			return 1;

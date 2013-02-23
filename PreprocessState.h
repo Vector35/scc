@@ -93,6 +93,7 @@ public:
 	void Error() { m_errors++; }
 	bool HasErrors() const { return m_errors != 0; }
 
+	void IncludeSource(const std::string& source);
 	void IncludeFile(const std::string& name);
 
 	void Define(const std::string& name, const std::vector<std::string>& params,

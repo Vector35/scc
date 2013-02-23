@@ -22,6 +22,7 @@ Options:
                                       expression, such as "[eax+8]-12")
     --blacklist <byte>                Blacklist the given byte value
     --concat                          Jump to end of output on return for concatenating code
+    -D <define>[=<value>]             Define a preprocessor macro
     --decoder <source>                Use decoder to decode shellcode before executing
     --encode-pointers                 All code pointers are encoded with a random canary
     --encoder <source>                Use encoder to encode shellcode

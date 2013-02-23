@@ -11,7 +11,7 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	base=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
-	anti_disasm=False, anti_disasm_freq=None, markov_chain=None, additional_options=None)
+	anti_disasm=False, anti_disasm_freq=None, markov_chain=None, defines=None, additional_options=None)
 ---------------------------------------
 
 This function will return a tuple of two elements.  The first element is the compiled code, or `None` on compilation
@@ -20,6 +20,9 @@ compilation fails.
 
 IMPORTANT: Some of these options are not yet implemented.  See the link:issues.html[known issues] for a list
 of incomplete features.
+
+WARNING: This API is not protected against command injection from the various options.  Do not pass untrusted input as
+options to this function.
 
 The `source` parameter contains the source code to compile.  This code does not need to be present in a file on
 the file system, and can be dynamically constructed.
@@ -87,6 +90,9 @@ number of operations between sequences.
 
 The `markov_chain` parameter, if specified, gives the filename of a binary that will be used as a source of instructions
 for random instruction generation.
+
+The `defines` parameter, if specified, gives a map of preprocessor macro names to values.  Use the empty string or `None`
+if the macro should not have a value.
 
 The `additional_options` parameter can hold a list of additional link:scc.html[command line arguments].
 

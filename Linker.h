@@ -58,6 +58,7 @@ public:
 	bool ImportStandardLibrary();
 
 	bool PrecompileHeader(const std::string& path);
+	bool PrecompileSource(const std::string& source);
 	bool CompileSource(const std::string& source, const std::string& filename);
 
 	bool FinalizePrecompiledHeaders();

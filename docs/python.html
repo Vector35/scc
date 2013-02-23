@@ -46,7 +46,7 @@ is the definition of this function:</p></div>
         base=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
         optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
         return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
-        anti_disasm=False, anti_disasm_freq=None, markov_chain=None, additional_options=None)</pre>
+        anti_disasm=False, anti_disasm_freq=None, markov_chain=None, defines=None, additional_options=None)</pre>
 </div></div>
 <div class="paragraph"><p>This function will return a tuple of two elements.  The first element is the compiled code, or <span class="monospaced">None</span> on compilation
 failure.  The second element contains the output from the compiler, and will include the error messages when the
@@ -58,6 +58,15 @@ compilation fails.</p></div>
 </td>
 <td class="content">Some of these options are not yet implemented.  See the <a href="issues.html">known issues</a> for a list
 of incomplete features.</td>
+</tr></table>
+</div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img src="./images/icons/warning.png" alt="Warning">
+</td>
+<td class="content">This API is not protected against command injection from the various options.  Do not pass untrusted input as
+options to this function.</td>
 </tr></table>
 </div>
 <div class="paragraph"><p>The <span class="monospaced">source</span> parameter contains the source code to compile.  This code does not need to be present in a file on
@@ -103,6 +112,8 @@ of the anti-disassembly sequences can be specified with the <span class="monospa
 number of operations between sequences.</p></div>
 <div class="paragraph"><p>The <span class="monospaced">markov_chain</span> parameter, if specified, gives the filename of a binary that will be used as a source of instructions
 for random instruction generation.</p></div>
+<div class="paragraph"><p>The <span class="monospaced">defines</span> parameter, if specified, gives a map of preprocessor macro names to values.  Use the empty string or <span class="monospaced">None</span>
+if the macro should not have a value.</p></div>
 <div class="paragraph"><p>The <span class="monospaced">additional_options</span> parameter can hold a list of additional <a href="scc.html">command line arguments</a>.</p></div>
 </div>
 </div>

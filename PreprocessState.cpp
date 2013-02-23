@@ -188,6 +188,37 @@ void PreprocessState::AppendLocation()
 }
 
 
+void PreprocessState::IncludeSource(const string& source)
+{
+	// Ignore anything inside a failed #ifdef
+	if (m_ifFailCount > 0)
+		return;
+
+	string origFileName = m_fileName;
+	void* origScanner = m_scanner;
+	size_t origStartingIfStackSize = m_startingIfStackSize;
+	m_fileName = "";
+	m_startingIfStackSize = m_ifStack.size();
+
+	yyscan_t scanner;
+	Preprocess_lex_init(&scanner);
+	m_scanner = scanner;
+
+	YY_BUFFER_STATE buf = Preprocess__scan_string(source.c_str(), scanner);
+	Preprocess__switch_to_buffer(buf, scanner);
+	Preprocess_set_lineno(1, scanner);
+
+	AppendLocation();
+
+	Preprocess_parse(this);
+	Preprocess_lex_destroy(scanner);
+
+	m_fileName = origFileName;
+	m_scanner = origScanner;
+	m_startingIfStackSize = origStartingIfStackSize;
+}
+
+
 void PreprocessState::IncludeFile(const string& name)
 {
 	// Ignore anything inside a failed #ifdef

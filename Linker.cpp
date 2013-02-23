@@ -499,6 +499,15 @@ bool Linker::PrecompileHeader(const string& path)
 }
 
 
+bool Linker::PrecompileSource(const string& source)
+{
+	m_precompiledPreprocess.IncludeSource(source);
+	if (m_precompiledPreprocess.HasErrors())
+		return false;
+	return true;
+}
+
+
 bool Linker::FinalizePrecompiledHeaders()
 {
 	yyscan_t scanner;

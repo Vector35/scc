@@ -838,7 +838,9 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			if ((!m_children[i + 1]->GetType()->CanAssignTo(*m_children[0]->GetType()->GetParams()[i])) &&
 				(((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) &&
 				(m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FUNCTION)) ||
-				(m_children[i + 1]->GetClass() != EXPR_INT) || (m_children[i + 1]->GetIntValue() != 0)))
+				(m_children[i + 1]->GetClass() != EXPR_INT) || (m_children[i + 1]->GetIntValue() != 0)) &&
+				((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FLOAT) ||
+				(m_children[i + 1]->GetClass() != EXPR_INT)))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in parameter %d\n", m_location.fileName.c_str(),

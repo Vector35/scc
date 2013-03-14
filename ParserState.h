@@ -33,6 +33,8 @@
 #include "Settings.h"
 
 
+struct FunctionInfo;
+
 struct VarInitInfo
 {
 	std::string name;

@@ -18,8 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __FUNCTION__
-#define __FUNCTION__
+#ifndef __FUNCTION_H__
+#define __FUNCTION_H__
 
 #include <stack>
 #include <map>

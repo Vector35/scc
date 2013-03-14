@@ -25,6 +25,10 @@
 #include "SymInstr.h"
 
 
+#ifdef WIN32
+typedef ptrdiff_t ssize_t;
+#endif
+
 #ifdef OUTPUT32
 class X86Sym_Function;
 #else

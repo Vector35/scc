@@ -27,6 +27,7 @@
 
 #ifdef WIN32
 #define strdup _strdup
+#define strtoull _strtoi64
 #pragma warning(disable:4018)
 #define isatty(x) 0
 #endif

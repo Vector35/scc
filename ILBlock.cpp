@@ -91,8 +91,6 @@ ILParameter::ILParameter(const string& str)
 
 ILParameter::ILParameter(Struct* s, const string& name)
 {
-	if (!s)
-		__asm__ __volatile__("int3");
 	cls = ILPARAM_FIELD;
 	structure = s;
 	stringValue = name;

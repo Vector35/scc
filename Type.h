@@ -51,7 +51,7 @@ enum CallingConvention
 
 
 class Struct;
-class OutputBlock;
+struct OutputBlock;
 
 class Type: public RefCountObject
 {

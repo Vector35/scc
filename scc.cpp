@@ -35,7 +35,11 @@ using namespace std;
 
 
 // Create weak symbol for version
-const char* __attribute__((weak)) g_versionString = "git";
+#ifdef RELEASE
+extern const char* g_versionString;
+#else
+const char* g_versionString = "git";
+#endif
 
 
 void Usage()

@@ -36,8 +36,8 @@ struct EnumMember
 };
 
 
-class OutputBlock;
-class InputBlock;
+struct OutputBlock;
+struct InputBlock;
 class Struct;
 struct DuplicateContext;
 

@@ -1,34 +1,67 @@
 # Global defines
-GCC := gcc
-GXX := g++
+HOST := $(shell uname)
+CC := gcc
+CXX := g++
+LINK := g++
 PYTHON := python
 ifeq ($(CONFIG),release)
-COMMON_CPPFLAGS := -O3 -fno-strict-aliasing -march=nocona
+	COMMON_CPPFLAGS := -O3 -fno-strict-aliasing -march=nocona -DRELEASE
 else
-COMMON_CPPFLAGS := -g3 -fno-strict-aliasing -march=nocona
+	COMMON_CPPFLAGS := -g3 -fno-strict-aliasing -march=nocona
 endif
-CPPFLAGS := -Wall $(COMMON_CPPFLAGS)
-PARSER_CPPFLAGS := $(COMMON_CPPFLAGS)
+	CFLAGS := $(COMMON_CPPFLAGS) -std=gnu99
+	CPPFLAGS := -Wall $(COMMON_CPPFLAGS)
+	PARSER_CPPFLAGS := $(COMMON_CPPFLAGS)
+LDFLAGS :=
+define OUTPUT_EXE
+-o $1
+endef
+define OUTPUT_OBJ
+-o $1
+endef
 
-HOST := $(shell uname)
 ifeq ($(HOST),Linux)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
+	MAKEOPSTR := Obj/makeopstr
 	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),FreeBSD)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
+	MAKEOPSTR := Obj/makeopstr
 	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),Darwin)
 	TARGET := scc
 	BOOTSTRAP := Obj/scc-bootstrap
+	MAKEOPSTR := Obj/makeopstr
 	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
+	CC := cl
+	CXX := cl
+	LINK := link
+	PYTHON := /c/python27/python.exe
+ifeq ($(CONFIG),release)
+	COMMON_CPPFLAGS := -O2 -EHsc -nologo -DWIN32 -DRELEASE -D_CRT_SECURE_NO_WARNINGS
+else
+	COMMON_CPPFLAGS := -EHsc -nologo -DWIN32 -D_CRT_SECURE_NO_WARNINGS
+endif
+	CFLAGS := $(COMMON_CPPFLAGS)
+	CPPFLAGS := -W3 $(COMMON_CPPFLAGS)
+	PARSER_CPPFLAGS := $(COMMON_CPPFLAGS) -wd4005
+	CXXFLAGS := $(COMMON_CPPFLAGS)
+	LDFLAGS := -nologo
 	TARGET := scc.exe
 	BOOTSTRAP := Obj/scc-bootstrap.exe
+	MAKEOPSTR := Obj/makeopstr.exe
 	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+define OUTPUT_OBJ
+-Fo$1
+endef
+define OUTPUT_EXE
+-OUT:$1
+endef
 endif
 endif
 endif
@@ -65,15 +98,17 @@ Obj/Obj/: | Obj/
 	if [ ! -d Obj/Obj ]; then mkdir Obj/Obj; fi
 Obj/asmx86/: | Obj/
 	if [ ! -d Obj/asmx86 ]; then mkdir Obj/asmx86; fi
+Obj/Obj/asmx86/: | Obj/Obj/
+	if [ ! -d Obj/Obj/asmx86 ]; then mkdir Obj/Obj/asmx86; fi
 
 # Main build targets
 define COMPILE
-	$1 -c $2 $3 -o $@
-	@$1 -MM $2 $3 > Obj/$4.d
-	@mv -f Obj/$4.d Obj/$4.d.tmp
-	@sed -e 's|.*:|Obj/$4.o:|' < Obj/$4.d.tmp > Obj/$4.d
-	@sed -e 's/.*://' -e 's/\\$$//' < Obj/$4.d.tmp | fmt -1 | sed -e 's/^ *//' -e 's/$$/:/' >> Obj/$4.d
-	@rm -f Obj/$4.d.tmp
+	$1 -c $2 $3 $4 $(call OUTPUT_OBJ,$@)
+	@gcc -MM $3 $4 > Obj/$5.d
+	@mv -f Obj/$5.d Obj/$5.d.tmp
+	@sed -e 's|.*:|Obj/$5.o:|' < Obj/$5.d.tmp > Obj/$5.d
+	@sed -e 's/.*://' -e 's/\\$$//' -e 's/^ *//' -e 's/ *$$//' -e 's/ /\n/g' < Obj/$5.d.tmp | sed -e 's/^ *//' -e 's/$$/:/' >> Obj/$5.d
+	@rm -f Obj/$5.d.tmp
 endef
 
 # Runtime files
@@ -168,20 +203,23 @@ WINDOWS_QUARK_RUNTIME := $(QUARK_RUNTIME) $(WINDOWS_COMMON_RUNTIME) $(foreach he
 -include $(SCC_LEX_OBJS:.o=.d)
 -include $(SCC_PARSE_OBJS:.o=.d)
 
-asmx86/makeopstr: asmx86/makeopstr.cpp Makefile
-	$(CXX) $(CXXFLAGS) -o asmx86/makeopstr asmx86/makeopstr.cpp
+Obj/asmx86/makeopstr.o: asmx86/makeopstr.cpp Makefile | Obj/ Obj/asmx86/ Obj/Obj/asmx86/
+	$(call COMPILE,$(CXX),$(CPPFLAGS),-Iasmx86,$<,$*)
 
-asmx86/asmx86str.h: asmx86/makeopstr asmx86/asmx86.h Makefile
-	asmx86/makeopstr asmx86/asmx86.h asmx86/asmx86str.h
+$(MAKEOPSTR): Obj/asmx86/makeopstr.o Makefile | Obj/ Obj/asmx86/
+	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(MAKEOPSTR)) Obj/asmx86/makeopstr.o
+
+asmx86/asmx86str.h: $(MAKEOPSTR) asmx86/asmx86.h Makefile
+	$(MAKEOPSTR) asmx86/asmx86.h asmx86/asmx86str.h
 
 $(SCC_OBJS): Obj/%.o: %.cpp $(SCC_LEX_OBJS) $(ASMX86_HEADERS) Makefile | Obj/
-	$(call COMPILE,$(GXX),$(CPPFLAGS) -IObj -Iasmx86,$<,$*)
+	$(call COMPILE,$(CXX),$(CPPFLAGS),-IObj -Iasmx86,$<,$*)
 
-$(RUNTIME_SOURCES): %.cpp: %.lib Makefile | Obj/
-	xxd -i $< > $@
+$(RUNTIME_SOURCES): %.cpp: %.lib genlibrary.py Makefile | Obj/
+	$(PYTHON) genlibrary.py $< $@
 
 $(RUNTIME_OBJS): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
-	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)
+	$(call COMPILE,$(CXX),$(CPPFLAGS),,$<,$*)
 
 Obj/x86.lib: $(BOOTSTRAP) $(X86_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(X86_RUNTIME) $(COMMON_RUNTIME) --arch x86 --platform none -f lib -o $@
@@ -215,29 +253,35 @@ Obj/windows_quark.lib: $(BOOTSTRAP) $(WINDOWS_QUARK_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(WINDOWS_QUARK_RUNTIME) --arch quark --platform windows -f lib -o $@
 
 $(ASMX86_OBJS): Obj/%.o: %.c $(ASMX86_HEADERS) Makefile | Obj/asmx86/
-	$(call COMPILE,$(GCC),$(CPPFLAGS) -std=gnu99,$<,$*)
+	$(call COMPILE,$(CC),$(CFLAGS),,$<,$*)
 
 $(SCC_LEX_OBJS): Obj/%Lexer.o: %.lex $(SCC_PARSE_OBJS) $(ASMX86_HEADERS) Makefile | Obj/
 	flex -R --prefix=$(lastword $(subst /, ,$*))_ -o Obj/$*Lexer.cpp --header=Obj/$*Lexer.h $<
-	$(call COMPILE,$(GXX),$(PARSER_CPPFLAGS) -I. -IObj -Iasmx86,Obj/$*Lexer.cpp,$*Lexer)
+	$(call COMPILE,$(CXX),$(PARSER_CPPFLAGS),-I. -IObj -Iasmx86,Obj/$*Lexer.cpp,$*Lexer)
 
 $(SCC_PARSE_OBJS): Obj/%Parser.o: %.y $(ASMX86_HEADERS) Makefile | Obj/
 	bison --name-prefix=$(lastword $(subst /, ,$*))_ -o Obj/$*Parser.cpp --defines=Obj/$*Parser.h $<
-	$(call COMPILE,$(GXX),$(PARSER_CPPFLAGS) -I. -IObj -Iasmx86,Obj/$*Parser.cpp,$*Parser)
+	$(call COMPILE,$(CXX),$(PARSER_CPPFLAGS),-I. -IObj -Iasmx86,Obj/$*Parser.cpp,$*Parser)
 
-$(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) Makefile
-	$(GXX) -o $(BOOTSTRAP) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS)
+Obj/Bootstrap.cpp: Bootstrap.inc Makefile | Obj/
+	cp Bootstrap.inc Obj/Bootstrap.cpp
+
+Obj/Bootstrap.o: Obj/Bootstrap.cpp Makefile | Obj/ Obj/Obj/
+	$(call COMPILE,$(CXX),$(CPPFLAGS),,$<,$*)
 
 ifeq ($(CONFIG),release)
 Obj/Version.cpp: Makefile | Obj/
 	$(MAKE_VERSION)
 
 $(VERSION_OBJ): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
-	$(call COMPILE,$(GXX),$(CPPFLAGS),$<,$*)
+	$(call COMPILE,$(CXX),$(CPPFLAGS),,$<,$*)
 endif
 
+$(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o Makefile | Obj/
+	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(BOOTSTRAP)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o
+
 $(TARGET): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
-	$(GXX) -o $(TARGET) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
+	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(TARGET)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
 ifeq ($(CONFIG),release)
 	strip $(TARGET)
 endif
@@ -247,8 +291,7 @@ clean :
 	rm -f $(TARGET)
 	rm -rf Obj
 	rm -f asmx86/asmx86str.h
-	rm -f asmx86/makeopstr
 
 test: scc
-	python tests/test.py
+	$(PYTHON) tests/test.py
 

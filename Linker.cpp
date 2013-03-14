@@ -18,6 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#ifdef WIN32
+#define YY_NO_UNISTD_H
+#endif
 #include <stdio.h>
 #include <string.h>
 #include "asmx86.h"
@@ -66,38 +69,6 @@ extern unsigned char Obj_windows_x64_lib[];
 extern unsigned int Obj_windows_x64_lib_len;
 extern unsigned char Obj_windows_quark_lib[];
 extern unsigned int Obj_windows_quark_lib_len;
-
-// Create weak symbols for empty libraries to be used during bootstrap process
-unsigned char __attribute__((weak)) Obj_x86_lib[] = {};
-unsigned int __attribute__((weak)) Obj_x86_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_x64_lib[] = {};
-unsigned int __attribute__((weak)) Obj_x64_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_quark_lib[] = {};
-unsigned int __attribute__((weak)) Obj_quark_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_linux_x86_lib[] = {};
-unsigned int __attribute__((weak)) Obj_linux_x86_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_linux_x64_lib[] = {};
-unsigned int __attribute__((weak)) Obj_linux_x64_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_linux_quark_lib[] = {};
-unsigned int __attribute__((weak)) Obj_linux_quark_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_freebsd_x86_lib[] = {};
-unsigned int __attribute__((weak)) Obj_freebsd_x86_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_freebsd_x64_lib[] = {};
-unsigned int __attribute__((weak)) Obj_freebsd_x64_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_freebsd_quark_lib[] = {};
-unsigned int __attribute__((weak)) Obj_freebsd_quark_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_mac_x86_lib[] = {};
-unsigned int __attribute__((weak)) Obj_mac_x86_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_mac_x64_lib[] = {};
-unsigned int __attribute__((weak)) Obj_mac_x64_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_mac_quark_lib[] = {};
-unsigned int __attribute__((weak)) Obj_mac_quark_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_windows_x86_lib[] = {};
-unsigned int __attribute__((weak)) Obj_windows_x86_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_windows_x64_lib[] = {};
-unsigned int __attribute__((weak)) Obj_windows_x64_lib_len = 0;
-unsigned char __attribute__((weak)) Obj_windows_quark_lib[] = {};
-unsigned int __attribute__((weak)) Obj_windows_quark_lib_len = 0;
 
 
 extern int Code_parse(ParserState* state);

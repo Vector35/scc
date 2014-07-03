@@ -23,6 +23,7 @@
 #include "Struct.h"
 #include "ParserState.h"
 #include "Output.h"
+#include "TreeBlock.h"
 
 using namespace std;
 
@@ -219,6 +220,37 @@ void Function::GenerateIL(ParserState* state)
 	// Ensure function always exits
 	if (!entry->EndsWithReturn())
 		entry->AddInstruction(ILOP_RETURN_VOID);
+}
+
+
+bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignments& vars)
+{
+	m_treeBlocks.clear();
+	for (size_t i = 0; i < m_ilBlocks.size(); i++)
+		m_treeBlocks.push_back(new TreeBlock(i));
+
+	bool ok = true;
+	for (size_t i = 0; i < m_ilBlocks.size(); i++)
+	{
+		ok = m_treeBlocks[i]->GenerateFromILBlock(m_ilBlocks[i], m_treeBlocks, vars, settings);
+		if (!ok)
+			break;
+	}
+
+	if (settings.internalDebug)
+	{
+		PrintPrototype();
+
+		for (vector< Ref<TreeBlock> >::iterator i = m_treeBlocks.begin(); i != m_treeBlocks.end(); i++)
+		{
+			fprintf(stderr, "%d:\n", (int)(*i)->GetIndex());
+			(*i)->Print();
+		}
+
+		fprintf(stderr, "\n\n");
+	}
+
+	return ok;
 }
 
 
@@ -634,7 +666,7 @@ Function* Function::Deserialize(InputBlock* input)
 
 
 #ifndef WIN32
-void Function::Print()
+void Function::PrintPrototype()
 {
 	m_returnValue->Print();
 	fprintf(stderr, " ");
@@ -701,6 +733,12 @@ void Function::Print()
 	}
 
 	fprintf(stderr, "\n");
+}
+
+
+void Function::Print()
+{
+	PrintPrototype();
 
 	if (!m_body)
 	{

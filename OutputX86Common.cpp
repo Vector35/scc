@@ -5326,9 +5326,11 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 						newReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT);
 					else
 						newReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#ifdef OUTPUT32
 					uint32_t newHighReg = SYMREG_NONE;
 					if (j->var->GetType()->GetWidth() == 8)
 						newHighReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#endif
 
 					switch (j->var->GetType()->GetWidth())
 					{

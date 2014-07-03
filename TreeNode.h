@@ -1,0 +1,179 @@
+// Copyright (c) 2014 Rusty Wagner
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
+#ifndef __TREENODE_H__
+#define __TREENODE_H__
+
+#include "RefCountObject.h"
+#include <string>
+#include <vector>
+#include <inttypes.h>
+#include "Variable.h"
+#include "Struct.h"
+
+
+enum TreeNodeClass
+{
+	NODE_STACK_VAR,
+	NODE_GLOBAL_VAR,
+	NODE_REG,
+	NODE_LARGE_REG,
+	NODE_IMMED,
+	NODE_BLOCK,
+	NODE_FUNC,
+	NODE_UNDEFINED,
+	NODE_ASSIGN,
+	NODE_LOAD,
+	NODE_STORE,
+	NODE_REF,
+	NODE_ADD,
+	NODE_SUB,
+	NODE_SMUL,
+	NODE_UMUL,
+	NODE_SDIV,
+	NODE_UDIV,
+	NODE_SMOD,
+	NODE_UMOD,
+	NODE_AND,
+	NODE_OR,
+	NODE_XOR,
+	NODE_SHL,
+	NODE_SHR,
+	NODE_SAR,
+	NODE_NEG,
+	NODE_NOT,
+	NODE_IFTRUE,
+	NODE_IFSLT,
+	NODE_IFULT,
+	NODE_IFSLE,
+	NODE_IFULE,
+	NODE_IFE,
+	NODE_GOTO,
+	NODE_CALL,
+	NODE_SYSCALL,
+	NODE_SCONVERT,
+	NODE_UCONVERT,
+	NODE_RETURN,
+	NODE_RETURNVOID,
+	NODE_ALLOCA,
+	NODE_MEMCPY,
+	NODE_MEMSET,
+	NODE_STRLEN,
+	NODE_RDTSC,
+	NODE_RDTSC_LOW,
+	NODE_RDTSC_HIGH,
+	NODE_VARARG,
+	NODE_BYTESWAP,
+	NODE_BREAKPOINT,
+	NODE_POW,
+	NODE_FLOOR,
+	NODE_CEIL,
+	NODE_SQRT,
+	NODE_SIN,
+	NODE_COS,
+	NODE_TAN,
+	NODE_ASIN,
+	NODE_ACOS,
+	NODE_ATAN,
+	NODE_NORETURN
+};
+
+enum TreeNodeType
+{
+	NODETYPE_UNDEFINED,
+	NODETYPE_U8,
+	NODETYPE_S8,
+	NODETYPE_U16,
+	NODETYPE_S16,
+	NODETYPE_U32,
+	NODETYPE_S32,
+	NODETYPE_U64,
+	NODETYPE_S64,
+	NODETYPE_U128,
+	NODETYPE_S128,
+	NODETYPE_F32,
+	NODETYPE_F64
+};
+
+class TreeBlock;
+class Function;
+
+class TreeNode: public RefCountObject
+{
+	TreeNodeClass m_class;
+	TreeNodeType m_type;
+	Ref<TreeBlock> m_block;
+	Ref<Function> m_func;
+	uint32_t m_reg, m_highReg, m_var;
+	int64_t m_immediate;
+	std::vector< Ref<TreeNode> > m_children;
+
+	void PrintType() const;
+
+public:
+	TreeNode(TreeNodeClass cls);
+	TreeNode(const TreeNode& copy);
+
+	TreeNodeClass GetClass() const { return m_class; }
+	TreeNodeType GetType() const { return m_type; }
+	uint32_t GetRegister() const { return m_reg; }
+	uint32_t GetHighRegister() const { return m_highReg; }
+	uint32_t GetVariable() const { return m_var; }
+	int64_t GetImmediate() const { return m_immediate; }
+	void SetType(TreeNodeType type) { m_type = type; }
+	void SetRegister(uint32_t reg) { m_reg = reg; }
+	void SetHighRegister(uint32_t reg) { m_highReg = reg; }
+	void SetVariable(uint32_t var) { m_var = var; }
+	void SetImmediate(int64_t immed) { m_immediate = immed; }
+	void SetBlock(TreeBlock* block);
+	void SetFunction(Function* func);
+	TreeBlock* GetBlock() const;
+	Function* GetFunction() const;
+
+	void AddChildNode(TreeNode* node) { m_children.push_back(node); }
+	void AddChildNodes(const std::vector< Ref<TreeNode> >& nodes) { m_children.insert(m_children.end(), nodes.begin(), nodes.end()); }
+	const std::vector< Ref<TreeNode> >& GetChildNodes() const { return m_children; }
+
+	static TreeNode* CreateStackVarNode(uint32_t base, int32_t var, int64_t offset, TreeNodeType type);
+	static TreeNode* CreateGlobalVarNode(int64_t offset, TreeNodeType type);
+	static TreeNode* CreateBlockNode(TreeBlock* block);
+	static TreeNode* CreateFunctionNode(Function* func);
+	static TreeNode* CreateRegNode(uint32_t reg, TreeNodeType type);
+	static TreeNode* CreateLargeRegNode(uint32_t low, uint32_t high, TreeNodeType type);
+	static TreeNode* CreateImmediateNode(int64_t immed);
+	static TreeNode* CreateLoadNode(TreeNode* src, TreeNodeType type);
+	static TreeNode* CreateStoreNode(TreeNode* dest, TreeNode* val, TreeNodeType type);
+	static TreeNode* CreateSignedConvertNode(TreeNode* val, TreeNodeType destType);
+	static TreeNode* CreateUnsignedConvertNode(TreeNode* val, TreeNodeType destType);
+	static TreeNode* CreateCallNode(TreeNode* func, size_t stdParamCount, const std::vector< Ref<TreeNode> >& params,
+		TreeNodeType returnType);
+	static TreeNode* CreateSyscallNode(TreeNode* num, const std::vector< Ref<TreeNode> >& params, TreeNodeType returnType);
+	static TreeNode* CreateNode(TreeNodeClass cls);
+	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a);
+	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b);
+	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c);
+	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d);
+
+	void Print() const;
+};
+
+
+#endif
+

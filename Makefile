@@ -22,18 +22,21 @@ endef
 
 ifeq ($(HOST),Linux)
 	TARGET := scc
+	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
 	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),FreeBSD)
 	TARGET := scc
+	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
 	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),Darwin)
 	TARGET := scc
+	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
 	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
@@ -53,6 +56,7 @@ endif
 	CXXFLAGS := $(COMMON_CPPFLAGS)
 	LDFLAGS := -nologo
 	TARGET := scc.exe
+	CODEGEN := Obj/makecodegen.exe
 	BOOTSTRAP := Obj/scc-bootstrap.exe
 	MAKEOPSTR := Obj/makeopstr.exe
 	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
@@ -70,6 +74,7 @@ endif
 SCC_OBJS := $(patsubst %.cpp,Obj/%.o,$(wildcard *.cpp))
 SCC_LEX_OBJS := $(patsubst %.lex,Obj/%Lexer.o,$(wildcard *.lex))
 SCC_PARSE_OBJS := $(patsubst %.y,Obj/%Parser.o,$(wildcard *.y))
+SCC_CODEGEN_OBJS := $(patsubst %.cgen,Obj/%CodeGen.o,$(wildcard *.cgen))
 ASMX86_OBJS := Obj/asmx86/asmx86.o
 ASMX86_HEADERS := asmx86/asmx86.h asmx86/asmx86str.h
 
@@ -87,6 +92,11 @@ else
 VERSION_OBJ :=
 endif
 
+# Defines for codegen generator
+CODEGEN_OBJS := $(patsubst %.cpp,Obj/%.o,$(wildcard codegen/*.cpp))
+CODEGEN_LEX_OBJS := $(patsubst %.lex,Obj/%Lexer.o,$(wildcard codegen/*.lex))
+CODEGEN_PARSE_OBJS := $(patsubst %.y,Obj/%Parser.o,$(wildcard codegen/*.y))
+
 # Default targets
 all : $(TARGET)
 .PHONY : all clean test
@@ -100,6 +110,10 @@ Obj/asmx86/: | Obj/
 	if [ ! -d Obj/asmx86 ]; then mkdir Obj/asmx86; fi
 Obj/Obj/asmx86/: | Obj/Obj/
 	if [ ! -d Obj/Obj/asmx86 ]; then mkdir Obj/Obj/asmx86; fi
+Obj/codegen/: | Obj/
+	if [ ! -d Obj/codegen ]; then mkdir Obj/codegen; fi
+Obj/Obj/codegen/: | Obj/Obj/
+	if [ ! -d Obj/Obj/codegen ]; then mkdir Obj/Obj/codegen; fi
 
 # Main build targets
 define COMPILE
@@ -202,6 +216,9 @@ WINDOWS_QUARK_RUNTIME := $(QUARK_RUNTIME) $(WINDOWS_COMMON_RUNTIME) $(foreach he
 -include $(SCC_OBJS:.o=.d)
 -include $(SCC_LEX_OBJS:.o=.d)
 -include $(SCC_PARSE_OBJS:.o=.d)
+-include $(CODEGEN_OBJS:.o=.d)
+-include $(CODEGEN_LEX_OBJS:.o=.d)
+-include $(CODEGEN_PARSE_OBJS:.o=.d)
 
 Obj/asmx86/makeopstr.o: asmx86/makeopstr.cpp Makefile | Obj/ Obj/asmx86/ Obj/Obj/asmx86/
 	$(call COMPILE,$(CXX),$(CPPFLAGS),-Iasmx86,$<,$*)
@@ -214,6 +231,9 @@ asmx86/asmx86str.h: $(MAKEOPSTR) asmx86/asmx86.h Makefile
 
 $(SCC_OBJS): Obj/%.o: %.cpp $(SCC_LEX_OBJS) $(ASMX86_HEADERS) Makefile | Obj/
 	$(call COMPILE,$(CXX),$(CPPFLAGS),-IObj -Iasmx86,$<,$*)
+
+$(CODEGEN_OBJS): Obj/%.o: %.cpp $(CODEGEN_LEX_OBJS) Makefile | Obj/codegen/
+	$(call COMPILE,$(CXX),$(CPPFLAGS),-Icodegen -IObj/codegen,$<,$*)
 
 $(RUNTIME_SOURCES): %.cpp: %.lib genlibrary.py Makefile | Obj/
 	$(PYTHON) genlibrary.py $< $@
@@ -263,6 +283,18 @@ $(SCC_PARSE_OBJS): Obj/%Parser.o: %.y $(ASMX86_HEADERS) Makefile | Obj/
 	bison --name-prefix=$(lastword $(subst /, ,$*))_ -o Obj/$*Parser.cpp --defines=Obj/$*Parser.h $<
 	$(call COMPILE,$(CXX),$(PARSER_CPPFLAGS),-I. -IObj -Iasmx86,Obj/$*Parser.cpp,$*Parser)
 
+$(CODEGEN_LEX_OBJS): Obj/%Lexer.o: %.lex $(CODEGEN_PARSE_OBJS) Makefile | Obj/codegen/
+	flex -R --prefix=$(lastword $(subst /, ,$*))_ -o Obj/$*Lexer.cpp --header=Obj/$*Lexer.h $<
+	$(call COMPILE,$(CXX),$(PARSER_CPPFLAGS),-Icodegen -IObj/codegen,Obj/$*Lexer.cpp,$*Lexer)
+
+$(CODEGEN_PARSE_OBJS): Obj/%Parser.o: %.y Makefile | Obj/codegen/
+	bison --name-prefix=$(lastword $(subst /, ,$*))_ -o Obj/$*Parser.cpp --defines=Obj/$*Parser.h $<
+	$(call COMPILE,$(CXX),$(PARSER_CPPFLAGS),-Icodegen -IObj/codegen,Obj/$*Parser.cpp,$*Parser)
+
+$(SCC_CODEGEN_OBJS): Obj/%CodeGen.o: %.cgen $(CODEGEN) Makefile | Obj/
+	$(CODEGEN) -o Obj/$*CodeGen.cpp $<
+	$(call COMPILE,$(CXX),$(CPPFLAGS),-IObj -Iasmx86,Obj/$*CodeGen.cpp,$*CodeGen)
+
 Obj/Bootstrap.cpp: Bootstrap.inc Makefile | Obj/
 	cp Bootstrap.inc Obj/Bootstrap.cpp
 
@@ -277,11 +309,14 @@ $(VERSION_OBJ): Obj/%.o: %.cpp Makefile | Obj/ Obj/Obj/
 	$(call COMPILE,$(CXX),$(CPPFLAGS),,$<,$*)
 endif
 
-$(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o Makefile | Obj/
+$(CODEGEN): $(CODEGEN_OBJS) $(CODEGEN_LEX_OBJS) $(CODEGEN_PARSE_OBJS) Makefile | Obj/codegen/
+	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(CODEGEN)) $(CODEGEN_OBJS) $(CODEGEN_LEX_OBJS) $(CODEGEN_PARSE_OBJS)
+
+$(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o Makefile | Obj/
 	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(BOOTSTRAP)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o
 
-$(TARGET): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
-	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(TARGET)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
+$(TARGET): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
+	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(TARGET)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
 ifeq ($(CONFIG),release)
 	strip $(TARGET)
 endif

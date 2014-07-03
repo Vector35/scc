@@ -985,15 +985,6 @@ bool Linker::FinalizeLink()
 		}
 	}
 
-#ifndef WIN32
-	if (m_settings.internalDebug)
-	{
-		fprintf(stderr, "Functions:\n");
-		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
-			(*i)->Print();
-	}
-#endif
-
 	// Make string constants into global const character arrays
 	map< string, Ref<Variable> > stringMap;
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
@@ -1004,6 +995,15 @@ bool Linker::FinalizeLink()
 
 	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
 		m_variables.push_back(i->second);
+
+#ifndef WIN32
+	if (m_settings.internalDebug)
+	{
+		fprintf(stderr, "Functions:\n");
+		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+			(*i)->Print();
+	}
+#endif
 
 	return true;
 }

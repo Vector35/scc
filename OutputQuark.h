@@ -77,9 +77,9 @@ class OutputQuark: public Output
 
 	Function* m_func;
 	QuarkSymInstrFunction* m_symFunc;
-	std::map<Variable*, int32_t> m_stackFrame;
 	std::map<Variable*, int32_t> m_stackVar;
 	std::map<Variable*, uint32_t> m_varReg;
+	std::map<Variable*, uint32_t> m_highVarReg;
 	bool m_framePointerEnabled;
 	ILBlock* m_currentBlock;
 	uint32_t m_varargStart;

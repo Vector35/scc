@@ -25,13 +25,14 @@
 #include <map>
 #include <vector>
 #include <stack>
-#include <inttypes.h>
-#include "Expr.h"
-#include "Struct.h"
 #include "Token.h"
-#include "Variable.h"
-#include "Settings.h"
 
+
+struct Location
+{
+	std::string fileName;
+	int lineNumber;
+};
 
 struct Macro
 {
@@ -70,10 +71,8 @@ class PreprocessState
 	std::string m_output;
 	bool m_locationRequest;
 
-	Settings m_settings;
-
 public:
-	PreprocessState(const std::string& name, void* scanner, const Settings& settings);
+	PreprocessState(const std::string& name, void* scanner);
 	PreprocessState(PreprocessState& parent, const std::string& name, void* scanner);
 	~PreprocessState();
 
@@ -110,10 +109,7 @@ public:
 	void Else();
 	void EndIf();
 
-	void Serialize(OutputBlock* output);
-	bool Deserialize(InputBlock* input);
-
-	static bool PreprocessSource(const Settings& settings, const std::string& source, const std::string& fileName,
+	static bool PreprocessSource(const std::string& source, const std::string& fileName,
 		std::string& output, PreprocessState* parent = NULL);
 };
 

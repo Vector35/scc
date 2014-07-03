@@ -1,0 +1,936 @@
+// Copyright (c) 2014 Rusty Wagner
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
+#include <stdio.h>
+#include "TreeBlock.h"
+#include "Function.h"
+
+using namespace std;
+
+
+TreeBlock::TreeBlock(size_t idx): m_index(idx)
+{
+}
+
+
+void TreeBlock::AddNode(TreeNode* node)
+{
+	m_nodes.push_back(node);
+}
+
+
+bool TreeBlock::GetMemberVariableAndOffset(ILParameter& operand, Variable*& var, size_t& offset, Type*& type)
+{
+	const StructMember* member;
+
+	switch (operand.cls)
+	{
+	case ILPARAM_VAR:
+		var = operand.variable;
+		offset = 0;
+		type = operand.variable->GetType();
+		return true;
+	case ILPARAM_MEMBER:
+		if (!GetMemberVariableAndOffset(*operand.parent, var, offset, type))
+			return false;
+		if (!operand.structure)
+		{
+			fprintf(stderr, "internal error: reference to member in variable that is not a structure or union\n");
+			m_errors++;
+			return false;
+		}
+
+		member = operand.structure->GetMember(operand.stringValue);
+		if (!member)
+		{
+			fprintf(stderr, "error: structure or union '%s' does not have member '%s'\n", operand.structure->GetName().c_str(),
+				operand.stringValue.c_str());
+			m_errors++;
+			return false;
+		}
+
+		offset += member->offset;
+		type = member->type;
+		return true;
+	default:
+		fprintf(stderr, "internal error: invalid IL operand\n");
+		m_errors++;
+		return false;
+	}
+}
+
+
+TreeNodeType TreeBlock::VariableTypeToNodeType(Type* type)
+{
+	if (type->IsFloat())
+	{
+		if (type->GetWidth() == 4)
+			return NODETYPE_F32;
+		else
+			return NODETYPE_F64;
+	}
+
+	if (type->IsSigned())
+	{
+		switch (type->GetWidth())
+		{
+		case 1:
+			return NODETYPE_S8;
+		case 2:
+			return NODETYPE_S16;
+		case 4:
+			return NODETYPE_S32;
+		case 8:
+			return NODETYPE_S64;
+		default:
+			break;
+		}
+	}
+	else
+	{
+		switch (type->GetWidth())
+		{
+		case 1:
+			return NODETYPE_U8;
+		case 2:
+			return NODETYPE_U16;
+		case 4:
+			return NODETYPE_U32;
+		case 8:
+			return NODETYPE_U64;
+		default:
+			break;
+		}
+	}
+
+	return NODETYPE_UNDEFINED;
+}
+
+
+TreeNodeType TreeBlock::OperandToNodeType(ILParameter& operand)
+{
+	Variable* var;
+	size_t offset;
+	Type* type;
+
+	switch (operand.cls)
+	{
+	case ILPARAM_VAR:
+	case ILPARAM_MEMBER:
+		if (!GetMemberVariableAndOffset(operand, var, offset, type))
+			return NODETYPE_UNDEFINED;
+		return VariableTypeToNodeType(type);
+
+	default:
+		switch (operand.type)
+		{
+		case ILTYPE_INT8:
+			return NODETYPE_U8;
+		case ILTYPE_INT16:
+			return NODETYPE_U16;
+		case ILTYPE_INT32:
+			return NODETYPE_U32;
+		case ILTYPE_INT64:
+			return NODETYPE_U64;
+		case ILTYPE_FLOAT:
+			return NODETYPE_F32;
+		case ILTYPE_DOUBLE:
+			return NODETYPE_F64;
+		default:
+			fprintf(stderr, "internal error: operand has invalid type\n");
+			m_errors++;
+			return NODETYPE_UNDEFINED;
+		}
+	}
+}
+
+
+TreeNode* TreeBlock::OperandToNode(const VariableAssignments& vars, ILParameter& operand)
+{
+	Variable* var;
+	size_t offset;
+	Type* type;
+	map<Variable*, uint32_t>::const_iterator regVarIter;
+	map<Variable*, uint32_t>::const_iterator highRegVarIter;
+	map<Variable*, int32_t>::const_iterator stackVarIter;
+
+	switch (operand.cls)
+	{
+	case ILPARAM_VAR:
+	case ILPARAM_MEMBER:
+		if (!GetMemberVariableAndOffset(operand, var, offset, type))
+			return TreeNode::CreateNode(NODE_UNDEFINED);
+
+		if (var->IsGlobal())
+		{
+			return TreeNode::CreateLoadNode(TreeNode::CreateNode(NODE_REF,
+				TreeNode::CreateGlobalVarNode(var->GetDataSectionOffset() + offset, VariableTypeToNodeType(type))),
+				VariableTypeToNodeType(type));
+		}
+
+		regVarIter = vars.registerVariables.find(var);
+		if ((offset == 0) && (regVarIter != vars.registerVariables.end()))
+		{
+			highRegVarIter = vars.highRegisterVariables.find(var);
+			if (highRegVarIter != vars.highRegisterVariables.end())
+				return TreeNode::CreateLargeRegNode(regVarIter->second, highRegVarIter->second, VariableTypeToNodeType(type));
+			return TreeNode::CreateRegNode(regVarIter->second, VariableTypeToNodeType(type));
+		}
+
+		stackVarIter = vars.stackVariables.find(var);
+		if (stackVarIter == vars.stackVariables.end())
+		{
+			fprintf(stderr, "internal error: invalid stack variable\n");
+			m_errors++;
+			return TreeNode::CreateNode(NODE_UNDEFINED);
+		}
+
+		return TreeNode::CreateLoadNode(TreeNode::CreateNode(NODE_REF,
+			TreeNode::CreateStackVarNode(vars.stackVariableBase, stackVarIter->second, offset, VariableTypeToNodeType(type))),
+			VariableTypeToNodeType(type));
+
+	case ILPARAM_INT:
+		return TreeNode::CreateImmediateNode(operand.integerValue);
+	case ILPARAM_BOOL:
+		return TreeNode::CreateImmediateNode(operand.boolValue ? 1 : 0);
+	case ILPARAM_UNDEFINED:
+		return TreeNode::CreateNode(NODE_UNDEFINED);
+	case ILPARAM_FUNC:
+		return TreeNode::CreateFunctionNode(operand.function);
+
+	default:
+		fprintf(stderr, "internal error: invalid IL operand\n");
+		m_errors++;
+		return TreeNode::CreateNode(NODE_UNDEFINED);
+	}
+}
+
+
+TreeNode* TreeBlock::OperandRefToNode(const VariableAssignments& vars, ILParameter& operand)
+{
+	Variable* var;
+	size_t offset;
+	Type* type;
+	map<Variable*, int32_t>::const_iterator stackVarIter;
+
+	switch (operand.cls)
+	{
+	case ILPARAM_VAR:
+	case ILPARAM_MEMBER:
+		if (!GetMemberVariableAndOffset(operand, var, offset, type))
+			return TreeNode::CreateNode(NODE_UNDEFINED);
+
+		if (var->IsGlobal())
+		{
+			return TreeNode::CreateNode(NODE_REF, TreeNode::CreateGlobalVarNode(var->GetDataSectionOffset() + offset,
+				VariableTypeToNodeType(type)));
+		}
+
+		stackVarIter = vars.stackVariables.find(var);
+		if (stackVarIter == vars.stackVariables.end())
+		{
+			fprintf(stderr, "internal error: referencing invalid stack variable\n");
+			m_errors++;
+			return TreeNode::CreateNode(NODE_UNDEFINED);
+		}
+
+		return TreeNode::CreateNode(NODE_REF,
+			TreeNode::CreateStackVarNode(vars.stackVariableBase, stackVarIter->second, offset,
+			VariableTypeToNodeType(type)));
+
+	default:
+		fprintf(stderr, "internal error: taking address of IL operand that is not valid\n");
+		m_errors++;
+		return TreeNode::CreateNode(NODE_UNDEFINED);
+	}
+}
+
+
+void TreeBlock::StoreToOperand(const VariableAssignments& vars, ILParameter& operand, TreeNode* value)
+{
+	Variable* var;
+	size_t offset;
+	Type* type;
+	map<Variable*, uint32_t>::const_iterator regVarIter;
+	map<Variable*, uint32_t>::const_iterator highRegVarIter;
+	map<Variable*, int32_t>::const_iterator stackVarIter;
+
+	switch (operand.cls)
+	{
+	case ILPARAM_VAR:
+	case ILPARAM_MEMBER:
+		if (!GetMemberVariableAndOffset(operand, var, offset, type))
+			break;
+
+		if (var->IsGlobal())
+		{
+			AddNode(TreeNode::CreateStoreNode(TreeNode::CreateNode(NODE_REF,
+				TreeNode::CreateGlobalVarNode(var->GetDataSectionOffset(), VariableTypeToNodeType(type))), value,
+				VariableTypeToNodeType(type)));
+		}
+
+		regVarIter = vars.registerVariables.find(var);
+		if ((offset == 0) && (regVarIter != vars.registerVariables.end()))
+		{
+			highRegVarIter = vars.highRegisterVariables.find(var);
+			if (highRegVarIter != vars.highRegisterVariables.end())
+			{
+				AddNode(TreeNode::CreateNode(NODE_ASSIGN,
+					TreeNode::CreateLargeRegNode(regVarIter->second, highRegVarIter->second,
+					VariableTypeToNodeType(type)), value));
+				break;
+			}
+			AddNode(TreeNode::CreateNode(NODE_ASSIGN, TreeNode::CreateRegNode(regVarIter->second,
+				VariableTypeToNodeType(type)), value));
+			break;
+		}
+
+		stackVarIter = vars.stackVariables.find(var);
+		if (stackVarIter == vars.stackVariables.end())
+		{
+			fprintf(stderr, "internal error: invalid stack variable\n");
+			m_errors++;
+			break;
+		}
+
+		AddNode(TreeNode::CreateStoreNode(TreeNode::CreateNode(NODE_REF,
+			TreeNode::CreateStackVarNode(vars.stackVariableBase, stackVarIter->second, offset,
+			VariableTypeToNodeType(type))), value, VariableTypeToNodeType(type)));
+		break;
+
+	default:
+		fprintf(stderr, "internal error: invalid IL destination\n");
+		m_errors++;
+		break;
+	}
+}
+
+
+TreeNode* TreeBlock::ConstantMultiplyNode(TreeNode* val, uint64_t mult)
+{
+	if (mult == 0)
+		return TreeNode::CreateImmediateNode(0);
+	if (mult == 1)
+		return val;
+
+	for (uint32_t shiftCount = 0; shiftCount < 64; shiftCount++)
+	{
+		if (mult == ((uint64_t)1 << shiftCount))
+			return TreeNode::CreateNode(NODE_SHL, val, TreeNode::CreateImmediateNode(shiftCount));
+	}
+
+	return TreeNode::CreateNode(NODE_SMUL, val, TreeNode::CreateImmediateNode(mult));
+}
+
+
+TreeNode* TreeBlock::ConstantDivideNode(TreeNode* val, uint64_t div)
+{
+	if (div == 0)
+	{
+		fprintf(stderr, "internal error: divide by zero\n");
+		m_errors++;
+		return TreeNode::CreateNode(NODE_UNDEFINED);
+	}
+
+	if (div == 1)
+		return val;
+
+	for (uint32_t shiftCount = 0; shiftCount < 64; shiftCount++)
+	{
+		if (div == ((uint64_t)1 << shiftCount))
+			return TreeNode::CreateNode(NODE_SAR, val, TreeNode::CreateImmediateNode(shiftCount));
+	}
+
+	return TreeNode::CreateNode(NODE_SDIV, val, TreeNode::CreateImmediateNode(div));
+}
+
+
+TreeNodeType TreeBlock::DoubleTypeSize(TreeNodeType type)
+{
+	switch (type)
+	{
+	case NODETYPE_S8:
+		return NODETYPE_S16;
+	case NODETYPE_U8:
+		return NODETYPE_U16;
+	case NODETYPE_S16:
+		return NODETYPE_S32;
+	case NODETYPE_U16:
+		return NODETYPE_U32;
+	case NODETYPE_S32:
+		return NODETYPE_S64;
+	case NODETYPE_U32:
+		return NODETYPE_U64;
+	case NODETYPE_S64:
+		return NODETYPE_S128;
+	case NODETYPE_U64:
+		return NODETYPE_U128;
+	default:
+		fprintf(stderr, "internal error: invalid type\n");
+		m_errors++;
+		return NODETYPE_UNDEFINED;
+	}
+}
+
+
+bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& blocks, const VariableAssignments& vars,
+	const Settings& settings)
+{
+	m_errors = 0;
+
+	for (vector<ILInstruction>::iterator i = il->GetInstructions().begin(); i != il->GetInstructions().end(); ++i)
+	{
+		ILInstruction& instr = *i;
+		TreeNode* src;
+		TreeNode* a;
+		TreeNode* b;
+		map<Variable*, int32_t>::const_iterator stackVarIter;
+		vector< Ref<TreeNode> > params;
+		const StructMember* member;
+
+		switch (instr.operation)
+		{
+		case ILOP_ASSIGN:
+			StoreToOperand(vars, instr.params[0], OperandToNode(vars, instr.params[1]));
+			break;
+
+		case ILOP_ADDRESS_OF:
+			StoreToOperand(vars, instr.params[0], OperandRefToNode(vars, instr.params[1]));
+			break;
+
+		case ILOP_ADDRESS_OF_MEMBER:
+			src = OperandToNode(vars, instr.params[1]);
+
+			if (!instr.params[2].structure)
+			{
+				fprintf(stderr, "internal error: invalid structure reference\n");
+				m_errors++;
+				break;
+			}
+
+			member = instr.params[2].structure->GetMember(instr.params[2].stringValue);
+			if (!member)
+			{
+				fprintf(stderr, "error: member '%s' of structure '%s' not found\n",
+					instr.params[2].stringValue.c_str(), instr.params[2].structure->GetName().c_str());
+				m_errors++;
+				break;
+			}
+
+			if (member->offset == 0)
+				StoreToOperand(vars, instr.params[0], src);
+			else
+			{
+				StoreToOperand(vars, instr.params[0],
+					TreeNode::CreateNode(NODE_ADD, src, TreeNode::CreateImmediateNode(member->offset)));
+			}
+			break;
+
+		case ILOP_DEREF:
+			src = OperandToNode(vars, instr.params[1]);
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(src, OperandToNodeType(instr.params[0])));
+			break;
+
+		case ILOP_DEREF_MEMBER:
+			src = OperandToNode(vars, instr.params[1]);
+
+			if (!instr.params[2].structure)
+			{
+				fprintf(stderr, "internal error: invalid structure reference\n");
+				m_errors++;
+				break;
+			}
+
+			member = instr.params[2].structure->GetMember(instr.params[2].stringValue);
+			if (!member)
+			{
+				fprintf(stderr, "error: member '%s' of structure '%s' not found\n",
+					instr.params[2].stringValue.c_str(), instr.params[2].structure->GetName().c_str());
+				m_errors++;
+				break;
+			}
+
+			if (member->offset == 0)
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(src, OperandToNodeType(instr.params[0])));
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(
+					TreeNode::CreateNode(NODE_ADD, src, TreeNode::CreateImmediateNode(member->offset)),
+					OperandToNodeType(instr.params[0])));
+			}
+			break;
+
+		case ILOP_DEREF_ASSIGN:
+			src = OperandToNode(vars, instr.params[0]);
+			AddNode(TreeNode::CreateStoreNode(OperandToNode(vars, instr.params[0]), OperandToNode(vars, instr.params[1]),
+				OperandToNodeType(instr.params[1])));
+			break;
+
+		case ILOP_DEREF_MEMBER_ASSIGN:
+			src = OperandToNode(vars, instr.params[0]);
+
+			if (!instr.params[1].structure)
+			{
+				fprintf(stderr, "internal error: invalid structure reference\n");
+				m_errors++;
+				break;
+			}
+
+			member = instr.params[1].structure->GetMember(instr.params[1].stringValue);
+			if (!member)
+			{
+				fprintf(stderr, "error: member '%s' of structure '%s' not found\n",
+					instr.params[1].stringValue.c_str(), instr.params[1].structure->GetName().c_str());
+				m_errors++;
+				break;
+			}
+
+			if (member->offset == 0)
+			{
+				AddNode(TreeNode::CreateStoreNode(src, OperandToNode(vars, instr.params[2]),
+					VariableTypeToNodeType(member->type)));
+			}
+			else
+			{
+				AddNode(TreeNode::CreateStoreNode(TreeNode::CreateNode(NODE_ADD, src,
+					TreeNode::CreateImmediateNode(member->offset)), OperandToNode(vars, instr.params[2]),
+					VariableTypeToNodeType(member->type)));
+			}
+			break;
+
+		case ILOP_ARRAY_INDEX:
+			src = OperandRefToNode(vars, instr.params[1]);
+
+			if ((instr.params[2].cls == ILPARAM_INT) && (instr.params[2].integerValue == 0))
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(
+					src, OperandToNodeType(instr.params[0])));
+			}
+			else if ((instr.params[2].cls == ILPARAM_INT) && (src->GetClass() == NODE_REF) &&
+				((src->GetChildNodes()[0]->GetClass() == NODE_STACK_VAR) ||
+				(src->GetChildNodes()[0]->GetClass() == NODE_GLOBAL_VAR)))
+			{
+				src->GetChildNodes()[0]->SetImmediate(src->GetChildNodes()[0]->GetImmediate() +
+					(instr.params[2].integerValue * instr.params[3].integerValue));
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(
+					src, OperandToNodeType(instr.params[0])));
+			}
+			else if (instr.params[2].cls == ILPARAM_INT)
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(
+					TreeNode::CreateNode(NODE_ADD, src,
+					TreeNode::CreateImmediateNode(instr.params[2].integerValue * instr.params[3].integerValue)),
+					OperandToNodeType(instr.params[0])));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateLoadNode(
+					TreeNode::CreateNode(NODE_ADD, src, ConstantMultiplyNode(OperandToNode(vars, instr.params[2]),
+					instr.params[3].integerValue)), OperandToNodeType(instr.params[0])));
+			}
+			break;
+
+		case ILOP_ARRAY_INDEX_ASSIGN:
+			src = OperandRefToNode(vars, instr.params[0]);
+
+			if ((instr.params[1].cls == ILPARAM_INT) && (instr.params[1].integerValue == 0))
+			{
+				AddNode(TreeNode::CreateStoreNode(src, OperandToNode(vars, instr.params[3]),
+					OperandToNodeType(instr.params[3])));
+			}
+			else if ((instr.params[1].cls == ILPARAM_INT) && (src->GetClass() == NODE_REF) &&
+				((src->GetChildNodes()[0]->GetClass() == NODE_STACK_VAR) ||
+				(src->GetChildNodes()[0]->GetClass() == NODE_GLOBAL_VAR)))
+			{
+				src->GetChildNodes()[0]->SetImmediate(src->GetChildNodes()[0]->GetImmediate() +
+					(instr.params[1].integerValue * instr.params[2].integerValue));
+				AddNode(TreeNode::CreateStoreNode(src, OperandToNode(vars, instr.params[3]),
+					OperandToNodeType(instr.params[3])));
+			}
+			else if (instr.params[1].cls == ILPARAM_INT)
+			{
+				AddNode(TreeNode::CreateStoreNode(TreeNode::CreateNode(NODE_ADD, src,
+					TreeNode::CreateImmediateNode(instr.params[1].integerValue * instr.params[2].integerValue)),
+					OperandToNode(vars, instr.params[3]), OperandToNodeType(instr.params[3])));
+			}
+			else
+			{
+				AddNode(TreeNode::CreateStoreNode(TreeNode::CreateNode(NODE_ADD, src,
+					ConstantMultiplyNode(OperandToNode(vars, instr.params[1]), instr.params[2].integerValue)),
+					OperandToNode(vars, instr.params[3]), OperandToNodeType(instr.params[3])));
+			}
+			break;
+
+		case ILOP_PTR_ADD:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD,
+				OperandToNode(vars, instr.params[1]), ConstantMultiplyNode(
+				OperandToNode(vars, instr.params[2]), instr.params[3].integerValue)));
+			break;
+
+		case ILOP_PTR_SUB:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB,
+				OperandToNode(vars, instr.params[1]), ConstantMultiplyNode(
+				OperandToNode(vars, instr.params[2]), instr.params[3].integerValue)));
+			break;
+
+		case ILOP_PTR_DIFF:
+			StoreToOperand(vars, instr.params[0], ConstantDivideNode(TreeNode::CreateNode(NODE_SUB,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])),
+				instr.params[3].integerValue));
+			break;
+
+		case ILOP_ADD:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SUB:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SMULT:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SMUL,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_UMULT:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_UMUL,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SDIV:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SDIV,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_UDIV:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_UDIV,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SMOD:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SMOD,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_UMOD:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_UMOD,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_AND:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_AND,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_OR:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_OR,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_XOR:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_XOR,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SHL:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SHL,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SHR:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SHR,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_SAR:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SAR,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_NEG:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_NEG,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_NOT:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_NOT,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_IF_TRUE:
+			AddNode(TreeNode::CreateNode(NODE_IFTRUE, OperandToNode(vars, instr.params[0]),
+				TreeNode::CreateBlockNode(blocks[instr.params[1].block->GetIndex()]),
+				TreeNode::CreateBlockNode(blocks[instr.params[2].block->GetIndex()])));
+			break;
+
+		case ILOP_IF_LESS_THAN:
+			AddNode(TreeNode::CreateNode(NODE_IFSLT, OperandToNode(vars, instr.params[0]), OperandToNode(vars, instr.params[1]),
+				TreeNode::CreateBlockNode(blocks[instr.params[2].block->GetIndex()]),
+				TreeNode::CreateBlockNode(blocks[instr.params[3].block->GetIndex()])));
+			break;
+
+		case ILOP_IF_LESS_EQUAL:
+			AddNode(TreeNode::CreateNode(NODE_IFSLE, OperandToNode(vars, instr.params[0]), OperandToNode(vars, instr.params[1]),
+				TreeNode::CreateBlockNode(blocks[instr.params[2].block->GetIndex()]),
+				TreeNode::CreateBlockNode(blocks[instr.params[3].block->GetIndex()])));
+			break;
+
+		case ILOP_IF_BELOW:
+			AddNode(TreeNode::CreateNode(NODE_IFULT, OperandToNode(vars, instr.params[0]), OperandToNode(vars, instr.params[1]),
+				TreeNode::CreateBlockNode(blocks[instr.params[2].block->GetIndex()]),
+				TreeNode::CreateBlockNode(blocks[instr.params[3].block->GetIndex()])));
+			break;
+
+		case ILOP_IF_BELOW_EQUAL:
+			AddNode(TreeNode::CreateNode(NODE_IFULE, OperandToNode(vars, instr.params[0]), OperandToNode(vars, instr.params[1]),
+				TreeNode::CreateBlockNode(blocks[instr.params[2].block->GetIndex()]),
+				TreeNode::CreateBlockNode(blocks[instr.params[3].block->GetIndex()])));
+			break;
+
+		case ILOP_IF_EQUAL:
+			AddNode(TreeNode::CreateNode(NODE_IFE, OperandToNode(vars, instr.params[0]), OperandToNode(vars, instr.params[1]),
+				TreeNode::CreateBlockNode(blocks[instr.params[2].block->GetIndex()]),
+				TreeNode::CreateBlockNode(blocks[instr.params[3].block->GetIndex()])));
+			break;
+
+		case ILOP_GOTO:
+			AddNode(TreeNode::CreateNode(NODE_GOTO, TreeNode::CreateBlockNode(blocks[instr.params[0].block->GetIndex()])));
+			break;
+
+		case ILOP_CALL:
+			params.clear();
+			for (size_t param = 3; param < instr.params.size(); param++)
+				params.push_back(OperandToNode(vars, instr.params[param]));
+
+			if (instr.params[0].cls == ILPARAM_VOID)
+			{
+				AddNode(TreeNode::CreateCallNode(OperandToNode(vars, instr.params[1]), (size_t)instr.params[2].integerValue,
+					params, NODETYPE_UNDEFINED));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateCallNode(OperandToNode(vars, instr.params[1]),
+					(size_t)instr.params[2].integerValue, params, OperandToNodeType(instr.params[0])));
+			}
+			break;
+
+		case ILOP_NORETURN:
+			AddNode(TreeNode::CreateNode(NODE_NORETURN));
+			break;
+
+		case ILOP_SCONVERT:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateSignedConvertNode(OperandToNode(vars, instr.params[1]),
+				OperandToNodeType(instr.params[0])));
+			break;
+
+		case ILOP_UCONVERT:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateUnsignedConvertNode(OperandToNode(vars, instr.params[1]),
+				OperandToNodeType(instr.params[0])));
+			break;
+
+		case ILOP_RETURN:
+			AddNode(TreeNode::CreateNode(NODE_RETURN, OperandToNode(vars, instr.params[0])));
+			break;
+
+		case ILOP_RETURN_VOID:
+			AddNode(TreeNode::CreateNode(NODE_RETURNVOID));
+			break;
+
+		case ILOP_ALLOCA:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ALLOCA, OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_MEMCPY:
+			AddNode(TreeNode::CreateNode(NODE_MEMCPY, OperandToNode(vars, instr.params[0]),
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_MEMSET:
+			AddNode(TreeNode::CreateNode(NODE_MEMSET, OperandToNode(vars, instr.params[0]),
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_STRLEN:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_STRLEN, OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_SYSCALL:
+			params.clear();
+			for (size_t param = 2; param < instr.params.size(); param++)
+				params.push_back(OperandToNode(vars, instr.params[param]));
+
+			if (instr.params[0].cls == ILPARAM_VOID)
+			{
+				AddNode(TreeNode::CreateSyscallNode(OperandToNode(vars, instr.params[1]),
+					params, NODETYPE_UNDEFINED));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateSyscallNode(OperandToNode(vars, instr.params[1]),
+					params, OperandToNodeType(instr.params[0])));
+			}
+			break;
+
+		case ILOP_SYSCALL2:
+			params.clear();
+			for (size_t param = 3; param < instr.params.size(); param++)
+				params.push_back(OperandToNode(vars, instr.params[param]));
+
+			a = OperandToNode(vars, instr.params[0]);
+			b = OperandToNode(vars, instr.params[1]);
+			if ((a->GetClass() != NODE_REG) || (b->GetClass() != NODE_REG))
+			{
+				fprintf(stderr, "internal error: two parameter syscall requires temporary register destination\n");
+				m_errors++;
+				break;
+			}
+
+			AddNode(TreeNode::CreateNode(NODE_ASSIGN, TreeNode::CreateLargeRegNode(a->GetRegister(), b->GetRegister(),
+				DoubleTypeSize(a->GetType())), TreeNode::CreateSyscallNode(OperandToNode(vars, instr.params[2]),
+				params, DoubleTypeSize(a->GetType()))));
+			break;
+
+		case ILOP_RDTSC:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC));
+			break;
+
+		case ILOP_RDTSC_LOW:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_LOW));
+			break;
+
+		case ILOP_RDTSC_HIGH:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_HIGH));
+			break;
+
+		case ILOP_INITIAL_VARARG:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_VARARG));
+			break;
+
+		case ILOP_NEXT_ARG:
+			if (settings.stackGrowsUp)
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB,
+					OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD,
+					OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			}
+			break;
+
+		case ILOP_PREV_ARG:
+			if (settings.stackGrowsUp)
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD,
+					OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB,
+					OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			}
+			break;
+
+		case ILOP_BYTESWAP:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_BYTESWAP,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_BREAKPOINT:
+			AddNode(TreeNode::CreateNode(NODE_BREAKPOINT));
+			break;
+
+		case ILOP_POW:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_POW,
+				OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			break;
+
+		case ILOP_FLOOR:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_FLOOR,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_CEIL:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_CEIL,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_SQRT:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SQRT,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_SIN:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SIN,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_COS:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_COS,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_TAN:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_TAN,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_ASIN:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ASIN,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_ACOS:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ACOS,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		case ILOP_ATAN:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ATAN,
+				OperandToNode(vars, instr.params[1])));
+			break;
+
+		default:
+			fprintf(stderr, "internal error: invalid IL instruction\n");
+			m_errors++;
+			break;
+		}
+
+		if (m_errors)
+			break;
+	}
+
+	return m_errors == 0;
+}
+
+
+void TreeBlock::Print() const
+{
+	for (vector< Ref<TreeNode> >::const_iterator i = m_nodes.begin(); i != m_nodes.end(); i++)
+	{
+		fprintf(stderr, "\t");
+		(*i)->Print();
+		fprintf(stderr, "\n");
+	}
+}
+

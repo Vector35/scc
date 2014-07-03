@@ -1232,7 +1232,7 @@ bool OutputQuark::GeneratePtrDiff(SymInstrBlock* out, const ILInstruction& instr
 	case OPERANDREF_REG:
 		out->AddInstruction(QuarkSub(temp, left.reg, right.reg, 0));
 		if (IsPowerOfTwo(instr.params[3].integerValue, shiftCount))
-			out->AddInstruction(QuarkShr(result.reg, temp, shiftCount));
+			out->AddInstruction(QuarkSar(result.reg, temp, shiftCount));
 		else
 			out->AddInstruction(QuarkDiv(result.reg, temp, instr.params[3].integerValue));
 		break;
@@ -1240,7 +1240,7 @@ bool OutputQuark::GeneratePtrDiff(SymInstrBlock* out, const ILInstruction& instr
 		LoadImm(out, temp, (uint32_t)right.immed);
 		out->AddInstruction(QuarkSub(temp, left.reg, temp, 0));
 		if (IsPowerOfTwo(instr.params[3].integerValue, shiftCount))
-			out->AddInstruction(QuarkShr(result.reg, temp, shiftCount));
+			out->AddInstruction(QuarkSar(result.reg, temp, shiftCount));
 		else
 			out->AddInstruction(QuarkDiv(result.reg, temp, instr.params[3].integerValue));
 		break;
@@ -3515,6 +3515,7 @@ bool OutputQuark::GenerateCode(Function* func)
 
 		// See if a register is used for this parameter
 		uint32_t reg = SYMREG_NONE;
+		uint32_t highReg = SYMREG_NONE;
 		if (func->GetParameters()[i].type->IsFloat())
 		{
 			if (floatParamRegs[curFloatParamReg] != SYMREG_NONE)
@@ -3542,7 +3543,7 @@ bool OutputQuark::GenerateCode(Function* func)
 				if (var != func->GetVariables().end())
 				{
 					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
-					m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
+					highReg = m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
 				}
 			}
 		}
@@ -3587,6 +3588,8 @@ bool OutputQuark::GenerateCode(Function* func)
 			}
 
 			m_varReg[*var] = reg;
+			if (highReg != SYMREG_NONE)
+				m_highVarReg[*var] = highReg;
 
 			IncomingParameterCopy copy;
 			copy.var = *var;
@@ -3619,6 +3622,21 @@ bool OutputQuark::GenerateCode(Function* func)
 	if (m_settings.stackGrowsUp)
 		paramOffset = -paramOffset;
 	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
+
+	// Create generic variable assignment structure
+	VariableAssignments assignments;
+	assignments.stackVariableBase = m_framePointerEnabled ? SYMREG_BP : SYMREG_SP;
+	assignments.stackVariables = m_stackVar;
+	assignments.registerVariables = m_varReg;
+	assignments.highRegisterVariables = m_highVarReg;
+
+	// Generate tree IL for code generation
+	if (!func->GenerateTreeIL(m_settings, assignments))
+	{
+		fprintf(stderr, "error: unable to generate tree IL for function '%s'\n",
+			func->GetName().c_str());
+		return false;
+	}
 
 	// Generate code
 	bool first = true;

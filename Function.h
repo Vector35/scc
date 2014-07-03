@@ -74,6 +74,15 @@ struct ParameterLocation
 	uint32_t reg;
 };
 
+struct VariableAssignments
+{
+	uint32_t stackVariableBase;
+	std::map<Variable*, int32_t> stackVariables;
+	std::map<Variable*, uint32_t> registerVariables;
+	std::map<Variable*, uint32_t> highRegisterVariables;
+};
+
+class TreeBlock;
 
 class Function: public RefCountObject
 {
@@ -89,6 +98,7 @@ class Function: public RefCountObject
 	std::vector< Ref<Variable> > m_vars;
 	Ref<Expr> m_body;
 	std::vector<ILBlock*> m_ilBlocks;
+	std::vector< Ref<TreeBlock> > m_treeBlocks;
 	std::map<std::string, ILBlock*> m_labels;
 	std::stack<ILBlock*> m_breakStack, m_continueStack, m_defaultStack;
 	std::map<int64_t, ILBlock*> m_switchLabels;
@@ -112,6 +122,8 @@ class Function: public RefCountObject
 	static std::map< size_t, Ref<Function> > m_serializationMap;
 
 	bool DeserializeInternal(InputBlock* input);
+
+	void PrintPrototype();
 
 public:
 	Function();
@@ -151,7 +163,9 @@ public:
 	Type* GetType() const;
 
 	const std::vector<ILBlock*>& GetIL() const { return m_ilBlocks; }
+	const std::vector< Ref<TreeBlock> >& GetTreeIL() const { return m_treeBlocks; }
 	void GenerateIL(ParserState* state);
+	bool GenerateTreeIL(const Settings& settings, const VariableAssignments& vars);
 	ILBlock* CreateILBlock();
 	void RemoveILBlock(ILBlock* block);
 	ILParameter CreateTempVariable(Type* type);

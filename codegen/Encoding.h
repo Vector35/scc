@@ -24,6 +24,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <inttypes.h>
 #include "RefCountObject.h"
 
 

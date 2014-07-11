@@ -179,18 +179,28 @@ void OutputBlock::WriteInt8(int8_t value)
 
 void OutputBlock::WriteInt16(int16_t value)
 {
+	if (bigEndian)
+		value = (value >> 8) | (value << 8);
 	Write(&value, sizeof(value));
 }
 
 
 void OutputBlock::WriteInt32(int32_t value)
 {
+	if (bigEndian)
+		value = ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
 	Write(&value, sizeof(value));
 }
 
 
 void OutputBlock::WriteInt64(int64_t value)
 {
+	if (bigEndian)
+	{
+		value = ((value >> 56) & 0xff) | ((value >> 40) & 0xff00) | ((value >> 24) & 0xff0000) |
+			((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) | ((value << 24) & 0xff0000000000LL) |
+			((value << 40) & 0xff000000000000LL) | (value << 56);
+	}
 	Write(&value, sizeof(value));
 }
 
@@ -203,31 +213,53 @@ void OutputBlock::WriteUInt8(uint8_t value)
 
 void OutputBlock::WriteUInt16(uint16_t value)
 {
+	if (bigEndian)
+		value = ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
 	Write(&value, sizeof(value));
 }
 
 
 void OutputBlock::WriteUInt32(uint32_t value)
 {
+	if (bigEndian)
+		value = ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
 	Write(&value, sizeof(value));
 }
 
 
 void OutputBlock::WriteUInt64(uint64_t value)
 {
+	if (bigEndian)
+	{
+		value = ((value >> 56) & 0xff) | ((value >> 40) & 0xff00) | ((value >> 24) & 0xff0000) |
+			((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) | ((value << 24) & 0xff0000000000LL) |
+			((value << 40) & 0xff000000000000LL) | (value << 56);
+	}
 	Write(&value, sizeof(value));
 }
 
 
 void OutputBlock::WriteFloat(float value)
 {
-	Write(&value, sizeof(value));
+	union
+	{
+		float floatValue;
+		uint32_t intValue;
+	} u;
+	u.floatValue = value;
+	WriteUInt32(u.intValue);
 }
 
 
 void OutputBlock::WriteDouble(double value)
 {
-	Write(&value, sizeof(value));
+	union
+	{
+		double floatValue;
+		uint32_t intValue;
+	} u;
+	u.floatValue = value;
+	WriteUInt64(u.intValue);
 }
 
 

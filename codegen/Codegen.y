@@ -112,7 +112,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %type <token> operand_token inner_operand_token
 %type <node> match tree temp_list
 %type <intval> match_type match_type_list instr_flag instr_flag_list
-%type <str> match_name operand_name
+%type <str> match_name operand_name instr_name
 %type <opdef> operand_def
 %type <operands> operand_def_list
 %type <optype> operand_type
@@ -131,7 +131,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %destructor { delete $$; } token function_type_token function_arg_token keyword_token
 %destructor { delete $$; } operand_token inner_operand_token
 %destructor { $$->Release(); } match tree temp_list
-%destructor { free($$); } match_name operand_name
+%destructor { free($$); } match_name operand_name instr_name
 %destructor { delete $$; } operand_def
 %destructor { delete $$; } operand_def_list
 %destructor { delete $$; } instr_token
@@ -787,7 +787,7 @@ encoding_field: ID COLON INT_VAL  { $$ = EncodingField::CreateNormalField($1, $3
 			  | INT_VAL COLON INT_VAL  { $$ = EncodingField::CreateFixedValueField($3, $1); }
 			  ;
 
-instr_stmt: INSTR_TOK ID instr_token_list instr_code
+instr_stmt: INSTR_TOK instr_name instr_token_list instr_code
 		  	{
 				Instruction* instr = new Instruction($2, 0, *$3, $4, NULL);
 				state->DefineInstruction(instr);
@@ -795,7 +795,7 @@ instr_stmt: INSTR_TOK ID instr_token_list instr_code
 				delete $3;
 				$4->Release();
 			}
-		  | INSTR_TOK LPAREN instr_flag_list RPAREN ID instr_token_list instr_code
+		  | INSTR_TOK LPAREN instr_flag_list RPAREN instr_name instr_token_list instr_code
 		  	{
 				Instruction* instr = new Instruction($5, $3, *$6, $7, NULL);
 				state->DefineInstruction(instr);
@@ -803,7 +803,7 @@ instr_stmt: INSTR_TOK ID instr_token_list instr_code
 				delete $6;
 				$7->Release();
 			}
-		  | INSTR_TOK ID instr_token_list instr_code UPDATE_TOK code
+		  | INSTR_TOK instr_name instr_token_list instr_code UPDATE_TOK code
 		  	{
 				Instruction* instr = new Instruction($2, 0, *$3, $4, $6);
 				state->DefineInstruction(instr);
@@ -812,7 +812,7 @@ instr_stmt: INSTR_TOK ID instr_token_list instr_code
 				$4->Release();
 				$6->Release();
 			}
-		  | INSTR_TOK LPAREN instr_flag_list RPAREN ID instr_token_list instr_code UPDATE_TOK code
+		  | INSTR_TOK LPAREN instr_flag_list RPAREN instr_name instr_token_list instr_code UPDATE_TOK code
 		  	{
 				Instruction* instr = new Instruction($5, $3, *$6, $7, $9);
 				state->DefineInstruction(instr);
@@ -885,82 +885,85 @@ operand_access: ID
 				}
 			  ;
 
-operand_name: match_name  { $$ = $1; }
-			| VAR_TOK  { $$ = strdup("var"); }
+operand_name: instr_name  { $$ = $1; }
 			| FUNCTION  { $$ = strdup("function"); }
-			| SIGNED8  { $$ = strdup("S8"); }
-			| UNSIGNED8  { $$ = strdup("U8"); }
-			| SIGNED16  { $$ = strdup("S16"); }
-			| UNSIGNED16  { $$ = strdup("U16"); }
-			| SIGNED32  { $$ = strdup("S32"); }
-			| UNSIGNED32  { $$ = strdup("U32"); }
-			| SIGNED64  { $$ = strdup("S64"); }
-			| UNSIGNED64  { $$ = strdup("U64"); }
-			| SIGNED128  { $$ = strdup("S128"); }
-			| UNSIGNED128  { $$ = strdup("U128"); }
-			| FLOAT32  { $$ = strdup("F32"); }
-			| FLOAT64  { $$ = strdup("F64"); }
-			| DEFAULT_TOK  { $$ = strdup("default"); }
-			| INCLUDE_TOK  { $$ = strdup("include"); }
-			| INSTR_TOK  { $$ = strdup("instr"); }
-			| ENCODING_TOK  { $$ = strdup("encoding"); }
-			| ASSIGN_TOK  { $$ = strdup("assign"); }
-			| LOAD_TOK  { $$ = strdup("load"); }
-			| STORE_TOK  { $$ = strdup("store"); }
-			| REF_TOK  { $$ = strdup("ref"); }
-			| ADD_TOK  { $$ = strdup("add"); }
-			| SUB_TOK  { $$ = strdup("sub"); }
-			| SMUL_TOK  { $$ = strdup("smul"); }
-			| UMUL_TOK  { $$ = strdup("umul"); }
-			| SDIV_TOK  { $$ = strdup("sdiv"); }
-			| UDIV_TOK  { $$ = strdup("udiv"); }
-			| SMOD_TOK  { $$ = strdup("smod"); }
-			| UMOD_TOK  { $$ = strdup("umod"); }
-			| AND_TOK  { $$ = strdup("and"); }
-			| OR_TOK  { $$ = strdup("or"); }
-			| XOR_TOK  { $$ = strdup("xor"); }
-			| SHL_TOK  { $$ = strdup("shl"); }
-			| SHR_TOK  { $$ = strdup("shr"); }
-			| SAR_TOK  { $$ = strdup("sar"); }
-			| NEG_TOK  { $$ = strdup("neg"); }
-			| NOT_TOK  { $$ = strdup("not"); }
-			| IFTRUE_TOK  { $$ = strdup("iftrue"); }
-			| IFSLT_TOK  { $$ = strdup("ifslt"); }
-			| IFULT_TOK  { $$ = strdup("ifult"); }
-			| IFSLE_TOK  { $$ = strdup("ifsle"); }
-			| IFULE_TOK  { $$ = strdup("ifule"); }
-			| IFE_TOK  { $$ = strdup("ife"); }
-			| GOTO_TOK  { $$ = strdup("goto"); }
-			| CALL_TOK  { $$ = strdup("call"); }
-			| CALLVOID_TOK  { $$ = strdup("callvoid"); }
-			| SYSCALL_TOK  { $$ = strdup("syscall"); }
-			| SYSCALLVOID_TOK  { $$ = strdup("syscallvoid"); }
-			| SCONVERT_TOK  { $$ = strdup("sconvert"); }
-			| UCONVERT_TOK  { $$ = strdup("uconvert"); }
-			| RETURN_TOK  { $$ = strdup("return"); }
-			| RETURNVOID_TOK  { $$ = strdup("returnvoid"); }
-			| ALLOCA_TOK  { $$ = strdup("alloca"); }
-			| MEMCPY_TOK  { $$ = strdup("memcpy"); }
-			| MEMSET_TOK  { $$ = strdup("memset"); }
-			| STRLEN_TOK  { $$ = strdup("strlen"); }
-			| RDTSC_TOK  { $$ = strdup("rdtsc"); }
-			| RDTSC_LOW_TOK  { $$ = strdup("rdtsc_low"); }
-			| RDTSC_HIGH_TOK  { $$ = strdup("rdtsc_high"); }
-			| VARARG_TOK  { $$ = strdup("vararg"); }
-			| BYTESWAP_TOK  { $$ = strdup("byteswap"); }
-			| BREAKPOINT_TOK  { $$ = strdup("breakpoint"); }
-			| POW_TOK  { $$ = strdup("pow"); }
-			| FLOOR_TOK  { $$ = strdup("floor"); }
-			| CEIL_TOK  { $$ = strdup("ceil"); }
-			| SQRT_TOK  { $$ = strdup("sqrt"); }
-			| SIN_TOK  { $$ = strdup("sin"); }
-			| COS_TOK  { $$ = strdup("cos"); }
-			| TAN_TOK  { $$ = strdup("tan"); }
-			| ASIN_TOK  { $$ = strdup("asin"); }
-			| ACOS_TOK  { $$ = strdup("acos"); }
-			| ATAN_TOK  { $$ = strdup("atan"); }
-			| PUSH_TOK  { $$ = strdup("push"); }
 			;
+
+instr_name: match_name  { $$ = $1; }
+		  | VAR_TOK  { $$ = strdup("var"); }
+		  | SIGNED8  { $$ = strdup("S8"); }
+		  | UNSIGNED8  { $$ = strdup("U8"); }
+		  | SIGNED16  { $$ = strdup("S16"); }
+		  | UNSIGNED16  { $$ = strdup("U16"); }
+		  | SIGNED32  { $$ = strdup("S32"); }
+		  | UNSIGNED32  { $$ = strdup("U32"); }
+		  | SIGNED64  { $$ = strdup("S64"); }
+		  | UNSIGNED64  { $$ = strdup("U64"); }
+		  | SIGNED128  { $$ = strdup("S128"); }
+		  | UNSIGNED128  { $$ = strdup("U128"); }
+		  | FLOAT32  { $$ = strdup("F32"); }
+		  | FLOAT64  { $$ = strdup("F64"); }
+		  | DEFAULT_TOK  { $$ = strdup("default"); }
+		  | INCLUDE_TOK  { $$ = strdup("include"); }
+		  | INSTR_TOK  { $$ = strdup("instr"); }
+		  | ENCODING_TOK  { $$ = strdup("encoding"); }
+		  | ASSIGN_TOK  { $$ = strdup("assign"); }
+		  | LOAD_TOK  { $$ = strdup("load"); }
+		  | STORE_TOK  { $$ = strdup("store"); }
+		  | REF_TOK  { $$ = strdup("ref"); }
+		  | ADD_TOK  { $$ = strdup("add"); }
+		  | SUB_TOK  { $$ = strdup("sub"); }
+		  | SMUL_TOK  { $$ = strdup("smul"); }
+		  | UMUL_TOK  { $$ = strdup("umul"); }
+		  | SDIV_TOK  { $$ = strdup("sdiv"); }
+		  | UDIV_TOK  { $$ = strdup("udiv"); }
+		  | SMOD_TOK  { $$ = strdup("smod"); }
+		  | UMOD_TOK  { $$ = strdup("umod"); }
+		  | AND_TOK  { $$ = strdup("and"); }
+		  | OR_TOK  { $$ = strdup("or"); }
+		  | XOR_TOK  { $$ = strdup("xor"); }
+		  | SHL_TOK  { $$ = strdup("shl"); }
+		  | SHR_TOK  { $$ = strdup("shr"); }
+		  | SAR_TOK  { $$ = strdup("sar"); }
+		  | NEG_TOK  { $$ = strdup("neg"); }
+		  | NOT_TOK  { $$ = strdup("not"); }
+		  | IFTRUE_TOK  { $$ = strdup("iftrue"); }
+		  | IFSLT_TOK  { $$ = strdup("ifslt"); }
+		  | IFULT_TOK  { $$ = strdup("ifult"); }
+		  | IFSLE_TOK  { $$ = strdup("ifsle"); }
+		  | IFULE_TOK  { $$ = strdup("ifule"); }
+		  | IFE_TOK  { $$ = strdup("ife"); }
+		  | GOTO_TOK  { $$ = strdup("goto"); }
+		  | CALL_TOK  { $$ = strdup("call"); }
+		  | CALLVOID_TOK  { $$ = strdup("callvoid"); }
+		  | SYSCALL_TOK  { $$ = strdup("syscall"); }
+		  | SYSCALLVOID_TOK  { $$ = strdup("syscallvoid"); }
+		  | SCONVERT_TOK  { $$ = strdup("sconvert"); }
+		  | UCONVERT_TOK  { $$ = strdup("uconvert"); }
+		  | RETURN_TOK  { $$ = strdup("return"); }
+		  | RETURNVOID_TOK  { $$ = strdup("returnvoid"); }
+		  | ALLOCA_TOK  { $$ = strdup("alloca"); }
+		  | MEMCPY_TOK  { $$ = strdup("memcpy"); }
+		  | MEMSET_TOK  { $$ = strdup("memset"); }
+		  | STRLEN_TOK  { $$ = strdup("strlen"); }
+		  | RDTSC_TOK  { $$ = strdup("rdtsc"); }
+		  | RDTSC_LOW_TOK  { $$ = strdup("rdtsc_low"); }
+		  | RDTSC_HIGH_TOK  { $$ = strdup("rdtsc_high"); }
+		  | VARARG_TOK  { $$ = strdup("vararg"); }
+		  | BYTESWAP_TOK  { $$ = strdup("byteswap"); }
+		  | BREAKPOINT_TOK  { $$ = strdup("breakpoint"); }
+		  | POW_TOK  { $$ = strdup("pow"); }
+		  | FLOOR_TOK  { $$ = strdup("floor"); }
+		  | CEIL_TOK  { $$ = strdup("ceil"); }
+		  | SQRT_TOK  { $$ = strdup("sqrt"); }
+		  | SIN_TOK  { $$ = strdup("sin"); }
+		  | COS_TOK  { $$ = strdup("cos"); }
+		  | TAN_TOK  { $$ = strdup("tan"); }
+		  | ASIN_TOK  { $$ = strdup("asin"); }
+		  | ACOS_TOK  { $$ = strdup("acos"); }
+		  | ATAN_TOK  { $$ = strdup("atan"); }
+		  | PUSH_TOK  { $$ = strdup("push"); }
+		  ;
 
 instr_flag_list: instr_flag_list COMMA instr_flag  { $$ = $1 | $3; }
 			   | instr_flag  { $$ = $1; }

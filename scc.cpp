@@ -54,7 +54,7 @@ void Usage()
 	fprintf(stderr, "are automatically available without the need for include files.\n\n");
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    --arch <value>                    Specify processor architecture\n");
-	fprintf(stderr, "                                      Can be: x86 (default), x64\n");
+	fprintf(stderr, "                                      Can be: x86 (default), x64, mips, mipsel\n");
 	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
 	fprintf(stderr, "    --anti-disasm                     Generate anti-disassembly blocks\n");
@@ -136,6 +136,7 @@ int main(int argc, char* argv[])
 	settings.format = FORMAT_BIN;
 	settings.optimization = OPTIMIZE_NORMAL;
 	settings.preferredBits = 32;
+	settings.bigEndian = false;
 	settings.allowReturn = false;
 	settings.unsafeStack = false;
 	settings.execStack = false;
@@ -166,22 +167,36 @@ int main(int argc, char* argv[])
 				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
 				return 1;
 			}
-
 			i++;
 			if ((!strcmp(argv[i], "x86")) || (!strcmp(argv[i], "i386")))
 			{
 				settings.architecture = ARCH_X86;
 				settings.preferredBits = 32;
+				settings.bigEndian = false;
 			}
 			else if ((!strcmp(argv[i], "x64")) || (!strcmp(argv[i], "x86_64")) || (!strcmp(argv[i], "amd64")))
 			{
 				settings.architecture = ARCH_X86;
 				settings.preferredBits = 64;
+				settings.bigEndian = false;
 			}
 			else if (!strcmp(argv[i], "quark"))
 			{
 				settings.architecture = ARCH_QUARK;
 				settings.preferredBits = 32;
+				settings.bigEndian = false;
+			}
+			else if ((!strcmp(argv[i], "mips")) || (!strcmp(argv[i], "mipseb")))
+			{
+				settings.architecture = ARCH_MIPS;
+				settings.preferredBits = 32;
+				settings.bigEndian = true;
+			}
+			else if (!strcmp(argv[i], "mipsel"))
+			{
+				settings.architecture = ARCH_MIPS;
+				settings.preferredBits = 32;
+				settings.bigEndian = false;
 			}
 			else
 			{
@@ -696,6 +711,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	if ((settings.architecture == ARCH_MIPS) && (settings.preferredBits != 32))
+	{
+		fprintf(stderr, "error: invalid architecture settings\n");
+		return 1;
+	}
+
 	// Adjust base address for executables
 	if (settings.format == FORMAT_ELF)
 	{
@@ -882,6 +903,7 @@ int main(int argc, char* argv[])
 		output.code = NULL;
 		output.len = 0;
 		output.maxLen = 0;
+		output.bigEndian = false;
 
 		if (!linker.OutputLibrary(&output))
 			return 1;
@@ -919,6 +941,7 @@ int main(int argc, char* argv[])
 	finalBinary.code = NULL;
 	finalBinary.len = 0;
 	finalBinary.maxLen = 0;
+	finalBinary.bigEndian = settings.bigEndian;
 	if (!linker.OutputCode(&finalBinary))
 		return 1;
 

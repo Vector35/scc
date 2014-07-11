@@ -1770,6 +1770,7 @@ bool OutputGenerator::Generate(string& output)
 		WriteLine("vector<IncomingParameterCopy> m_paramCopy;");
 		WriteLine("bool m_framePointerEnabled;");
 		WriteLine("uint32_t m_globalBaseReg;");
+		WriteLine("uint32_t m_varargStart;");
 
 		for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetVariables().begin(); i != m_parser->GetVariables().end(); ++i)
 			WriteCodeBlock(*i);
@@ -2099,7 +2100,10 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("m_framePointerEnabled = true;");
 			WriteLine("m_vars.stackVariableBase = SYMREG_BP;");
 
-			WriteLine("m_globalBaseReg = SYMREG_IP;");
+			if (m_parser->GetSpecialRegs().find("SYMREG_IP") == m_parser->GetSpecialRegs().end())
+				WriteLine("m_globalBaseReg = SYMREG_NONE;");
+			else
+				WriteLine("m_globalBaseReg = SYMREG_IP;");
 
 			// Generate stack frame
 			WriteLine("m_paramCopy.clear();");
@@ -2193,6 +2197,7 @@ bool OutputGenerator::Generate(string& output)
 				WriteLine("out->len = 0;");
 				WriteLine("out->maxLen = 0;");
 				WriteLine("out->randomLen = 0;");
+				WriteLine("out->bigEndian = m_settings.bigEndian;");
 
 				WriteLine("if (!m_symFunc->GetBlock(*i)->EmitCode(m_symFunc, out))");
 				BeginBlock();

@@ -68,6 +68,7 @@ struct OutputBlock
 	void* code;
 	size_t len, maxLen, randomLen;
 	std::vector<Relocation> relocs;
+	bool bigEndian;
 
 	void* PrepareWrite(size_t desiredLen);
 	void FinishWrite(size_t written);

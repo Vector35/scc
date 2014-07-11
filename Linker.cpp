@@ -44,12 +44,16 @@ extern unsigned char Obj_x64_lib[];
 extern unsigned int Obj_x64_lib_len;
 extern unsigned char Obj_quark_lib[];
 extern unsigned int Obj_quark_lib_len;
+extern unsigned char Obj_mips_lib[];
+extern unsigned int Obj_mips_lib_len;
 extern unsigned char Obj_linux_x86_lib[];
 extern unsigned int Obj_linux_x86_lib_len;
 extern unsigned char Obj_linux_x64_lib[];
 extern unsigned int Obj_linux_x64_lib_len;
 extern unsigned char Obj_linux_quark_lib[];
 extern unsigned int Obj_linux_quark_lib_len;
+extern unsigned char Obj_linux_mips_lib[];
+extern unsigned int Obj_linux_mips_lib_len;
 extern unsigned char Obj_freebsd_x86_lib[];
 extern unsigned int Obj_freebsd_x86_lib_len;
 extern unsigned char Obj_freebsd_x64_lib[];
@@ -75,6 +79,7 @@ extern void Code_set_lineno(int line, void* yyscanner);
 
 
 extern Output* CreateQuarkCodeGen(const Settings& settings, Function* startFunc);
+extern Output* CreateMipsCodeGen(const Settings& settings, Function* startFunc);
 
 
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
@@ -444,6 +449,20 @@ bool Linker::ImportStandardLibrary()
 		default:
 			lib = Obj_quark_lib;
 			len = Obj_quark_lib_len;
+			break;
+		}
+	}
+	else if (m_settings.architecture == ARCH_MIPS)
+	{
+		switch (m_settings.os)
+		{
+		case OS_LINUX:
+			lib = Obj_linux_mips_lib;
+			len = Obj_linux_mips_lib_len;
+			break;
+		default:
+			lib = Obj_mips_lib;
+			len = Obj_mips_lib_len;
 			break;
 		}
 	}
@@ -1072,6 +1091,10 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	{
 		out[SUBARCH_DEFAULT] = CreateQuarkCodeGen(m_settings, m_startFunction);
 	}
+	else if (m_settings.architecture == ARCH_MIPS)
+	{
+		out[SUBARCH_DEFAULT] = CreateMipsCodeGen(m_settings, m_startFunction);
+	}
 	else
 	{
 		fprintf(stderr, "error: invalid architecture\n");
@@ -1083,6 +1106,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	dataSection.code = NULL;
 	dataSection.len = 0;
 	dataSection.maxLen = 0;
+	dataSection.bigEndian = m_settings.bigEndian;
 
 	// Lay out address space for data
 	uint64_t addr = 0;
@@ -1334,6 +1358,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	codeSection.code = NULL;
 	codeSection.len = 0;
 	codeSection.maxLen = 0;
+	codeSection.bigEndian = m_settings.bigEndian;
 
 	for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 	{

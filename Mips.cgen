@@ -1,0 +1,1031 @@
+arch Mips 32
+
+#define REG_ZERO 0
+#define REG_AT   1
+#define REG_V(i) (2 + (i))
+#define REG_A(i) (4 + (i))
+#define REG_T(i) (((i) >= 8) ? (16 + (i)) : (8 + (i)))
+#define REG_S(i) (16 + (i))
+#define REG_K(i) (26 + (i))
+#define REG_GP   28
+#define REG_SP   29
+#define REG_FP   30
+#define REG_RA   31
+
+#define REG_LO   32
+#define REG_HI   33
+
+#define SYMREG_ZERO SYMREG_NATIVE_REG(REG_ZERO)
+#define SYMREG_LO SYMREG_NATIVE_REG(REG_LO)
+#define SYMREG_HI SYMREG_NATIVE_REG(REG_HI)
+
+registerclass default IREG(8,16,32)
+registerclass INTEGER_RETURN_VALUE(8,16,32) fixed { REG_V(0) } : IREG
+registerclass INTEGER_RETURN_VALUE_HIGH(32) fixed { REG_V(1) } : IREG
+registerclass SYSCALL_RETURN(8,16,32) fixed { REG_V(0) } : IREG
+registerclass SYSCALL_RETURN_HIGH(32) fixed { REG_V(1) } : IREG
+registerclass LO(32) fixed { REG_LO }
+registerclass HI(32) fixed { REG_HI }
+largeregisterclass IREG64(64) IREG IREG
+largeregisterclass INTEGER_RETURN_VALUE_64(64) INTEGER_RETURN_VALUE INTEGER_RETURN_VALUE_HIGH
+largeregisterclass SYSCALL_RETURN_64(64) SYSCALL_RETURN SYSCALL_RETURN_HIGH
+largeregisterclass LO_HI(64) LO HI
+tempregisterclass IRESULT(8,16,32) IREG
+
+registerclass INTEGER_PARAM_0(8,16,32) fixed { REG_A(0) } : IREG
+registerclass INTEGER_PARAM_1(8,16,32) fixed { REG_A(1) } : IREG
+registerclass INTEGER_PARAM_2(8,16,32) fixed { REG_A(2) } : IREG
+registerclass INTEGER_PARAM_3(8,16,32) fixed { REG_A(3) } : IREG
+
+registerclass SYSCALL_NUM(32) fixed { REG_V(0) } : IREG
+registerclass SYSCALL_PARAM_0(8,16,32) fixed { REG_A(0) } : IREG
+registerclass SYSCALL_PARAM_1(8,16,32) fixed { REG_A(1) } : IREG
+registerclass SYSCALL_PARAM_2(8,16,32) fixed { REG_A(2) } : IREG
+registerclass SYSCALL_PARAM_3(8,16,32) fixed { REG_A(3) } : IREG
+
+immediateclass IMM16
+{
+	if (value < -0x8000)
+		return false;
+	if (value >= 0x8000)
+		return false;
+	return true;
+}
+
+immediateclass IMM16NEG
+{
+	if (value <= -0x8000)
+		return false;
+	if (value > 0x8000)
+		return false;
+	return true;
+}
+
+immediateclass IMM16M4
+{
+	if (value < -0x8000)
+		return false;
+	if (value >= (0x8000 - 4))
+		return false;
+	return true;
+}
+
+immediateclass IMM16U
+{
+	if (value < 0)
+		return false;
+	if (value >= 0x10000)
+		return false;
+	return true;
+}
+
+special SYMREG_SP { REG_SP }
+special SYMREG_BP { REG_FP }
+special SYMREG_LR { REG_RA }
+
+callersaved { REG_AT, REG_V(0), REG_V(1), REG_A(0), REG_A(1), REG_A(2), REG_A(3), REG_T(0), REG_T(1), REG_T(2), REG_T(3),
+	REG_T(4), REG_T(5), REG_T(6), REG_T(7), REG_T(8), REG_T(9) }
+calleesaved { REG_S(0), REG_S(1), REG_S(2), REG_S(3), REG_S(4), REG_S(5), REG_S(6), REG_S(7) }
+
+encoding R { op:6, rs:5, rt:5, rd:5, sh:5, f:6 }
+encoding I { op:6, rs:5, rt:5, i:16 }
+encoding J { op:6, a:26 }
+
+instr add  add rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x20; }
+instr addu  addu rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x21; }
+instr addi  addi rt:REG(w), rs:REG(r), i:IMM  { @I op=8; }
+instr addiu  addiu rt:REG(w), rs:REG(r), i:IMM  { @I op=9; }
+instr sub  sub rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x22; }
+instr subu  subu rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x23; }
+instr mult  mult lo:REG(w), hi:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x18; }
+instr multu  multu lo:REG(w), hi:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x19; }
+instr div  div lo:REG(w), hi:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x1a; }
+instr divu  divu lo:REG(w), hi:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x1b; }
+instr(memory) lw  lw rt:REG(w), [rs:REG(r) + i:IMM]  { @I op=0x23; }
+instr(memory) lh  lh rt:REG(w), [rs:REG(r) + i:IMM]  { @I op=0x21; }
+instr(memory) lhu  lhu rt:REG(w), [rs:REG(r) + i:IMM]  { @I op=0x25; }
+instr(memory) lb  lb rt:REG(w), [rs:REG(r) + i:IMM]  { @I op=0x20; }
+instr(memory) lbu  lbu rt:REG(w), [rs:REG(r) + i:IMM]  { @I op=0x24; }
+instr(memory) sw  sw rt:REG(r), [rs:REG(r) + i:IMM]  { @I op=0x2b; }
+instr(memory) sh  sh rt:REG(r), [rs:REG(r) + i:IMM]  { @I op=0x29; }
+instr(memory) sb  sb rt:REG(r), [rs:REG(r) + i:IMM]  { @I op=0x28; }
+instr lui  lui rt:REG(w), i:IMM  { @I op=0xf; }
+instr mfhi  mfhi rd:REG(w), hi:REG(r)  { @R op=0, f=0x10; }
+instr mflo  mflo rd:REG(w), lo:REG(r)  { @R op=0, f=0x12; }
+instr and  and rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x24; }
+instr andi  andi rt:REG(w), rs:REG(r), i:IMM  { @I op=0xc; }
+instr or  or rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x25; }
+instr ori  ori rt:REG(w), rs:REG(r), i:IMM  { @I op=0xd; }
+instr xor  xor rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x26; }
+instr nor  nor rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x27; }
+instr slt  slt rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x2a; }
+instr slti  slti rt:REG(w), rs:REG(r), i:IMM  { @I op=0xa; }
+instr sll  sll rd:REG(w), rt:REG(r), sh:IMM  { @R op=0, f=0; }
+instr srl  srl rd:REG(w), rt:REG(r), sh:IMM  { @R op=0, f=2; }
+instr sra  sra rd:REG(w), rt:REG(r), sh:IMM  { @R op=0, f=3; }
+instr sllv  sllv rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=4; }
+instr srlv  srlv rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=6; }
+instr srav  srav rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=7; }
+
+instr addstack  addi rt:REG(w), var:STACKVAR
+{
+	if (%var:offset < 0x8000)
+		@I op=9, rs=%var:base, i=%var:offset; // addiu
+	else
+	{
+		@I op=0xf, rt=%var:temp, i=%var:offset >> 16; // lui
+		@I op=0xd, rt=%var:temp, rs=%var:temp, i=%var:offset & 0xffff; // ori
+		@I op=0, f=0x21, rd=%rt, rs=%var:base, rt=%var:temp; // addu
+	}
+}
+
+instr substack  subi rt:REG(w), var:STACKVAR
+{
+	if (%var:offset <= 0x8000)
+		@I op=9, rs=%var:base, i=-%var:offset; // addiu
+	else
+	{
+		@I op=0xf, rt=%var:temp, i=%var:offset >> 16; // lui
+		@I op=0xd, rt=%var:temp, rs=%var:temp, i=%var:offset & 0xffff; // ori
+		@I op=0, f=0x23, rd=%rt, rs=%var:base, rt=%var:temp; // subu
+	}
+}
+
+#define STACK_MEM_OP(cls, name, opcode) \
+instr(memory) cls  name rt:REG(w), [var:STACKVAR] \
+{ \
+	if (%var:offset < 0x8000) \
+		@I op=opcode, rs=%var:base, i=%var:offset; \
+	else \
+	{ \
+		@I op=0xf, rt=%var:temp, i=%var:offset >> 16; \
+		@I op=0xd, rt=%var:temp, rs=%var:temp, i=%var:offset & 0xffff; \
+		@I op=0, f=0x21, rd=%var:temp, rs=%var:base, rt=%var:temp; \
+		@I op=opcode, rs=%var:temp, i=0; \
+	} \
+}
+
+STACK_MEM_OP(lbstack, lb, 0x20)
+STACK_MEM_OP(lbustack, lbu, 0x22)
+STACK_MEM_OP(lhstack, lh, 0x21)
+STACK_MEM_OP(lhustack, lhu, 0x25)
+STACK_MEM_OP(lwstack, lw, 0x23)
+STACK_MEM_OP(sbstack, sb, 0x28)
+STACK_MEM_OP(shstack, sh, 0x29)
+STACK_MEM_OP(swstack, sw, 0x2b)
+
+#define NOP @R op=0, f=0, rd=0, rt=0, sh=0
+
+#define BRANCH_RELOC(bits) \
+	Relocation reloc; \
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD; \
+	reloc.overflow = NULL; \
+	reloc.instruction = out->len - 8; \
+	reloc.offset = out->len - 8; \
+	reloc.target = %dest:block; \
+	reloc.bitOffset = 0; \
+	reloc.bitSize = bits; \
+	reloc.bitShift = 2; \
+	out->relocs.push_back(reloc);
+
+instr(branch) beq  beq rs:REG(r), rt:REG(r), dest:FUNCTION
+{
+	@I op=4, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) bne  bne rs:REG(r), rt:REG(r), dest:FUNCTION
+{
+	@I op=5, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) bgez  bgez rs:REG(r), dest:FUNCTION
+{
+	@I op=1, rt=1, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(call) bgezal  bgezal rs:REG(r), dest:FUNCTION
+{
+	@I op=1, rt=0x11, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) bgtz  bne rs:REG(r), dest:FUNCTION
+{
+	@I op=7, rt=0, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) blez  bne rs:REG(r), dest:FUNCTION
+{
+	@I op=6, rt=0, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) bltz  bne rs:REG(r), dest:FUNCTION
+{
+	@I op=1, rt=0, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) bltzal  bne rs:REG(r), dest:FUNCTION
+{
+	@I op=0x10, rt=0, i=0;
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(branch) jr  jr rs:REG(r)  { @R op=0, f=8; NOP; }
+instr(call) jalr  jalr rd:REG(w), rs:REG(r)  { @R op=0, f=5; NOP; }
+instr(branch) syscall  syscall num:REG(r), writes:REGLIST(w), reads:REGLIST(r)  { @R op=0, f=0xc; }
+
+instr break  break  { @R op=0, f=0xd; }
+
+instr ldglobalptr  ldglobalptr ptr:REG(w), dest:GLOBALVAR
+{
+	@I op=1, rt=0x11, i=1, rs=0; // bgezal $zero, $pc+4
+	NOP;
+	@I op=8, rt=%ptr, rs=31, i=4;
+
+	Relocation reloc;
+	reloc.type = DATA_RELOC_RELATIVE_32_FIELD;
+	reloc.overflow = NULL;
+	reloc.instruction = out->len - 4;
+	reloc.offset = out->len - 4;
+	reloc.dataOffset = %dest:offset;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 16;
+	reloc.bitShift = 0;
+	out->relocs.push_back(reloc);
+}
+
+instr ldblockptr  ldblockptr ptr:REG(w), dest:FUNCTION
+{
+	@I op=1, rt=0x11, i=1, rs=0; // bgezal $zero, $pc+4
+	NOP;
+	@I op=8, rt=%ptr, rs=31, i=4;
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+	reloc.overflow = NULL;
+	reloc.instruction = out->len - 4;
+	reloc.offset = out->len - 4;
+	reloc.target = %dest:block;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 16;
+	reloc.bitShift = 0;
+	out->relocs.push_back(reloc);
+}
+
+instr regparam  regparam regs:REGLIST(w)  {} update { return true; }
+instr symreturn  symreturn low:REG(r) high:REG(r)  {} update { return true; }
+
+instr saveregs  saveregs {} update
+{
+	// TODO: Support non-default stack pointer
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	int32_t offset = 0;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+	{
+		offset += settings.stackGrowsUp ? 4 : -4;
+		@sw SYMREG_NATIVE_REG(*i), SYMREG_SP, offset;
+	}
+
+	if (offset != 0)
+		@addi SYMREG_SP, SYMREG_SP, offset;
+	return true;
+}
+
+instr restoreregs  restoreregs {} update
+{
+	// TODO: Support non-default stack pointer
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	uint32_t stackSize = clobbered.size() * 4;
+	int32_t offset = 0;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+	{
+		offset += 4;
+		if (settings.stackGrowsUp)
+			@lw SYMREG_NATIVE_REG(*i), SYMREG_SP, offset - stackSize;
+		else
+			@lw SYMREG_NATIVE_REG(*i), SYMREG_SP, stackSize - offset;
+	}
+	return true;
+}
+
+
+src:IMM16U => dest:IREG  { @ori %dest, SYMREG_ZERO, %src; }
+src:IMM16 => dest:IREG  { @addi %dest, SYMREG_ZERO, %src; }
+src:IMM => dest:IREG  { @lui %dest, %src >> 16; @ori %dest, %dest, %src & 0xffff; }
+src:IMM16U => dest:IREG64  { @ori %dest:low, SYMREG_ZERO, %src; @ori %dest:high, SYMREG_ZERO, 0; }
+src:IMM16 => dest:IREG64  { @addi %dest:low, SYMREG_ZERO, %src; @addi %dest:high, SYMREG_ZERO, %src >> 32; }
+
+src:IRESULT => dest:IREG(S8)  { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
+src:IRESULT => dest:IREG(U8)  { @andi %dest, %src, 0xff; }
+src:IRESULT => dest:IREG(S16)  { @sll %dest, %src, 16; @sra %dest, %dest, 16; }
+src:IRESULT => dest:IREG(U16)  { @andi %dest, %src, 0xffff; }
+src:IRESULT => dest:IREG(32)  {}
+
+func:FUNCTION => dest:IREG  { @ldblockptr %dest, %func, %func->GetIL()[0]; }
+ref src:GLOBALVAR => dest:IREG  { @ldglobalptr %dest, %src; }
+
+assign dest:IREG src:IREG  { @addi %dest, %src, 0; }
+assign dest:IREG64 src:IREG64  { @addi %dest:low, %src:low, 0; @addi %dest:high, %src:high, 0; }
+
+load(S8) addr:IREG => dest:IREG  { @lb %dest, %addr, 0; }
+load(S8) add addr:IREG ofs:IMM16 => dest:IREG  { @lb %dest, %addr, %ofs; }
+load(U8) addr:IREG => dest:IREG  { @lbu %dest, %addr, 0; }
+load(U8) add addr:IREG ofs:IMM16 => dest:IREG  { @lbu %dest, %addr, %ofs; }
+load(S16) addr:IREG => dest:IREG  { @lh %dest, %addr, 0; }
+load(S16) add addr:IREG ofs:IMM16 => dest:IREG  { @lh %dest, %addr, %ofs; }
+load(U16) addr:IREG => dest:IREG  { @lhu %dest, %addr, 0; }
+load(U16) add addr:IREG ofs:IMM16 => dest:IREG  { @lhu %dest, %addr, %ofs; }
+load(32) addr:IREG => dest:IREG  { @lw %dest, %addr, 0; }
+load(32) add addr:IREG ofs:IMM16 => dest:IREG  { @lw %dest, %addr, %ofs; }
+
+load(64) addr:IREG => dest:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@lw %dest:low, %addr, 0;
+		@lw %dest:high, %addr, 4;
+	}
+	else
+	{
+		@lw %dest:high, %addr, 0;
+		@lw %dest:low, %addr, 4;
+	}
+}
+load(64) add addr:IREG ofs:IMM16M4 => dest:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@lw %dest:high, %addr, %ofs;
+		@lw %dest:low, %addr, %ofs + 4;
+	}
+	else
+	{
+		@lw %dest:low, %addr, %ofs;
+		@lw %dest:high, %addr, %ofs + 4;
+	}
+}
+
+store(8) addr:IREG src:IREG  { @sb %src, %addr, 0; }
+store(8) add addr:IREG ofs:IMM16 src:IREG  { @sb %src, %addr, %ofs; }
+store(16) addr:IREG src:IREG  { @sh %src, %addr, 0; }
+store(16) add addr:IREG ofs:IMM16 src:IREG  { @sh %src, %addr, %ofs; }
+store(32) addr:IREG src:IREG  { @sw %src, %addr, 0; }
+store(32) add addr:IREG ofs:IMM16 src:IREG  { @sw %src, %addr, %ofs; }
+
+store(64) addr:IREG src:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@sw %src:high, %addr, 0;
+		@sw %src:low, %addr, 4;
+	}
+	else
+	{
+		@sw %src:low, %addr, 0;
+		@sw %src:high, %addr, 4;
+	}
+}
+store(64) add addr:IREG ofs:IMM16M4 src:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@sw %src:high, %addr, %ofs;
+		@sw %src:low, %addr, %ofs + 4;
+	}
+	else
+	{
+		@sw %src:low, %addr, %ofs;
+		@sw %src:high, %addr, %ofs + 4;
+	}
+}
+
+add a:IREG b:IREG => dest:IRESULT  { @addu %dest, %a, %b; }
+add a:IREG b:IMM16 => dest:IRESULT  { @addiu %dest, %a, %b; }
+
+sub a:IREG b:IREG => dest:IRESULT  { @subu %dest, %a, %b; }
+sub a:IREG b:IMM16NEG => dest:IRESULT  { @addiu %dest, %a, -%b; }
+
+smul a:IREG b:IREG => dest:IRESULT  { @multu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
+umul a:IREG b:IREG => dest:IRESULT  { @multu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
+
+sdiv a:IREG b:IREG => dest:IRESULT  { @div SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
+udiv a:IREG b:IREG => dest:IRESULT  { @divu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
+smod a:IREG b:IREG => dest:IRESULT  { @div SYMREG_LO, SYMREG_HI, %a, %b; @mfhi %dest, SYMREG_HI; }
+umod a:IREG b:IREG => dest:IRESULT  { @divu SYMREG_LO, SYMREG_HI, %a, %b; @mfhi %dest, SYMREG_HI; }
+
+and a:IREG b:IREG => dest:IREG  { @and %dest, %a, %b; }
+and a:IREG b:IMM16U => dest:IREG  { @andi %dest, %a, %b; }
+or a:IREG b:IREG => dest:IREG  { @or %dest, %a, %b; }
+or a:IREG b:IMM16U => dest:IREG  { @ori %dest, %a, %b; }
+xor a:IREG b:IREG => dest:IREG  { @xor %dest, %a, %b; }
+not or a:IREG b:IREG => dest:IRESULT  { @nor %dest, %a, %b; }
+
+shl a:IREG b:IREG => dest:IRESULT  { @sllv %dest, %a, %b; }
+shl a:IREG b:IMM => dest:IRESULT  { @sll %dest, %a, %b; }
+shr a:IREG b:IREG => dest:IRESULT  { @srlv %dest, %a, %b; }
+shr a:IREG b:IMM => dest:IRESULT  { @srl %dest, %a, %b; }
+sar a:IREG b:IREG => dest:IRESULT  { @srav %dest, %a, %b; }
+sar a:IREG b:IMM => dest:IRESULT  { @sra %dest, %a, %b; }
+
+neg a:IREG => dest:IRESULT  { @sub %dest, SYMREG_ZERO, %a; }
+not a:IREG => dest:IRESULT  { @nor %dest, SYMREG_ZERO, %a; }
+
+sconvert src:IREG(8) => dest:IREG(16, 32)  { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
+sconvert src:IREG(8) => dest:IREG64  { @sll %dest:low, %src, 24; @sra %dest:low, %dest:low, 24; @sra %dest:high, %src, 31; }
+uconvert src:IREG(8) => dest:IREG(16, 32)  { @andi %dest, %src, 0xff; }
+uconvert src:IREG(8) => dest:IREG64  { @andi %dest:low, %src, 0xff; @ori %dest:high, SYMREG_ZERO, 0; }
+sconvert src:IREG(16) => dest:IREG(32)  { @sll %dest, %src, 16; @sra %dest, %dest, 16; }
+sconvert src:IREG(16) => dest:IREG64  { @sll %dest:low, %src, 16; @sra %dest:low, %dest:low, 16; @sra %dest:high, %src, 31; }
+uconvert src:IREG(16) => dest:IREG(32)  { @andi %dest, %src, 0xffff; }
+uconvert src:IREG(16) => dest:IREG64  { @andi %dest:low, %src, 0xffff; @ori %dest:high, SYMREG_ZERO, 0; }
+sconvert src:IREG(32) => dest:IREG64  { @addi %dest:low, %src, 0; @sra %dest:high, %src, 31; }
+uconvert src:IREG(32) => dest:IREG64  { @addi %dest:low, %src, 0; @ori %dest:high, SYMREG_ZERO, 0; }
+sconvert src:IREG(16,32) => dest:IREG(8) { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
+sconvert src:IREG64 => dest:IREG(8) { @sll %dest, %src:low, 24; @sra %dest, %dest, 24; }
+uconvert src:IREG(16,32) => dest:IREG(8) { @andi %dest, %src, 0xff; }
+uconvert src:IREG64 => dest:IREG(8) { @andi %dest, %src:low, 0xff; }
+sconvert src:IREG(32) => dest:IREG(16) { @sll %dest, %src, 16; @sra %dest, %dest, 16; }
+sconvert src:IREG64 => dest:IREG(16) { @sll %dest, %src:low, 16; @sra %dest, %dest, 16; }
+uconvert src:IREG(32) => dest:IREG(16) { @andi %dest, %src, 0xffff; }
+uconvert src:IREG64 => dest:IREG(16) { @andi %dest, %src:low, 0xffff; }
+sconvert src:IREG64 => dest:IREG(32) { @addi %dest, %src:low, 0; }
+uconvert src:IREG64 => dest:IREG(32) { @addi %dest, %src:low, 0; }
+
+syscall (num:IMM16U) reads:INPUT => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest);
+	@ori %numreg, SYMREG_ZERO, %num;
+	@syscall %numreg, writes, %reads;
+}
+
+syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest);
+	@addi %numreg, %num, 0;
+	@syscall %numreg, writes, %reads;
+}
+
+function void GenerateAntiDisassembly(SymInstrBlock* out)
+{
+}
+
+function TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
+	TreeNodeType resultType)
+{
+	if (m_settings.encodePointers)
+	{
+		// FIXME: Symbolic representation of return address is not there yet
+		return NULL;
+	}
+
+	// First try to place parameters in registers
+	uint32_t intParamRegs[5] = {INTEGER_PARAM_0, INTEGER_PARAM_1, INTEGER_PARAM_2, INTEGER_PARAM_3, SYMREG_NONE};
+	uint32_t curIntParamReg = 0;
+	vector<bool> paramOnStack;
+	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
+
+	for (size_t i = 0; i < params.size(); i++)
+	{
+		if (i >= fixedParams)
+		{
+			// Additional parameters to variable argument functions must be on stack
+			paramOnStack.push_back(true);
+			continue;
+		}
+
+		bool stackParam = false;
+		if (params[i]->GetClass() == NODE_UNDEFINED)
+		{
+			// Parameter is undefined, skip it
+			if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64))
+			{
+				if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+					stackParam = true;
+				else
+					curIntParamReg += 2;
+			}
+			else
+			{
+				if (intParamRegs[curIntParamReg] == SYMREG_NONE)
+					stackParam = true;
+				else
+					curIntParamReg++;
+			}
+
+			paramOnStack.push_back(stackParam);
+			continue;
+		}
+
+		if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64))
+		{
+			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+				stackParam = true;
+			else
+			{
+				uint32_t lowCls = intParamRegs[curIntParamReg++];
+				uint32_t highCls = intParamRegs[curIntParamReg++];
+				uint32_t lowReg = m_symFunc->AddRegister(lowCls);
+				uint32_t highReg = m_symFunc->AddRegister(highCls);
+				input->AddChildNode(TreeNode::CreateRegNode(lowReg, lowCls, NODETYPE_U32));
+				input->AddChildNode(TreeNode::CreateRegNode(highReg, highCls, NODETYPE_U32));
+
+				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateLargeRegNode(lowReg, highReg,
+					lowCls, highCls, params[i]->GetType()), params[i]));
+			}
+		}
+		else
+		{
+			if (intParamRegs[curIntParamReg] == SYMREG_NONE)
+				stackParam = true;
+			else
+			{
+				uint32_t cls = intParamRegs[curIntParamReg++];
+				uint32_t reg = m_symFunc->AddRegister(cls);
+				input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));
+
+				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(reg,
+					cls, params[i]->GetType()), params[i]));
+			}
+		}
+
+		paramOnStack.push_back(stackParam);
+	}
+
+	// Push parameters from right to left
+	size_t pushSize = 0;
+	for (int i = (int)params.size() - 1; i >= 0; i--)
+	{
+		if (!paramOnStack[i])
+			continue;
+
+		block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));
+
+		if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||
+			(params[i]->GetType() == NODETYPE_F64))
+			pushSize += 8;
+		else
+			pushSize += 4;
+	}
+
+	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_CALLVOID : NODE_CALL, resultType, func, input,
+		TreeNode::CreateImmediateNode(pushSize, NODETYPE_U32));
+}
+
+function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params, TreeNodeType resultType)
+{
+	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
+	size_t regIndex = 0;
+	const uint32_t paramClasses[4] = {SYSCALL_PARAM_0, SYSCALL_PARAM_1, SYSCALL_PARAM_2, SYSCALL_PARAM_3};
+	for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)
+	{
+		if ((*i)->GetClass() == NODE_UNDEFINED)
+		{
+			regIndex++;
+			if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
+				regIndex++;
+			if (regIndex > 4)
+				return NULL;
+			continue;
+		}
+
+		if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
+		{
+			if (regIndex > 2)
+				return NULL;
+			uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);
+			uint32_t highReg = m_symFunc->AddRegister(paramClasses[regIndex + 1]);
+			input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], NODETYPE_U32));
+			input->AddChildNode(TreeNode::CreateRegNode(highReg, paramClasses[regIndex + 1], NODETYPE_U32));
+
+			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateLargeRegNode(reg, highReg,
+				paramClasses[regIndex], paramClasses[regIndex + 1], (*i)->GetType()), *i));
+
+			regIndex += 2;
+		}
+		else
+		{
+			if (regIndex > 3)
+				return NULL;
+			uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);
+			input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], (*i)->GetType()));
+
+			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateRegNode(reg,
+				paramClasses[regIndex], (*i)->GetType()), *i));
+
+			regIndex++;
+		}
+	}
+
+	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL, resultType, num, input);
+}
+
+function void AssignRegisterVariable(Variable* var)
+{
+	uint32_t reg = m_symFunc->AddRegister(IREG, ILParameter::ReduceType(var->GetType()));
+	m_vars.registerVariables[var] = reg;
+
+	// 64-bit variables take two adjacent registers
+	if (var->GetType()->GetWidth() == 8)
+	{
+		uint32_t highReg = m_symFunc->AddRegister(IREG, ILParameter::ReduceType(var->GetType()), 4);
+		m_vars.highRegisterVariables[var] = highReg;
+	}
+}
+
+function void AssignParameters()
+{
+	// Generate parameter offsets
+	int64_t offset = 0;
+
+	if ((m_func->GetName() == "_start") && (m_settings.unsafeStack))
+		offset += UNSAFE_STACK_PIVOT;
+
+	uint32_t intParamRegs[5] = {INTEGER_PARAM_0, INTEGER_PARAM_1, INTEGER_PARAM_2, INTEGER_PARAM_3, SYMREG_NONE};
+	uint32_t curIntParamReg = 0;
+
+	for (size_t i = 0; i < m_func->GetParameters().size(); i++)
+	{
+		// Find variable object for this parameter
+		vector< Ref<Variable> >::const_iterator var = m_func->GetVariables().end();
+		for (vector< Ref<Variable> >::const_iterator j = m_func->GetVariables().begin(); j != m_func->GetVariables().end(); j++)
+		{
+			if ((*j)->IsParameter() && ((*j)->GetParameterIndex() == i))
+			{
+				var = j;
+				break;
+			}
+		}
+
+		size_t paramSize = (m_func->GetParameters()[i].type->GetWidth() + 3) & (~3);
+
+		// See if a register is used for this parameter
+		uint32_t reg = SYMREG_NONE;
+		uint32_t highReg = SYMREG_NONE;
+		if (paramSize <= 4)
+		{
+			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				if (var != m_func->GetVariables().end())
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+			}
+		}
+		else
+		{
+			if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				uint32_t highRegClass = intParamRegs[curIntParamReg++];
+				if (var != m_func->GetVariables().end())
+				{
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+					highReg = m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
+				}
+			}
+		}
+
+		if (var == m_func->GetVariables().end())
+		{
+			// Variable not named, so it won't be referenced
+			continue;
+		}
+
+		if (reg != SYMREG_NONE)
+		{
+			// If the variable has its address taken, it must be stored on the stack
+			bool addressTaken = false;
+			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
+			{
+				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
+					k != (*j)->GetInstructions().end(); k++)
+				{
+					if (k->operation != ILOP_ADDRESS_OF)
+						continue;
+					if (k->params[1].variable == *var)
+					{
+						addressTaken = true;
+						break;
+					}
+				}
+			}
+
+			if (addressTaken)
+			{
+				// Must spill register to stack
+				m_vars.stackVariables[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),
+					ILParameter::ReduceType((*var)->GetType()));
+
+				IncomingParameterCopy copy;
+				copy.var = *var;
+				copy.incomingReg = reg;
+				copy.incomingHighReg = highReg;
+				copy.stackVar = m_vars.stackVariables[*var];
+				m_paramCopy.push_back(copy);
+				continue;
+			}
+
+			m_vars.registerVariables[*var] = reg;
+			if (highReg != SYMREG_NONE)
+				m_vars.highRegisterVariables[*var] = highReg;
+
+			IncomingParameterCopy copy;
+			copy.var = *var;
+			copy.incomingReg = reg;
+			copy.incomingHighReg = highReg;
+			copy.stackVar = SYMREG_NONE;
+			m_paramCopy.push_back(copy);
+			continue;
+		}
+
+		// Allocate stack space for this parameter
+		int64_t paramOffset = offset;
+
+		if (m_settings.stackGrowsUp)
+		{
+			paramOffset = -paramOffset;
+			paramOffset += 4 - paramSize;
+		}
+
+		m_vars.stackVariables[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),
+			ILParameter::ReduceType((*var)->GetType()));
+
+		// Adjust offset for next parameter
+		offset += (*var)->GetType()->GetWidth();
+		if (offset & 3)
+			offset += 4 - (offset & 3);
+	}
+
+	// Generate a variable to mark the start of additional paramaters
+	int64_t paramOffset = offset;
+	if (m_settings.stackGrowsUp)
+		paramOffset = -paramOffset;
+	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
+}
+
+function bool GenerateFunctionStart(SymInstrBlock* out)
+{
+	if ((m_func->GetName() == "_start") && m_settings.unsafeStack)
+	{
+		// This is the start function, and we can't assume we have a safe stack (the code may be
+		// at or near the stack pointer), pivot the stack to make it safe
+		@addi SYMREG_SP, SYMREG_SP, -UNSAFE_STACK_PIVOT;
+	}
+
+	// Generate function prologue
+	if (m_framePointerEnabled)
+	{
+		@saveregs;
+		@addi SYMREG_BP, SYMREG_SP, 0;
+	}
+	else
+	{
+		@saveregs;
+	}
+
+	// Generate a pseudo instruction to ensure the incoming parameters are defined
+	vector<uint32_t> incomingRegs;
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+			continue;
+
+		incomingRegs.push_back(j->incomingReg);
+		if (j->var->GetType()->GetWidth() == 8)
+			incomingRegs.push_back(j->incomingReg + 1);
+	}
+
+	if (incomingRegs.size() != 0)
+		@regparam incomingRegs;
+
+	// Copy parameters into variables so that they can be spilled if needed
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+		{
+			// Parameter was spilled onto stack
+			switch (j->var->GetType()->GetWidth())
+			{
+			case 1:
+				@sbstack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 2:
+				@shstack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 4:
+				@swstack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 8:
+				if (m_settings.bigEndian)
+				{
+					@swstack j->incomingHighReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+					@swstack j->incomingReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(IREG);
+				}
+				else
+				{
+					@swstack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+					@swstack j->incomingHighReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(IREG);
+				}
+				break;
+			default:
+				fprintf(stderr, "error: spilling invalid parameter\n");
+				return false;
+			}
+		}
+		else
+		{
+			// Parameter is in an integer register
+			uint32_t newReg = TEMP_REGISTER(IREG);
+			uint32_t newHighReg = SYMREG_NONE;
+			if (j->var->GetType()->GetWidth() == 8)
+				newHighReg = TEMP_REGISTER(IREG);
+
+			@addi newReg, j->incomingReg, 0;
+			if (newHighReg != SYMREG_NONE)
+				@addi newHighReg, j->incomingHighReg, 0;
+			m_vars.registerVariables[j->var] = newReg;
+			if (newHighReg != SYMREG_NONE)
+				m_vars.highRegisterVariables[j->var] = newHighReg;
+		}
+	}
+
+	if (m_framePointerEnabled)
+	{
+		uint32_t temp = TEMP_REGISTER(IREG);
+		if (m_settings.stackGrowsUp)
+			@addstack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+		else
+			@substack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+	}
+
+	return true;
+}
+
+arch function set<uint32_t> GetRegisterClassInterferences(uint32_t cls)
+{
+	set<uint32_t> result;
+	return result;
+}
+
+arch function bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls)
+{
+	return false;
+}
+
+arch function void LayoutStackFrame()
+{
+	// Lay out stack variables
+	int64_t offset = 0;
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+
+		int64_t align = 1;
+		if (m_stackVarWidths[i] >= 4)
+			align = 4;
+		else if (m_stackVarWidths[i] >= 2)
+			align = 2;
+
+		if ((offset & (align - 1)) != 0)
+			offset += align - (offset & (align - 1));
+
+		m_stackVarOffsets[i] = offset;
+		offset += m_stackVarWidths[i];
+	}
+
+	// Ensure stack stays aligned on native boundary
+	if (offset & 3)
+		offset += 4 - (offset & 3);
+
+	m_stackFrameSize = offset;
+
+	// Adjust variable offsets to be relative to the frame pointer (negative offsets)
+	if (m_settings.stackGrowsUp)
+	{
+		for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+		{
+			if (!m_stackVarIsParam[i])
+				m_stackVarOffsets[i] -= offset;
+		}
+	}
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] += m_stackFrameSize;
+		else
+			m_stackVarOffsets[i] -= m_stackFrameSize;
+	}
+
+	// Account for callee saved registers
+	int32_t adjust = m_clobberedCalleeSavedRegs.size() * 4;
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (!m_stackVarIsParam[i])
+			continue;
+
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] -= adjust;
+		else
+			m_stackVarOffsets[i] += adjust;
+	}
+}
+
+arch function bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(IREG);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@lbstack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@lhstack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@lwstack reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(IREG);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@sbstack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@shstack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@swstack reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function void PrintRegister(uint32_t reg)
+{
+	if (reg == SYMREG_ZERO)
+		fprintf(stderr, "zero");
+	else if (reg == SYMREG_NATIVE_REG(REG_AT))
+		fprintf(stderr, "at");
+	else if ((reg >= SYMREG_NATIVE_REG(REG_V(0))) && (reg < SYMREG_NATIVE_REG(REG_V(2))))
+		fprintf(stderr, "v%d", reg - SYMREG_NATIVE_REG(REG_V(0)));
+	else if ((reg >= SYMREG_NATIVE_REG(REG_A(0))) && (reg < SYMREG_NATIVE_REG(REG_A(8))))
+		fprintf(stderr, "a%d", reg - SYMREG_NATIVE_REG(REG_A(0)));
+	else if ((reg >= SYMREG_NATIVE_REG(REG_T(0))) && (reg < SYMREG_NATIVE_REG(REG_T(8))))
+		fprintf(stderr, "t%d", reg - SYMREG_NATIVE_REG(REG_T(0)));
+	else if ((reg >= SYMREG_NATIVE_REG(REG_T(8))) && (reg < SYMREG_NATIVE_REG(REG_T(10))))
+		fprintf(stderr, "t%d", (reg - SYMREG_NATIVE_REG(REG_T(8))) + 8);
+	else if ((reg >= SYMREG_NATIVE_REG(REG_S(0))) && (reg < SYMREG_NATIVE_REG(REG_S(10))))
+		fprintf(stderr, "s%d", reg - SYMREG_NATIVE_REG(REG_S(0)));
+	else if ((reg >= SYMREG_NATIVE_REG(REG_K(0))) && (reg < SYMREG_NATIVE_REG(REG_K(2))))
+		fprintf(stderr, "k%d", reg - SYMREG_NATIVE_REG(REG_K(0)));
+	else if (reg == SYMREG_NATIVE_REG(REG_GP))
+		fprintf(stderr, "gp");
+	else if (reg == SYMREG_NATIVE_REG(REG_SP))
+		fprintf(stderr, "sp");
+	else if (reg == SYMREG_NATIVE_REG(REG_FP))
+		fprintf(stderr, "fp");
+	else if (reg == SYMREG_NATIVE_REG(REG_RA))
+		fprintf(stderr, "ra");
+	else if (reg == SYMREG_NATIVE_REG(REG_LO))
+		fprintf(stderr, "lo");
+	else if (reg == SYMREG_NATIVE_REG(REG_HI))
+		fprintf(stderr, "hi");
+	else
+		SymInstrFunction::PrintRegister(reg);
+}
+

@@ -5399,6 +5399,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		out->len = 0;
 		out->maxLen = 0;
 		out->randomLen = 0;
+		out->bigEndian = false;
 
 		if (!m_symFunc->GetBlock(*i)->EmitCode(m_symFunc, out))
 		{

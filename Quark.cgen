@@ -574,8 +574,6 @@ instr(writeflags) AntiDisassembly antidisasm temp:TEMP
 instr RegParam regparam regs:REGLIST(w) {} update { return true; }
 instr SymReturn symreturn low:REG(r) high:REG(r) {} update { return true; }
 
-var uint32_t m_varargStart;
-
 src:IMM17 => dest:IREG { @LoadImm %dest, %src; }
 src:IMM => dest:IREG { @LoadImm %dest, %src & 0xffff; @LoadImmHigh %dest, (%src >> 16) & 0xffff; }
 src:IMM17 => dest:IREG64 { @LoadImm %dest:low, %src; @LoadImm %dest:high, %src >> 32; }
@@ -929,7 +927,7 @@ sconvert src:FREG => dest:FREG { @Fmov %dest, %src; }
 sconvert src:IREG(8) => dest:IREG(16,32) { @Sxb %dest, %src; }
 sconvert src:IREG(8) => dest:IREG64 { @Sxb %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
 uconvert src:IREG(8) => dest:IREG(16,32) { @Zxb %dest, %src; }
-uconvert src:IREG(8) => dest:IREG64 { @Sxb %dest:low, %src; @LoadImm %dest:high, 0; }
+uconvert src:IREG(8) => dest:IREG64 { @Zxb %dest:low, %src; @LoadImm %dest:high, 0; }
 sconvert src:IREG(16) => dest:IREG(32) { @Sxh %dest, %src; }
 sconvert src:IREG(16) => dest:IREG64 { @Sxh %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
 uconvert src:IREG(16) => dest:IREG(32) { @Zxh %dest, %src; }

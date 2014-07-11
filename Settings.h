@@ -30,7 +30,8 @@
 enum Architecture
 {
 	ARCH_X86,
-	ARCH_QUARK
+	ARCH_QUARK,
+	ARCH_MIPS
 };
 
 enum OperatingSystem
@@ -74,6 +75,7 @@ struct Settings
 	OutputFormat format;
 	OptimizationLevel optimization;
 	uint32_t preferredBits;
+	bool bigEndian;
 
 	bool allowReturn;
 	bool unsafeStack;

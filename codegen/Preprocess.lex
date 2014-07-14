@@ -151,6 +151,7 @@
 "<<"		TOKSTR(TOKEN, yytext)
 ">>"		TOKSTR(TOKEN, yytext)
 "=>"		TOKSTR(TOKEN, yytext)
+"::"		TOKSTR(TOKEN, yytext)
 
 "##"		TOK(PASTE)
 
@@ -178,6 +179,7 @@
 						TOKSTR(ID, yytext);
 				}
 \@[[:alpha:]_][[:alnum:]_]*				TOKSTR(TOKEN, yytext)
+\%[[:alpha:]_][[:alnum:]_]*\:			TOKSTR(TOKEN, yytext)
 \%[[:alpha:]_][[:alnum:]_]*				TOKSTR(TOKEN, yytext)
 
 .		TOK(_ERROR)

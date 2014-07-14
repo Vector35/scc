@@ -74,12 +74,15 @@ struct ParameterLocation
 	uint32_t reg;
 };
 
+class SymInstrFunction;
+
 struct VariableAssignments
 {
 	uint32_t stackVariableBase;
 	std::map<Variable*, int32_t> stackVariables;
 	std::map<Variable*, uint32_t> registerVariables;
 	std::map<Variable*, uint32_t> highRegisterVariables;
+	SymInstrFunction* function;
 };
 
 class TreeBlock;

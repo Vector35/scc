@@ -40,6 +40,8 @@ TreeNode::TreeNode(const TreeNode& copy)
 	m_func = copy.m_func;
 	m_reg = copy.m_reg;
 	m_highReg = copy.m_highReg;
+	m_regClass = copy.m_regClass;
+	m_highRegClass = copy.m_highRegClass;
 	m_var = copy.m_var;
 	m_immediate = copy.m_immediate;
 	for (vector< Ref<TreeNode> >::const_iterator i = copy.m_children.begin(); i != copy.m_children.end(); ++i)
@@ -107,21 +109,24 @@ TreeNode* TreeNode::CreateFunctionNode(Function* func)
 }
 
 
-TreeNode* TreeNode::CreateRegNode(uint32_t reg, TreeNodeType type)
+TreeNode* TreeNode::CreateRegNode(uint32_t reg, uint32_t regClass, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(NODE_REG);
 	result->SetType(type);
 	result->SetRegister(reg);
+	result->SetRegisterClass(reg);
 	return result;
 }
 
 
-TreeNode* TreeNode::CreateLargeRegNode(uint32_t low, uint32_t high, TreeNodeType type)
+TreeNode* TreeNode::CreateLargeRegNode(uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(NODE_LARGE_REG);
 	result->SetType(type);
 	result->SetRegister(low);
 	result->SetHighRegister(high);
+	result->SetRegisterClass(lowClass);
+	result->SetHighRegisterClass(highClass);
 	return result;
 }
 
@@ -130,43 +135,6 @@ TreeNode* TreeNode::CreateImmediateNode(int64_t immed)
 {
 	TreeNode* result = new TreeNode(NODE_IMMED);
 	result->SetImmediate(immed);
-	return result;
-}
-
-
-TreeNode* TreeNode::CreateLoadNode(TreeNode* src, TreeNodeType type)
-{
-	TreeNode* result = new TreeNode(NODE_LOAD);
-	result->SetType(type);
-	result->AddChildNode(src);
-	return result;
-}
-
-
-TreeNode* TreeNode::CreateStoreNode(TreeNode* dest, TreeNode* val, TreeNodeType type)
-{
-	TreeNode* result = new TreeNode(NODE_STORE);
-	result->SetType(type);
-	result->AddChildNode(dest);
-	result->AddChildNode(val);
-	return result;
-}
-
-
-TreeNode* TreeNode::CreateSignedConvertNode(TreeNode* val, TreeNodeType destType)
-{
-	TreeNode* result = new TreeNode(NODE_SCONVERT);
-	result->SetType(destType);
-	result->AddChildNode(val);
-	return result;
-}
-
-
-TreeNode* TreeNode::CreateUnsignedConvertNode(TreeNode* val, TreeNodeType destType)
-{
-	TreeNode* result = new TreeNode(NODE_UCONVERT);
-	result->SetType(destType);
-	result->AddChildNode(val);
 	return result;
 }
 
@@ -193,33 +161,37 @@ TreeNode* TreeNode::CreateSyscallNode(TreeNode* num, const std::vector< Ref<Tree
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls)
+TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(cls);
+	result->SetType(type);
 	return result;
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a)
+TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a)
 {
 	TreeNode* result = new TreeNode(cls);
+	result->SetType(type);
 	result->AddChildNode(a);
 	return result;
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b)
+TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b)
 {
 	TreeNode* result = new TreeNode(cls);
+	result->SetType(type);
 	result->AddChildNode(a);
 	result->AddChildNode(b);
 	return result;
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c)
+TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c)
 {
 	TreeNode* result = new TreeNode(cls);
+	result->SetType(type);
 	result->AddChildNode(a);
 	result->AddChildNode(b);
 	result->AddChildNode(c);
@@ -227,9 +199,10 @@ TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, Tree
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d)
+TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d)
 {
 	TreeNode* result = new TreeNode(cls);
+	result->SetType(type);
 	result->AddChildNode(a);
 	result->AddChildNode(b);
 	result->AddChildNode(c);
@@ -289,6 +262,9 @@ void TreeNode::Print() const
 {
 	switch (m_class)
 	{
+	case NODE_NOP:
+		fprintf(stderr, "nop");
+		break;
 	case NODE_STACK_VAR:
 		fprintf(stderr, "stack:");
 		switch (m_reg)

@@ -29,11 +29,14 @@ struct VariableAssignments;
 
 class TreeBlock: public RefCountObject
 {
+	ILBlock* m_source;
 	size_t m_index;
 	std::vector< Ref<TreeNode> > m_nodes;
 	size_t m_errors;
+	TreeNodeType m_ptrType;
 
 	bool GetMemberVariableAndOffset(ILParameter& operand, Variable*& var, size_t& offset, Type*& type);
+	TreeNodeType GetPtrType();
 	TreeNodeType VariableTypeToNodeType(Type* type);
 	TreeNodeType OperandToNodeType(ILParameter& operand);
 	TreeNode* OperandToNode(const VariableAssignments& vars, ILParameter& operand);
@@ -44,8 +47,9 @@ class TreeBlock: public RefCountObject
 	TreeNodeType DoubleTypeSize(TreeNodeType type);
 
 public:
-	TreeBlock(size_t idx);
+	TreeBlock(ILBlock* source, size_t idx);
 
+	ILBlock* GetSource() const { return m_source; }
 	size_t GetIndex() const { return m_index; }
 
 	void AddNode(TreeNode* node);

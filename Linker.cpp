@@ -30,7 +30,6 @@
 #include "Optimize.h"
 #include "OutputX86.h"
 #include "OutputX64.h"
-#include "OutputQuark.h"
 #include "ElfOutput.h"
 #include "MachOOutput.h"
 
@@ -73,6 +72,9 @@ extern unsigned int Obj_windows_quark_lib_len;
 
 extern int Code_parse(ParserState* state);
 extern void Code_set_lineno(int line, void* yyscanner);
+
+
+extern Output* CreateQuarkCodeGen(const Settings& settings, Function* startFunc);
 
 
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
@@ -1068,7 +1070,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	}
 	else if (m_settings.architecture == ARCH_QUARK)
 	{
-		out[SUBARCH_DEFAULT] = new OutputQuark(m_settings, m_startFunction);
+		out[SUBARCH_DEFAULT] = CreateQuarkCodeGen(m_settings, m_startFunction);
 	}
 	else
 	{

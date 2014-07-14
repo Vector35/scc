@@ -25,6 +25,7 @@
 #include "ParserState.h"
 #include "CodegenParser.h"
 #include "CodegenLexer.h"
+#include "OutputGenerator.h"
 
 using namespace std;
 
@@ -108,11 +109,17 @@ int main(int argc, char* argv[])
 	if (!ok)
 		return 1;
 
+	parser.ExpandTempRegisterClasses();
+
 	if (parser.GetArchName().size() == 0)
 	{
 		fprintf(stderr, "%s: error: no architecture name specified\n", inFile.c_str());
 		return 1;
 	}
+
+	OutputGenerator gen(&parser);
+	if (!gen.Generate(out))
+		return 1;
 
 	fp = fopen(outFile.c_str(), "w");
 	if (!fp)

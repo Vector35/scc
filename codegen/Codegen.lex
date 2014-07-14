@@ -50,7 +50,6 @@
 %}
 
 %option noyywrap
-%option case-insensitive
 
 %%
 
@@ -136,6 +135,7 @@
 "!"		TOKSTR(OPERATOR, yytext)
 "<<"		TOKSTR(OPERATOR, yytext)
 ">>"		TOKSTR(OPERATOR, yytext)
+"::"		TOKSTR(OPERATOR, yytext)
 
 ","		TOK(COMMA)
 ":"		TOK(COLON)
@@ -154,6 +154,7 @@ largeregisterclass	TOK(LARGEREGISTERCLASS)
 tempregisterclass	TOK(TEMPREGISTERCLASS)
 immediateclass		TOK(IMMEDIATECLASS)
 function			TOK(FUNCTION)
+var					TOK(VAR_TOK)
 
 int8	TOK(INT8_TOK)
 int16	TOK(INT16_TOK)
@@ -248,6 +249,7 @@ atan	TOK(ATAN_TOK)
 \"([^\"\r\n]*(\\\")?)*\"			TOKQUOTEDSTR(STRING_VAL, yytext)
 \'([^\'\r\n]*(\\\')?)*\'			TOKQUOTEDSTR(CHAR_VAL, yytext)
 [[:alpha:]_][[:alnum:]_]*			TOKSTR(ID, yytext)
+\%[[:alpha:]_][[:alnum:]_]*\:		TOKQUOTEDSTR(ARG_ID_COLON, yytext)
 \%[[:alpha:]_][[:alnum:]_]*			TOKSTR(ARG_ID, &yytext[1])
 \@[[:alpha:]_][[:alnum:]_]*			TOKSTR(INSTR_ID, &yytext[1])
 

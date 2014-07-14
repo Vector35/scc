@@ -1,4 +1,4 @@
-arch quark
+arch Quark
 registerclass int32 IREG QUARKREGCLASS_INTEGER
 registerclass float FREG QUARKREGCLASS_FLOAT
 largeregisterclass int64 IREG64 QUARKREGCLASS_INTEGER QUARKREGCLASS_INTEGER
@@ -30,6 +30,8 @@ immediateclass IMM17
 		return false;
 	return true;
 }
+
+var uint32_t m_varargStart;
 
 src:IMM17 => dest:IREG { @LoadImm %dest, %src; }
 src:IMM => dest:IREG { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
@@ -286,7 +288,7 @@ uconvert src:IREG64 => dest:IREG(16) { @Zxw %dest, %src:low; }
 sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 
-function void GenerateReturnVoid(SymInstrBlock* out)
+function bool GenerateReturnVoid(SymInstrBlock* out)
 {
 	// Restore frame pointer (if present) and adjust stack
 	if (m_framePointerEnabled)
@@ -350,4 +352,283 @@ FLOAT_INSTR(tan, Ftan, FtanImmed)
 FLOAT_INSTR(asin, Fasin, FasinImmed)
 FLOAT_INSTR(acos, Facos, FacosImmed)
 FLOAT_INSTR(atan, Fatan, FatanImmed)
+
+function void GenerateAntiDisassembly(SymInstrBlock* out)
+{
+	@AntiDisassembly TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+}
+
+function void AssignRegisterVariable(Variable* var)
+{
+	uint32_t reg = m_symFunc->AddRegister((var->GetType()->GetClass() == TYPE_FLOAT) ?
+		QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER, ILParameter::ReduceType(var->GetType()));
+	m_vars.registerVariables[var] = reg;
+
+	// 64-bit variables take two adjacent registers
+	if ((var->GetType()->GetWidth() == 8) && (var->GetType()->GetClass() != TYPE_FLOAT))
+	{
+		uint32_t highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, ILParameter::ReduceType(var->GetType()), 4);
+		m_vars.highRegisterVariables[var] = highReg;
+	}
+}
+
+function void AssignParameters()
+{
+	// Generate parameter offsets
+	int64_t offset = 0;
+
+	if ((m_func->GetName() == "_start") && (m_settings.unsafeStack))
+		offset += UNSAFE_STACK_PIVOT;
+
+	uint32_t intParamRegs[9] = {QUARKREGCLASS_INTEGER_PARAM_0, QUARKREGCLASS_INTEGER_PARAM_1, QUARKREGCLASS_INTEGER_PARAM_2,
+		QUARKREGCLASS_INTEGER_PARAM_3, QUARKREGCLASS_INTEGER_PARAM_4, QUARKREGCLASS_INTEGER_PARAM_5, QUARKREGCLASS_INTEGER_PARAM_6,
+		QUARKREGCLASS_INTEGER_PARAM_7, SYMREG_NONE};
+	uint32_t floatParamRegs[9] = {QUARKREGCLASS_FLOAT_PARAM_0, QUARKREGCLASS_FLOAT_PARAM_1, QUARKREGCLASS_FLOAT_PARAM_2,
+		QUARKREGCLASS_FLOAT_PARAM_3, QUARKREGCLASS_FLOAT_PARAM_4, QUARKREGCLASS_FLOAT_PARAM_5, QUARKREGCLASS_FLOAT_PARAM_6,
+		QUARKREGCLASS_FLOAT_PARAM_7, SYMREG_NONE};
+	uint32_t curIntParamReg = 0;
+	uint32_t curFloatParamReg = 0;
+
+	for (size_t i = 0; i < m_func->GetParameters().size(); i++)
+	{
+		// Find variable object for this parameter
+		vector< Ref<Variable> >::const_iterator var = m_func->GetVariables().end();
+		for (vector< Ref<Variable> >::const_iterator j = m_func->GetVariables().begin(); j != m_func->GetVariables().end(); j++)
+		{
+			if ((*j)->IsParameter() && ((*j)->GetParameterIndex() == i))
+			{
+				var = j;
+				break;
+			}
+		}
+
+		size_t paramSize = (m_func->GetParameters()[i].type->GetWidth() + 3) & (~3);
+
+		// See if a register is used for this parameter
+		uint32_t reg = SYMREG_NONE;
+		uint32_t highReg = SYMREG_NONE;
+		if (m_func->GetParameters()[i].type->IsFloat())
+		{
+			if (floatParamRegs[curFloatParamReg] != SYMREG_NONE)
+			{
+				uint32_t regClass = floatParamRegs[curFloatParamReg++];
+				if (var != m_func->GetVariables().end())
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+			}
+		}
+		else if (paramSize <= 4)
+		{
+			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				if (var != m_func->GetVariables().end())
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+			}
+		}
+		else
+		{
+			if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
+			{
+				uint32_t regClass = intParamRegs[curIntParamReg++];
+				uint32_t highRegClass = intParamRegs[curIntParamReg++];
+				if (var != m_func->GetVariables().end())
+				{
+					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+					highReg = m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
+				}
+			}
+		}
+
+		if (var == m_func->GetVariables().end())
+		{
+			// Variable not named, so it won't be referenced
+			continue;
+		}
+
+		if (reg != SYMREG_NONE)
+		{
+			// If the variable has its address taken, it must be stored on the stack
+			bool addressTaken = false;
+			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
+			{
+				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
+					k != (*j)->GetInstructions().end(); k++)
+				{
+					if (k->operation != ILOP_ADDRESS_OF)
+						continue;
+					if (k->params[1].variable == *var)
+					{
+						addressTaken = true;
+						break;
+					}
+				}
+			}
+
+			if (addressTaken)
+			{
+				// Must spill register to stack
+				m_vars.stackVariables[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),
+					ILParameter::ReduceType((*var)->GetType()));
+
+				IncomingParameterCopy copy;
+				copy.var = *var;
+				copy.incomingReg = reg;
+				copy.incomingHighReg = highReg;
+				copy.stackVar = m_vars.stackVariables[*var];
+				m_paramCopy.push_back(copy);
+				continue;
+			}
+
+			m_vars.registerVariables[*var] = reg;
+			if (highReg != SYMREG_NONE)
+				m_vars.highRegisterVariables[*var] = highReg;
+
+			IncomingParameterCopy copy;
+			copy.var = *var;
+			copy.incomingReg = reg;
+			copy.incomingHighReg = highReg;
+			copy.stackVar = SYMREG_NONE;
+			m_paramCopy.push_back(copy);
+			continue;
+		}
+
+		// Allocate stack space for this parameter
+		int64_t paramOffset = offset;
+
+		if (m_settings.stackGrowsUp)
+		{
+			paramOffset = -paramOffset;
+			paramOffset += 4 - paramSize;
+		}
+
+		m_vars.stackVariables[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),
+			ILParameter::ReduceType((*var)->GetType()));
+
+		// Adjust offset for next parameter
+		offset += (*var)->GetType()->GetWidth();
+		if (offset & 3)
+			offset += 4 - (offset & 3);
+	}
+
+	// Generate a variable to mark the start of additional paramaters
+	int64_t paramOffset = offset;
+	if (m_settings.stackGrowsUp)
+		paramOffset = -paramOffset;
+	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
+}
+
+function bool GenerateFunctionStart(SymInstrBlock* out)
+{
+	if ((m_func->GetName() == "_start") && m_settings.unsafeStack)
+	{
+		// This is the start function, and we can't assume we have a safe stack (the code may be
+		// at or near the stack pointer), pivot the stack to make it safe
+		@Sub SYMREG_SP, SYMREG_SP, UNSAFE_STACK_PIVOT;
+	}
+
+	// Generate function prologue
+	if (m_framePointerEnabled)
+	{
+		@SaveCalleeSavedRegs;
+		@Mov SYMREG_BP, SYMREG_SP, 0;
+	}
+	else
+	{
+		@SaveCalleeSavedRegs;
+	}
+
+	// Generate a pseudo instruction to ensure the incoming parameters are defined
+	vector<uint32_t> incomingRegs;
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+			continue;
+
+		incomingRegs.push_back(j->incomingReg);
+		if (j->var->GetType()->GetWidth() == 8)
+			incomingRegs.push_back(j->incomingReg + 1);
+	}
+
+	if (incomingRegs.size() != 0)
+		@RegParam incomingRegs;
+
+	// Copy parameters into variables so that they can be spilled if needed
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+		{
+			// Parameter was spilled onto stack
+			if (j->var->GetType()->IsFloat())
+			{
+				switch (j->var->GetType()->GetWidth())
+				{
+				case 4:
+					@StoreStackFS j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_FLOAT);
+					break;
+				case 8:
+					@StoreStackFD j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_FLOAT);
+					break;
+				default:
+					fprintf(stderr, "error: spilling invalid parameter\n");
+					return false;
+				}
+			}
+			else
+			{
+				switch (j->var->GetType()->GetWidth())
+				{
+				case 1:
+					@StoreStack8 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					break;
+				case 2:
+					@StoreStack16 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					break;
+				case 4:
+					@StoreStack32 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					break;
+				case 8:
+					@StoreStack32 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					@StoreStack32 j->incomingHighReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					break;
+				default:
+					fprintf(stderr, "error: spilling invalid parameter\n");
+					return false;
+				}
+			}
+		}
+		else if (j->var->GetType()->IsFloat())
+		{
+			// Parameter is in a floating point register
+			uint32_t newReg = TEMP_REGISTER(QUARKREGCLASS_FLOAT);
+			@Fmov newReg, j->incomingReg;
+			m_vars.registerVariables[j->var] = newReg;
+		}
+		else
+		{
+			// Parameter is in an integer register
+			uint32_t newReg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+			uint32_t newHighReg = SYMREG_NONE;
+			if (j->var->GetType()->GetWidth() == 8)
+				newHighReg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+
+			@Mov newReg, j->incomingReg, 0;
+			if (newHighReg != SYMREG_NONE)
+				@Mov newHighReg, j->incomingHighReg, 0;
+			m_vars.registerVariables[j->var] = newReg;
+			if (newHighReg != SYMREG_NONE)
+				m_vars.highRegisterVariables[j->var] = newHighReg;
+		}
+	}
+
+	if (m_framePointerEnabled)
+	{
+		uint32_t temp = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+		if (m_settings.stackGrowsUp)
+			@AddStack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+		else
+			@SubStack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+	}
+
+	return true;
+}
 

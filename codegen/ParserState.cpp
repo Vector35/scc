@@ -109,12 +109,99 @@ void ParserState::DefineFunction(CodeBlock* func)
 }
 
 
+void ParserState::DefineVariable(CodeBlock* var)
+{
+	m_vars.push_back(var);
+}
+
+
 void ParserState::DefineMatch(TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code)
 {
+	if (match->GetClass() == NODE_REG)
+	{
+		if (!result)
+		{
+			Error();
+			fprintf(stderr, "%s:%d: error: result match required\n", GetFileName().c_str(), GetLineNumber());
+			return;
+		}
+
+		RegisterClass* regClass = GetRegisterClass(match->GetTypeName());
+		if (regClass && (regClass->GetClassType() == REGCLASS_TEMP))
+		{
+			if (temp)
+				m_tempRegMatches.push_back(new Match(match, result, temp->GetChildNodes(), code));
+			else
+				m_tempRegMatches.push_back(new Match(match, result, vector< Ref<TreeNode> >(), code));
+			return;
+		}
+	}
+	else if (result)
+	{
+		match->SetSizeFlags(match->GetSizeFlags() & result->GetSizeFlags());
+	}
+
 	if (temp)
 		m_matches.push_back(new Match(match, result, temp->GetChildNodes(), code));
 	else
 		m_matches.push_back(new Match(match, result, vector< Ref<TreeNode> >(), code));
+}
+
+
+void ParserState::ExpandTempRegisterClasses()
+{
+	vector< Ref<Match> > expanded;
+
+	for (vector< Ref<Match> >::iterator i = m_matches.begin(); i != m_matches.end(); ++i)
+	{
+		if (!(*i)->GetResult())
+		{
+			expanded.push_back(*i);
+			continue;
+		}
+
+		RegisterClass* regClass = GetRegisterClass((*i)->GetResult()->GetTypeName());
+		if (regClass->GetClassType() != REGCLASS_TEMP)
+		{
+			expanded.push_back(*i);
+			continue;
+		}
+
+		// Rule has a result of a temporary register class, expand using the temporary register class rules
+		for (vector< Ref<Match> >::iterator j = m_tempRegMatches.begin(); j != m_tempRegMatches.end(); ++j)
+		{
+			vector< Ref<TreeNode> > temp = (*i)->GetTemps();
+			for (vector< Ref<TreeNode> >::const_iterator k = (*j)->GetTemps().begin(); k != (*j)->GetTemps().end(); ++k)
+			{
+				TreeNode* newTemp = new TreeNode(**k);
+				newTemp->SetName(string("_t_") + newTemp->GetName());
+				temp.push_back(newTemp);
+			}
+
+			Ref<TreeNode> intermediate = new TreeNode(*(*j)->GetMatch());
+			intermediate->SetName(string("_t_") + intermediate->GetName());
+			temp.push_back(intermediate);
+
+			Ref<TreeNode> finalResult = new TreeNode(*(*j)->GetResult());
+			finalResult->SetName(string("_t_") + finalResult->GetName());
+
+			Ref<CodeBlock> code = new CodeBlock(*(*i)->GetCode());
+			code->ReplaceVar((*i)->GetResult()->GetName(), intermediate->GetName());
+
+			Ref<CodeBlock> tempRegCode = new CodeBlock(*(*j)->GetCode());
+			tempRegCode->ReplaceVar((*j)->GetMatch()->GetName(), intermediate->GetName());
+			tempRegCode->ReplaceVar((*j)->GetResult()->GetName(), finalResult->GetName());
+			code->AddTokens(tempRegCode->GetTokens());
+
+			Ref<TreeNode> match = new TreeNode(*(*i)->GetMatch());
+			match->SetSizeFlags(match->GetSizeFlags() & finalResult->GetSizeFlags());
+
+			Ref<Match> newMatch = new Match(match, finalResult, temp, code);
+			expanded.push_back(newMatch);
+		}
+	}
+
+	m_matches = expanded;
 }
 
 

@@ -44,7 +44,9 @@ class ParserState
 	std::map< std::string, Ref<RegisterClass> > m_regClasses;
 	std::map< std::string, Ref<CodeBlock> > m_immClasses;
 	std::vector< Ref<CodeBlock> > m_funcs;
+	std::vector< Ref<CodeBlock> > m_vars;
 	std::vector< Ref<Match> > m_matches;
+	std::vector< Ref<Match> > m_tempRegMatches;
 
 public:
 	ParserState(const std::string& name, void* scanner);
@@ -74,14 +76,20 @@ public:
 	void DefineImmediateClass(const std::string& name, CodeBlock* code);
 
 	void DefineFunction(CodeBlock* func);
+	void DefineVariable(CodeBlock* var);
 
 	void DefineMatch(TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code);
 
+	void ExpandTempRegisterClasses();
+
 	RegisterClass* GetRegisterClass(const std::string& name) const;
+	bool IsRegisterClass(const std::string& name) const { return GetRegisterClass(name) != NULL; }
 	CodeBlock* GetImmediateClass(const std::string& name) const;
+	bool IsImmediateClass(const std::string& name) const { return GetImmediateClass(name) != NULL; }
 	const std::map< std::string, Ref<RegisterClass> >& GetRegisterClasses() const { return m_regClasses; }
 	const std::map< std::string, Ref<CodeBlock> >& GetImmediateClasses() const { return m_immClasses; }
 	const std::vector< Ref<CodeBlock> >& GetFunctions() const { return m_funcs; }
+	const std::vector< Ref<CodeBlock> >& GetVariables() const { return m_vars; }
 	const std::vector< Ref<Match> >& GetMatches() const { return m_matches; }
 };
 

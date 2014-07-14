@@ -227,7 +227,7 @@ bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignment
 {
 	m_treeBlocks.clear();
 	for (size_t i = 0; i < m_ilBlocks.size(); i++)
-		m_treeBlocks.push_back(new TreeBlock(i));
+		m_treeBlocks.push_back(new TreeBlock(m_ilBlocks[i], i));
 
 	bool ok = true;
 	for (size_t i = 0; i < m_ilBlocks.size(); i++)

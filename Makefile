@@ -293,7 +293,7 @@ $(CODEGEN_PARSE_OBJS): Obj/%Parser.o: %.y Makefile | Obj/codegen/
 
 $(SCC_CODEGEN_OBJS): Obj/%CodeGen.o: %.cgen $(CODEGEN) Makefile | Obj/
 	$(CODEGEN) -o Obj/$*CodeGen.cpp $<
-	$(call COMPILE,$(CXX),$(CPPFLAGS),-IObj -Iasmx86,Obj/$*CodeGen.cpp,$*CodeGen)
+	$(call COMPILE,$(CXX),$(CPPFLAGS),-I. -IObj -Iasmx86,Obj/$*CodeGen.cpp,$*CodeGen)
 
 Obj/Bootstrap.cpp: Bootstrap.inc Makefile | Obj/
 	cp Bootstrap.inc Obj/Bootstrap.cpp
@@ -313,7 +313,7 @@ $(CODEGEN): $(CODEGEN_OBJS) $(CODEGEN_LEX_OBJS) $(CODEGEN_PARSE_OBJS) Makefile |
 	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(CODEGEN)) $(CODEGEN_OBJS) $(CODEGEN_LEX_OBJS) $(CODEGEN_PARSE_OBJS)
 
 $(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o Makefile | Obj/
-	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(BOOTSTRAP)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o
+	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(BOOTSTRAP)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(VERSION_OBJ) Obj/Bootstrap.o
 
 $(TARGET): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
 	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(TARGET)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)

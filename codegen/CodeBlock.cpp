@@ -91,6 +91,12 @@ CodeBlock::CodeBlock()
 }
 
 
+CodeBlock::CodeBlock(const CodeBlock& copy)
+{
+	m_tokens = copy.m_tokens;
+}
+
+
 void CodeBlock::AddTextToken(const string& text)
 {
 	CodeToken token;
@@ -164,5 +170,18 @@ void CodeBlock::AddTokens(const vector<CodeToken>& tokens)
 {
 	for (vector<CodeToken>::const_iterator i = tokens.begin(); i != tokens.end(); ++i)
 		AddToken(*i);
+}
+
+
+void CodeBlock::ReplaceVar(const std::string& from, const std::string& to)
+{
+	for (vector<CodeToken>::iterator i = m_tokens.begin(); i != m_tokens.end(); ++i)
+	{
+		if ((i->type != TOKEN_VAR) && (i->type != TOKEN_VAR_LOW) && (i->type != TOKEN_VAR_HIGH) && (i->type == TOKEN_VAR_OFFSET))
+			continue;
+		if (i->name != from)
+			continue;
+		i->name = to;
+	}
 }
 

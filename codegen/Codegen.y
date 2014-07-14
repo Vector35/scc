@@ -80,7 +80,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %token IMMEDIATECLASS
 %token INT8_TOK INT16_TOK INT32_TOK INT64_TOK FLOAT_TOK LOW_TOK HIGH_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
-%token FUNCTION
+%token FUNCTION VAR_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
 %token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK SCONVERT_TOK UCONVERT_TOK RETURN_TOK RETURNVOID_TOK ALLOCA_TOK
@@ -92,18 +92,18 @@ void Codegen_error(ParserState* state, const char* msg)
 %token <floatval> FLOAT_VAL
 %token <floatval> DOUBLE_VAL
 %token <str> STRING_VAL CHAR_VAL
-%token <str> ID ARG_ID INSTR_ID OPERATOR
+%token <str> ID ARG_ID ARG_ID_COLON INSTR_ID OPERATOR
 
 %type <registerType> register_type
 %type <code> code code_stmt_list code_stmt token_list function_type_list function_arg_list
-%type <token> token function_type_token function_arg_token
+%type <token> token function_type_token function_arg_token keyword_token
 %type <node> match tree temp_list
 %type <intval> match_type match_type_list
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
-%destructor { free($$); } ID ARG_ID INSTR_ID
+%destructor { free($$); } ID ARG_ID ARG_ID_COLON INSTR_ID
 %destructor { $$->Release(); } code code_stmt_list code_stmt token_list function_type_list function_arg_list
-%destructor { delete $$; } token function_type_token function_arg_token
+%destructor { delete $$; } token function_type_token function_arg_token keyword_token
 %destructor { $$->Release(); } match tree temp_list
 
 %%
@@ -118,6 +118,7 @@ toplevel_stmt_list: toplevel_stmt_list toplevel_stmt
 
 toplevel_stmt: class_stmt
 			 | function_stmt
+			 | var_stmt
 			 | match_stmt
 			 | ARCH_TOK ID  { state->SetArchName($2); free($2); }
 			 ;	
@@ -150,7 +151,7 @@ code_stmt_list: code_stmt_list code_stmt  { $$ = $1; $$->AddTokens($2->GetTokens
 			  ;
 
 code_stmt: token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
-		 | SEMICOLON  { $$ = new CodeBlock; $$->AddRef(); $$->AddTextToken("{"); }
+		 | SEMICOLON  { $$ = new CodeBlock; $$->AddRef(); $$->AddTextToken(";"); }
 		 | LBRACE code_stmt_list RBRACE
 		 	{
 				$$ = new CodeBlock;
@@ -190,13 +191,13 @@ token: ID  { $$ = CodeToken::CreateTextToken($1); free($1); }
 	 | INT_VAL
 	 	{
 			char str[32];
-			sprintf(str, "%" PRIx64 "u", $1);
+			sprintf(str, "%" PRId64, $1);
 			$$ = CodeToken::CreateTextToken(str);
 		}
 	 | INT64_VAL
 	 	{
 			char str[32];
-			sprintf(str, "%" PRIx64 "uLL", $1);
+			sprintf(str, "%" PRId64 "LL", $1);
 			$$ = CodeToken::CreateTextToken(str);
 		}
 	 | STRING_VAL
@@ -210,79 +211,85 @@ token: ID  { $$ = CodeToken::CreateTextToken($1); free($1); }
 			free($1);
 		}
 	 | ARG_ID  { $$ = CodeToken::CreateVarToken($1); free($1); }
-	 | ARG_ID COLON LOW_TOK  { $$ = CodeToken::CreateVarLowToken($1); free($1); }
-	 | ARG_ID COLON HIGH_TOK  { $$ = CodeToken::CreateVarHighToken($1); free($1); }
-	 | ARG_ID COLON INT_VAL  { $$ = CodeToken::CreateVarOffsetToken($1, (int)$3); free($1); }
+	 | ARG_ID_COLON LOW_TOK  { $$ = CodeToken::CreateVarLowToken($1); free($1); }
+	 | ARG_ID_COLON HIGH_TOK  { $$ = CodeToken::CreateVarHighToken($1); free($1); }
+	 | ARG_ID_COLON INT_VAL  { $$ = CodeToken::CreateVarOffsetToken($1, (int)$2); free($1); }
 	 | OPERATOR  { $$ = CodeToken::CreateTextToken($1); free($1); }
+	 | COLON  { $$ = CodeToken::CreateTextToken(":"); }
 	 | COMMA  { $$ = CodeToken::CreateTextToken(","); }
 	 | LPAREN  { $$ = CodeToken::CreateTextToken("("); }
 	 | RPAREN  { $$ = CodeToken::CreateTextToken(")"); }
 	 | LBRACKET  { $$ = CodeToken::CreateTextToken("["); }
 	 | RBRACKET  { $$ = CodeToken::CreateTextToken("]"); }
-	 | SIGNED8  { $$ = CodeToken::CreateTextToken("S8"); }
-	 | UNSIGNED8  { $$ = CodeToken::CreateTextToken("U8"); }
-	 | SIGNED16  { $$ = CodeToken::CreateTextToken("S16"); }
-	 | UNSIGNED16  { $$ = CodeToken::CreateTextToken("U16"); }
-	 | SIGNED32  { $$ = CodeToken::CreateTextToken("S32"); }
-	 | UNSIGNED32  { $$ = CodeToken::CreateTextToken("U32"); }
-	 | SIGNED64  { $$ = CodeToken::CreateTextToken("S64"); }
-	 | UNSIGNED64  { $$ = CodeToken::CreateTextToken("U64"); }
-	 | SIGNED128  { $$ = CodeToken::CreateTextToken("S128"); }
-	 | UNSIGNED128  { $$ = CodeToken::CreateTextToken("U128"); }
-	 | FLOAT32  { $$ = CodeToken::CreateTextToken("F32"); }
-	 | FLOAT64  { $$ = CodeToken::CreateTextToken("F64"); }
-	 | ASSIGN_TOK  { $$ = CodeToken::CreateTextToken("assign"); }
-	 | LOAD_TOK  { $$ = CodeToken::CreateTextToken("load"); }
-	 | STORE_TOK  { $$ = CodeToken::CreateTextToken("store"); }
-	 | REF_TOK  { $$ = CodeToken::CreateTextToken("ref"); }
-	 | ADD_TOK  { $$ = CodeToken::CreateTextToken("add"); }
-	 | SUB_TOK  { $$ = CodeToken::CreateTextToken("sub"); }
-	 | SMUL_TOK  { $$ = CodeToken::CreateTextToken("smul"); }
-	 | UMUL_TOK  { $$ = CodeToken::CreateTextToken("umul"); }
-	 | SDIV_TOK  { $$ = CodeToken::CreateTextToken("sdiv"); }
-	 | UDIV_TOK  { $$ = CodeToken::CreateTextToken("udiv"); }
-	 | SMOD_TOK  { $$ = CodeToken::CreateTextToken("smod"); }
-	 | UMOD_TOK  { $$ = CodeToken::CreateTextToken("umod"); }
-	 | AND_TOK  { $$ = CodeToken::CreateTextToken("and"); }
-	 | OR_TOK  { $$ = CodeToken::CreateTextToken("or"); }
-	 | XOR_TOK  { $$ = CodeToken::CreateTextToken("xor"); }
-	 | SHL_TOK  { $$ = CodeToken::CreateTextToken("shl"); }
-	 | SHR_TOK  { $$ = CodeToken::CreateTextToken("shr"); }
-	 | SAR_TOK  { $$ = CodeToken::CreateTextToken("sar"); }
-	 | NEG_TOK  { $$ = CodeToken::CreateTextToken("neg"); }
-	 | NOT_TOK  { $$ = CodeToken::CreateTextToken("not"); }
-	 | IFTRUE_TOK  { $$ = CodeToken::CreateTextToken("iftrue"); }
-	 | IFSLT_TOK  { $$ = CodeToken::CreateTextToken("ifslt"); }
-	 | IFULT_TOK  { $$ = CodeToken::CreateTextToken("ifult"); }
-	 | IFSLE_TOK  { $$ = CodeToken::CreateTextToken("ifsle"); }
-	 | IFULE_TOK  { $$ = CodeToken::CreateTextToken("ifule"); }
-	 | IFE_TOK  { $$ = CodeToken::CreateTextToken("ife"); }
-	 | GOTO_TOK  { $$ = CodeToken::CreateTextToken("goto"); }
-	 | SCONVERT_TOK  { $$ = CodeToken::CreateTextToken("sconvert"); }
-	 | UCONVERT_TOK  { $$ = CodeToken::CreateTextToken("uconvert"); }
-	 | RETURN_TOK  { $$ = CodeToken::CreateTextToken("return"); }
-	 | RETURNVOID_TOK  { $$ = CodeToken::CreateTextToken("returnvoid"); }
-	 | ALLOCA_TOK  { $$ = CodeToken::CreateTextToken("alloca"); }
-	 | MEMCPY_TOK  { $$ = CodeToken::CreateTextToken("memcpy"); }
-	 | MEMSET_TOK  { $$ = CodeToken::CreateTextToken("memset"); }
-	 | STRLEN_TOK  { $$ = CodeToken::CreateTextToken("strlen"); }
-	 | RDTSC_TOK  { $$ = CodeToken::CreateTextToken("rdtsc"); }
-	 | RDTSC_LOW_TOK  { $$ = CodeToken::CreateTextToken("rdtsc_low"); }
-	 | RDTSC_HIGH_TOK  { $$ = CodeToken::CreateTextToken("rdtsc_high"); }
-	 | VARARG_TOK  { $$ = CodeToken::CreateTextToken("vararg"); }
-	 | BYTESWAP_TOK  { $$ = CodeToken::CreateTextToken("byteswap"); }
-	 | BREAKPOINT_TOK  { $$ = CodeToken::CreateTextToken("breakpoint"); }
-	 | POW_TOK  { $$ = CodeToken::CreateTextToken("pow"); }
-	 | FLOOR_TOK  { $$ = CodeToken::CreateTextToken("floor"); }
-	 | CEIL_TOK  { $$ = CodeToken::CreateTextToken("ceil"); }
-	 | SQRT_TOK  { $$ = CodeToken::CreateTextToken("sqrt"); }
-	 | SIN_TOK  { $$ = CodeToken::CreateTextToken("sin"); }
-	 | COS_TOK  { $$ = CodeToken::CreateTextToken("cos"); }
-	 | TAN_TOK  { $$ = CodeToken::CreateTextToken("tan"); }
-	 | ASIN_TOK  { $$ = CodeToken::CreateTextToken("asin"); }
-	 | ACOS_TOK  { $$ = CodeToken::CreateTextToken("acos"); }
-	 | ATAN_TOK  { $$ = CodeToken::CreateTextToken("atan"); }
+	 | keyword_token  { $$ = $1; }
 	 ;
+
+keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken("S8"); }
+			 | UNSIGNED8  { $$ = CodeToken::CreateTextToken("U8"); }
+			 | SIGNED16  { $$ = CodeToken::CreateTextToken("S16"); }
+			 | UNSIGNED16  { $$ = CodeToken::CreateTextToken("U16"); }
+			 | SIGNED32  { $$ = CodeToken::CreateTextToken("S32"); }
+			 | UNSIGNED32  { $$ = CodeToken::CreateTextToken("U32"); }
+			 | SIGNED64  { $$ = CodeToken::CreateTextToken("S64"); }
+			 | UNSIGNED64  { $$ = CodeToken::CreateTextToken("U64"); }
+			 | SIGNED128  { $$ = CodeToken::CreateTextToken("S128"); }
+			 | UNSIGNED128  { $$ = CodeToken::CreateTextToken("U128"); }
+			 | FLOAT32  { $$ = CodeToken::CreateTextToken("F32"); }
+			 | FLOAT64  { $$ = CodeToken::CreateTextToken("F64"); }
+			 | FUNCTION  { $$ = CodeToken::CreateTextToken("function"); }
+			 | VAR_TOK  { $$ = CodeToken::CreateTextToken("var"); }
+			 | ASSIGN_TOK  { $$ = CodeToken::CreateTextToken("assign"); }
+			 | LOAD_TOK  { $$ = CodeToken::CreateTextToken("load"); }
+			 | STORE_TOK  { $$ = CodeToken::CreateTextToken("store"); }
+			 | REF_TOK  { $$ = CodeToken::CreateTextToken("ref"); }
+			 | ADD_TOK  { $$ = CodeToken::CreateTextToken("add"); }
+			 | SUB_TOK  { $$ = CodeToken::CreateTextToken("sub"); }
+			 | SMUL_TOK  { $$ = CodeToken::CreateTextToken("smul"); }
+			 | UMUL_TOK  { $$ = CodeToken::CreateTextToken("umul"); }
+			 | SDIV_TOK  { $$ = CodeToken::CreateTextToken("sdiv"); }
+			 | UDIV_TOK  { $$ = CodeToken::CreateTextToken("udiv"); }
+			 | SMOD_TOK  { $$ = CodeToken::CreateTextToken("smod"); }
+			 | UMOD_TOK  { $$ = CodeToken::CreateTextToken("umod"); }
+			 | AND_TOK  { $$ = CodeToken::CreateTextToken("and"); }
+			 | OR_TOK  { $$ = CodeToken::CreateTextToken("or"); }
+			 | XOR_TOK  { $$ = CodeToken::CreateTextToken("xor"); }
+			 | SHL_TOK  { $$ = CodeToken::CreateTextToken("shl"); }
+			 | SHR_TOK  { $$ = CodeToken::CreateTextToken("shr"); }
+			 | SAR_TOK  { $$ = CodeToken::CreateTextToken("sar"); }
+			 | NEG_TOK  { $$ = CodeToken::CreateTextToken("neg"); }
+			 | NOT_TOK  { $$ = CodeToken::CreateTextToken("not"); }
+			 | IFTRUE_TOK  { $$ = CodeToken::CreateTextToken("iftrue"); }
+			 | IFSLT_TOK  { $$ = CodeToken::CreateTextToken("ifslt"); }
+			 | IFULT_TOK  { $$ = CodeToken::CreateTextToken("ifult"); }
+			 | IFSLE_TOK  { $$ = CodeToken::CreateTextToken("ifsle"); }
+			 | IFULE_TOK  { $$ = CodeToken::CreateTextToken("ifule"); }
+			 | IFE_TOK  { $$ = CodeToken::CreateTextToken("ife"); }
+			 | GOTO_TOK  { $$ = CodeToken::CreateTextToken("goto"); }
+			 | SCONVERT_TOK  { $$ = CodeToken::CreateTextToken("sconvert"); }
+			 | UCONVERT_TOK  { $$ = CodeToken::CreateTextToken("uconvert"); }
+			 | RETURN_TOK  { $$ = CodeToken::CreateTextToken("return"); }
+			 | RETURNVOID_TOK  { $$ = CodeToken::CreateTextToken("returnvoid"); }
+			 | ALLOCA_TOK  { $$ = CodeToken::CreateTextToken("alloca"); }
+			 | MEMCPY_TOK  { $$ = CodeToken::CreateTextToken("memcpy"); }
+			 | MEMSET_TOK  { $$ = CodeToken::CreateTextToken("memset"); }
+			 | STRLEN_TOK  { $$ = CodeToken::CreateTextToken("strlen"); }
+			 | RDTSC_TOK  { $$ = CodeToken::CreateTextToken("rdtsc"); }
+			 | RDTSC_LOW_TOK  { $$ = CodeToken::CreateTextToken("rdtsc_low"); }
+			 | RDTSC_HIGH_TOK  { $$ = CodeToken::CreateTextToken("rdtsc_high"); }
+			 | VARARG_TOK  { $$ = CodeToken::CreateTextToken("vararg"); }
+			 | BYTESWAP_TOK  { $$ = CodeToken::CreateTextToken("byteswap"); }
+			 | BREAKPOINT_TOK  { $$ = CodeToken::CreateTextToken("breakpoint"); }
+			 | POW_TOK  { $$ = CodeToken::CreateTextToken("pow"); }
+			 | FLOOR_TOK  { $$ = CodeToken::CreateTextToken("floor"); }
+			 | CEIL_TOK  { $$ = CodeToken::CreateTextToken("ceil"); }
+			 | SQRT_TOK  { $$ = CodeToken::CreateTextToken("sqrt"); }
+			 | SIN_TOK  { $$ = CodeToken::CreateTextToken("sin"); }
+			 | COS_TOK  { $$ = CodeToken::CreateTextToken("cos"); }
+			 | TAN_TOK  { $$ = CodeToken::CreateTextToken("tan"); }
+			 | ASIN_TOK  { $$ = CodeToken::CreateTextToken("asin"); }
+			 | ACOS_TOK  { $$ = CodeToken::CreateTextToken("acos"); }
+			 | ATAN_TOK  { $$ = CodeToken::CreateTextToken("atan"); }
+			 ;
 
 function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
 			 	{
@@ -290,7 +297,9 @@ function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
 					func->AddTextToken("(");
 					func->AddTokens($4->GetTokens());
 					func->AddTextToken(")");
+					func->AddTextToken("{");
 					func->AddTokens($6->GetTokens());
+					func->AddTextToken("}");
 					state->DefineFunction(func);
 					$2->Release();
 					$4->Release();
@@ -301,12 +310,17 @@ function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
 					CodeBlock* func = $2;
 					func->AddTextToken("(");
 					func->AddTextToken(")");
+					func->AddTextToken("{");
 					func->AddTokens($5->GetTokens());
+					func->AddTextToken("}");
 					state->DefineFunction(func);
 					$2->Release();
 					$5->Release();
 				}
 			 ;
+
+var_stmt: VAR_TOK token_list SEMICOLON  { $2->AddTextToken(";"); state->DefineVariable($2); $2->Release(); }
+		;
 
 function_type_list: function_arg_list function_type_token  { $$ = $1; $$->AddToken(*$2); delete $2; }
 				 | function_type_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
@@ -316,6 +330,7 @@ function_type_token: ID  { $$ = CodeToken::CreateTextToken($1); free($1); }
 				   | OPERATOR  { $$ = CodeToken::CreateTextToken($1); free($1); }
 				   | LBRACKET  { $$ = CodeToken::CreateTextToken("["); }
 				   | RBRACKET  { $$ = CodeToken::CreateTextToken("]"); }
+				   | keyword_token  { $$ = $1; }
 				   ;
 
 function_arg_list: function_arg_list function_arg_token  { $$ = $1; $$->AddToken(*$2); delete $2; }
@@ -327,6 +342,7 @@ function_arg_token: ID  { $$ = CodeToken::CreateTextToken($1); free($1); }
 				  | COMMA  { $$ = CodeToken::CreateTextToken(","); }
 				  | LBRACKET  { $$ = CodeToken::CreateTextToken("["); }
 				  | RBRACKET  { $$ = CodeToken::CreateTextToken("]"); }
+				  | keyword_token  { $$ = $1; }
 				  ;
 
 match_stmt: tree code  { state->DefineMatch($1, NULL, NULL, $2); $1->Release(); $2->Release(); }

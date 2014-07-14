@@ -197,6 +197,8 @@ public:
 	const std::vector<uint32_t>& GetRegisters() const { return m_symRegClass; }
 	uint32_t GetRegisterClass(uint32_t i) const { return m_symRegClass[i]; }
 
+	uint32_t GetPossibleMatchRegister(size_t i) const { return (uint32_t)(m_symRegClass.size() + i); }
+
 	uint32_t AddStackVar(int64_t offset, bool param, size_t width, ILParameterType type);
 	int64_t GetStackVarOffset(uint32_t var) const;
 	const std::vector<size_t>& GetStackVarWidths() const { return m_stackVarWidths; }

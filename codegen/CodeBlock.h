@@ -58,6 +58,7 @@ class CodeBlock: public RefCountObject
 
 public:
 	CodeBlock();
+	CodeBlock(const CodeBlock& copy);
 
 	void AddTextToken(const std::string& text);
 	void AddVarToken(const std::string& name);
@@ -69,6 +70,8 @@ public:
 
 	void AddToken(const CodeToken& token);
 	void AddTokens(const std::vector<CodeToken>& tokens);
+
+	void ReplaceVar(const std::string& from, const std::string& to);
 
 	const std::vector<CodeToken>& GetTokens() const { return m_tokens; }
 };

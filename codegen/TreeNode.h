@@ -111,6 +111,7 @@ public:
 	void SetName(const std::string& name) { m_name = name; }
 	void SetTypeName(const std::string& type) { m_typeName = type; }
 	void SetSizeFlags(uint32_t flags) { m_sizeFlags = flags; }
+	TreeNodeClass GetClass() const { return m_class; }
 	const std::string& GetName() const { return m_name; }
 	const std::string& GetTypeName() const { return m_typeName; }
 	const uint32_t GetSizeFlags() const { return m_sizeFlags; }

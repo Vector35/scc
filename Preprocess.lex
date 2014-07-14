@@ -40,7 +40,6 @@
 %}
 
 %option noyywrap
-%option case-insensitive
 
 %%
 

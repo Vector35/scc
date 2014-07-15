@@ -23,7 +23,8 @@
 using namespace std;
 
 
-RegisterClass::RegisterClass(const string& matchName): m_classType(REGCLASS_TEMP), m_matchName(matchName)
+RegisterClass::RegisterClass(const string& matchName, const string& regClass):
+	m_classType(REGCLASS_TEMP), m_matchName(matchName), m_regClass(regClass)
 {
 }
 

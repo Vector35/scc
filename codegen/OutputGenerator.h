@@ -35,6 +35,16 @@ class OutputGenerator
 		TreeNode* node;
 	};
 
+	enum MatchVariableType
+	{
+		MATCHVAR_IMM,
+		MATCHVAR_REG,
+		MATCHVAR_LARGE_REG,
+		MATCHVAR_STACK,
+		MATCHVAR_GLOBAL,
+		MATCHVAR_BLOCK
+	};
+
 	ParserState* m_parser;
 	std::string m_output;
 	int m_errors;
@@ -49,11 +59,12 @@ class OutputGenerator
 	void WriteUnindented(const char* fmt, ...);
 	void EndBlock();
 	void EndBlockSemicolon();
-	void WriteCodeBlock(CodeBlock* code);
+	void WriteCodeBlock(CodeBlock* code, std::map<std::string, MatchVariableType> vars = std::map<std::string, MatchVariableType>());
 
 	std::string GenerateTypeMatchCode(const std::string& prefix, TreeNode* node);
-	std::string GenerateMatchForNode(const std::string& prefix, TreeNode* node);
+	std::string GenerateMatchForNode(Match* match, const std::string& prefix, TreeNode* node);
 	void GenerateMatchCode(Match* match);
+	void GenerateOutputCode(Match* match);
 
 public:
 	OutputGenerator(ParserState* parser);

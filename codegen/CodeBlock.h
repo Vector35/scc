@@ -39,17 +39,19 @@ enum CodeTokenType
 
 struct CodeToken
 {
+	std::string fileName;
+	int line;
 	CodeTokenType type;
 	std::string name;
 	int offset;
 
-	static CodeToken* CreateTextToken(const std::string& text);
-	static CodeToken* CreateVarToken(const std::string& name);
-	static CodeToken* CreateVarLowToken(const std::string& name);
-	static CodeToken* CreateVarHighToken(const std::string& name);
-	static CodeToken* CreateVarOffsetToken(const std::string& name, int offset);
-	static CodeToken* CreateInstrStartToken(const std::string& name);
-	static CodeToken* CreateInstrEndToken();
+	static CodeToken* CreateTextToken(const std::string& file, int line, const std::string& text);
+	static CodeToken* CreateVarToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateVarLowToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateVarHighToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateVarOffsetToken(const std::string& file, int line, const std::string& name, int offset);
+	static CodeToken* CreateInstrStartToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateInstrEndToken(const std::string& file, int line);
 };
 
 class CodeBlock: public RefCountObject
@@ -60,13 +62,13 @@ public:
 	CodeBlock();
 	CodeBlock(const CodeBlock& copy);
 
-	void AddTextToken(const std::string& text);
-	void AddVarToken(const std::string& name);
-	void AddVarLowToken(const std::string& name);
-	void AddVarHighToken(const std::string& name);
-	void AddVarOffsetToken(const std::string& name, int offset);
-	void AddInstrStartToken(const std::string& name);
-	void AddInstrEndToken();
+	void AddTextToken(const std::string& file, int line, const std::string& text);
+	void AddVarToken(const std::string& file, int line, const std::string& name);
+	void AddVarLowToken(const std::string& file, int line, const std::string& name);
+	void AddVarHighToken(const std::string& file, int line, const std::string& name);
+	void AddVarOffsetToken(const std::string& file, int line, const std::string& name, int offset);
+	void AddInstrStartToken(const std::string& file, int line, const std::string& name);
+	void AddInstrEndToken(const std::string& file, int line);
 
 	void AddToken(const CodeToken& token);
 	void AddTokens(const std::vector<CodeToken>& tokens);

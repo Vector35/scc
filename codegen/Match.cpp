@@ -23,8 +23,8 @@
 using namespace std;
 
 
-Match::Match(TreeNode* match, TreeNode* result, const vector< Ref<TreeNode> >& temp, CodeBlock* code):
-	m_match(match), m_result(result), m_temps(temp), m_code(code)
+Match::Match(const string& file, int line, TreeNode* match, TreeNode* result, const vector< Ref<TreeNode> >& temp, CodeBlock* code):
+	m_fileName(file), m_line(line), m_match(match), m_result(result), m_temps(temp), m_code(code)
 {
 }
 

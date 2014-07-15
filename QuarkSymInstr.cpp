@@ -2298,8 +2298,6 @@ SymInstr* QuarkOrCC(uint32_t a, uint32_t b, uint32_t c) { return new QuarkCondBi
 SymInstr* QuarkXorCC(uint32_t a, uint32_t b, uint32_t c) { return new QuarkCondBit3OpInstr(0x1f1e, a, b, c); }
 SymInstr* QuarkMovCC(uint32_t a, uint32_t b) { return new QuarkCondBit2OpInstr(0x1f1b, a, b); }
 
-SymInstr* QuarkBreakpoint() { return new QuarkBreakpointInstr(); }
-
 SymInstr* QuarkLoadFI(uint32_t a, uint32_t b, uint32_t s) { return new Quark2OpInstr(0x3f00, a, b, s); }
 SymInstr* QuarkLoadFI(uint32_t a, int32_t immed) { return new Quark2OpInstr(0x3f00, a, immed); }
 SymInstr* QuarkStoreFI(uint32_t a, uint32_t b) { return new Quark2OpRegInstr(0x3f01, a, b); }
@@ -2348,4 +2346,5 @@ SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh) { return new Quar
 SymInstr* QuarkSaveCalleeSavedRegs() { return new QuarkSaveCalleeSavedRegsInstr(); }
 SymInstr* QuarkRestoreCalleeSavedRegs() { return new QuarkRestoreCalleeSavedRegsInstr(); }
 SymInstr* QuarkAntiDisassembly(uint32_t reg) { return new QuarkAntiDisassemblyInstr(reg); }
+SymInstr* QuarkBreakpoint() { return new QuarkBreakpointInstr(); }
 

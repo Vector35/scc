@@ -46,7 +46,7 @@ Location ParserState::GetLocation()
 }
 
 
-void ParserState::DefineRegisterClass(RegisterType type, const string& name, const string& symRegClass)
+void ParserState::DefineRegisterClass(RegisterType type, const string& name, const string& symRegClass, bool isDefault)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
@@ -57,6 +57,19 @@ void ParserState::DefineRegisterClass(RegisterType type, const string& name, con
 	}
 
 	m_regClasses[name] = new RegisterClass(name, type, symRegClass);
+
+	if (isDefault)
+	{
+		if (m_defaultRegClass)
+		{
+			Error();
+			fprintf(stderr, "%s:%d: error: more than one default register class defined\n", GetFileName().c_str(),
+				GetLineNumber());
+			return;
+		}
+
+		m_defaultRegClass = m_regClasses[name];
+	}
 }
 
 
@@ -75,7 +88,7 @@ void ParserState::DefineLargeRegisterClass(RegisterType type, const string& name
 }
 
 
-void ParserState::DefineTempRegisterClass(const string& name)
+void ParserState::DefineTempRegisterClass(const string& name, const string& symRegClass)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
@@ -85,7 +98,7 @@ void ParserState::DefineTempRegisterClass(const string& name)
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(name);
+	m_regClasses[name] = new RegisterClass(name, symRegClass);
 }
 
 
@@ -115,7 +128,7 @@ void ParserState::DefineVariable(CodeBlock* var)
 }
 
 
-void ParserState::DefineMatch(TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code)
+void ParserState::DefineMatch(const string& file, int line, TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code)
 {
 	if (match->GetClass() == NODE_REG)
 	{
@@ -130,9 +143,9 @@ void ParserState::DefineMatch(TreeNode* match, TreeNode* result, TreeNode* temp,
 		if (regClass && (regClass->GetClassType() == REGCLASS_TEMP))
 		{
 			if (temp)
-				m_tempRegMatches.push_back(new Match(match, result, temp->GetChildNodes(), code));
+				m_tempRegMatches.push_back(new Match(file, line, match, result, temp->GetChildNodes(), code));
 			else
-				m_tempRegMatches.push_back(new Match(match, result, vector< Ref<TreeNode> >(), code));
+				m_tempRegMatches.push_back(new Match(file, line, match, result, vector< Ref<TreeNode> >(), code));
 			return;
 		}
 	}
@@ -142,9 +155,9 @@ void ParserState::DefineMatch(TreeNode* match, TreeNode* result, TreeNode* temp,
 	}
 
 	if (temp)
-		m_matches.push_back(new Match(match, result, temp->GetChildNodes(), code));
+		m_matches.push_back(new Match(file, line, match, result, temp->GetChildNodes(), code));
 	else
-		m_matches.push_back(new Match(match, result, vector< Ref<TreeNode> >(), code));
+		m_matches.push_back(new Match(file, line, match, result, vector< Ref<TreeNode> >(), code));
 }
 
 
@@ -196,10 +209,13 @@ void ParserState::ExpandTempRegisterClasses()
 			Ref<TreeNode> match = new TreeNode(*(*i)->GetMatch());
 			match->SetSizeFlags(match->GetSizeFlags() & finalResult->GetSizeFlags());
 
-			Ref<Match> newMatch = new Match(match, finalResult, temp, code);
+			Ref<Match> newMatch = new Match((*i)->GetFileName(), (*i)->GetLineNumber(), match, finalResult, temp, code);
 			expanded.push_back(newMatch);
 		}
 	}
+
+	for (size_t i = 0; i < expanded.size(); i++)
+		expanded[i]->SetIndex(i);
 
 	m_matches = expanded;
 }

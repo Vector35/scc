@@ -117,6 +117,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	if (!parser.GetDefaultRegisterClass())
+	{
+		fprintf(stderr, "%s: error: no default register class specified\n", inFile.c_str());
+		return 1;
+	}
+
 	OutputGenerator gen(&parser);
 	if (!gen.Generate(out))
 		return 1;

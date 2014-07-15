@@ -1,8 +1,13 @@
+include "asmquark.h"
+
 arch Quark
-registerclass int32 IREG QUARKREGCLASS_INTEGER
+registerclass default int32 IREG QUARKREGCLASS_INTEGER
+registerclass int32 INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE
 registerclass float FREG QUARKREGCLASS_FLOAT
+registerclass float FLOAT_RETURN_VALUE QUARKREGCLASS_FLOAT_RETURN_VALUE
 largeregisterclass int64 IREG64 QUARKREGCLASS_INTEGER QUARKREGCLASS_INTEGER
-tempregisterclass IRESULT
+largeregisterclass int64 INTEGER_RETURN_VALUE_64 QUARKREGCLASS_INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH
+tempregisterclass IRESULT QUARKREGCLASS_INTEGER
 
 immediateclass IMM11
 {
@@ -34,12 +39,21 @@ immediateclass IMM17
 var uint32_t m_varargStart;
 
 src:IMM17 => dest:IREG { @LoadImm %dest, %src; }
-src:IMM => dest:IREG { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
+src:IMM => dest:IREG { @LoadImm %dest, %src & 0xffff; @LoadImmHigh %dest, (%src >> 16) & 0xffff; }
+src:IMM17 => dest:IREG64 { @LoadImm %dest:low, %src; @LoadImm %dest:high, %src >> 32; }
+src:IMM => dest:IREG64
+{
+	@LoadImm %dest:low, %src & 0xffff;
+	@LoadImmHigh %dest:low, (%src >> 16) & 0xffff;
+	@LoadImm %dest:high, (%src >> 32) & 0xffff;
+	@LoadImmHigh %dest:high, %src >> 48;
+}
+
 src:IRESULT => dest:IREG(S8) { @Sxb %dest, %src; }
 src:IRESULT => dest:IREG(U8) { @Zxb %dest, %src; }
-src:IRESULT => dest:IREG(S16) { @Sxw %dest, %src; }
-src:IRESULT => dest:IREG(U16) { @Zxw %dest, %src; }
-src:IRESULT => dest:IREG(32) {}
+src:IRESULT => dest:IREG(S16) { @Sxh %dest, %src; }
+src:IRESULT => dest:IREG(U16) { @Zxh %dest, %src; }
+src:IRESULT => dest:IREG(32) { @Mov %dest, %src; }
 
 assign dest:IREG src:IMM { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
 assign dest:IREG src:IREG { @Mov %dest, %src, 0; }
@@ -47,6 +61,7 @@ assign dest:IREG src:IMM17 { @LoadImm %dest, %src; }
 assign dest:IREG src:IMM { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
 assign dest:FREG src:FREG { @Fmov %dest, %src; }
 assign dest:FREG src:IMM { @FmovImmed %dest, %src; }
+assign dest:IREG64 src:IREG64 { @Mov %dest:low, %src:low, 0; @Mov %dest:high, %src:high, 0; }
 
 load(S8) base:IREG => dest:IREG { @LoadSX8 %dest, %base, 0; }
 load(S8) add base:IREG ofs:IREG => dest:IREG { @LoadSX8 %dest, %base, %ofs, 0; }
@@ -57,7 +72,7 @@ load(U8) add base:IREG ofs:IREG => dest:IREG { @Load8 %dest, %base, %ofs, 0; }
 load(U8) add base:IREG ofs:IMM11 => dest:IREG { @Load8 %dest, %base, %ofs; }
 load(U8) add base:IREG shl ofs:IREG shift:IMM => dest:IREG { @Load8 %dest, %base, %ofs, %shift; }
 load(S16) base:IREG => dest:IREG { @LoadSX16 %dest, %base, 0; }
-load(S16) add ase:IREG ofs:IREG => dest:IREG { @LoadSX16 %dest, %base, %ofs, 0; }
+load(S16) add base:IREG ofs:IREG => dest:IREG { @LoadSX16 %dest, %base, %ofs, 0; }
 load(S16) add base:IREG ofs:IMM11 => dest:IREG { @LoadSX16 %dest, %base, %ofs; }
 load(S16) add base:IREG shl ofs:IREG shift:IMM => dest:IREG { @LoadSX16 %dest, %base, %ofs, %shift; }
 load(U16) base:IREG => dest:IREG { @Load16 %dest, %base, 0; }
@@ -83,7 +98,7 @@ load ref src:GLOBALVAR(U8) => dest:IREG { @LoadGlobal8 %dest, %src; }
 load ref src:GLOBALVAR(S16) => dest:IREG { @LoadGlobalSX16 %dest, %src; }
 load ref src:GLOBALVAR(U16) => dest:IREG { @LoadGlobal16 %dest, %src; }
 load ref src:GLOBALVAR(32) => dest:IREG { @LoadGlobal32 %dest, %src; }
-load ref src:GLOBALVAR(64) => dest:IREG64 { @LoadGlobal32 %dest:low, %src:0; @LoadStack32 %dest:high, %src:4; }
+load ref src:GLOBALVAR(64) => dest:IREG64 { @LoadGlobal32 %dest:low, %src:0; @LoadGlobal32 %dest:high, %src:4; }
 load ref src:GLOBALVAR(F32) => dest:FREG { @LoadGlobalFS %dest, %src; }
 load ref src:GLOBALVAR(F64) => dest:FREG { @LoadGlobalFD %dest, %src; }
 
@@ -141,7 +156,7 @@ op a:IREG64 b:IREG64 => dest:IREG64, temp:IREG \
 	@Mulx %dest:high, %dest:low, %a:low, %b:low; \
 	@Mul %temp, %a:low, %b:high, 0; \
 	@Add %dest:high, %dest:high, %temp, 0; \
-	@Mul %temp, %a:high, %b, 0; \
+	@Mul %temp, %a:high, %b:low, 0; \
 	@Add %dest:high, %dest:high, %temp, 0; \
 }
 MUL_INSTR(smul)
@@ -170,24 +185,23 @@ umod a:IREG shl b:IREG c:IMM => dest:IRESULT { @Mod %dest, %a, %b, %c; }
 umod a:IREG b:IMM11 => dest:IRESULT { @Mod %dest, %a, %b; }
 
 #define BITWISE_INSTR(op, instr) \
-op a:IREG b:IREG => dest:IREG { @instr %dest, %a, %b, 0; } \
-op a:IREG shl b:IREG c:IMM => dest:IREG { @instr %dest, %a, %b, %c; } \
-op a:IREG b:IMM11 => dest:IREG { @instr %dest, %a, %b; } \
-op a:IREG64 b:IREG64 => dest:IREG64 { @instr %dest:low, %a:low, %b:low, 0; @instr %dest:high, %a:high, %b:high, 0; } \
-op a:IREG64 b:IMM11 => dest:IREG64 { @instr %dest:low, %a:low, (int32_t)%b; @instr %dest:high, %a:high, (int32_t)(%b >> 32); }
-BITWISE_INSTR(and, And)
-BITWISE_INSTR(or, Or)
-BITWISE_INSTR(xor, Xor)
+op a:IREG b:IREG => dest:IREG { instr %dest, %a, %b, 0; } \
+op a:IREG shl b:IREG c:IMM => dest:IREG { instr %dest, %a, %b, %c; } \
+op a:IREG b:IMM11 => dest:IREG { instr %dest, %a, %b; } \
+op a:IREG64 b:IREG64 => dest:IREG64 { instr %dest:low, %a:low, %b:low, 0; instr %dest:high, %a:high, %b:high, 0; } \
+op a:IREG64 b:IMM11 => dest:IREG64 { instr %dest:low, %a:low, (int32_t)%b; instr %dest:high, %a:high, (int32_t)(%b >> 32); }
+BITWISE_INSTR(and, @And)
+BITWISE_INSTR(or, @Or)
+BITWISE_INSTR(xor, @Xor)
 
 #define SHIFT_INSTR(op, instr) \
-op a:IREG b:IREG => dest:IREG { @instr %dest, %a, %b, 0; } \
-op a:IREG b:IMM => dest:IREG { @instr %dest, %a, %b; }
-SHIFT_INSTR(shl, Shl)
-SHIFT_INSTR(shr, Shl)
-SHIFT_INSTR(sar, Sar)
+op a:IREG b:IREG => dest:IREG { instr %dest, %a, %b, 0; } \
+op a:IREG b:IMM => dest:IREG { instr %dest, %a, %b; }
+SHIFT_INSTR(shl, @Shl)
+SHIFT_INSTR(shr, @Shl)
+SHIFT_INSTR(sar, @Sar)
 
-neg src:IREG => dest:IRESULT { @Neg %dest, %src, 0; }
-neg shl src:IREG c:IMM => dest:IRESULT { @Neg %dest, %src, %c; }
+neg src:IREG => dest:IRESULT { @Neg %dest, %src; }
 neg src:FREG => dest:FREG { @Fneg %dest, %src; }
 neg src:IREG64 => dest:IREG64
 {
@@ -198,9 +212,25 @@ neg src:IREG64 => dest:IREG64
 	@Addx %dest:high, %dest:high, 0;
 }
 
-not src:IREG => dest:IRESULT { @Not %dest, %src, 0; }
-not shl src:IREG c:IMM => dest:IRESULT { @Not %dest, %src, %c; }
-not src:IREG64 => dest:IREG64 { @Not %dest:low, %src:low, 0; @Not %dest:high, %src:high, 0; }
+not src:IREG => dest:IRESULT { @Not %dest, %src; }
+not src:IREG64 => dest:IREG64 { @Not %dest:low, %src:low; @Not %dest:high, %src:high; }
+
+function void ConditionalJump(SymInstrBlock* out, TreeBlock* block, int cond, bool value)
+{
+	@CondJump cond, value ? 1 : 0, m_func, block->GetSource();
+}
+
+
+function void UnconditionalJump(SymInstrBlock* out, TreeBlock* block, bool canOmit = true)
+{
+	if (canOmit && (!m_settings.pad) && (block->GetSource()->GetGlobalIndex() == (m_currentBlock->GetSource()->GetGlobalIndex() + 1)))
+	{
+		// The destination block is the one just after the current one, just fall through
+		return;
+	}
+
+	@Jump m_func, block->GetSource();
+}
 
 #define COND_JUMP \
 	ConditionalJump(out, %t, 0, true); \
@@ -217,28 +247,28 @@ iftrue src:IREG64 t:BLOCK f:BLOCK
 }
 
 #define COND_COMPARE(op, cond, instr) \
-op a:IREG b:IREG t:BLOCK f:BLOCK { @instr cond, 0, %a, %b, 0; COND_JUMP; } \
-op a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { @instr cond, 0, %a, %b, %c; COND_JUMP; } \
-op a:IREG b:IMM11 t:BLOCK f:BLOCK { @instr cond, 0, %a, %b; COND_JUMP; } \
+op a:IREG b:IREG t:BLOCK f:BLOCK { instr cond, 0, %a, %b, 0; COND_JUMP; } \
+op a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { instr cond, 0, %a, %b, %c; COND_JUMP; } \
+op a:IREG b:IMM11 t:BLOCK f:BLOCK { instr cond, 0, %a, %b; COND_JUMP; } \
 op a:FREG b:FREG t:BLOCK f:BLOCK { @Fcmp cond, 0, %a, %b; COND_JUMP; } \
 op a:IREG64 b:IREG64 t:BLOCK f:BLOCK \
 { \
-	@instr QUARK_COND_LT, 0, %a:high, %b:high, 0; \
-	@instr QUARK_COND_EQ, 1, %a:high, %b:high, 0; \
+	instr QUARK_COND_LT, 0, %a:high, %b:high, 0; \
+	instr QUARK_COND_EQ, 1, %a:high, %b:high, 0; \
 	@CondCmp 1, 1, cond, 0, %a:low, %b:low, 0; \
 	COND_JUMP; \
 } \
 op a:IREG64 b:IMM11 t:BLOCK f:BLOCK \
 { \
-	@instr QUARK_COND_LT, 0, %a:high, (int32_t)(%b >> 32); \
-	@instr QUARK_COND_EQ, 1, %a:high, (int32_t)(%b >> 32); \
+	instr QUARK_COND_LT, 0, %a:high, (int32_t)(%b >> 32); \
+	instr QUARK_COND_EQ, 1, %a:high, (int32_t)(%b >> 32); \
 	@CondCmp 1, 1, cond, 0, %a:low, (int32_t)%b; \
 	COND_JUMP; \
 }
-COND_COMPARE(ifslt, QUARK_COND_LT, Icmp)
-COND_COMPARE(ifult, QUARK_COND_LT, Cmp)
-COND_COMPARE(ifsle, QUARK_COND_LE, Icmp)
-COND_COMPARE(ifule, QUARK_COND_LE, Cmp)
+COND_COMPARE(ifslt, QUARK_COND_LT, @Icmp)
+COND_COMPARE(ifult, QUARK_COND_LT, @Cmp)
+COND_COMPARE(ifsle, QUARK_COND_LE, @Icmp)
+COND_COMPARE(ifule, QUARK_COND_LE, @Cmp)
 
 ife a:IREG b:IREG t:BLOCK f:BLOCK { @Cmp QUARK_COND_EQ, 0, %a, %b, 0; COND_JUMP; }
 ife a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { @Cmp QUARK_COND_EQ, 0, %a, %b, %c; COND_JUMP; }
@@ -271,20 +301,20 @@ sconvert src:IREG(8) => dest:IREG(16,32) { @Sxb %dest, %src; }
 sconvert src:IREG(8) => dest:IREG64 { @Sxb %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
 uconvert src:IREG(8) => dest:IREG(16,32) { @Zxb %dest, %src; }
 uconvert src:IREG(8) => dest:IREG64 { @Sxb %dest:low, %src; @LoadImm %dest:high, 0; }
-sconvert src:IREG(16) => dest:IREG(32) { @Sxw %dest, %src; }
-sconvert src:IREG(16) => dest:IREG64 { @Sxw %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
-uconvert src:IREG(16) => dest:IREG(32) { @Zxw %dest, %src; }
-uconvert src:IREG(16) => dest:IREG64 { @Zxw %dest:low, %src; @LoadImm %dest:high, 0; }
+sconvert src:IREG(16) => dest:IREG(32) { @Sxh %dest, %src; }
+sconvert src:IREG(16) => dest:IREG64 { @Sxh %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
+uconvert src:IREG(16) => dest:IREG(32) { @Zxh %dest, %src; }
+uconvert src:IREG(16) => dest:IREG64 { @Zxh %dest:low, %src; @LoadImm %dest:high, 0; }
 sconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
 uconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src; @LoadImm %dest:high, 0; }
 sconvert src:IREG(16,32) => dest:IREG(8) { @Sxb %dest, %src; }
 sconvert src:IREG64 => dest:IREG(8) { @Sxb %dest, %src:low; }
 uconvert src:IREG(16,32) => dest:IREG(8) { @Zxb %dest, %src; }
 uconvert src:IREG64 => dest:IREG(8) { @Zxb %dest, %src:low; }
-sconvert src:IREG(32) => dest:IREG(16) { @Sxw %dest, %src; }
-sconvert src:IREG64 => dest:IREG(16) { @Sxw %dest, %src:low; }
-uconvert src:IREG(32) => dest:IREG(16) { @Zxw %dest, %src; }
-uconvert src:IREG64 => dest:IREG(16) { @Zxw %dest, %src:low; }
+sconvert src:IREG(32) => dest:IREG(16) { @Sxh %dest, %src; }
+sconvert src:IREG64 => dest:IREG(16) { @Sxh %dest, %src:low; }
+uconvert src:IREG(32) => dest:IREG(16) { @Zxh %dest, %src; }
+uconvert src:IREG64 => dest:IREG(16) { @Zxh %dest, %src:low; }
 sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 
@@ -335,23 +365,21 @@ byteswap src:IREG(16) => dest:IREG { @Swaph %dest, %src; }
 byteswap src:IREG(32) => dest:IREG { @Swapw %dest, %src; }
 byteswap src:IREG64 => dest:IREG64 { @Swapw %dest:low, %src:high; @Swapw %dest:high, %src:low; }
 
-breakpoint { @BreakpointInstr; }
+breakpoint { @Breakpoint; }
 
 pow a:FREG b:FREG => dest:FREG { @Fpow %dest, %a, %b; }
 pow a:FREG b:IMM11 => dest:FREG { @FpowImmed %dest, %a, %b; }
 floor src:FREG => dest:FREG { @Floor %dest, %src; }
 ceil src:FREG => dest:FREG { @Ceil %dest, %src; }
 
-#define FLOAT_INSTR(op, regInstr, immedInstr) \
-op src:FREG => dest:FREG { @regInstr %dest, %src; } \
-op src:IMM11 => dest:FREG { @immedInstr %dest, %src; }
-FLOAT_INSTR(sqrt, Fsqrt, FsqrtImmed)
-FLOAT_INSTR(sin, Fsin, FsinImmed)
-FLOAT_INSTR(cos, Fcos, FcosImmed)
-FLOAT_INSTR(tan, Ftan, FtanImmed)
-FLOAT_INSTR(asin, Fasin, FasinImmed)
-FLOAT_INSTR(acos, Facos, FacosImmed)
-FLOAT_INSTR(atan, Fatan, FatanImmed)
+sqrt src:FREG => dest:FREG { @Sqrt %dest, %src; }
+sqrt src:IMM11 => dest:FREG { @SqrtImmed %dest, %src; }
+sin src:FREG => dest:FREG { @Fsin %dest, %src; }
+cos src:FREG => dest:FREG { @Fcos %dest, %src; }
+tan src:FREG => dest:FREG { @Ftan %dest, %src; }
+asin src:FREG => dest:FREG { @Fasin %dest, %src; }
+acos src:FREG => dest:FREG { @Facos %dest, %src; }
+atan src:FREG => dest:FREG { @Fatan %dest, %src; }
 
 function void GenerateAntiDisassembly(SymInstrBlock* out)
 {

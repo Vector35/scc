@@ -155,6 +155,8 @@ tempregisterclass	TOK(TEMPREGISTERCLASS)
 immediateclass		TOK(IMMEDIATECLASS)
 function			TOK(FUNCTION)
 var					TOK(VAR_TOK)
+default				TOK(DEFAULT_TOK)
+include				TOK(INCLUDE_TOK)
 
 int8	TOK(INT8_TOK)
 int16	TOK(INT16_TOK)

@@ -40,6 +40,7 @@ class ParserState
 	void* m_scanner;
 	void* m_lvalue;
 	int m_errors;
+	Ref<RegisterClass> m_defaultRegClass;
 
 	std::map< std::string, Ref<RegisterClass> > m_regClasses;
 	std::map< std::string, Ref<CodeBlock> > m_immClasses;
@@ -47,6 +48,7 @@ class ParserState
 	std::vector< Ref<CodeBlock> > m_vars;
 	std::vector< Ref<Match> > m_matches;
 	std::vector< Ref<Match> > m_tempRegMatches;
+	std::vector<std::string> m_includes;
 
 public:
 	ParserState(const std::string& name, void* scanner);
@@ -68,21 +70,24 @@ public:
 	void Error() { m_errors++; }
 	bool HasErrors() const { return m_errors != 0; }
 
-	void DefineRegisterClass(RegisterType type, const std::string& name, const std::string& symRegClass);
+	void DefineRegisterClass(RegisterType type, const std::string& name, const std::string& symRegClass, bool isDefault);
 	void DefineLargeRegisterClass(RegisterType type, const std::string& name,
 		const std::string& lowRegClass, const std::string& highRegClass);
-	void DefineTempRegisterClass(const std::string& name);
+	void DefineTempRegisterClass(const std::string& name, const std::string& symRegClass);
 
 	void DefineImmediateClass(const std::string& name, CodeBlock* code);
 
 	void DefineFunction(CodeBlock* func);
 	void DefineVariable(CodeBlock* var);
 
-	void DefineMatch(TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code);
+	void DefineMatch(const std::string& file, int line, TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code);
+
+	void AddInclude(const std::string& name) { m_includes.push_back(name); }
 
 	void ExpandTempRegisterClasses();
 
 	RegisterClass* GetRegisterClass(const std::string& name) const;
+	RegisterClass* GetDefaultRegisterClass() const { return m_defaultRegClass; }
 	bool IsRegisterClass(const std::string& name) const { return GetRegisterClass(name) != NULL; }
 	CodeBlock* GetImmediateClass(const std::string& name) const;
 	bool IsImmediateClass(const std::string& name) const { return GetImmediateClass(name) != NULL; }
@@ -91,6 +96,7 @@ public:
 	const std::vector< Ref<CodeBlock> >& GetFunctions() const { return m_funcs; }
 	const std::vector< Ref<CodeBlock> >& GetVariables() const { return m_vars; }
 	const std::vector< Ref<Match> >& GetMatches() const { return m_matches; }
+	const std::vector<std::string>& GetIncludes() const { return m_includes; }
 };
 
 

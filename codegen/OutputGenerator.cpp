@@ -96,12 +96,21 @@ void OutputGenerator::EndBlockSemicolon()
 }
 
 
-void OutputGenerator::WriteCodeBlock(CodeBlock* code)
+void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableType> vars)
 {
 	string result;
+	map<string, MatchVariableType>::iterator var;
+	char offsetStr[32];
+	bool first = true;
 
 	for (vector<CodeToken>::const_iterator i = code->GetTokens().begin(); i != code->GetTokens().end(); ++i)
 	{
+		if (first)
+		{
+			WriteLine("#line %d \"%s\"", i->line, i->fileName.c_str());
+			first = false;
+		}
+
 		switch (i->type)
 		{
 		case TOKEN_TEXT:
@@ -113,6 +122,7 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code)
 					result = "";
 				}
 				BeginBlock();
+				first = true;
 			}
 			else if (i->name == "}")
 			{
@@ -122,12 +132,14 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code)
 					result = "";
 				}
 				EndBlock();
+				first = true;
 			}
 			else if (i->name == ";")
 			{
 				result += ";";
 				WriteLine("%s", result.c_str());
 				result = "";
+				first = true;
 			}
 			else
 			{
@@ -144,8 +156,116 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code)
 		case TOKEN_INSTR_END:
 			result += "))";
 			break;
+		case TOKEN_VAR:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_IMM:
+			case MATCHVAR_REG:
+			case MATCHVAR_BLOCK:
+				result += i->name;
+				result += " ";
+				break;
+			case MATCHVAR_LARGE_REG:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: large register variable '%s' used without :low or :high\n",
+					i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			case MATCHVAR_STACK:
+				result += i->name + "_base, " + i->name + "_var, " + i->name + "_offset, " + i->name + "_scratch ";
+				break;
+			case MATCHVAR_GLOBAL:
+				result += "m_globalBaseReg, " + i->name + "_offset, " + i->name + "_scratch ";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: invalid match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_LOW:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_LARGE_REG:
+				result += i->name + "_low ";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a large register\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_HIGH:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_LARGE_REG:
+				result += i->name + "_high ";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a large register\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_OFFSET:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+
+			sprintf(offsetStr, "%+d", i->offset);
+
+			switch (var->second)
+			{
+			case MATCHVAR_STACK:
+				result += i->name + "_base, " + i->name + "_var, " + i->name + "_offset" + offsetStr + ", " + i->name + "_scratch ";
+				break;
+			case MATCHVAR_GLOBAL:
+				result += "m_globalBaseReg, " + i->name + "_offset" + offsetStr + ", " + i->name + "_scratch ";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a stack or global variable\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
 		default:
-			fprintf(stderr, "error: invalid token in code block\n");
+			fprintf(stderr, "%s:%d: error: invalid token in code block\n", i->fileName.c_str(), i->line);
 			m_errors++;
 			break;
 		}
@@ -201,7 +321,7 @@ string OutputGenerator::GenerateTypeMatchCode(const string& prefix, TreeNode* no
 }
 
 
-string OutputGenerator::GenerateMatchForNode(const string& prefix, TreeNode* node)
+string OutputGenerator::GenerateMatchForNode(Match* match, const string& prefix, TreeNode* node)
 {
 	switch (node->GetClass())
 	{
@@ -224,7 +344,8 @@ string OutputGenerator::GenerateMatchForNode(const string& prefix, TreeNode* nod
 			RegisterClass* reg = m_parser->GetRegisterClass(node->GetTypeName());
 			if (!reg)
 			{
-				fprintf(stderr, "error: invalid register class '%s'\n", node->GetTypeName().c_str());
+				fprintf(stderr, "%s:%d: error: invalid register class '%s'\n", match->GetFileName().c_str(),
+					match->GetLineNumber(), node->GetTypeName().c_str());
 				m_errors++;
 				return "false";
 			}
@@ -244,13 +365,15 @@ string OutputGenerator::GenerateMatchForNode(const string& prefix, TreeNode* nod
 			}
 			else
 			{
-				fprintf(stderr, "error: invalid use of temporary register class '%s'\n", node->GetTypeName().c_str());
+				fprintf(stderr, "%s:%d: error: invalid use of temporary register class '%s'\n", match->GetFileName().c_str(),
+					match->GetLineNumber(), node->GetTypeName().c_str());
 				m_errors++;
 				return "false";
 			}
 		}
 
-		fprintf(stderr, "error: invalid match type '%s'\n", node->GetTypeName().c_str());
+		fprintf(stderr, "%s:%d: error: invalid match type '%s'\n", match->GetFileName().c_str(),
+			match->GetLineNumber(), node->GetTypeName().c_str());
 		m_errors++;
 		return "false";
 
@@ -357,7 +480,7 @@ string OutputGenerator::GenerateMatchForNode(const string& prefix, TreeNode* nod
 	case NODE_ATAN:
 		return string("(") + prefix + "->GetClass() == NODE_ATAN)" + GenerateTypeMatchCode(prefix, node);
 	default:
-		fprintf(stderr, "error: invalid node type in match\n");
+		fprintf(stderr, "%s:%d: error: invalid node type in match\n", match->GetFileName().c_str(), match->GetLineNumber());
 		m_errors++;
 		return "false";
 	}
@@ -379,7 +502,7 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 		info = nodes.front();
 		nodes.pop();
 
-		string code = GenerateMatchForNode(info.prefix, info.node);
+		string code = GenerateMatchForNode(match, info.prefix, info.node);
 		if (first)
 			code = string("if ((") + code + string(")");
 		else
@@ -400,7 +523,228 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 
 	WriteLine("\t)");
 	BeginBlock();
+		WriteLine("MatchState nextState;");
+		WriteLine("nextState = state;");
+
+		WriteLine("vector<uint32_t> temps;");
+		for (vector< Ref<TreeNode> >::const_iterator i = match->GetTemps().begin(); i != match->GetTemps().end(); ++i)
+		{
+			RegisterClass* reg = m_parser->GetRegisterClass((*i)->GetTypeName());
+			if (!reg)
+			{
+				fprintf(stderr, "%s:%d: error: invalid register class '%s' for '%s'\n", match->GetFileName().c_str(),
+					match->GetLineNumber(), (*i)->GetTypeName().c_str(), (*i)->GetName().c_str());
+				m_errors++;
+			}
+			else if ((reg->GetClassType() == REGCLASS_NORMAL) || (reg->GetClassType() == REGCLASS_TEMP))
+			{
+				WriteLine("temps.push_back(AddRegisterForMatch(nextState, %s));", reg->GetRegisterClassName().c_str());
+			}
+			else if (reg->GetClassType() == REGCLASS_LARGE)
+			{
+				WriteLine("temps.push_back(AddRegisterForMatch(nextState, %s));", reg->GetLowRegisterClassName().c_str());
+				WriteLine("temps.push_back(AddRegisterForMatch(nextState, %s));", reg->GetHighRegisterClassName().c_str());
+			}
+			else
+			{
+				fprintf(stderr, "%s:%d: error: invalid register class '%s' for '%s'\n", match->GetFileName().c_str(),
+					match->GetLineNumber(), (*i)->GetTypeName().c_str(), (*i)->GetName().c_str());
+				m_errors++;
+			}
+		}
+
+		if (!match->GetResult())
+			WriteLine("AddMatchNoResult(state, nextState, node, matches, %d, temps);", (int)match->GetIndex());
+		else
+		{
+			RegisterClass* reg = m_parser->GetRegisterClass(match->GetResult()->GetTypeName());
+			if (!reg)
+			{
+				fprintf(stderr, "%s:%d: error: invalid register class '%s' in result\n", match->GetFileName().c_str(),
+					match->GetLineNumber(), match->GetResult()->GetTypeName().c_str());
+				m_errors++;
+			}
+			else if (reg->GetClassType() == REGCLASS_NORMAL)
+			{
+				WriteLine("AddMatchNormalRegisterResult(state, nextState, node, possible, %d, %s, temps);", (int)match->GetIndex(),
+					reg->GetRegisterClassName().c_str());
+			}
+			else if (reg->GetClassType() == REGCLASS_LARGE)
+			{
+				WriteLine("AddMatchLargeRegisterResult(state, nextState, node, possible, %d, %s, %s, temps);", (int)match->GetIndex(),
+					reg->GetLowRegisterClassName().c_str(), reg->GetHighRegisterClassName().c_str());
+			}
+			else
+			{
+				fprintf(stderr, "%s:%d: internal error: temporary register class '%s' not fully expanded\n",
+					match->GetFileName().c_str(), match->GetLineNumber(), match->GetResult()->GetTypeName().c_str());
+				m_errors++;
+			}
+		}
 	EndBlock();
+}
+
+
+void OutputGenerator::GenerateOutputCode(Match* match)
+{
+	queue<MatchNodeInfo> nodes;
+	MatchNodeInfo info;
+	info.prefix = "_match";
+	info.node = match->GetMatch();
+	nodes.push(info);
+
+	map<string, MatchVariableType> varTypes;
+
+	while (nodes.size() != 0)
+	{
+		info = nodes.front();
+		nodes.pop();
+
+		if (info.node->GetClass() == NODE_REG)
+		{
+			if (m_parser->IsImmediateClass(info.node->GetTypeName()))
+			{
+				WriteLine("int64_t %s = %s->GetImmediate();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("(void)%s;", info.node->GetName().c_str());
+				varTypes[info.node->GetName()] = MATCHVAR_IMM;
+			}
+			else if (info.node->GetTypeName() == "IMM")
+			{
+				WriteLine("int64_t %s = %s->GetImmediate();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("(void)%s;", info.node->GetName().c_str());
+				varTypes[info.node->GetName()] = MATCHVAR_IMM;
+			}
+			else if (info.node->GetTypeName() == "STACKVAR")
+			{
+				WriteLine("uint32_t %s_base = %s->GetRegister();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("int32_t %s_var = %s->GetVariable();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("int64_t %s_offset = %s->GetImmediate();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("uint32_t %s_scratch = m_symFunc->AddRegister(%s);", info.node->GetName().c_str(),
+					m_parser->GetDefaultRegisterClass()->GetRegisterClassName().c_str());
+				WriteLine("(void)%s_base; (void)%s_var; (void)%s_offset; (void)%s_scratch;",
+					info.node->GetName().c_str(), info.node->GetName().c_str(), info.node->GetName().c_str(),
+					info.node->GetName().c_str());
+				varTypes[info.node->GetName()] = MATCHVAR_STACK;
+			}
+			else if (info.node->GetTypeName() == "GLOBALVAR")
+			{
+				WriteLine("int64_t %s_offset = %s->GetImmediate();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("uint32_t %s_scratch = m_symFunc->AddRegister(%s);", info.node->GetName().c_str(),
+					m_parser->GetDefaultRegisterClass()->GetRegisterClassName().c_str());
+				WriteLine("(void)%s_offset; (void)%s_scratch;", info.node->GetName().c_str(), info.node->GetName().c_str());
+				varTypes[info.node->GetName()] = MATCHVAR_GLOBAL;
+			}
+			else if (info.node->GetTypeName() == "BLOCK")
+			{
+				WriteLine("TreeBlock* %s = %s->GetBlock();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("(void)%s;", info.node->GetName().c_str());
+				varTypes[info.node->GetName()] = MATCHVAR_BLOCK;
+			}
+			else
+			{
+				RegisterClass* reg = m_parser->GetRegisterClass(info.node->GetTypeName());
+				if (!reg)
+				{
+					fprintf(stderr, "%s:%d: error: invalid register class '%s' for '%s'\n", match->GetFileName().c_str(),
+						match->GetLineNumber(), info.node->GetTypeName().c_str(), info.node->GetName().c_str());
+					m_errors++;
+				}
+				else if (reg->GetClassType() == REGCLASS_NORMAL)
+				{
+					WriteLine("uint32_t %s = %s->GetRegister();", info.node->GetName().c_str(), info.prefix.c_str());
+					WriteLine("(void)%s;", info.node->GetName().c_str());
+					varTypes[info.node->GetName()] = MATCHVAR_REG;
+				}
+				else if (reg->GetClassType() == REGCLASS_LARGE)
+				{
+					WriteLine("uint32_t %s_low = %s->GetRegister();", info.node->GetName().c_str(), info.prefix.c_str());
+					WriteLine("uint32_t %s_high = %s->GetHighRegister();", info.node->GetName().c_str(), info.prefix.c_str());
+					WriteLine("(void)%s_low; (void)%s_high;", info.node->GetName().c_str(), info.node->GetName().c_str());
+					varTypes[info.node->GetName()] = MATCHVAR_LARGE_REG;
+				}
+				else
+				{
+					fprintf(stderr, "%s:%d: error: invalid register class '%s' for '%s'\n", match->GetFileName().c_str(),
+						match->GetLineNumber(), info.node->GetTypeName().c_str(), info.node->GetName().c_str());
+					m_errors++;
+				}
+			}
+		}
+
+		for (size_t i = 0; i < info.node->GetChildNodes().size(); i++)
+		{
+			MatchNodeInfo child;
+			char indexStr[32];
+			sprintf(indexStr, "%d", (int)i);
+			child.prefix = string("(*") + info.prefix + ")[" + indexStr + "]";
+			child.node = info.node->GetChildNodes()[i];
+			nodes.push(child);
+		}
+	}
+
+	size_t tempIndex = 0;
+	for (vector< Ref<TreeNode> >::const_iterator i = match->GetTemps().begin(); i != match->GetTemps().end(); ++i)
+	{
+		RegisterClass* reg = m_parser->GetRegisterClass((*i)->GetTypeName());
+		if (!reg)
+		{
+			fprintf(stderr, "%s:%d: error: invalid register class '%s' for temporary '%s'\n", match->GetFileName().c_str(),
+				match->GetLineNumber(), (*i)->GetTypeName().c_str(), (*i)->GetName().c_str());
+			m_errors++;
+		}
+		else if ((reg->GetClassType() == REGCLASS_NORMAL) || (reg->GetClassType() == REGCLASS_TEMP))
+		{
+			WriteLine("uint32_t %s = _temps[%d];", (*i)->GetName().c_str(), (int)tempIndex++);
+			WriteLine("(void)%s;", (*i)->GetName().c_str());
+			varTypes[(*i)->GetName()] = MATCHVAR_REG;
+		}
+		else if (reg->GetClassType() == REGCLASS_LARGE)
+		{
+			WriteLine("uint32_t %s_low = _temps[%d];", (*i)->GetName().c_str(), (int)tempIndex++);
+			WriteLine("uint32_t %s_high = _temps[%d];", (*i)->GetName().c_str(), (int)tempIndex++);
+			WriteLine("(void)%s_low; (void)%s_high;", (*i)->GetName().c_str(), (*i)->GetName().c_str());
+			varTypes[(*i)->GetName()] = MATCHVAR_LARGE_REG;
+		}
+		else
+		{
+			fprintf(stderr, "%s:%d: error: invalid register class '%s' for temporary '%s'\n", match->GetFileName().c_str(),
+				match->GetLineNumber(), (*i)->GetTypeName().c_str(), (*i)->GetName().c_str());
+			m_errors++;
+		}
+	}
+
+	if (match->GetResult())
+	{
+		RegisterClass* reg = m_parser->GetRegisterClass(match->GetResult()->GetTypeName());
+		if (!reg)
+		{
+			fprintf(stderr, "%s:%d: error: invalid register class '%s' for result\n", match->GetFileName().c_str(),
+				match->GetLineNumber(), match->GetResult()->GetTypeName().c_str());
+			m_errors++;
+		}
+		else if ((reg->GetClassType() == REGCLASS_NORMAL) || (reg->GetClassType() == REGCLASS_TEMP))
+		{
+			WriteLine("uint32_t %s = _result->GetRegister();", match->GetResult()->GetName().c_str());
+			WriteLine("(void)%s;", match->GetResult()->GetName().c_str());
+			varTypes[match->GetResult()->GetName()] = MATCHVAR_REG;
+		}
+		else if (reg->GetClassType() == REGCLASS_LARGE)
+		{
+			WriteLine("uint32_t %s_low = _result->GetRegister();", match->GetResult()->GetName().c_str());
+			WriteLine("uint32_t %s_high = _result->GetHighRegister();", match->GetResult()->GetName().c_str());
+			WriteLine("(void)%s_low; (void)%s_high;", match->GetResult()->GetName().c_str(),
+				match->GetResult()->GetName().c_str());
+			varTypes[match->GetResult()->GetName()] = MATCHVAR_LARGE_REG;
+		}
+		else
+		{
+			fprintf(stderr, "%s:%d: error: invalid register class '%s' for result\n", match->GetFileName().c_str(),
+				match->GetLineNumber(), match->GetResult()->GetTypeName().c_str());
+			m_errors++;
+		}
+	}
+
+	WriteCodeBlock(match->GetCode(), varTypes);
 }
 
 
@@ -418,6 +762,9 @@ bool OutputGenerator::Generate(string& output)
 	WriteLine("#include <map>");
 	WriteLine("#include <set>");
 	WriteLine("#include <queue>");
+
+	for (vector<string>::const_iterator i = m_parser->GetIncludes().begin(); i != m_parser->GetIncludes().end(); ++i)
+		WriteLine("#include \"%s\"", i->c_str());
 
 	WriteLine("#define TEMP_REGISTER(cls) m_symFunc->AddRegister(cls)");
 	WriteLine("#define UNSAFE_STACK_PIVOT 0x1000");
@@ -438,6 +785,7 @@ bool OutputGenerator::Generate(string& output)
 		BeginBlock();
 			WriteLine("size_t rule;");
 			WriteLine("Ref<TreeNode> match, result;");
+			WriteLine("vector<uint32_t> temps;");
 		EndBlockSemicolon();
 
 		WriteLine("struct RegisterInfo");
@@ -458,6 +806,7 @@ bool OutputGenerator::Generate(string& output)
 		WriteLine("VariableAssignments m_vars;");
 		WriteLine("vector<IncomingParameterCopy> m_paramCopy;");
 		WriteLine("bool m_framePointerEnabled;");
+		WriteLine("uint32_t m_globalBaseReg;");
 
 		for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetVariables().begin(); i != m_parser->GetVariables().end(); ++i)
 			WriteCodeBlock(*i);
@@ -474,6 +823,41 @@ bool OutputGenerator::Generate(string& output)
 		for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetFunctions().begin(); i != m_parser->GetFunctions().end(); ++i)
 			WriteCodeBlock(*i);
 
+		for (size_t i = 0; i < m_parser->GetMatches().size(); i++)
+		{
+			if (m_parser->GetMatches()[i]->GetTemps().size() != 0)
+			{
+				WriteLine("void OutputRule_%d(SymInstrBlock* out, TreeNode* _match, TreeNode* _result,", (int)i);
+				WriteLine("\tconst vector<uint32_t>& _temps)");
+			}
+			else
+			{
+				WriteLine("void OutputRule_%d(SymInstrBlock* out, TreeNode* _match, TreeNode* _result)", (int)i);
+			}
+			BeginBlock();
+				GenerateOutputCode(m_parser->GetMatches()[i]);
+			EndBlock();
+		}
+
+		WriteLine("bool OutputRule(SymInstrBlock* out, size_t rule, TreeNode* match, TreeNode* result,");
+		WriteLine("\tconst vector<uint32_t>& temps)");
+		BeginBlock();
+			WriteLine("switch (rule)");
+			BeginBlock();
+				for (size_t i = 0; i < m_parser->GetMatches().size(); i++)
+				{
+					WriteLine("case %d:", (int)i);
+					if (m_parser->GetMatches()[i]->GetTemps().size() != 0)
+						WriteLine("\tOutputRule_%d(out, match, result, temps);", (int)i);
+					else
+						WriteLine("\tOutputRule_%d(out, match, result);", (int)i);
+					WriteLine("\treturn true;");
+				}
+				WriteLine("default:");
+				WriteLine("\treturn false;");
+			EndBlock();
+		EndBlock();
+
 		// TODO: Add syntax for declaring compatible register classes (e.g. X86REGCLASS_EDX is a subset of X86REGCLASS_INTEGER)
 		WriteLine("bool IsRegisterClassCompatible(uint32_t regClass, uint32_t matchClass)");
 		BeginBlock();
@@ -487,6 +871,82 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("info.cls = cls;");
 			WriteLine("state.regs.push_back(info);");
 			WriteLine("return info.reg;");
+		EndBlock();
+
+		WriteLine("void AddMatchNoResult(MatchState& state, MatchState& nextState, Ref<TreeNode> node,");
+		WriteLine("\tvector<MatchState>& matches, size_t idx, const vector<uint32_t>& temps)");
+		BeginBlock();
+			WriteLine("MatchInfo match;");
+			WriteLine("match.rule = idx;");
+			WriteLine("match.match = node;");
+			WriteLine("match.temps = temps;");
+
+			WriteLine("match.result = new TreeNode(NODE_NOP);");
+
+			WriteLine("nextState.node = new TreeNode(state.node, match.match, match.result);");
+			WriteLine("nextState.matches.push_back(match);");
+
+			WriteLine("matches.push_back(nextState);");
+
+			WriteLine("if (m_settings.internalDebug)");
+			BeginBlock();
+				WriteLine("fprintf(stderr, \"Rule %%d: \", (int)idx);");
+				WriteLine("state.node->Print();");
+				WriteLine("fprintf(stderr, \" (complete)\\n\");");
+			EndBlock();
+		EndBlock();
+
+		WriteLine("void AddMatchNormalRegisterResult(MatchState& state, MatchState& nextState, Ref<TreeNode> node,");
+		WriteLine("\tqueue<MatchState>& possible, size_t idx, uint32_t regClass, const vector<uint32_t>& temps)");
+		BeginBlock();
+			WriteLine("MatchInfo match;");
+			WriteLine("match.rule = idx;");
+			WriteLine("match.match = node;");
+			WriteLine("match.temps = temps;");
+
+			WriteLine("match.result = TreeNode::CreateRegNode(AddRegisterForMatch(nextState, regClass), regClass, node->GetType());");
+
+			WriteLine("nextState.node = new TreeNode(state.node, match.match, match.result);");
+			WriteLine("nextState.matches.push_back(match);");
+
+			WriteLine("possible.push(nextState);");
+
+			WriteLine("if (m_settings.internalDebug)");
+			BeginBlock();
+				WriteLine("fprintf(stderr, \"Rule %%d: \", (int)idx);");
+				WriteLine("state.node->Print();");
+				WriteLine("fprintf(stderr, \" => \");");
+				WriteLine("nextState.node->Print();");
+				WriteLine("fprintf(stderr, \"\\n\");");
+			EndBlock();
+		EndBlock();
+
+		WriteLine("void AddMatchLargeRegisterResult(MatchState& state, MatchState& nextState, Ref<TreeNode> node,");
+		WriteLine("\tqueue<MatchState>& possible, size_t idx, uint32_t lowClass, uint32_t highClass,");
+		WriteLine("\tconst vector<uint32_t>& temps)");
+		BeginBlock();
+			WriteLine("MatchInfo match;");
+			WriteLine("match.rule = idx;");
+			WriteLine("match.match = node;");
+			WriteLine("match.temps = temps;");
+
+			WriteLine("uint32_t low = AddRegisterForMatch(nextState, lowClass);");
+			WriteLine("uint32_t high = AddRegisterForMatch(nextState, highClass);");
+			WriteLine("match.result = TreeNode::CreateLargeRegNode(low, high, lowClass, highClass, node->GetType());");
+
+			WriteLine("nextState.node = new TreeNode(state.node, match.match, match.result);");
+			WriteLine("nextState.matches.push_back(match);");
+
+			WriteLine("possible.push(nextState);");
+
+			WriteLine("if (m_settings.internalDebug)");
+			BeginBlock();
+				WriteLine("fprintf(stderr, \"Rule %%d: \", (int)idx);");
+				WriteLine("state.node->Print();");
+				WriteLine("fprintf(stderr, \" => \");");
+				WriteLine("nextState.node->Print();");
+				WriteLine("fprintf(stderr, \"\\n\");");
+			EndBlock();
 		EndBlock();
 
 		WriteLine("void MatchAndReduceSingleNode(MatchState& state, Ref<TreeNode> node, queue<MatchState>& possible,");
@@ -522,6 +982,14 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("state.node = node;");
 			WriteLine("possible.push(state);");
 
+			WriteLine("if (m_settings.internalDebug)");
+			BeginBlock();
+				WriteLine("fprintf(stderr, \"Matching IL: \");");
+				WriteLine("node->Print();");
+				WriteLine("fprintf(stderr, \"\\n\");");
+			EndBlock();
+
+			// Match nodes until there are no more possible matches
 			WriteLine("while (possible.size() != 0)");
 			BeginBlock();
 				WriteLine("state = possible.front();");
@@ -529,8 +997,55 @@ bool OutputGenerator::Generate(string& output)
 
 				WriteLine("ProcessPossibleMatch(state, possible, matches);");
 			EndBlock();
-		
-			WriteLine("return false;");
+
+			WriteLine("if (matches.size() == 0)");
+			WriteLine("\treturn false;");
+
+			WriteLine("MatchState* best = NULL;");
+			WriteLine("if (m_settings.polymorph)");
+			BeginBlock();
+				// Polymorph enabled, pick a random match
+				WriteLine("best = &matches[rand() %% matches.size()];");
+			EndBlock();
+			WriteLine("else");
+			BeginBlock();
+				// Pick the smallest node
+				WriteLine("for (vector<MatchState>::iterator i = matches.begin(); i != matches.end(); ++i)");
+				BeginBlock();
+					WriteLine("if (!best)");
+					WriteLine("\tbest = &*i;");
+					WriteLine("else if (i->matches.size() < best->matches.size())");
+					WriteLine("\tbest = &*i;");
+				EndBlock();
+			EndBlock();
+
+			WriteLine("if (m_settings.internalDebug)");
+			BeginBlock();
+				WriteLine("fprintf(stderr, \"Selected: \");");
+				WriteLine("for (vector<MatchInfo>::iterator i = best->matches.begin(); i != best->matches.end(); ++i)");
+				BeginBlock();
+					WriteLine("if (i != best->matches.begin())");
+					WriteLine("\tfprintf(stderr, \", \");");
+					WriteLine("fprintf(stderr, \"%%d\", (int)i->rule);");
+				EndBlock();
+				WriteLine("fprintf(stderr, \"\\n\");");
+			EndBlock();
+
+			// Add any temporary registers needed to the function
+			WriteLine("for (vector<RegisterInfo>::iterator i = best->regs.begin(); i != best->regs.end(); ++i)");
+			WriteLine("\tm_symFunc->AddRegister(i->cls);");
+
+			// Output code for each rule selected
+			WriteLine("for (vector<MatchInfo>::iterator i = best->matches.begin(); i != best->matches.end(); ++i)");
+			BeginBlock();
+				WriteLine("if (!OutputRule(out, i->rule, i->match, i->result, i->temps))");
+				BeginBlock();
+					WriteLine("fprintf(stderr, \"internal error: generated rule that does not exist\\n\");");
+					WriteLine("return false;");
+				EndBlock();
+			EndBlock();
+
+			WriteLine("return true;");
 		EndBlock();
 
 		WriteLine("bool GenerateCodeBlock(SymInstrBlock* out, TreeBlock* block)");
@@ -601,6 +1116,8 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("m_framePointerEnabled = true;");
 			WriteLine("m_vars.stackVariableBase = SYMREG_BP;");
 
+			WriteLine("m_globalBaseReg = SYMREG_IP;");
+
 			// Generate stack frame
 			WriteLine("for (vector< Ref<Variable> >::const_iterator i = m_func->GetVariables().begin();");
 			WriteLine("\ti != m_func->GetVariables().end(); i++)");
@@ -648,6 +1165,11 @@ bool OutputGenerator::Generate(string& output)
 
 			WriteLine("AssignParameters();");
 
+			// Generate function start
+			WriteLine("SymInstrBlock* startOutput = m_symFunc->GetBlock(func->GetIL()[0]);");
+			WriteLine("if (!GenerateFunctionStart(startOutput))");
+			WriteLine("\treturn false;");
+
 			// Generate tree IL for code generation
 			WriteLine("if (!func->GenerateTreeIL(m_settings, m_vars))");
 			BeginBlock();
@@ -657,19 +1179,10 @@ bool OutputGenerator::Generate(string& output)
 			EndBlock();
 
 			// Generate code
-			WriteLine("bool first = true;");
 			WriteLine("for (vector< Ref<TreeBlock> >::const_iterator i = func->GetTreeIL().begin();");
 			WriteLine("\ti != func->GetTreeIL().end(); i++)");
 			BeginBlock();
 				WriteLine("SymInstrBlock* out = m_symFunc->GetBlock((*i)->GetSource());");
-
-				WriteLine("if (first)");
-				BeginBlock();
-					WriteLine("if (!GenerateFunctionStart(out))");
-					WriteLine("\treturn false;");
-					WriteLine("first = false;");
-				EndBlock();
-
 				WriteLine("if (!GenerateCodeBlock(out, *i))");
 				WriteLine("\treturn false;");
 			EndBlock();

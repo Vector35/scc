@@ -132,6 +132,7 @@ class TreeNode: public RefCountObject
 public:
 	TreeNode(TreeNodeClass cls);
 	TreeNode(const TreeNode& copy);
+	TreeNode(const TreeNode* copy, TreeNode* replaceFrom, TreeNode* replaceTo);
 
 	TreeNodeClass GetClass() const { return m_class; }
 	TreeNodeType GetType() const { return m_type; }
@@ -165,7 +166,7 @@ public:
 	static TreeNode* CreateFunctionNode(Function* func);
 	static TreeNode* CreateRegNode(uint32_t reg, uint32_t regClass, TreeNodeType type);
 	static TreeNode* CreateLargeRegNode(uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type);
-	static TreeNode* CreateImmediateNode(int64_t immed);
+	static TreeNode* CreateImmediateNode(int64_t immed, TreeNodeType type);
 	static TreeNode* CreateCallNode(TreeNode* func, size_t stdParamCount, const std::vector< Ref<TreeNode> >& params,
 		TreeNodeType returnType);
 	static TreeNode* CreateSyscallNode(TreeNode* num, const std::vector< Ref<TreeNode> >& params, TreeNodeType returnType);

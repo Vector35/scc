@@ -217,9 +217,9 @@ TreeNode* TreeBlock::OperandToNode(const VariableAssignments& vars, ILParameter&
 			TreeNode::CreateStackVarNode(vars.stackVariableBase, stackVarIter->second, offset, VariableTypeToNodeType(type))));
 
 	case ILPARAM_INT:
-		return TreeNode::CreateImmediateNode(operand.integerValue);
+		return TreeNode::CreateImmediateNode(operand.integerValue, OperandToNodeType(operand));
 	case ILPARAM_BOOL:
-		return TreeNode::CreateImmediateNode(operand.boolValue ? 1 : 0);
+		return TreeNode::CreateImmediateNode(operand.boolValue ? 1 : 0, OperandToNodeType(operand));
 	case ILPARAM_UNDEFINED:
 		return TreeNode::CreateNode(NODE_UNDEFINED, NODETYPE_UNDEFINED);
 	case ILPARAM_FUNC:
@@ -336,17 +336,17 @@ void TreeBlock::StoreToOperand(const VariableAssignments& vars, ILParameter& ope
 TreeNode* TreeBlock::ConstantMultiplyNode(TreeNode* val, uint64_t mult)
 {
 	if (mult == 0)
-		return TreeNode::CreateImmediateNode(0);
+		return TreeNode::CreateImmediateNode(0, val->GetType());
 	if (mult == 1)
 		return val;
 
 	for (uint32_t shiftCount = 0; shiftCount < 64; shiftCount++)
 	{
 		if (mult == ((uint64_t)1 << shiftCount))
-			return TreeNode::CreateNode(NODE_SHL, val->GetType(), val, TreeNode::CreateImmediateNode(shiftCount));
+			return TreeNode::CreateNode(NODE_SHL, val->GetType(), val, TreeNode::CreateImmediateNode(shiftCount, val->GetType()));
 	}
 
-	return TreeNode::CreateNode(NODE_SMUL, val->GetType(), val, TreeNode::CreateImmediateNode(mult));
+	return TreeNode::CreateNode(NODE_SMUL, val->GetType(), val, TreeNode::CreateImmediateNode(mult, val->GetType()));
 }
 
 
@@ -365,10 +365,10 @@ TreeNode* TreeBlock::ConstantDivideNode(TreeNode* val, uint64_t div)
 	for (uint32_t shiftCount = 0; shiftCount < 64; shiftCount++)
 	{
 		if (div == ((uint64_t)1 << shiftCount))
-			return TreeNode::CreateNode(NODE_SAR, val->GetType(), val, TreeNode::CreateImmediateNode(shiftCount));
+			return TreeNode::CreateNode(NODE_SAR, val->GetType(), val, TreeNode::CreateImmediateNode(shiftCount, val->GetType()));
 	}
 
-	return TreeNode::CreateNode(NODE_SDIV, val->GetType(), val, TreeNode::CreateImmediateNode(div));
+	return TreeNode::CreateNode(NODE_SDIV, val->GetType(), val, TreeNode::CreateImmediateNode(div, val->GetType()));
 }
 
 
@@ -455,7 +455,7 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			{
 				StoreToOperand(vars, instr.params[0],
 					TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
-					src, TreeNode::CreateImmediateNode(member->offset)));
+					src, TreeNode::CreateImmediateNode(member->offset, OperandToNodeType(instr.params[0]))));
 			}
 			break;
 
@@ -489,7 +489,7 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			{
 				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_LOAD, OperandToNodeType(instr.params[0]),
 					TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
-					src, TreeNode::CreateImmediateNode(member->offset))));
+					src, TreeNode::CreateImmediateNode(member->offset, OperandToNodeType(instr.params[0])))));
 			}
 			break;
 
@@ -527,7 +527,7 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			{
 				AddNode(TreeNode::CreateNode(NODE_STORE, VariableTypeToNodeType(member->type),
 					TreeNode::CreateNode(NODE_ADD, src->GetType(), src,
-					TreeNode::CreateImmediateNode(member->offset)), OperandToNode(vars, instr.params[2])));
+					TreeNode::CreateImmediateNode(member->offset, src->GetType())), OperandToNode(vars, instr.params[2])));
 			}
 			break;
 
@@ -548,7 +548,7 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			{
 				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_LOAD, OperandToNodeType(instr.params[0]),
 					TreeNode::CreateNode(NODE_ADD, src->GetType(), src,
-					TreeNode::CreateImmediateNode(instr.params[2].integerValue * instr.params[3].integerValue))));
+					TreeNode::CreateImmediateNode(instr.params[2].integerValue * instr.params[3].integerValue, src->GetType()))));
 			}
 			else
 			{
@@ -580,7 +580,7 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			{
 				AddNode(TreeNode::CreateNode(NODE_STORE, OperandToNodeType(instr.params[3]),
 					TreeNode::CreateNode(NODE_ADD, src->GetType(), src,
-					TreeNode::CreateImmediateNode(instr.params[1].integerValue * instr.params[2].integerValue)),
+					TreeNode::CreateImmediateNode(instr.params[1].integerValue * instr.params[2].integerValue, src->GetType())),
 					OperandToNode(vars, instr.params[3])));
 			}
 			else

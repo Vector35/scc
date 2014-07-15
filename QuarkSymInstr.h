@@ -694,6 +694,7 @@ SymInstr* QuarkSymReturn(uint32_t retVal, uint32_t retValHigh);
 SymInstr* QuarkSaveCalleeSavedRegs();
 SymInstr* QuarkRestoreCalleeSavedRegs();
 SymInstr* QuarkAntiDisassembly(uint32_t reg);
+SymInstr* QuarkBreakpoint();
 
 
 #endif

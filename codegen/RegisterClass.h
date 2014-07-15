@@ -48,7 +48,7 @@ class RegisterClass: public RefCountObject
 	std::string m_matchName, m_regClass, m_highClass;
 
 public:
-	RegisterClass(const std::string& matchName);
+	RegisterClass(const std::string& matchName, const std::string& regClass);
 	RegisterClass(const std::string& matchName, RegisterType type, const std::string& regClass);
 	RegisterClass(const std::string& matchName, RegisterType type, const std::string& lowClass, const std::string& highClass);
 

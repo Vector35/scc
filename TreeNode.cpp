@@ -49,6 +49,26 @@ TreeNode::TreeNode(const TreeNode& copy)
 }
 
 
+TreeNode::TreeNode(const TreeNode* copy, TreeNode* replaceFrom, TreeNode* replaceTo)
+{
+	if (copy == replaceFrom)
+		copy = replaceTo;
+
+	m_type = copy->m_type;
+	m_class = copy->m_class;
+	m_block = copy->m_block;
+	m_func = copy->m_func;
+	m_reg = copy->m_reg;
+	m_highReg = copy->m_highReg;
+	m_regClass = copy->m_regClass;
+	m_highRegClass = copy->m_highRegClass;
+	m_var = copy->m_var;
+	m_immediate = copy->m_immediate;
+	for (vector< Ref<TreeNode> >::const_iterator i = copy->m_children.begin(); i != copy->m_children.end(); ++i)
+		m_children.push_back(new TreeNode(*i, replaceFrom, replaceTo));
+}
+
+
 void TreeNode::SetBlock(TreeBlock* block)
 {
 	m_block = block;
@@ -114,7 +134,7 @@ TreeNode* TreeNode::CreateRegNode(uint32_t reg, uint32_t regClass, TreeNodeType 
 	TreeNode* result = new TreeNode(NODE_REG);
 	result->SetType(type);
 	result->SetRegister(reg);
-	result->SetRegisterClass(reg);
+	result->SetRegisterClass(regClass);
 	return result;
 }
 
@@ -131,9 +151,10 @@ TreeNode* TreeNode::CreateLargeRegNode(uint32_t low, uint32_t high, uint32_t low
 }
 
 
-TreeNode* TreeNode::CreateImmediateNode(int64_t immed)
+TreeNode* TreeNode::CreateImmediateNode(int64_t immed, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(NODE_IMMED);
+	result->SetType(type);
 	result->SetImmediate(immed);
 	return result;
 }

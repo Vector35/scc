@@ -76,17 +76,18 @@ void Codegen_error(ParserState* state, const char* msg)
 %token LPAREN RPAREN LBRACKET RBRACKET
 %token COMMA
 %token ARROW SEMICOLON LBRACE RBRACE
-%token ARCH_TOK REGISTERCLASS LARGEREGISTERCLASS TEMPREGISTERCLASS
+%token ARCH_TOK REGISTERCLASS LARGEREGISTERCLASS TEMPREGISTERCLASS REGISTERSUBCLASS
 %token IMMEDIATECLASS
 %token INT8_TOK INT16_TOK INT32_TOK INT64_TOK FLOAT_TOK LOW_TOK HIGH_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
 %token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
-%token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK SCONVERT_TOK UCONVERT_TOK RETURN_TOK RETURNVOID_TOK ALLOCA_TOK
+%token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK CALL_TOK CALLVOID_TOK SYSCALL_TOK SYSCALLVOID_TOK
+%token SCONVERT_TOK UCONVERT_TOK RETURN_TOK RETURNVOID_TOK ALLOCA_TOK
 %token MEMCPY_TOK MEMSET_TOK STRLEN_TOK RDTSC_TOK RDTSC_LOW_TOK RDTSC_HIGH_TOK
 %token VARARG_TOK BYTESWAP_TOK BREAKPOINT_TOK POW_TOK FLOOR_TOK CEIL_TOK SQRT_TOK SIN_TOK COS_TOK TAN_TOK
-%token ASIN_TOK ACOS_TOK ATAN_TOK
+%token ASIN_TOK ACOS_TOK ATAN_TOK PUSH_TOK
 %token <intval> INT_VAL
 %token <intval> INT64_VAL
 %token <floatval> FLOAT_VAL
@@ -134,6 +135,7 @@ class_stmt: REGISTERCLASS register_type ID ID  { state->DefineRegisterClass($2, 
 				free($5);
 			}
 		  | TEMPREGISTERCLASS ID ID  { state->DefineTempRegisterClass($2, $3); free($2); free($3); }
+		  | REGISTERSUBCLASS ID COLON ID  { state->DefineRegisterSubclass($2, $4); free($2); free($4); }
 		  | IMMEDIATECLASS ID code  { state->DefineImmediateClass($2, $3); free($2); $3->Release(); }
 		  ;
 
@@ -269,6 +271,10 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | IFULE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "ifule"); }
 			 | IFE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "ife"); }
 			 | GOTO_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "goto"); }
+			 | CALL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "call"); }
+			 | CALLVOID_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "callvoid"); }
+			 | SYSCALL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "syscall"); }
+			 | SYSCALLVOID_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "syscallvoid"); }
 			 | SCONVERT_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "sconvert"); }
 			 | UCONVERT_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "uconvert"); }
 			 | RETURN_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "return"); }
@@ -293,6 +299,7 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | ASIN_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "asin"); }
 			 | ACOS_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "acos"); }
 			 | ATAN_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "atan"); }
+			 | PUSH_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "push"); }
 			 ;
 
 function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
@@ -492,6 +499,38 @@ tree: match  { $$ = $1; }
 			$5->Release();
 		}
 	| GOTO_TOK tree  { $$ = TreeNode::CreateNode(NODE_GOTO, $2); $$->AddRef(); $2->Release(); }
+	| CALL_TOK tree tree tree
+		{
+			$$ = TreeNode::CreateNode(NODE_CALL, $2, $3, $4);
+			$$->AddRef();
+			$2->Release();
+			$3->Release();
+			$4->Release();
+		}
+	| CALLVOID_TOK tree tree tree
+		{
+			$$ = TreeNode::CreateNode(NODE_CALLVOID, $2, $3, $4);
+			$$->AddRef();
+			$2->Release();
+			$3->Release();
+			$4->Release();
+		}
+	| SYSCALL_TOK tree  { $$ = TreeNode::CreateNode(NODE_SYSCALL, $2); $$->AddRef(); $2->Release(); }
+	| SYSCALL_TOK LPAREN tree RPAREN tree
+		{
+			$$ = TreeNode::CreateNode(NODE_SYSCALL, $3, $5);
+			$$->AddRef();
+			$3->Release();
+			$5->Release();
+		}
+	| SYSCALLVOID_TOK tree  { $$ = TreeNode::CreateNode(NODE_SYSCALLVOID, $2); $$->AddRef(); $2->Release(); }
+	| SYSCALLVOID_TOK LPAREN tree RPAREN tree
+		{
+			$$ = TreeNode::CreateNode(NODE_SYSCALLVOID, $3, $5);
+			$$->AddRef();
+			$3->Release();
+			$5->Release();
+		}
 	| SCONVERT_TOK tree  { $$ = TreeNode::CreateNode(NODE_SCONVERT, $2); $$->AddRef(); $2->Release(); }
 	| UCONVERT_TOK tree  { $$ = TreeNode::CreateNode(NODE_UCONVERT, $2); $$->AddRef(); $2->Release(); }
 	| RETURN_TOK tree  { $$ = TreeNode::CreateNode(NODE_RETURN, $2); $$->AddRef(); $2->Release(); }
@@ -530,6 +569,7 @@ tree: match  { $$ = $1; }
 	| ASIN_TOK tree  { $$ = TreeNode::CreateNode(NODE_ASIN, $2); $$->AddRef(); $2->Release(); }
 	| ACOS_TOK tree  { $$ = TreeNode::CreateNode(NODE_ACOS, $2); $$->AddRef(); $2->Release(); }
 	| ATAN_TOK tree  { $$ = TreeNode::CreateNode(NODE_ATAN, $2); $$->AddRef(); $2->Release(); }
+	| PUSH_TOK tree  { $$ = TreeNode::CreateNode(NODE_PUSH, $2); $$->AddRef(); $2->Release(); }
 	;
 
 %%

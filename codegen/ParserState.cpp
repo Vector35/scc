@@ -116,6 +116,12 @@ void ParserState::DefineImmediateClass(const std::string& name, CodeBlock* code)
 }
 
 
+void ParserState::DefineRegisterSubclass(const std::string& name, const std::string& base)
+{
+	m_regSubclasses[base].push_back(name);
+}
+
+
 void ParserState::DefineFunction(CodeBlock* func)
 {
 	m_funcs.push_back(func);
@@ -183,6 +189,16 @@ void ParserState::ExpandTempRegisterClasses()
 		// Rule has a result of a temporary register class, expand using the temporary register class rules
 		for (vector< Ref<Match> >::iterator j = m_tempRegMatches.begin(); j != m_tempRegMatches.end(); ++j)
 		{
+			if ((*j)->GetCode()->GetTokens().size() == 0)
+			{
+				// No code for this rule, create a replacement rule that simply changes the register class
+				Ref<TreeNode> finalResult = new TreeNode(*(*j)->GetResult());
+				Ref<Match> newMatch = new Match((*i)->GetFileName(), (*i)->GetLineNumber(), (*i)->GetMatch(), finalResult,
+					(*i)->GetTemps(), (*i)->GetCode());
+				expanded.push_back(newMatch);
+				continue;
+			}
+
 			vector< Ref<TreeNode> > temp = (*i)->GetTemps();
 			for (vector< Ref<TreeNode> >::const_iterator k = (*j)->GetTemps().begin(); k != (*j)->GetTemps().end(); ++k)
 			{

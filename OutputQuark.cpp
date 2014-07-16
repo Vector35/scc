@@ -3630,14 +3630,6 @@ bool OutputQuark::GenerateCode(Function* func)
 	assignments.registerVariables = m_varReg;
 	assignments.highRegisterVariables = m_highVarReg;
 
-	// Generate tree IL for code generation
-	if (!func->GenerateTreeIL(m_settings, assignments))
-	{
-		fprintf(stderr, "error: unable to generate tree IL for function '%s'\n",
-			func->GetName().c_str());
-		return false;
-	}
-
 	// Generate code
 	bool first = true;
 	for (vector<ILBlock*>::const_iterator i = func->GetIL().begin(); i != func->GetIL().end(); i++)
@@ -3806,5 +3798,19 @@ bool OutputQuark::GenerateCode(Function* func)
 		m_symFunc->Print();
 	}
 	return true;
+}
+
+
+TreeNode* OutputQuark::GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
+	TreeNodeType resultType)
+{
+	return NULL;
+}
+
+
+TreeNode* OutputQuark::GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params,
+	TreeNodeType resultType)
+{
+	return NULL;
 }
 

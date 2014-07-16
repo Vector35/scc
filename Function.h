@@ -86,6 +86,7 @@ struct VariableAssignments
 };
 
 class TreeBlock;
+class Output;
 
 class Function: public RefCountObject
 {
@@ -168,7 +169,7 @@ public:
 	const std::vector<ILBlock*>& GetIL() const { return m_ilBlocks; }
 	const std::vector< Ref<TreeBlock> >& GetTreeIL() const { return m_treeBlocks; }
 	void GenerateIL(ParserState* state);
-	bool GenerateTreeIL(const Settings& settings, const VariableAssignments& vars);
+	bool GenerateTreeIL(const Settings& settings, const VariableAssignments& vars, Output* output);
 	ILBlock* CreateILBlock();
 	void RemoveILBlock(ILBlock* block);
 	ILParameter CreateTempVariable(Type* type);

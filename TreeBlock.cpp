@@ -144,6 +144,10 @@ TreeNodeType TreeBlock::OperandToNodeType(ILParameter& operand)
 		if (!GetMemberVariableAndOffset(operand, var, offset, type))
 			return NODETYPE_UNDEFINED;
 		return VariableTypeToNodeType(type);
+	case ILPARAM_FUNC:
+		return GetPtrType();
+	case ILPARAM_VOID:
+		return NODETYPE_UNDEFINED;
 
 	default:
 		switch (operand.type)
@@ -223,7 +227,7 @@ TreeNode* TreeBlock::OperandToNode(const VariableAssignments& vars, ILParameter&
 	case ILPARAM_UNDEFINED:
 		return TreeNode::CreateNode(NODE_UNDEFINED, NODETYPE_UNDEFINED);
 	case ILPARAM_FUNC:
-		return TreeNode::CreateFunctionNode(operand.function);
+		return TreeNode::CreateFunctionNode(operand.function, GetPtrType());
 
 	default:
 		fprintf(stderr, "internal error: invalid IL operand\n");
@@ -401,7 +405,7 @@ TreeNodeType TreeBlock::DoubleTypeSize(TreeNodeType type)
 
 
 bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& blocks, const VariableAssignments& vars,
-	const Settings& settings)
+	const Settings& settings, Output* output)
 {
 	m_errors = 0;
 
@@ -732,8 +736,15 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			break;
 
 		case ILOP_GOTO:
-			AddNode(TreeNode::CreateNode(NODE_GOTO, NODETYPE_UNDEFINED,
-				TreeNode::CreateBlockNode(blocks[instr.params[0].block->GetIndex()])));
+			if (instr.params[0].cls == ILPARAM_BLOCK)
+			{
+				AddNode(TreeNode::CreateNode(NODE_GOTO, NODETYPE_UNDEFINED,
+					TreeNode::CreateBlockNode(blocks[instr.params[0].block->GetIndex()])));
+			}
+			else
+			{
+				AddNode(TreeNode::CreateNode(NODE_GOTO, NODETYPE_UNDEFINED, OperandToNode(vars, instr.params[0])));
+			}
 			break;
 
 		case ILOP_CALL:
@@ -741,16 +752,13 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			for (size_t param = 3; param < instr.params.size(); param++)
 				params.push_back(OperandToNode(vars, instr.params[param]));
 
+			src = output->GenerateCall(this, OperandToNode(vars, instr.params[1]), (size_t)instr.params[2].integerValue,
+				params, OperandToNodeType(instr.params[0]));
+
 			if (instr.params[0].cls == ILPARAM_VOID)
-			{
-				AddNode(TreeNode::CreateCallNode(OperandToNode(vars, instr.params[1]), (size_t)instr.params[2].integerValue,
-					params, NODETYPE_UNDEFINED));
-			}
+				AddNode(src);
 			else
-			{
-				StoreToOperand(vars, instr.params[0], TreeNode::CreateCallNode(OperandToNode(vars, instr.params[1]),
-					(size_t)instr.params[2].integerValue, params, OperandToNodeType(instr.params[0])));
-			}
+				StoreToOperand(vars, instr.params[0], src);
 			break;
 
 		case ILOP_NORETURN:
@@ -800,16 +808,18 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			for (size_t param = 2; param < instr.params.size(); param++)
 				params.push_back(OperandToNode(vars, instr.params[param]));
 
+			src = output->GenerateSyscall(this, OperandToNode(vars, instr.params[1]), params, OperandToNodeType(instr.params[0]));
+			if (!src)
+			{
+				fprintf(stderr, "error: invalid syscall\n");
+				m_errors++;
+				break;
+			}
+
 			if (instr.params[0].cls == ILPARAM_VOID)
-			{
-				AddNode(TreeNode::CreateSyscallNode(OperandToNode(vars, instr.params[1]),
-					params, NODETYPE_UNDEFINED));
-			}
+				AddNode(src);
 			else
-			{
-				StoreToOperand(vars, instr.params[0], TreeNode::CreateSyscallNode(OperandToNode(vars, instr.params[1]),
-					params, OperandToNodeType(instr.params[0])));
-			}
+				StoreToOperand(vars, instr.params[0], src);
 			break;
 
 		case ILOP_SYSCALL2:
@@ -826,27 +836,34 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 				break;
 			}
 
+			src = output->GenerateSyscall(this, OperandToNode(vars, instr.params[2]), params, DoubleTypeSize(a->GetType()));
+			if (!src)
+			{
+				fprintf(stderr, "error: invalid syscall\n");
+				m_errors++;
+				break;
+			}
+
 			AddNode(TreeNode::CreateNode(NODE_ASSIGN, DoubleTypeSize(a->GetType()),
 				TreeNode::CreateLargeRegNode(a->GetRegister(), b->GetRegister(),
 				vars.function->GetRegisterClass(a->GetRegister()), vars.function->GetRegisterClass(b->GetRegister()),
-				DoubleTypeSize(a->GetType())), TreeNode::CreateSyscallNode(OperandToNode(vars, instr.params[2]),
-				params, DoubleTypeSize(a->GetType()))));
+				DoubleTypeSize(a->GetType())), src));
 			break;
 
 		case ILOP_RDTSC:
-			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC, NODETYPE_UNDEFINED));
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC, OperandToNodeType(instr.params[0])));
 			break;
 
 		case ILOP_RDTSC_LOW:
-			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_LOW, NODETYPE_UNDEFINED));
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_LOW, OperandToNodeType(instr.params[0])));
 			break;
 
 		case ILOP_RDTSC_HIGH:
-			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_HIGH, NODETYPE_UNDEFINED));
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_HIGH, OperandToNodeType(instr.params[0])));
 			break;
 
 		case ILOP_INITIAL_VARARG:
-			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_VARARG, NODETYPE_UNDEFINED));
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_VARARG, OperandToNodeType(instr.params[0])));
 			break;
 
 		case ILOP_NEXT_ARG:

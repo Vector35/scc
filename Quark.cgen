@@ -3,11 +3,43 @@ include "asmquark.h"
 arch Quark
 registerclass default int32 IREG QUARKREGCLASS_INTEGER
 registerclass int32 INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE
+registerclass int32 SYSCALL_RETURN QUARKREGCLASS_SYSCALL_RESULT_1
 registerclass float FREG QUARKREGCLASS_FLOAT
 registerclass float FLOAT_RETURN_VALUE QUARKREGCLASS_FLOAT_RETURN_VALUE
 largeregisterclass int64 IREG64 QUARKREGCLASS_INTEGER QUARKREGCLASS_INTEGER
 largeregisterclass int64 INTEGER_RETURN_VALUE_64 QUARKREGCLASS_INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH
+largeregisterclass int64 SYSCALL_RETURN_64 QUARKREGCLASS_SYSCALL_RESULT_1 QUARKREGCLASS_SYSCALL_RESULT_2
 tempregisterclass IRESULT QUARKREGCLASS_INTEGER
+
+registersubclass QUARKREGCLASS_INTEGER_RETURN_VALUE: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_RESULT_1: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_RESULT_2: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_0: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_1: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_2: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_3: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_4: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_5: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_6: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_INTEGER_PARAM_7: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_0: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_1: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_2: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_3: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_4: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_5: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_6: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_SYSCALL_PARAM_7: QUARKREGCLASS_INTEGER
+registersubclass QUARKREGCLASS_FLOAT_RETURN_VALUE: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_0: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_1: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_2: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_3: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_4: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_5: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_6: QUARKREGCLASS_FLOAT
+registersubclass QUARKREGCLASS_FLOAT_PARAM_7: QUARKREGCLASS_FLOAT
 
 immediateclass IMM11
 {
@@ -53,7 +85,9 @@ src:IRESULT => dest:IREG(S8) { @Sxb %dest, %src; }
 src:IRESULT => dest:IREG(U8) { @Zxb %dest, %src; }
 src:IRESULT => dest:IREG(S16) { @Sxh %dest, %src; }
 src:IRESULT => dest:IREG(U16) { @Zxh %dest, %src; }
-src:IRESULT => dest:IREG(32) { @Mov %dest, %src; }
+src:IRESULT => dest:IREG(32) {}
+
+func:FUNCTION => dest:IREG, temp:IREG { @AddBlock %dest, SYMREG_IP, %func, %func->GetIL()[0], %temp; }
 
 assign dest:IREG src:IMM { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
 assign dest:IREG src:IREG { @Mov %dest, %src, 0; }
@@ -294,6 +328,76 @@ goto dest:IREG { @Mov SYMREG_IP, %dest, 0; }
 goto shl dest:IREG c:IMM { @Mov SYMREG_IP, %dest, %c; }
 goto dest:IMM11 { @LoadImm SYMREG_IP, %dest; }
 
+call func:FUNCTION reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE
+{
+	@Call %func, %func->GetIL()[0], %dest, SYMREG_NONE, %reads;
+}
+call func:FUNCTION reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE_64
+{
+	@Call %func, %func->GetIL()[0], %dest:low, %dest:high, %reads;
+}
+call func:FUNCTION reads:INPUT stackAdjust:IMM11 => dest:FLOAT_RETURN_VALUE
+{
+	@Call %func, %func->GetIL()[0], %dest, SYMREG_NONE, %reads;
+}
+callvoid func:FUNCTION reads:INPUT stackAdjust:IMM11
+{
+	@Call %func, %func->GetIL()[0], SYMREG_NONE, SYMREG_NONE, %reads;
+}
+call func:IREG reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE
+{
+	@Call %func, %dest, SYMREG_NONE, %reads;
+}
+call func:IREG reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE_64
+{
+	@Call %func, %dest:low, %dest:high, %reads;
+}
+call func:IREG reads:INPUT stackAdjust:IMM11 => dest:FLOAT_RETURN_VALUE
+{
+	@Call %func, %dest, SYMREG_NONE, %reads;
+}
+callvoid func:IREG reads:INPUT stackAdjust:IMM11
+{
+	@Call %func, SYMREG_NONE, SYMREG_NONE, %reads;
+}
+
+syscall (num:IMM11) reads:INPUT => dest:SYSCALL_RETURN
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest);
+	@SyscallImmed %num, writes, %reads;
+}
+syscall (num:IMM11) reads:INPUT => dest:SYSCALL_RETURN_64
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest:low);
+	writes.push_back(%dest:high);
+	@SyscallImmed %num, writes, %reads;
+}
+syscallvoid (num:IMM11) reads:INPUT
+{
+	vector<uint32_t> writes;
+	@SyscallImmed %num, writes, %reads;
+}
+syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest);
+	@SyscallReg %num, writes, %reads;
+}
+syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN_64
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest:low);
+	writes.push_back(%dest:high);
+	@SyscallReg %num, writes, %reads;
+}
+syscallvoid (num:IREG) reads:INPUT
+{
+	vector<uint32_t> writes;
+	@SyscallReg %num, writes, %reads;
+}
+
 sconvert src:FREG => dest:IREG { @StoreFI %dest, %src; }
 sconvert src:IREG => dest:FREG { @LoadFI %dest, %src; }
 sconvert src:FREG => dest:FREG { @Fmov %dest, %src; }
@@ -381,9 +485,188 @@ asin src:FREG => dest:FREG { @Fasin %dest, %src; }
 acos src:FREG => dest:FREG { @Facos %dest, %src; }
 atan src:FREG => dest:FREG { @Fatan %dest, %src; }
 
+push src:IREG
+{
+	if (m_settings.stackGrowsUp)
+		@StoreUpdate32 %src, SYMREG_SP, 4;
+	else
+		@StoreUpdate32 %src, SYMREG_SP, -4;
+}
+push src:IREG64
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@Store32 %src:low, SYMREG_SP, 4;
+		@StoreUpdate32 %src:high, SYMREG_SP, 8;
+	}
+	else
+	{
+		@Store32 %src:high, SYMREG_SP, -4;
+		@StoreUpdate32 %src:low, SYMREG_SP, -8;
+	}
+}
+push src:FREG(F32)
+{
+	if (m_settings.stackGrowsUp)
+		@StoreUpdateFS %src, SYMREG_SP, 4;
+	else
+		@StoreUpdateFS %src, SYMREG_SP, -4;
+}
+push src:FREG(F64)
+{
+	if (m_settings.stackGrowsUp)
+		@StoreUpdateFD %src, SYMREG_SP, 8;
+	else
+		@StoreUpdateFD %src, SYMREG_SP, -8;
+}
+
 function void GenerateAntiDisassembly(SymInstrBlock* out)
 {
 	@AntiDisassembly TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+}
+
+function TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
+	TreeNodeType resultType)
+{
+	if (m_settings.encodePointers)
+	{
+		// FIXME: Symbolic representation of return address is not there yet
+		return NULL;
+	}
+
+	// First try to place parameters in registers
+	uint32_t intParamRegs[9] = {QUARKREGCLASS_INTEGER_PARAM_0, QUARKREGCLASS_INTEGER_PARAM_1, QUARKREGCLASS_INTEGER_PARAM_2,
+		QUARKREGCLASS_INTEGER_PARAM_3, QUARKREGCLASS_INTEGER_PARAM_4, QUARKREGCLASS_INTEGER_PARAM_5, QUARKREGCLASS_INTEGER_PARAM_6,
+		QUARKREGCLASS_INTEGER_PARAM_7, SYMREG_NONE};
+	uint32_t floatParamRegs[9] = {QUARKREGCLASS_FLOAT_PARAM_0, QUARKREGCLASS_FLOAT_PARAM_1, QUARKREGCLASS_FLOAT_PARAM_2,
+		QUARKREGCLASS_FLOAT_PARAM_3, QUARKREGCLASS_FLOAT_PARAM_4, QUARKREGCLASS_FLOAT_PARAM_5, QUARKREGCLASS_FLOAT_PARAM_6,
+		QUARKREGCLASS_FLOAT_PARAM_7, SYMREG_NONE};
+	uint32_t curIntParamReg = 0;
+	uint32_t curFloatParamReg = 0;
+	vector<bool> paramOnStack;
+	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
+
+	for (size_t i = 0; i < params.size(); i++)
+	{
+		if (i >= fixedParams)
+		{
+			// Additional parameters to variable argument functions must be on stack
+			paramOnStack.push_back(true);
+			continue;
+		}
+
+		bool stackParam = false;
+		if ((params[i]->GetType() == NODETYPE_F32) || (params[i]->GetType() == NODETYPE_F64))
+		{
+			if (floatParamRegs[curFloatParamReg] == SYMREG_NONE)
+				stackParam = true;
+			else
+			{
+				uint32_t cls = floatParamRegs[curFloatParamReg++];
+				uint32_t reg = m_symFunc->AddRegister(cls);
+				input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));
+
+				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(reg,
+					cls, params[i]->GetType()), params[i]));
+			}
+		}
+		else if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64))
+		{
+			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+				stackParam = true;
+			else
+			{
+				uint32_t lowCls = intParamRegs[curIntParamReg++];
+				uint32_t highCls = intParamRegs[curIntParamReg++];
+				uint32_t lowReg = m_symFunc->AddRegister(lowCls);
+				uint32_t highReg = m_symFunc->AddRegister(highCls);
+				input->AddChildNode(TreeNode::CreateRegNode(lowReg, lowCls, NODETYPE_U32));
+				input->AddChildNode(TreeNode::CreateRegNode(highReg, highCls, NODETYPE_U32));
+
+				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateLargeRegNode(lowReg, highReg,
+					lowCls, highCls, params[i]->GetType()), params[i]));
+			}
+		}
+		else
+		{
+			if (intParamRegs[curIntParamReg] == SYMREG_NONE)
+				stackParam = true;
+			else
+			{
+				uint32_t cls = intParamRegs[curIntParamReg++];
+				uint32_t reg = m_symFunc->AddRegister(cls);
+				input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));
+
+				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(reg,
+					cls, params[i]->GetType()), params[i]));
+			}
+		}
+
+		paramOnStack.push_back(stackParam);
+	}
+
+	// Push parameters from right to left
+	size_t pushSize = 0;
+	for (int i = (int)params.size() - 1; i >= 0; i--)
+	{
+		if (!paramOnStack[i])
+			continue;
+
+		block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));
+
+		if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||
+			(params[i]->GetType() == NODETYPE_F64))
+			pushSize += 8;
+		else
+			pushSize += 4;
+	}
+
+	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_CALLVOID : NODE_CALL, resultType, func, input,
+		TreeNode::CreateImmediateNode(pushSize, NODETYPE_U32));
+}
+
+function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params, TreeNodeType resultType)
+{
+	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
+	size_t regIndex = 0;
+	for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)
+	{
+		if ((*i)->GetClass() == NODE_UNDEFINED)
+		{
+			regIndex++;
+			if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
+				regIndex++;
+			continue;
+		}
+
+		if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
+		{
+			uint32_t reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex));
+			uint32_t highReg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1));
+			input->AddChildNode(TreeNode::CreateRegNode(reg, QUARKREGCLASS_SYSCALL_PARAM(regIndex), NODETYPE_U32));
+			input->AddChildNode(TreeNode::CreateRegNode(highReg, QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1), NODETYPE_U32));
+
+			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateLargeRegNode(reg, highReg,
+				QUARKREGCLASS_SYSCALL_PARAM(regIndex), QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1), (*i)->GetType()), *i));
+
+			regIndex += 2;
+		}
+		else
+		{
+			uint32_t reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex));
+			input->AddChildNode(TreeNode::CreateRegNode(reg, QUARKREGCLASS_SYSCALL_PARAM(regIndex), (*i)->GetType()));
+
+			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateRegNode(reg,
+				QUARKREGCLASS_SYSCALL_PARAM(regIndex), (*i)->GetType()), *i));
+
+			regIndex++;
+		}
+	}
+
+	if (regIndex > 8)
+		return NULL;
+
+	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL, resultType, num, input);
 }
 
 function void AssignRegisterVariable(Variable* var)

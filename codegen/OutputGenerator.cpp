@@ -170,6 +170,8 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 			case MATCHVAR_IMM:
 			case MATCHVAR_REG:
 			case MATCHVAR_BLOCK:
+			case MATCHVAR_FUNC:
+			case MATCHVAR_INPUT:
 				result += i->name;
 				result += " ";
 				break;
@@ -328,12 +330,16 @@ string OutputGenerator::GenerateMatchForNode(Match* match, const string& prefix,
 	case NODE_REG:
 		if (node->GetTypeName() == "BLOCK")
 			return prefix + "->GetClass() == NODE_BLOCK";
+		else if (node->GetTypeName() == "FUNCTION")
+			return prefix + "->GetClass() == NODE_FUNC";
 		else if (node->GetTypeName() == "IMM")
 			return string("(") + prefix + "->GetClass() == NODE_IMMED)" + GenerateTypeMatchCode(prefix, node);
 		else if (node->GetTypeName() == "STACKVAR")
 			return string("(") + prefix + "->GetClass() == NODE_STACK_VAR)" + GenerateTypeMatchCode(prefix, node);
 		else if (node->GetTypeName() == "GLOBALVAR")
 			return string("(") + prefix + "->GetClass() == NODE_GLOBAL_VAR)" + GenerateTypeMatchCode(prefix, node);
+		else if (node->GetTypeName() == "INPUT")
+			return prefix + "->GetClass() == NODE_INPUT";
 		else if (m_parser->IsImmediateClass(node->GetTypeName()))
 		{
 			return string("(") + prefix + "->GetClass() == NODE_IMMED) && (MatchImmClass_" +
@@ -431,6 +437,14 @@ string OutputGenerator::GenerateMatchForNode(Match* match, const string& prefix,
 		return prefix + "->GetClass() == NODE_IFE";
 	case NODE_GOTO:
 		return prefix + "->GetClass() == NODE_GOTO";
+	case NODE_CALL:
+		return prefix + "->GetClass() == NODE_CALL";
+	case NODE_CALLVOID:
+		return prefix + "->GetClass() == NODE_CALLVOID";
+	case NODE_SYSCALL:
+		return prefix + "->GetClass() == NODE_SYSCALL";
+	case NODE_SYSCALLVOID:
+		return prefix + "->GetClass() == NODE_SYSCALLVOID";
 	case NODE_SCONVERT:
 		return string("(") + prefix + "->GetClass() == NODE_SCONVERT)" + GenerateTypeMatchCode(prefix, node);
 	case NODE_UCONVERT:
@@ -479,6 +493,8 @@ string OutputGenerator::GenerateMatchForNode(Match* match, const string& prefix,
 		return string("(") + prefix + "->GetClass() == NODE_ACOS)" + GenerateTypeMatchCode(prefix, node);
 	case NODE_ATAN:
 		return string("(") + prefix + "->GetClass() == NODE_ATAN)" + GenerateTypeMatchCode(prefix, node);
+	case NODE_PUSH:
+		return string("(") + prefix + "->GetClass() == NODE_PUSH)" + GenerateTypeMatchCode(prefix, node);
 	default:
 		fprintf(stderr, "%s:%d: error: invalid node type in match\n", match->GetFileName().c_str(), match->GetLineNumber());
 		m_errors++;
@@ -510,6 +526,9 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 		first = false;
 		WriteLine("%s", code.c_str());
 
+		if (info.node->GetClass() == NODE_SYSCALL)
+			WriteLine("\t&& (%s->GetChildNodes().size() == %d)", info.prefix.c_str(), (int)info.node->GetChildNodes().size());
+
 		for (size_t i = 0; i < info.node->GetChildNodes().size(); i++)
 		{
 			MatchNodeInfo child;
@@ -523,8 +542,19 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 
 	WriteLine("\t)");
 	BeginBlock();
+		// TODO: Implement override of default cost calculation, and use actual instruction sizes
+		// on architectures with variable width instructions
+		size_t cost = 0;
+		for (vector<CodeToken>::const_iterator i = match->GetCode()->GetTokens().begin();
+			i != match->GetCode()->GetTokens().end(); ++i)
+		{
+			if (i->type == TOKEN_INSTR_START)
+				cost++;
+		}
+
 		WriteLine("MatchState nextState;");
 		WriteLine("nextState = state;");
+		WriteLine("nextState.cost += %d;", (int)cost);
 
 		WriteLine("vector<uint32_t> temps;");
 		for (vector< Ref<TreeNode> >::const_iterator i = match->GetTemps().begin(); i != match->GetTemps().end(); ++i)
@@ -639,6 +669,22 @@ void OutputGenerator::GenerateOutputCode(Match* match)
 				WriteLine("TreeBlock* %s = %s->GetBlock();", info.node->GetName().c_str(), info.prefix.c_str());
 				WriteLine("(void)%s;", info.node->GetName().c_str());
 				varTypes[info.node->GetName()] = MATCHVAR_BLOCK;
+			}
+			else if (info.node->GetTypeName() == "FUNCTION")
+			{
+				WriteLine("Function* %s = %s->GetFunction();", info.node->GetName().c_str(), info.prefix.c_str());
+				WriteLine("(void)%s;", info.node->GetName().c_str());
+				varTypes[info.node->GetName()] = MATCHVAR_FUNC;
+			}
+			else if (info.node->GetTypeName() == "INPUT")
+			{
+				WriteLine("vector<uint32_t> %s;", info.node->GetName().c_str());
+				WriteLine("for (vector< Ref<TreeNode> >::const_iterator _i = %s->GetChildNodes().begin();", info.prefix.c_str());
+				WriteLine("\t_i != %s->GetChildNodes().end(); ++_i)", info.prefix.c_str());
+				BeginBlock();
+					WriteLine("%s.push_back((*_i)->GetRegister());", info.node->GetName().c_str());
+				EndBlock();
+				varTypes[info.node->GetName()] = MATCHVAR_INPUT;
 			}
 			else
 			{
@@ -795,6 +841,7 @@ bool OutputGenerator::Generate(string& output)
 
 		WriteLine("struct MatchState");
 		BeginBlock();
+			WriteLine("size_t cost;");
 			WriteLine("Ref<TreeNode> node;");
 			WriteLine("vector<MatchInfo> matches;");
 			WriteLine("vector<RegisterInfo> regs;");
@@ -858,10 +905,27 @@ bool OutputGenerator::Generate(string& output)
 			EndBlock();
 		EndBlock();
 
-		// TODO: Add syntax for declaring compatible register classes (e.g. X86REGCLASS_EDX is a subset of X86REGCLASS_INTEGER)
 		WriteLine("bool IsRegisterClassCompatible(uint32_t regClass, uint32_t matchClass)");
 		BeginBlock();
-			WriteLine("return regClass == matchClass;");
+			WriteLine("if (regClass == matchClass)");
+			WriteLine("\treturn true;");
+
+			WriteLine("switch (matchClass)");
+			BeginBlock();
+				for (map< string, vector<string> >::const_iterator i = m_parser->GetRegisterSubclasses().begin();
+					i != m_parser->GetRegisterSubclasses().end(); ++i)
+				{
+					WriteLine("case %s:", i->first.c_str());
+					for (vector<string>::const_iterator j = i->second.begin(); j != i->second.end(); ++j)
+					{
+						WriteLine("\tif (regClass == %s)", j->c_str());
+						WriteLine("\t\treturn true;");
+					}
+					WriteLine("\treturn false;");
+				}
+				WriteLine("default:");
+				WriteLine("\treturn false;");
+			EndBlock();
 		EndBlock();
 
 		WriteLine("uint32_t AddRegisterForMatch(MatchState& state, uint32_t cls)");
@@ -979,6 +1043,7 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("vector<MatchState> matches;");
 			WriteLine("queue<MatchState> possible;");
 			WriteLine("MatchState state;");
+			WriteLine("state.cost = 0;");
 			WriteLine("state.node = node;");
 			WriteLine("possible.push(state);");
 
@@ -1014,7 +1079,7 @@ bool OutputGenerator::Generate(string& output)
 				BeginBlock();
 					WriteLine("if (!best)");
 					WriteLine("\tbest = &*i;");
-					WriteLine("else if (i->matches.size() < best->matches.size())");
+					WriteLine("else if (i->cost < best->cost)");
 					WriteLine("\tbest = &*i;");
 				EndBlock();
 			EndBlock();
@@ -1063,6 +1128,9 @@ bool OutputGenerator::Generate(string& output)
 				BeginBlock();
 					WriteLine("case NODE_NOP:");
 					WriteLine("\tbreak;");
+					WriteLine("case NODE_NORETURN:");
+					WriteLine("\tend = true;");
+					WriteLine("\tbreak;");
 					WriteLine("case NODE_IFTRUE:");
 					WriteLine("case NODE_IFSLT:");
 					WriteLine("case NODE_IFULT:");
@@ -1070,7 +1138,6 @@ bool OutputGenerator::Generate(string& output)
 					WriteLine("case NODE_IFULE:");
 					WriteLine("case NODE_IFE:");
 					WriteLine("case NODE_GOTO:");
-					WriteLine("case NODE_NORETURN:");
 					WriteLine("case NODE_RETURN:");
 					WriteLine("case NODE_RETURNVOID:");
 					WriteLine("\tend = true;");
@@ -1119,6 +1186,7 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("m_globalBaseReg = SYMREG_IP;");
 
 			// Generate stack frame
+			WriteLine("m_paramCopy.clear();");
 			WriteLine("for (vector< Ref<Variable> >::const_iterator i = m_func->GetVariables().begin();");
 			WriteLine("\ti != m_func->GetVariables().end(); i++)");
 			BeginBlock();
@@ -1171,7 +1239,7 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("\treturn false;");
 
 			// Generate tree IL for code generation
-			WriteLine("if (!func->GenerateTreeIL(m_settings, m_vars))");
+			WriteLine("if (!func->GenerateTreeIL(m_settings, m_vars, this))");
 			BeginBlock();
 				WriteLine("fprintf(stderr, \"error: unable to generate tree IL for function '%%s'\\n\",");
 				WriteLine("\tfunc->GetName().c_str());");

@@ -5417,5 +5417,19 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	return true;
 }
 
+
+TreeNode* OUTPUT_CLASS_NAME::GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
+	TreeNodeType resultType)
+{
+	return NULL;
+}
+
+
+TreeNode* OUTPUT_CLASS_NAME::GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params,
+	TreeNodeType resultType)
+{
+	return NULL;
+}
+
 #endif
 

@@ -43,6 +43,7 @@ class ParserState
 	Ref<RegisterClass> m_defaultRegClass;
 
 	std::map< std::string, Ref<RegisterClass> > m_regClasses;
+	std::map< std::string, std::vector<std::string> > m_regSubclasses;
 	std::map< std::string, Ref<CodeBlock> > m_immClasses;
 	std::vector< Ref<CodeBlock> > m_funcs;
 	std::vector< Ref<CodeBlock> > m_vars;
@@ -74,6 +75,7 @@ public:
 	void DefineLargeRegisterClass(RegisterType type, const std::string& name,
 		const std::string& lowRegClass, const std::string& highRegClass);
 	void DefineTempRegisterClass(const std::string& name, const std::string& symRegClass);
+	void DefineRegisterSubclass(const std::string& name, const std::string& base);
 
 	void DefineImmediateClass(const std::string& name, CodeBlock* code);
 
@@ -92,6 +94,7 @@ public:
 	CodeBlock* GetImmediateClass(const std::string& name) const;
 	bool IsImmediateClass(const std::string& name) const { return GetImmediateClass(name) != NULL; }
 	const std::map< std::string, Ref<RegisterClass> >& GetRegisterClasses() const { return m_regClasses; }
+	const std::map< std::string, std::vector<std::string> >& GetRegisterSubclasses() const { return m_regSubclasses; }
 	const std::map< std::string, Ref<CodeBlock> >& GetImmediateClasses() const { return m_immClasses; }
 	const std::vector< Ref<CodeBlock> >& GetFunctions() const { return m_funcs; }
 	const std::vector< Ref<CodeBlock> >& GetVariables() const { return m_vars; }

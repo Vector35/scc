@@ -23,9 +23,13 @@
 
 #include "TreeNode.h"
 #include "ILBlock.h"
+#include "Settings.h"
+#include "Struct.h"
+#include "Variable.h"
 
 
 struct VariableAssignments;
+class Output;
 
 class TreeBlock: public RefCountObject
 {
@@ -56,7 +60,7 @@ public:
 	const std::vector< Ref<TreeNode> >& GetNodes() const { return m_nodes; }
 
 	bool GenerateFromILBlock(ILBlock* il, std::vector< Ref<TreeBlock> >& blocks, const VariableAssignments& vars,
-		const Settings& settings);
+		const Settings& settings, Output* output);
 
 	void Print() const;
 };

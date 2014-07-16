@@ -223,7 +223,7 @@ void Function::GenerateIL(ParserState* state)
 }
 
 
-bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignments& vars)
+bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignments& vars, Output* output)
 {
 	m_treeBlocks.clear();
 	for (size_t i = 0; i < m_ilBlocks.size(); i++)
@@ -232,7 +232,7 @@ bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignment
 	bool ok = true;
 	for (size_t i = 0; i < m_ilBlocks.size(); i++)
 	{
-		ok = m_treeBlocks[i]->GenerateFromILBlock(m_ilBlocks[i], m_treeBlocks, vars, settings);
+		ok = m_treeBlocks[i]->GenerateFromILBlock(m_ilBlocks[i], m_treeBlocks, vars, settings, output);
 		if (!ok)
 			break;
 	}

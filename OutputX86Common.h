@@ -207,6 +207,10 @@ public:
 	OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc);
 
 	virtual bool GenerateCode(Function* func);
+	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const std::vector< Ref<TreeNode> >& params,
+		TreeNodeType resultType);
+	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const std::vector< Ref<TreeNode> >& params,
+		TreeNodeType resultType);
 };
 
 

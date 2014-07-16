@@ -121,9 +121,10 @@ TreeNode* TreeNode::CreateBlockNode(TreeBlock* block)
 }
 
 
-TreeNode* TreeNode::CreateFunctionNode(Function* func)
+TreeNode* TreeNode::CreateFunctionNode(Function* func, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(NODE_FUNC);
+	result->SetType(type);
 	result->SetFunction(func);
 	return result;
 }
@@ -156,28 +157,6 @@ TreeNode* TreeNode::CreateImmediateNode(int64_t immed, TreeNodeType type)
 	TreeNode* result = new TreeNode(NODE_IMMED);
 	result->SetType(type);
 	result->SetImmediate(immed);
-	return result;
-}
-
-
-TreeNode* TreeNode::CreateCallNode(TreeNode* func, size_t stdParamCount, const std::vector< Ref<TreeNode> >& params,
-	TreeNodeType returnType)
-{
-	TreeNode* result = new TreeNode(NODE_CALL);
-	result->SetType(returnType);
-	result->SetImmediate(stdParamCount);
-	result->AddChildNode(func);
-	result->AddChildNodes(params);
-	return result;
-}
-
-
-TreeNode* TreeNode::CreateSyscallNode(TreeNode* num, const std::vector< Ref<TreeNode> >& params, TreeNodeType returnType)
-{
-	TreeNode* result = new TreeNode(NODE_SYSCALL);
-	result->SetType(returnType);
-	result->AddChildNode(num);
-	result->AddChildNodes(params);
 	return result;
 }
 
@@ -413,10 +392,16 @@ void TreeNode::Print() const
 		fprintf(stderr, "goto");
 		break;
 	case NODE_CALL:
-		fprintf(stderr, "call[%" PRIi64 "]", m_immediate);
+		fprintf(stderr, "call");
+		break;
+	case NODE_CALLVOID:
+		fprintf(stderr, "callvoid");
 		break;
 	case NODE_SYSCALL:
 		fprintf(stderr, "syscall");
+		break;
+	case NODE_SYSCALLVOID:
+		fprintf(stderr, "syscallvoid");
 		break;
 	case NODE_SCONVERT:
 		fprintf(stderr, "sconvert");
@@ -471,8 +456,14 @@ void TreeNode::Print() const
 	case NODE_ATAN:
 		fprintf(stderr, "atan");
 		break;
+	case NODE_PUSH:
+		fprintf(stderr, "push");
+		break;
 	case NODE_NORETURN:
 		fprintf(stderr, "noreturn");
+		break;
+	case NODE_INPUT:
+		fprintf(stderr, "input");
 		break;
 	default:
 		fprintf(stderr, "<invalid>");

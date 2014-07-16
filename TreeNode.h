@@ -25,8 +25,6 @@
 #include <string>
 #include <vector>
 #include <inttypes.h>
-#include "Variable.h"
-#include "Struct.h"
 
 
 enum TreeNodeClass
@@ -68,7 +66,9 @@ enum TreeNodeClass
 	NODE_IFE,
 	NODE_GOTO,
 	NODE_CALL,
+	NODE_CALLVOID,
 	NODE_SYSCALL,
+	NODE_SYSCALLVOID,
 	NODE_SCONVERT,
 	NODE_UCONVERT,
 	NODE_RETURN,
@@ -93,7 +93,9 @@ enum TreeNodeClass
 	NODE_ASIN,
 	NODE_ACOS,
 	NODE_ATAN,
-	NODE_NORETURN
+	NODE_PUSH,
+	NODE_NORETURN,
+	NODE_INPUT
 };
 
 enum TreeNodeType
@@ -163,13 +165,10 @@ public:
 	static TreeNode* CreateStackVarNode(uint32_t base, int32_t var, int64_t offset, TreeNodeType type);
 	static TreeNode* CreateGlobalVarNode(int64_t offset, TreeNodeType type);
 	static TreeNode* CreateBlockNode(TreeBlock* block);
-	static TreeNode* CreateFunctionNode(Function* func);
+	static TreeNode* CreateFunctionNode(Function* func, TreeNodeType type);
 	static TreeNode* CreateRegNode(uint32_t reg, uint32_t regClass, TreeNodeType type);
 	static TreeNode* CreateLargeRegNode(uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type);
 	static TreeNode* CreateImmediateNode(int64_t immed, TreeNodeType type);
-	static TreeNode* CreateCallNode(TreeNode* func, size_t stdParamCount, const std::vector< Ref<TreeNode> >& params,
-		TreeNodeType returnType);
-	static TreeNode* CreateSyscallNode(TreeNode* num, const std::vector< Ref<TreeNode> >& params, TreeNodeType returnType);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b);

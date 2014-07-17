@@ -23,6 +23,7 @@
 
 #include "RefCountObject.h"
 #include <string>
+#include <stdint.h>
 
 
 enum RegisterClassType
@@ -32,28 +33,18 @@ enum RegisterClassType
 	REGCLASS_TEMP
 };
 
-enum RegisterType
-{
-	REGTYPE_INT8,
-	REGTYPE_INT16,
-	REGTYPE_INT32,
-	REGTYPE_INT64,
-	REGTYPE_FLOAT
-};
-
 class RegisterClass: public RefCountObject
 {
 	RegisterClassType m_classType;
-	RegisterType m_regType;
+	uint32_t m_sizeFlags;
 	std::string m_matchName, m_regClass, m_highClass;
 
 public:
-	RegisterClass(const std::string& matchName, const std::string& regClass);
-	RegisterClass(const std::string& matchName, RegisterType type, const std::string& regClass);
-	RegisterClass(const std::string& matchName, RegisterType type, const std::string& lowClass, const std::string& highClass);
+	RegisterClass(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName, const std::string& regClass);
+	RegisterClass(uint32_t sizeFlags, const std::string& matchName, const std::string& lowClass, const std::string& highClass);
 
 	RegisterClassType GetClassType() const { return m_classType; }
-	RegisterType GetRegisterType() const { return m_regType; }
+	uint32_t GetSizeFlags() const { return m_sizeFlags; }
 
 	const std::string& GetMatchName() const { return m_matchName; }
 	const std::string& GetRegisterClassName() const { return m_regClass; }

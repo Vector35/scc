@@ -324,51 +324,67 @@ void TreeNode::Print() const
 		break;
 	case NODE_ADD:
 		fprintf(stderr, "add");
+		PrintType();
 		break;
 	case NODE_SUB:
 		fprintf(stderr, "sub");
+		PrintType();
 		break;
 	case NODE_SMUL:
 		fprintf(stderr, "smul");
+		PrintType();
 		break;
 	case NODE_UMUL:
 		fprintf(stderr, "umul");
+		PrintType();
 		break;
 	case NODE_SDIV:
 		fprintf(stderr, "sdiv");
+		PrintType();
 		break;
 	case NODE_UDIV:
 		fprintf(stderr, "udiv");
+		PrintType();
 		break;
 	case NODE_SMOD:
 		fprintf(stderr, "smod");
+		PrintType();
 		break;
 	case NODE_UMOD:
 		fprintf(stderr, "umod");
+		PrintType();
 		break;
 	case NODE_AND:
 		fprintf(stderr, "and");
+		PrintType();
 		break;
 	case NODE_OR:
 		fprintf(stderr, "or");
+		PrintType();
 		break;
 	case NODE_XOR:
 		fprintf(stderr, "xor");
+		PrintType();
 		break;
 	case NODE_SHL:
 		fprintf(stderr, "shl");
+		PrintType();
 		break;
 	case NODE_SHR:
 		fprintf(stderr, "shr");
+		PrintType();
 		break;
 	case NODE_SAR:
 		fprintf(stderr, "sar");
+		PrintType();
 		break;
 	case NODE_NEG:
 		fprintf(stderr, "neg");
+		PrintType();
 		break;
 	case NODE_NOT:
 		fprintf(stderr, "not");
+		PrintType();
 		break;
 	case NODE_IFTRUE:
 		fprintf(stderr, "iftrue");
@@ -393,12 +409,14 @@ void TreeNode::Print() const
 		break;
 	case NODE_CALL:
 		fprintf(stderr, "call");
+		PrintType();
 		break;
 	case NODE_CALLVOID:
 		fprintf(stderr, "callvoid");
 		break;
 	case NODE_SYSCALL:
 		fprintf(stderr, "syscall");
+		PrintType();
 		break;
 	case NODE_SYSCALLVOID:
 		fprintf(stderr, "syscallvoid");
@@ -417,44 +435,82 @@ void TreeNode::Print() const
 	case NODE_RETURNVOID:
 		fprintf(stderr, "returnvoid");
 		break;
+	case NODE_ALLOCA:
+		fprintf(stderr, "alloca");
+		PrintType();
+		break;
+	case NODE_MEMCPY:
+		fprintf(stderr, "memcpy");
+		break;
+	case NODE_MEMSET:
+		fprintf(stderr, "memset");
+		break;
+	case NODE_STRLEN:
+		fprintf(stderr, "strlen");
+		PrintType();
+		break;
+	case NODE_RDTSC:
+		fprintf(stderr, "rdtsc");
+		PrintType();
+		break;
+	case NODE_RDTSC_LOW:
+		fprintf(stderr, "rdtsc_low");
+		PrintType();
+		break;
+	case NODE_RDTSC_HIGH:
+		fprintf(stderr, "rdtsc_high");
+		PrintType();
+		break;
 	case NODE_VARARG:
 		fprintf(stderr, "vararg");
+		PrintType();
 		break;
 	case NODE_BYTESWAP:
 		fprintf(stderr, "byteswap");
+		PrintType();
 		break;
 	case NODE_BREAKPOINT:
 		fprintf(stderr, "breakpoint");
 		break;
 	case NODE_POW:
 		fprintf(stderr, "pow");
+		PrintType();
 		break;
 	case NODE_FLOOR:
 		fprintf(stderr, "floor");
+		PrintType();
 		break;
 	case NODE_CEIL:
 		fprintf(stderr, "ceil");
+		PrintType();
 		break;
 	case NODE_SQRT:
 		fprintf(stderr, "sqrt");
+		PrintType();
 		break;
 	case NODE_SIN:
 		fprintf(stderr, "sin");
+		PrintType();
 		break;
 	case NODE_COS:
 		fprintf(stderr, "cos");
+		PrintType();
 		break;
 	case NODE_TAN:
 		fprintf(stderr, "tan");
+		PrintType();
 		break;
 	case NODE_ASIN:
 		fprintf(stderr, "asin");
+		PrintType();
 		break;
 	case NODE_ACOS:
 		fprintf(stderr, "acos");
+		PrintType();
 		break;
 	case NODE_ATAN:
 		fprintf(stderr, "atan");
+		PrintType();
 		break;
 	case NODE_PUSH:
 		fprintf(stderr, "push");

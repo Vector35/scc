@@ -30,7 +30,6 @@
 	int64_t intval;
 	double floatval;
 	char* str;
-	RegisterType registerType;
 	CodeBlock* code;
 	CodeToken* token;
 	TreeNode* node;
@@ -78,7 +77,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %token ARROW SEMICOLON LBRACE RBRACE
 %token ARCH_TOK REGISTERCLASS LARGEREGISTERCLASS TEMPREGISTERCLASS REGISTERSUBCLASS
 %token IMMEDIATECLASS
-%token INT8_TOK INT16_TOK INT32_TOK INT64_TOK FLOAT_TOK LOW_TOK HIGH_TOK
+%token LOW_TOK HIGH_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
 %token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
@@ -95,7 +94,6 @@ void Codegen_error(ParserState* state, const char* msg)
 %token <str> STRING_VAL CHAR_VAL
 %token <str> ID ARG_ID ARG_ID_COLON INSTR_ID OPERATOR
 
-%type <registerType> register_type
 %type <code> code code_stmt_list code_stmt token_list function_type_list function_arg_list
 %type <token> token function_type_token function_arg_token keyword_token
 %type <node> match tree temp_list
@@ -125,26 +123,24 @@ toplevel_stmt: class_stmt
 			 | INCLUDE_TOK STRING_VAL  { state->AddInclude($2); free($2); }
 			 ;	
 
-class_stmt: REGISTERCLASS register_type ID ID  { state->DefineRegisterClass($2, $3, $4, false); free($3); free($4); }
-		  | REGISTERCLASS DEFAULT_TOK register_type ID ID  { state->DefineRegisterClass($3, $4, $5, true); free($4); free($5); }
-		  | LARGEREGISTERCLASS register_type ID ID ID
+class_stmt: REGISTERCLASS ID LPAREN match_type_list RPAREN ID  { state->DefineRegisterClass($4, $2, $6, false); free($2); free($6); }
+		  | REGISTERCLASS DEFAULT_TOK ID LPAREN match_type_list RPAREN ID
 		  	{
-				state->DefineLargeRegisterClass($2, $3, $4, $5);
+				state->DefineRegisterClass($5, $3, $7, true);
 				free($3);
-				free($4);
-				free($5);
+				free($7);
 			}
-		  | TEMPREGISTERCLASS ID ID  { state->DefineTempRegisterClass($2, $3); free($2); free($3); }
+		  | LARGEREGISTERCLASS ID LPAREN match_type_list RPAREN ID ID
+		  	{
+				state->DefineLargeRegisterClass($4, $2, $6, $7);
+				free($2);
+				free($6);
+				free($7);
+			}
+		  | TEMPREGISTERCLASS ID LPAREN match_type_list RPAREN ID  { state->DefineTempRegisterClass($4, $2, $6); free($2); free($6); }
 		  | REGISTERSUBCLASS ID COLON ID  { state->DefineRegisterSubclass($2, $4); free($2); free($4); }
 		  | IMMEDIATECLASS ID code  { state->DefineImmediateClass($2, $3); free($2); $3->Release(); }
 		  ;
-
-register_type: INT8_TOK  { $$ = REGTYPE_INT8; }
-			 | INT16_TOK  { $$ = REGTYPE_INT16; }
-			 | INT32_TOK  { $$ = REGTYPE_INT32; }
-			 | INT64_TOK  { $$ = REGTYPE_INT64; }
-			 | FLOAT_TOK  { $$ = REGTYPE_FLOAT; }
-			 ;
 
 code: LBRACE code_stmt_list RBRACE  { $$ = $2; }
 	| LBRACE RBRACE  { $$ = new CodeBlock; $$->AddRef(); }
@@ -373,8 +369,28 @@ temp_list: temp_list COMMA match  { $$ = $1; $$->AddChildNodes($3->GetChildNodes
 		 | match  { $$ = new TreeNode(NODE_REG); $$->AddRef(); $$->AddChildNode($1); $1->Release(); }
 		 ;
 
-match: ID COLON ID  { $$ = TreeNode::CreateRegNode($1, $3, REG_MATCH_ALL); $$->AddRef(); free($1); free($3); }
-	 | ID COLON ID LPAREN match_type_list RPAREN  { $$ = TreeNode::CreateRegNode($1, $3, $5); $$->AddRef(); free($1); free($3); }
+match: ID COLON ID
+	 	{
+			uint32_t sizeFlags = REG_MATCH_ALL;
+			RegisterClass* cls = state->GetRegisterClass($3);
+			if (cls)
+				sizeFlags &= cls->GetSizeFlags();
+			$$ = TreeNode::CreateRegNode($1, $3, sizeFlags);
+			$$->AddRef();
+			free($1);
+			free($3);
+		}
+	 | ID COLON ID LPAREN match_type_list RPAREN
+	 	{
+			uint32_t sizeFlags = $5;
+			RegisterClass* cls = state->GetRegisterClass($3);
+			if (cls)
+				sizeFlags &= cls->GetSizeFlags();
+			$$ = TreeNode::CreateRegNode($1, $3, sizeFlags);
+			$$->AddRef();
+			free($1);
+			free($3);
+		}
 	 ;
 
 match_type_list: match_type_list COMMA match_type  { $$ = $1 | $3; }

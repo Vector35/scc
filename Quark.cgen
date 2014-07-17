@@ -1,15 +1,15 @@
 include "asmquark.h"
 
 arch Quark
-registerclass default int32 IREG QUARKREGCLASS_INTEGER
-registerclass int32 INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE
-registerclass int32 SYSCALL_RETURN QUARKREGCLASS_SYSCALL_RESULT_1
-registerclass float FREG QUARKREGCLASS_FLOAT
-registerclass float FLOAT_RETURN_VALUE QUARKREGCLASS_FLOAT_RETURN_VALUE
-largeregisterclass int64 IREG64 QUARKREGCLASS_INTEGER QUARKREGCLASS_INTEGER
-largeregisterclass int64 INTEGER_RETURN_VALUE_64 QUARKREGCLASS_INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH
-largeregisterclass int64 SYSCALL_RETURN_64 QUARKREGCLASS_SYSCALL_RESULT_1 QUARKREGCLASS_SYSCALL_RESULT_2
-tempregisterclass IRESULT QUARKREGCLASS_INTEGER
+registerclass default IREG(8,16,32) QUARKREGCLASS_INTEGER
+registerclass INTEGER_RETURN_VALUE(8,16,32) QUARKREGCLASS_INTEGER_RETURN_VALUE
+registerclass SYSCALL_RETURN(8,16,32) QUARKREGCLASS_SYSCALL_RESULT_1
+registerclass FREG(F32,F64) QUARKREGCLASS_FLOAT
+registerclass FLOAT_RETURN_VALUE(F32,F64) QUARKREGCLASS_FLOAT_RETURN_VALUE
+largeregisterclass IREG64(64) QUARKREGCLASS_INTEGER QUARKREGCLASS_INTEGER
+largeregisterclass INTEGER_RETURN_VALUE_64(64) QUARKREGCLASS_INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH
+largeregisterclass SYSCALL_RETURN_64(64) QUARKREGCLASS_SYSCALL_RESULT_1 QUARKREGCLASS_SYSCALL_RESULT_2
+tempregisterclass IRESULT(8,16,32) QUARKREGCLASS_INTEGER
 
 registersubclass QUARKREGCLASS_INTEGER_RETURN_VALUE: QUARKREGCLASS_INTEGER
 registersubclass QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH: QUARKREGCLASS_INTEGER
@@ -232,7 +232,7 @@ BITWISE_INSTR(xor, @Xor)
 op a:IREG b:IREG => dest:IREG { instr %dest, %a, %b, 0; } \
 op a:IREG b:IMM => dest:IREG { instr %dest, %a, %b; }
 SHIFT_INSTR(shl, @Shl)
-SHIFT_INSTR(shr, @Shl)
+SHIFT_INSTR(shr, @Shr)
 SHIFT_INSTR(sar, @Sar)
 
 neg src:IREG => dest:IRESULT { @Neg %dest, %src; }
@@ -328,37 +328,56 @@ goto dest:IREG { @Mov SYMREG_IP, %dest, 0; }
 goto shl dest:IREG c:IMM { @Mov SYMREG_IP, %dest, %c; }
 goto dest:IMM11 { @LoadImm SYMREG_IP, %dest; }
 
+function void AdjustStackAfterCall(SymInstrBlock* out, uint32_t stackAdjust)
+{
+	if (stackAdjust != 0)
+	{
+		if (m_settings.stackGrowsUp)
+			@Sub SYMREG_SP, SYMREG_SP, stackAdjust;
+		else
+			@Add SYMREG_SP, SYMREG_SP, stackAdjust;
+	}
+}
+
 call func:FUNCTION reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE
 {
 	@Call %func, %func->GetIL()[0], %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 call func:FUNCTION reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE_64
 {
 	@Call %func, %func->GetIL()[0], %dest:low, %dest:high, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 call func:FUNCTION reads:INPUT stackAdjust:IMM11 => dest:FLOAT_RETURN_VALUE
 {
 	@Call %func, %func->GetIL()[0], %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 callvoid func:FUNCTION reads:INPUT stackAdjust:IMM11
 {
 	@Call %func, %func->GetIL()[0], SYMREG_NONE, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 call func:IREG reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE
 {
 	@Call %func, %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 call func:IREG reads:INPUT stackAdjust:IMM11 => dest:INTEGER_RETURN_VALUE_64
 {
 	@Call %func, %dest:low, %dest:high, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 call func:IREG reads:INPUT stackAdjust:IMM11 => dest:FLOAT_RETURN_VALUE
 {
 	@Call %func, %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 callvoid func:IREG reads:INPUT stackAdjust:IMM11
 {
 	@Call %func, SYMREG_NONE, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 
 syscall (num:IMM11) reads:INPUT => dest:SYSCALL_RETURN
@@ -409,8 +428,8 @@ sconvert src:IREG(16) => dest:IREG(32) { @Sxh %dest, %src; }
 sconvert src:IREG(16) => dest:IREG64 { @Sxh %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
 uconvert src:IREG(16) => dest:IREG(32) { @Zxh %dest, %src; }
 uconvert src:IREG(16) => dest:IREG64 { @Zxh %dest:low, %src; @LoadImm %dest:high, 0; }
-sconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
-uconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src; @LoadImm %dest:high, 0; }
+sconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src, 0; @Sar %dest:high, %dest:low, 31; }
+uconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src, 0; @LoadImm %dest:high, 0; }
 sconvert src:IREG(16,32) => dest:IREG(8) { @Sxb %dest, %src; }
 sconvert src:IREG64 => dest:IREG(8) { @Sxb %dest, %src:low; }
 uconvert src:IREG(16,32) => dest:IREG(8) { @Zxb %dest, %src; }
@@ -419,8 +438,8 @@ sconvert src:IREG(32) => dest:IREG(16) { @Sxh %dest, %src; }
 sconvert src:IREG64 => dest:IREG(16) { @Sxh %dest, %src:low; }
 uconvert src:IREG(32) => dest:IREG(16) { @Zxh %dest, %src; }
 uconvert src:IREG64 => dest:IREG(16) { @Zxh %dest, %src:low; }
-sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
-uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
+sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low, 0; }
+uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low, 0; }
 
 function bool GenerateReturnVoid(SymInstrBlock* out)
 {
@@ -462,6 +481,38 @@ return src:IREG64, retval:INTEGER_RETURN_VALUE_64
 }
 
 returnvoid { GenerateReturnVoid(out); }
+
+alloca size:IREG => result:IREG
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@Add SYMREG_SP, SYMREG_SP, 4;
+		@Mov %result, SYMREG_SP, 0;
+		@Add SYMREG_SP, SYMREG_SP, %size, 0;
+		@And SYMREG_SP, SYMREG_SP, ~3;
+	}
+	else
+	{
+		@Sub SYMREG_SP, SYMREG_SP, %size, 0;
+		@And SYMREG_SP, SYMREG_SP, ~3;
+		@Mov %result, SYMREG_SP, 0;
+	}
+}
+
+alloca size:IMM11 => result:IREG
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@Add SYMREG_SP, SYMREG_SP, 4;
+		@Mov %result, SYMREG_SP, 0;
+		@Add SYMREG_SP, SYMREG_SP, %size & (~3);
+	}
+	else
+	{
+		@Sub SYMREG_SP, SYMREG_SP, (%size + 3) & (~3);
+		@Mov %result, SYMREG_SP, 0;
+	}
+}
 
 vararg => result:IREG, temp:IREG { @AddStack %result, SYMREG_BP, m_varargStart, 0, %temp; }
 
@@ -556,6 +607,35 @@ function TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedPa
 		}
 
 		bool stackParam = false;
+		if (params[i]->GetClass() == NODE_UNDEFINED)
+		{
+			// Parameter is undefined, skip it
+			if ((params[i]->GetType() == NODETYPE_F32) || (params[i]->GetType() == NODETYPE_F64))
+			{
+				if (floatParamRegs[curFloatParamReg] == SYMREG_NONE)
+					stackParam = true;
+				else
+					curFloatParamReg++;
+			}
+			else if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64))
+			{
+				if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+					stackParam = true;
+				else
+					curIntParamReg += 2;
+			}
+			else
+			{
+				if (intParamRegs[curIntParamReg] == SYMREG_NONE)
+					stackParam = true;
+				else
+					curIntParamReg++;
+			}
+
+			paramOnStack.push_back(stackParam);
+			continue;
+		}
+
 		if ((params[i]->GetType() == NODETYPE_F32) || (params[i]->GetType() == NODETYPE_F64))
 		{
 			if (floatParamRegs[curFloatParamReg] == SYMREG_NONE)
@@ -834,7 +914,9 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	{
 		// This is the start function, and we can't assume we have a safe stack (the code may be
 		// at or near the stack pointer), pivot the stack to make it safe
-		@Sub SYMREG_SP, SYMREG_SP, UNSAFE_STACK_PIVOT;
+		uint32_t reg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+		@LoadImm reg, UNSAFE_STACK_PIVOT;
+		@Sub SYMREG_SP, SYMREG_SP, reg, 0;
 	}
 
 	// Generate function prologue

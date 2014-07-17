@@ -46,7 +46,7 @@ Location ParserState::GetLocation()
 }
 
 
-void ParserState::DefineRegisterClass(RegisterType type, const string& name, const string& symRegClass, bool isDefault)
+void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, const string& symRegClass, bool isDefault)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
@@ -56,7 +56,7 @@ void ParserState::DefineRegisterClass(RegisterType type, const string& name, con
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(name, type, symRegClass);
+	m_regClasses[name] = new RegisterClass(REGCLASS_NORMAL, sizeFlags, name, symRegClass);
 
 	if (isDefault)
 	{
@@ -73,7 +73,7 @@ void ParserState::DefineRegisterClass(RegisterType type, const string& name, con
 }
 
 
-void ParserState::DefineLargeRegisterClass(RegisterType type, const string& name,
+void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& name,
 	const string& lowRegClass, const string& highRegClass)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
@@ -84,11 +84,11 @@ void ParserState::DefineLargeRegisterClass(RegisterType type, const string& name
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(name, type, lowRegClass, highRegClass);
+	m_regClasses[name] = new RegisterClass(sizeFlags, name, lowRegClass, highRegClass);
 }
 
 
-void ParserState::DefineTempRegisterClass(const string& name, const string& symRegClass)
+void ParserState::DefineTempRegisterClass(uint32_t sizeFlags, const string& name, const string& symRegClass)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
@@ -98,7 +98,7 @@ void ParserState::DefineTempRegisterClass(const string& name, const string& symR
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(name, symRegClass);
+	m_regClasses[name] = new RegisterClass(REGCLASS_TEMP, sizeFlags, name, symRegClass);
 }
 
 

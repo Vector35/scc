@@ -165,6 +165,8 @@ TreeNodeType TreeBlock::OperandToNodeType(ILParameter& operand)
 		case ILTYPE_DOUBLE:
 			return NODETYPE_F64;
 		default:
+			if (operand.cls == ILPARAM_INT)
+				return GetPtrType();
 			fprintf(stderr, "internal error: operand has invalid type\n");
 			m_errors++;
 			return NODETYPE_UNDEFINED;
@@ -297,6 +299,7 @@ void TreeBlock::StoreToOperand(const VariableAssignments& vars, ILParameter& ope
 		{
 			AddNode(TreeNode::CreateNode(NODE_STORE, VariableTypeToNodeType(type), TreeNode::CreateNode(NODE_REF, GetPtrType(),
 				TreeNode::CreateGlobalVarNode(var->GetDataSectionOffset(), VariableTypeToNodeType(type))), value));
+			break;
 		}
 
 		regVarIter = vars.registerVariables.find(var);
@@ -492,8 +495,8 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			else
 			{
 				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_LOAD, OperandToNodeType(instr.params[0]),
-					TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
-					src, TreeNode::CreateImmediateNode(member->offset, OperandToNodeType(instr.params[0])))));
+					TreeNode::CreateNode(NODE_ADD, src->GetType(), src,
+					TreeNode::CreateImmediateNode(member->offset, OperandToNodeType(instr.params[0])))));
 			}
 			break;
 
@@ -557,8 +560,7 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			else
 			{
 				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_LOAD, OperandToNodeType(instr.params[0]),
-					TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
-					src, ConstantMultiplyNode(OperandToNode(vars, instr.params[2]),
+					TreeNode::CreateNode(NODE_ADD, src->GetType(), src, ConstantMultiplyNode(OperandToNode(vars, instr.params[2]),
 					instr.params[3].integerValue))));
 			}
 			break;

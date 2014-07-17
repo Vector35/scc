@@ -159,11 +159,6 @@ var					TOK(VAR_TOK)
 default				TOK(DEFAULT_TOK)
 include				TOK(INCLUDE_TOK)
 
-int8	TOK(INT8_TOK)
-int16	TOK(INT16_TOK)
-int32	TOK(INT32_TOK)
-int64	TOK(INT64_TOK)
-float	TOK(FLOAT_TOK)
 low		TOK(LOW_TOK)
 high	TOK(HIGH_TOK)
 

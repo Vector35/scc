@@ -23,20 +23,14 @@
 using namespace std;
 
 
-RegisterClass::RegisterClass(const string& matchName, const string& regClass):
-	m_classType(REGCLASS_TEMP), m_matchName(matchName), m_regClass(regClass)
+RegisterClass::RegisterClass(RegisterClassType type, uint32_t sizeFlags, const string& matchName, const string& regClass):
+	m_classType(type), m_sizeFlags(sizeFlags), m_matchName(matchName), m_regClass(regClass)
 {
 }
 
 
-RegisterClass::RegisterClass(const string& matchName, RegisterType type, const string& regClass):
-	m_classType(REGCLASS_NORMAL), m_regType(type), m_matchName(matchName), m_regClass(regClass)
-{
-}
-
-
-RegisterClass::RegisterClass(const string& matchName, RegisterType type, const string& lowClass, const string& highClass):
-	m_classType(REGCLASS_LARGE), m_regType(type), m_matchName(matchName), m_regClass(lowClass), m_highClass(highClass)
+RegisterClass::RegisterClass(uint32_t sizeFlags, const string& matchName, const string& lowClass, const string& highClass):
+	m_classType(REGCLASS_LARGE), m_sizeFlags(sizeFlags), m_matchName(matchName), m_regClass(lowClass), m_highClass(highClass)
 {
 }
 

@@ -71,10 +71,10 @@ public:
 	void Error() { m_errors++; }
 	bool HasErrors() const { return m_errors != 0; }
 
-	void DefineRegisterClass(RegisterType type, const std::string& name, const std::string& symRegClass, bool isDefault);
-	void DefineLargeRegisterClass(RegisterType type, const std::string& name,
+	void DefineRegisterClass(uint32_t sizeFlags, const std::string& name, const std::string& symRegClass, bool isDefault);
+	void DefineLargeRegisterClass(uint32_t sizeFlags, const std::string& name,
 		const std::string& lowRegClass, const std::string& highRegClass);
-	void DefineTempRegisterClass(const std::string& name, const std::string& symRegClass);
+	void DefineTempRegisterClass(uint32_t sizeFlags, const std::string& name, const std::string& symRegClass);
 	void DefineRegisterSubclass(const std::string& name, const std::string& base);
 
 	void DefineImmediateClass(const std::string& name, CodeBlock* code);

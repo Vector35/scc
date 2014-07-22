@@ -179,6 +179,7 @@
 						TOKSTR(ID, yytext);
 				}
 \@[[:alpha:]_][[:alnum:]_]*				TOKSTR(TOKEN, yytext)
+\@\@[[:alpha:]_][[:alnum:]_]*			TOKSTR(TOKEN, yytext)
 \%[[:alpha:]_][[:alnum:]_]*\:			TOKSTR(TOKEN, yytext)
 \%[[:alpha:]_][[:alnum:]_]*				TOKSTR(TOKEN, yytext)
 

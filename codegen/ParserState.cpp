@@ -128,6 +128,12 @@ void ParserState::DefineFunction(CodeBlock* func)
 }
 
 
+void ParserState::DefineInstrFunction(CodeBlock* func)
+{
+	m_instrFuncs.push_back(func);
+}
+
+
 void ParserState::DefineVariable(CodeBlock* var)
 {
 	m_vars.push_back(var);
@@ -164,6 +170,26 @@ void ParserState::DefineMatch(const string& file, int line, TreeNode* match, Tre
 		m_matches.push_back(new Match(file, line, match, result, temp->GetChildNodes(), code));
 	else
 		m_matches.push_back(new Match(file, line, match, result, vector< Ref<TreeNode> >(), code));
+}
+
+
+void ParserState::DefineEncoding(const std::string& name, Encoding* encoding)
+{
+	if (m_encodings.find(name) != m_encodings.end())
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: encoding '%s' already defined\n", GetFileName().c_str(),
+			GetLineNumber(), name.c_str());
+		return;
+	}
+
+	m_encodings[name] = encoding;
+}
+
+
+void ParserState::DefineInstruction(Instruction* instr)
+{
+	m_instrs.push_back(instr);
 }
 
 

@@ -68,6 +68,325 @@ immediateclass IMM17
 	return true;
 }
 
+#define QUARK_COND_LT   0
+#define QUARK_COND_LE   1
+#define QUARK_COND_GE   2
+#define QUARK_COND_GT   3
+#define QUARK_COND_EQ   4
+#define QUARK_COND_NE   5
+#define QUARK_COND_BTNZ 6
+#define QUARK_COND_BTZ  7
+#define QUARK_COND_NAN  6
+#define QUARK_COND_INF  7
+#define QUARK_COND(c, i) (((c) & 7) | (((i) & 3) << 3))
+#define QUARK_ALWAYS      0
+#define QUARK_NEVER       1
+#define QUARK_IF_FALSE(n) ((((n) & 3) << 1) | 8)
+#define QUARK_IF_TRUE(n)  ((((n) & 3) << 1) | 9)
+
+encoding DEFAULT { cond=0: 4, op: 6, a: 5, b: 5, 0: 2, c: 5, d: 5 }
+encoding IMM11 { cond=0: 4, op: 6, a: 5, b: 5, 1: 1, i: 11 }
+encoding IMM17 { cond=0: 4, op: 6, a: 5, i: 17 }
+encoding IMM22 { cond=0: 4, op: 6, i: 22 }
+
+instr function void RelativeLoadOverflowHandler(OutputBlock* out, Relocation& reloc)
+{
+	size_t start = reloc.instruction;
+	uint32_t* oldInstr = (uint32_t*)((size_t)out->code + start);
+
+	if (reloc.bitSize == 17)
+	{
+		// Was a 17-bit immediate, use a full 32-bit immediate
+		uint32_t instrs[3];
+		uint32_t oldOpcode = (oldInstr[0] >> 22) & 0x3f;
+		int32_t oldOffset = oldInstr[0] & 0x1ffff;
+		int oldRegA = (oldInstr[1] >> 17) & 31;
+		int oldRegB = (oldInstr[1] >> 12) & 31;
+		if (oldOffset & 0x10000)
+			oldOffset |= 0xfffe0000;
+
+		oldOffset -= 4;
+
+		instrs[0] = @@IMM17 op=20, a=reloc.extra, i=oldOffset; // ldi
+		instrs[1] = @@IMM17 op=21, a=reloc.extra, i=(oldOffset < 0) ? -1 : 0; // ldih
+		instrs[2] = @@DEFAULT op=oldOpcode, a=oldRegA, b=oldRegB, c=reloc.extra, d=0;
+
+		out->ReplaceInstruction(start, 8, instrs, 12, 0);
+
+		reloc.type = DATA_RELOC_RELATIVE_64_SPLIT_FIELD;
+		reloc.bitSize = 16;
+		reloc.secondBitOffset = 0;
+		reloc.secondBitSize = 16;
+		reloc.secondBitShift = 16;
+	}
+	else
+	{
+		// Was an 11-bit immediate, extend to a 17-bit immediate
+		uint32_t instrs[2];
+		uint32_t oldOpcode = (oldInstr[0] >> 22) & 0x3f;
+		int32_t oldOffset = oldInstr[0] & 0x7ff;
+		int oldRegA = (oldInstr[0] >> 17) & 31;
+		int oldRegB = (oldInstr[0] >> 12) & 31;
+		if (oldOffset & 0x400)
+			oldOffset |= 0xfffff800;
+
+		oldOffset -= 4;
+
+		instrs[0] = @@IMM17 op=20, a=reloc.extra, i=oldOffset; // ldi
+		instrs[1] = @@DEFAULT op=oldOpcode, a=oldRegA, b=oldRegB, c=reloc.extra, d=0;
+
+		out->ReplaceInstruction(start, 4, instrs, 8, 0);
+
+		reloc.bitSize = 17;
+	}
+}
+
+instr function void EmitStack(SymInstrFunction* func, OutputBlock* out, uint32_t opcode, uint32_t a,
+	uint32_t base, int32_t offset, uint32_t temp)
+{
+	if ((%var:offset >= -0x400) && (%var:offset <= 0x3ff))
+		@IMM11 op=opcode, a=a, b=base, i=offset;
+	else if ((%var:offset >= -0x10000) && (%var:offset <= 0xffff))
+	{
+		@IMM17 op=20, a=temp, i=offset;
+		@DEFAULT op=opcode, a=a, b=base, c=temp, d=0;
+	}
+	else
+	{
+		@IMM17 op=20, a=%var:temp, i=offset;
+		@IMM17 op=21, a=%var:temp, i=(offset) >> 16;
+		@DEFAULT op=opcode, a=a, b=base, c=temp, d=0;
+	}
+}
+
+instr function void EmitGlobal(SymInstrFunction* func, OutputBlock* out, uint32_t opcode, uint32_t a,
+	uint32_t base, int32_t offset, uint32_t temp)
+{
+	@IMM11 op=opcode, a=a, b=base, i=0;
+
+	Relocation reloc;
+	reloc.type = DATA_RELOC_RELATIVE_32_FIELD;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 11;
+	reloc.bitShift = 0;
+	reloc.offset = out->len - 4;
+	reloc.extra = temp;
+	reloc.instruction = reloc.offset;
+	reloc.dataOffset = offset;
+	reloc.overflow = RelativeLoadOverflowHandler;
+	out->relocs.push_back(reloc);
+}
+
+instr function void EmitBlock(SymInstrFunction* func, OutputBlock* out, uint32_t opcode, uint32_t a,
+	uint32_t base, OutputBlock* block, uint32_t temp)
+{
+	@IMM11 op=opcode, a=a, b=base, i=0;
+
+	Relocation reloc;
+	reloc.type = DATA_RELOC_RELATIVE_32_FIELD;
+	reloc.bitOffset = 0;
+	reloc.bitSize = 11;
+	reloc.bitShift = 0;
+	reloc.offset = out->len - 4;
+	reloc.extra = temp;
+	reloc.instruction = reloc.offset;
+	reloc.target = block;
+	reloc.overflow = RelativeLoadOverflowHandler;
+	out->relocs.push_back(reloc);
+}
+
+#define LOAD_STORE_INSTR(cls, updatecls, stackcls, globalcls, access, name, updatename, opcode, upcodeopcode) \
+instr(memory) cls name a:REG(access), b:REG(r), c:REG(r) << d:IMM { @DEFAULT op=opcode; } \
+instr(memory) cls name a:REG(access), b:REG(r), i:IMM { @IMM11 op=opcode; } \
+instr(memory) updatecls updatename a:REG(access), b:REG(rw), c:REG(r) << d:IMM { @DEFAULT op=updateopcode; } \
+instr(memory) updatecls updatename a:REG(access), b:REG(rw), i:IMM { @IMM11 op=updateopcode; } \
+instr(memory) stackcls name a:REG(access), var:STACKVAR { EmitStack(func, out, opcode, %a, %var:base, %var:offset, %var:temp); } \
+instr(memory) globalcls name a:REG(access), var:GLOBALVAR { EmitGlobal(func, out, opcode, %a, %var:base, %var:offset, %var:temp); } \
+
+LOAD_STORE_INSTR(Load8, LoadUpdate8, LoadStack8, LoadGlobal8, w, ldb, ldbu, 0, 8)
+LOAD_STORE_INSTR(Load16, LoadUpdate16, LoadStack16, LoadGlobal16, w, ldh, ldhu, 1, 9)
+LOAD_STORE_INSTR(Load32, LoadUpdate32, LoadStack32, LoadGlobal32, w, ldw, ldwu, 2, 10)
+LOAD_STORE_INSTR(LoadFS, LoadUpdateFS, LoadStackFS, LoadGlobalFS, w, ldfs, ldfsu, 48, 52)
+LOAD_STORE_INSTR(LoadFD, LoadUpdateFD, LoadStackFD, LoadGlobalFD, w, ldfd, ldfdu, 49, 53)
+LOAD_STORE_INSTR(LoadSX8, LoadUpdateSX8, LoadStackSX8, LoadGlobalSX8, w, ldsxb, ldsbxu, 16, 18)
+LOAD_STORE_INSTR(LoadSX16, LoadUpdateSX16, LoadStackSX16, LoadGlobalSX16, w, ldsxh, ldsxhu, 17, 19)
+LOAD_STORE_INSTR(Store8, StoreUpdate8, StoreStack8, StoreGlobal8, r, stb, stbu, 4, 12)
+LOAD_STORE_INSTR(Store16, StoreUpdate16, StoreStack16, StoreGlobal16, r, sth, sthu, 5, 13)
+LOAD_STORE_INSTR(Store32, StoreUpdate32, StoreStack32, StoreGlobal32, r, stw, stwu, 6, 14)
+LOAD_STORE_INSTR(StoreFS, StoreUpdateFS, StoreStackFS, StoreGlobalFS, r, stfs, stfsu, 50, 54)
+LOAD_STORE_INSTR(StoreFD, StoreUpdateFD, StoreStackFD, StoreGlobalFD, r, stfd, stfdu, 51, 55)
+
+instr(memory) LoadMultipleUpdate ldmwu a:REG(w), b:REG(rw), c:REG(r) << d:IMM { @DEFAULT op=11; }
+instr(memory) LoadMultipleUpdate ldmwu a:REG(w), b:REG(rw), i:IMM { @IMM11 op=11; }
+instr(memory) StoreMultipleUpdate stmwu a:REG(r), b:REG(rw), c:REG(r) << d:IMM { @DEFAULT op=15; }
+instr(memory) StoreMultipleUpdate stmwu a:REG(r), b:REG(rw), i:IMM { @IMM11 op=15; }
+
+instr LoadImm ldi i:IMM { @IMM17 op=20; }
+instr LoadImmHigh ldih i:IMM { @IMM17 op=21; }
+
+#define BRANCH_RELOC(dest, offset, size, shift) \
+	Relocation reloc; \
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD; \
+	reloc.overflow = NULL; \
+	reloc.instruction = out->len - 4; \
+	reloc.offset = out->len - 4; \
+	reloc.target = dest; \
+	reloc.bitOffset = offset; \
+	reloc.bitSize = size; \
+	reloc.bitShift = shift; \
+	out->relocs.push_back(reloc);
+
+instr(branch) Jump jmp dest:FUNCTION
+{
+	@IMM22 op=22, i=0;
+	BRANCH_RELOC(%dest:block, 0, 22, 2);
+}
+
+instr(branch, readflags) CondJump jmp cc:IMM = val:IMM, dest:FUNCTION
+{
+	if (%val)
+		@IMM22 cond=QUARK_IF_TRUE(cc), op=22, i=0;
+	else
+		@IMM22 cond=QUARK_IF_FALSE(cc), op=22, i=0;
+	BRANCH_RELOC(%dest:block, 0, 22, 2);
+}
+
+instr(call) Call call a:REG(r), retVal:REG(w), retValHigh:REG(w), reads:REGLIST(r) { @DEFAULT op=31, b=6; }
+instr(call) Call call dest:FUNCTION, retVal:REG(w), retValHigh:REG(w), reads:REGLIST(r)
+{
+	@IMM22 op=23, i=0;
+	BRANCH_RELOC(%dest:block, 0, 22, 2);
+}
+
+instr(branch) SyscallReg syscall a:REG(r), writes:REGLIST(w), reads:REGLIST(r) { @DEFAULT op=31, b=16; }
+instr(branch) SyscallImmed syscall i:IMM, writes:REGLIST(w), reads:REGLIST(r) { @IMM22 op=44; }
+
+instr AddStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 24, %a, %var:base, %var:offset, %var:temp); }
+instr AddGlobal add a:REG(w), var:GLOBALVAR { EmitGlobal(func, out, 24, %a, %var:base, %var:offset, %var:temp); }
+instr AddBlock add a:REG(w), base:REG(r), dest:FUNCTION, temp:TEMP { EmitBlock(func, out, 24, %a, %base, %dest:block, %temp); }
+instr SubStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 25, %a, %var:base, %var:offset, %var:temp); }
+
+#define ARITH_INSTR(cls, name, opcode) \
+instr cls name a:REG(w), b:REG(r), c:REG(r) << d:IMM { @DEFAULT op=opcode; } \
+instr cls name a:REG(w), b:REG(r), i:IMM { @IMM11 op=opcode; }
+ARITH_INSTR(Add, add, 24)
+ARITH_INSTR(Sub, sub, 25)
+ARITH_INSTR(Mul, mul, 30)
+ARITH_INSTR(Div, div, 32)
+ARITH_INSTR(Idiv, idiv, 33)
+ARITH_INSTR(Mod, mod, 34)
+ARITH_INSTR(Imod, imod, 35)
+ARITH_INSTR(And, and, 36)
+ARITH_INSTR(Or, or, 37)
+ARITH_INSTR(Xor, xor, 38)
+ARITH_INSTR(Sar, sar, 39)
+ARITH_INSTR(Shl, shl, 40)
+ARITH_INSTR(Shr, shr, 41)
+ARITH_INSTR(Rol, rol, 42)
+ARITH_INSTR(Ror, ror, 43)
+instr(readflags, writeflags) Addx addx a:REG(w), b:REG(r), c:REG(r) << d:IMM { @DEFAULT op=26; } \
+instr(readflags, writeflags) Addx addx a:REG(w), b:REG(r), i:IMM { @IMM11 op=26; }
+instr(readflags, writeflags) Subx subx a:REG(w), b:REG(r), c:REG(r) << d:IMM { @DEFAULT op=27; } \
+instr(readflags, writeflags) Subx subx a:REG(w), b:REG(r), i:IMM { @IMM11 op=27; }
+instr Mulx mulx d:REG(w), a:REG(w), b:REG(r), c:REG(r) { @DEFAULT op=28; }
+instr Imulx imulx d:REG(w), a:REG(w), b:REG(r), c:REG(r) { @DEFAULT op=29; }
+
+#define FLOAT_ARITH_INSTR(cls, immcls, name, opcode) \
+instr cls name a:REG(w), b:REG(r), c:REG(r) { @DEFAULT op=opcode; } \
+instr immcls name a:REG(w), b:REG(r), c:REG(r) { @IMM11 op=opcode; }
+FLOAT_ARITH_INSTR(Fadd, FaddImmed, fadd, 56)
+FLOAT_ARITH_INSTR(Fsub, FsubImmed, fsub, 57)
+FLOAT_ARITH_INSTR(Fmul, FmulImmed, fmul, 58)
+FLOAT_ARITH_INSTR(Fdiv, FdivImmed, fdiv, 59)
+FLOAT_ARITH_INSTR(Fmod, FmodImmed, fmod, 60)
+FLOAT_ARITH_INSTR(Fpow, FpowImmed, fpow, 61)
+FLOAT_ARITH_INSTR(Flog, FlogImmed, flog, 62)
+
+instr(writeflags) Cmp cmp op:IMM, cc:IMM, a:REG(r), c:REG(r) << d:IMM { @DEFAULT op=45, b=QUARK_COND(%op, %cc); }
+instr(writeflags) Cmp cmp op:IMM, cc:IMM, a:REG(r), i:IMM { @IMM11 op=45, b=QUARK_COND(%op, %cc); }
+instr(writeflags) Icmp icmp op:IMM, cc:IMM, a:REG(r), c:REG(r) << d:IMM { @DEFAULT op=46, b=QUARK_COND(%op, %cc); }
+instr(writeflags) Icmp icmp op:IMM, cc:IMM, a:REG(r), i:IMM { @IMM11 op=46, b=QUARK_COND(%op, %cc); }
+instr(writeflags) Fcmp fcmp op:IMM, cc:IMM, a:REG(r), c:REG(r) { @DEFAULT op=47, b=QUARK_COND(%op, %cc); }
+instr(writeflags) FcmpImmed fcmp op:IMM, cc:IMM, a:REG(r), i:IMM { @IMM11 op=47, b=QUARK_COND(%op, %cc); }
+instr(readflags, writeflags) CondCmp cmp testcc:IMM = testval:IMM, op:IMM, cc:IMM, a:REG(r), c:REG(r) << d:IMM
+{
+	if (%testval)
+		@DEFAULT cond=QUARK_IF_TRUE(%testcc), op=45, b=QUARK_COND(%op, %cc);
+	else
+		@DEFAULT cond=QUARK_IF_FALSE(%testcc), op=45, b=QUARK_COND(%op, %cc);
+}
+instr(readflags, writeflags) CondIcmp icmp testcc:IMM = testval:IMM, op:IMM, cc:IMM, a:REG(r), c:REG(r) << d:IMM
+{
+	if (%testval)
+		@DEFAULT cond=QUARK_IF_TRUE(%testcc), op=46, b=QUARK_COND(%op, %cc);
+	else
+		@DEFAULT cond=QUARK_IF_FALSE(%testcc), op=46, b=QUARK_COND(%op, %cc);
+}
+
+instr Mov mov a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=31, b=0; }
+instr Mov mov a:REG(w), i:IMM { @IMM11 op=31, b=0; }
+instr Xchg xchg a:REG(rw), c:REG(rw) { @DEFAULT op=31, b=1; }
+instr Sxb sxb a:REG(w), c:REG(r) { @DEFAULT op=31, b=2; }
+instr Sxh sxh a:REG(w), c:REG(r) { @DEFAULT op=31, b=3; }
+instr Swaph swaph a:REG(w), c:REG(r) { @DEFAULT op=31, b=4; }
+instr Swapw swapw a:REG(w), c:REG(r) { @DEFAULT op=31, b=5; }
+instr Neg neg a:REG(w), c:REG(r) { @DEFAULT op=31, b=8; }
+instr Not not a:REG(w), c:REG(r) { @DEFAULT op=31, b=9; }
+instr Zxb zxb a:REG(w), c:REG(r) { @DEFAULT op=31, b=10; }
+instr Zxh zxh a:REG(w), c:REG(r) { @DEFAULT op=31, b=11; }
+instr LoadCR ldcr a:REG(w) { @DEFAULT op=31, b=14; }
+instr StoreCR stcr a:REG(r) { @DEFAULT op=31, b=15; }
+instr(writeflags) SetCC setcc a:IMM { @DEFAULT op=31, b=24; }
+instr(writeflags) ClrCC clrcc a:IMM { @DEFAULT op=31, b=25; }
+instr(readflags, writeflags) NotCC notcc a:IMM, c:IMM { @DEFAULT op=31, b=26; }
+instr(readflags, writeflags) MovCC movcc a:IMM, c:IMM { @DEFAULT op=31, b=27; }
+instr(readflags, writeflags) AndCC andcc a:IMM, c:IMM, d:IMM { @DEFAULT op=31, b=28; }
+instr(readflags, writeflags) OrCC orcc a:IMM, c:IMM, d:IMM { @DEFAULT op=31, b=29; }
+instr(readflags, writeflags) XorCC xorcc a:IMM, c:IMM, d:IMM { @DEFAULT op=31, b=30; }
+
+instr LoadFI ldfi a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=63, b=0; }
+instr LoadFI ldfi a:REG(w), i:IMM { @IMM11 op=63, b=0; }
+instr StoreFI stfi a:REG(w), c:REG(r) { @DEFAULT op=63, b=1; }
+instr LoadPi fldpi a:REG(w) { @DEFAULT op=63, b=2; }
+instr LoadE flde a:REG(w) { @DEFAULT op=63, b=3; }
+instr EtoXReg fex a:REG(w), c:REG(r) { @DEFAULT op=63, b=4; }
+instr EtoXImmed fex a:REG(w), i:IMM { @IMM11 op=63, b=4; }
+instr TwoToXReg f2x a:REG(w), c:REG(r) { @DEFAULT op=63, b=5; }
+instr TwoToXImmed f2x a:REG(w), i:IMM { @IMM11 op=63, b=5; }
+instr TenToXReg f10x a:REG(w), c:REG(r) { @DEFAULT op=63, b=6; }
+instr TenToXImmed f10x a:REG(w), i:IMM { @IMM11 op=63, b=6; }
+instr Sqrt fsqrt a:REG(w), c:REG(r) { @DEFAULT op=63, b=8; }
+instr SqrtImmed fsqrt a:REG(w), i:IMM { @IMM11 op=63, b=8; }
+instr Recip frcp a:REG(w), c:REG(r) { @DEFAULT op=63, b=9; }
+instr RecipImmed frcp a:REG(w), i:IMM { @IMM11 op=63, b=9; }
+instr RecipSqrt frsqrt a:REG(w), c:REG(r) { @DEFAULT op=63, b=10; }
+instr RecipSqrtImmed frsqrt a:REG(w), i:IMM { @IMM11 op=63, b=10; }
+instr Fneg fneg a:REG(w), c:REG(r) { @DEFAULT op=63, b=11; }
+instr Fsin fsin a:REG(w), c:REG(r) { @DEFAULT op=63, b=12; }
+instr Fcos fcos a:REG(w), c:REG(r) { @DEFAULT op=63, b=13; }
+instr Ftan ftan a:REG(w), c:REG(r) { @DEFAULT op=63, b=14; }
+instr Floor ffloor a:REG(w), c:REG(r) { @DEFAULT op=63, b=15; }
+instr Fasin fasin a:REG(w), c:REG(r) { @DEFAULT op=63, b=16; }
+instr Facos facos a:REG(w), c:REG(r) { @DEFAULT op=63, b=17; }
+instr Fatan fatan a:REG(w), c:REG(r) { @DEFAULT op=63, b=18; }
+instr Ceil fceil a:REG(w), c:REG(r) { @DEFAULT op=63, b=19; }
+instr Fsinh fsinh a:REG(w), c:REG(r) { @DEFAULT op=63, b=20; }
+instr Fcosh fcosh a:REG(w), c:REG(r) { @DEFAULT op=63, b=21; }
+instr Ftanh ftanh a:REG(w), c:REG(r) { @DEFAULT op=63, b=22; }
+instr Round fround a:REG(w), c:REG(r) { @DEFAULT op=63, b=23; }
+instr Fasinh fasinh a:REG(w), c:REG(r) { @DEFAULT op=63, b=24; }
+instr Facosh facosh a:REG(w), c:REG(r) { @DEFAULT op=63, b=25; }
+instr Fatanh fatanh a:REG(w), c:REG(r) { @DEFAULT op=63, b=26; }
+instr Fabs fabs a:REG(w), c:REG(r) { @DEFAULT op=63, b=27; }
+instr Fln fln a:REG(w), c:REG(r) { @DEFAULT op=63, b=28; }
+instr FlnImmed fln a:REG(w), i:IMM { @IMM11 op=63, b=28; }
+instr Flog2 flog2 a:REG(w), c:REG(r) { @DEFAULT op=63, b=29; }
+instr Flog2Immed flog2 a:REG(w), i:IMM { @IMM11 op=63, b=29; }
+instr Flog10 flog10 a:REG(w), c:REG(r) { @DEFAULT op=63, b=30; }
+instr Flog10Immed flog10 a:REG(w), i:IMM { @IMM11 op=63, b=30; }
+instr Fmov fmov a:REG(w), c:REG(r) { @DEFAULT op=63, b=31; }
+instr FmovImmed fmov a:REG(w), i:IMM { @IMM11 op=63, b=31; }
+
 var uint32_t m_varargStart;
 
 src:IMM17 => dest:IREG { @LoadImm %dest, %src; }

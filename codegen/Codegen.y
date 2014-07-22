@@ -33,6 +33,14 @@
 	CodeBlock* code;
 	CodeToken* token;
 	TreeNode* node;
+	OperandDefinition* opdef;
+	std::map< std::string, Ref<CodeBlock> >* operands;
+	OperandType optype;
+	OperandAccessType opaccess;
+	InstructionToken* instrtoken;
+	std::vector<InstructionToken>* instrtokenlist;
+	Encoding* encoding;
+	EncodingField* field;
 }
 
 %{
@@ -77,9 +85,10 @@ void Codegen_error(ParserState* state, const char* msg)
 %token ARROW SEMICOLON LBRACE RBRACE
 %token ARCH_TOK REGISTERCLASS LARGEREGISTERCLASS TEMPREGISTERCLASS REGISTERSUBCLASS
 %token IMMEDIATECLASS
-%token LOW_TOK HIGH_TOK
+%token LOW_TOK HIGH_TOK BASE_TOK OFFSET_TOK TEMP_TOK BLOCK_TOK
+%token MEMORY_TOK BRANCH_TOK READFLAGS_TOK WRITEFLAGS_TOK COPY_TOK STACK_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
-%token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK
+%token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK INSTR_TOK ENCODING_TOK EQUAL_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
 %token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK CALL_TOK CALLVOID_TOK SYSCALL_TOK SYSCALLVOID_TOK
@@ -92,18 +101,40 @@ void Codegen_error(ParserState* state, const char* msg)
 %token <floatval> FLOAT_VAL
 %token <floatval> DOUBLE_VAL
 %token <str> STRING_VAL CHAR_VAL
-%token <str> ID ARG_ID ARG_ID_COLON INSTR_ID OPERATOR
+%token <str> ID ARG_ID ARG_ID_COLON INSTR_ID INSTR_VAL_ID OPERATOR
 
 %type <code> code code_stmt_list code_stmt token_list function_type_list function_arg_list
-%type <token> token function_type_token function_arg_token keyword_token
+%type <code> operand_token_list inner_operand_token_list
+%type <code> instr_code instr_code_stmt_list instr_code_stmt
+%type <token> token function_type_token function_arg_token keyword_token normal_token
+%type <token> instr_code_token operand_token inner_operand_token
 %type <node> match tree temp_list
-%type <intval> match_type match_type_list
+%type <intval> match_type match_type_list instr_flag instr_flag_list
+%type <str> match_name operand_name
+%type <opdef> operand_def
+%type <operands> operand_def_list
+%type <optype> operand_type
+%type <opaccess> operand_access
+%type <instrtoken> instr_token
+%type <instrtokenlist> instr_token_list
+%type <encoding> encoding_field_list
+%type <field> encoding_field
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
-%destructor { free($$); } ID ARG_ID ARG_ID_COLON INSTR_ID
+%destructor { free($$); } ID ARG_ID ARG_ID_COLON INSTR_ID INSTR_VAL_ID
 %destructor { $$->Release(); } code code_stmt_list code_stmt token_list function_type_list function_arg_list
-%destructor { delete $$; } token function_type_token function_arg_token keyword_token
+%destructor { $$->Release(); } operand_token_list inner_operand_token_list
+%destructor { $$->Release(); } instr_code instr_code_stmt_list instr_code_stmt
+%destructor { delete $$; } token function_type_token function_arg_token keyword_token normal_token
+%destructor { delete $$; } instr_code_token operand_token inner_operand_token
 %destructor { $$->Release(); } match tree temp_list
+%destructor { free($$); } match_name operand_name
+%destructor { delete $$; } operand_def
+%destructor { delete $$; } operand_def_list
+%destructor { delete $$; } instr_token
+%destructor { delete $$; } instr_token_list
+%destructor { $$->Release(); } encoding_field_list
+%destructor { delete $$; } encoding_field
 
 %%
 
@@ -119,6 +150,8 @@ toplevel_stmt: class_stmt
 			 | function_stmt
 			 | var_stmt
 			 | match_stmt
+			 | encoding_stmt
+			 | instr_stmt
 			 | ARCH_TOK ID  { state->SetArchName($2); free($2); }
 			 | INCLUDE_TOK STRING_VAL  { state->AddInclude($2); free($2); }
 			 ;	
@@ -150,7 +183,7 @@ code_stmt_list: code_stmt_list code_stmt  { $$ = $1; $$->AddTokens($2->GetTokens
 			  | code_stmt  { $$ = $1; }
 			  ;
 
-code_stmt: token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+code_stmt: normal_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
 		 | SEMICOLON  { $$ = new CodeBlock; $$->AddRef(); $$->AddTextToken(YYLOC, ";"); }
 		 | LBRACE code_stmt_list RBRACE
 		 	{
@@ -183,8 +216,8 @@ code_stmt: token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete 
 			}
 		 ;
 
-token_list: token_list token  { $$ = $1; $$->AddToken(*$2); delete $2; }
-		  | token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+token_list: token_list normal_token  { $$ = $1; $$->AddToken(*$2); delete $2; }
+		  | normal_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
 		  ;
 
 token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
@@ -211,9 +244,6 @@ token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 			free($1);
 		}
 	 | ARG_ID  { $$ = CodeToken::CreateVarToken(YYLOC, $1); free($1); }
-	 | ARG_ID_COLON LOW_TOK  { $$ = CodeToken::CreateVarLowToken(YYLOC, $1); free($1); }
-	 | ARG_ID_COLON HIGH_TOK  { $$ = CodeToken::CreateVarHighToken(YYLOC, $1); free($1); }
-	 | ARG_ID_COLON INT_VAL  { $$ = CodeToken::CreateVarOffsetToken(YYLOC, $1, (int)$2); free($1); }
 	 | OPERATOR  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 	 | COLON  { $$ = CodeToken::CreateTextToken(YYLOC, ":"); }
 	 | COMMA  { $$ = CodeToken::CreateTextToken(YYLOC, ","); }
@@ -221,8 +251,15 @@ token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 	 | RPAREN  { $$ = CodeToken::CreateTextToken(YYLOC, ")"); }
 	 | LBRACKET  { $$ = CodeToken::CreateTextToken(YYLOC, "["); }
 	 | RBRACKET  { $$ = CodeToken::CreateTextToken(YYLOC, "]"); }
+	 | EQUAL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "="); }
 	 | keyword_token  { $$ = $1; }
 	 ;
+
+normal_token: token { $$ = $1; }
+			| ARG_ID_COLON LOW_TOK  { $$ = CodeToken::CreateVarLowToken(YYLOC, $1); free($1); }
+			| ARG_ID_COLON HIGH_TOK  { $$ = CodeToken::CreateVarHighToken(YYLOC, $1); free($1); }
+			| ARG_ID_COLON INT_VAL  { $$ = CodeToken::CreateVarIntToken(YYLOC, $1, (int)$2); free($1); }
+			;
 
 keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | UNSIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "U8"); }
@@ -240,6 +277,8 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | VAR_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "var"); }
 			 | DEFAULT_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "default"); }
 			 | INCLUDE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "include"); }
+			 | INSTR_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "instr"); }
+			 | ENCODING_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "encoding"); }
 			 | ASSIGN_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "assign"); }
 			 | LOAD_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "load"); }
 			 | STORE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "store"); }
@@ -296,6 +335,18 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | ACOS_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "acos"); }
 			 | ATAN_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "atan"); }
 			 | PUSH_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "push"); }
+			 | LOW_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "low"); }
+			 | HIGH_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "high"); }
+			 | BASE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "base"); }
+			 | OFFSET_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "offset"); }
+			 | TEMP_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "temp"); }
+			 | BLOCK_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "block"); }
+			 | MEMORY_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "memory"); }
+			 | BRANCH_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "branch"); }
+			 | READFLAGS_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "readflags"); }
+			 | WRITEFLAGS_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "writeflags"); }
+			 | COPY_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "copy"); }
+			 | STACK_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "stack"); }
 			 ;
 
 function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
@@ -324,6 +375,32 @@ function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
 					$2->Release();
 					$5->Release();
 				}
+			| INSTR_TOK FUNCTION function_type_list LPAREN function_arg_list RPAREN instr_code
+			 	{
+					CodeBlock* func = $3;
+					func->AddTextToken(YYLOC, "(");
+					func->AddTokens($5->GetTokens());
+					func->AddTextToken(YYLOC, ")");
+					func->AddTextToken(YYLOC, "{");
+					func->AddTokens($7->GetTokens());
+					func->AddTextToken(YYLOC, "}");
+					state->DefineInstrFunction(func);
+					$3->Release();
+					$5->Release();
+					$7->Release();
+				}
+			 | INSTR_TOK FUNCTION function_type_list LPAREN RPAREN instr_code
+			 	{
+					CodeBlock* func = $3;
+					func->AddTextToken(YYLOC, "(");
+					func->AddTextToken(YYLOC, ")");
+					func->AddTextToken(YYLOC, "{");
+					func->AddTokens($6->GetTokens());
+					func->AddTextToken(YYLOC, "}");
+					state->DefineInstrFunction(func);
+					$3->Release();
+					$6->Release();
+				}
 			 ;
 
 var_stmt: VAR_TOK token_list SEMICOLON  { $2->AddTextToken(YYLOC, ";"); state->DefineVariable($2); $2->Release(); }
@@ -349,6 +426,7 @@ function_arg_token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); 
 				  | COMMA  { $$ = CodeToken::CreateTextToken(YYLOC, ","); }
 				  | LBRACKET  { $$ = CodeToken::CreateTextToken(YYLOC, "["); }
 				  | RBRACKET  { $$ = CodeToken::CreateTextToken(YYLOC, "]"); }
+				  | EQUAL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "="); }
 				  | keyword_token  { $$ = $1; }
 				  ;
 
@@ -369,7 +447,7 @@ temp_list: temp_list COMMA match  { $$ = $1; $$->AddChildNodes($3->GetChildNodes
 		 | match  { $$ = new TreeNode(NODE_REG); $$->AddRef(); $$->AddChildNode($1); $1->Release(); }
 		 ;
 
-match: ID COLON ID
+match: match_name COLON ID
 	 	{
 			uint32_t sizeFlags = REG_MATCH_ALL;
 			RegisterClass* cls = state->GetRegisterClass($3);
@@ -380,7 +458,7 @@ match: ID COLON ID
 			free($1);
 			free($3);
 		}
-	 | ID COLON ID LPAREN match_type_list RPAREN
+	 | match_name COLON ID LPAREN match_type_list RPAREN
 	 	{
 			uint32_t sizeFlags = $5;
 			RegisterClass* cls = state->GetRegisterClass($3);
@@ -392,6 +470,21 @@ match: ID COLON ID
 			free($3);
 		}
 	 ;
+
+match_name: ID  { $$ = $1; }
+		  | LOW_TOK  { $$ = strdup("low"); }
+		  | HIGH_TOK  { $$ = strdup("high"); }
+		  | BASE_TOK  { $$ = strdup("base"); }
+		  | OFFSET_TOK  { $$ = strdup("offset"); }
+		  | TEMP_TOK  { $$ = strdup("temp"); }
+		  | BLOCK_TOK  { $$ = strdup("block"); }
+		  | MEMORY_TOK  { $$ = strdup("memory"); }
+		  | BRANCH_TOK  { $$ = strdup("branch"); }
+		  | READFLAGS_TOK  { $$ = strdup("readflags"); }
+		  | WRITEFLAGS_TOK  { $$ = strdup("writeflags"); }
+		  | COPY_TOK  { $$ = strdup("copy"); }
+		  | STACK_TOK  { $$ = strdup("stack"); }
+		  ;
 
 match_type_list: match_type_list COMMA match_type  { $$ = $1 | $3; }
 			   | match_type  { $$ = $1; }
@@ -587,6 +680,349 @@ tree: match  { $$ = $1; }
 	| ATAN_TOK tree  { $$ = TreeNode::CreateNode(NODE_ATAN, $2); $$->AddRef(); $2->Release(); }
 	| PUSH_TOK tree  { $$ = TreeNode::CreateNode(NODE_PUSH, $2); $$->AddRef(); $2->Release(); }
 	;
+
+encoding_stmt: ENCODING_TOK ID LBRACE encoding_field_list RBRACE  { state->DefineEncoding($2, $4); free($2); $4->Release(); }
+			 ;
+
+encoding_field_list: encoding_field_list COMMA encoding_field
+				   		{
+							$$ = $1;
+							if ($3->type != FIELD_FIXED_VALUE)
+							{
+								if ($$->IsFieldDefined($3->name))
+									Codegen_error(state, "duplicate field names");
+							}
+							$$->AddField(*$3);
+							delete $3;
+						}
+				   | encoding_field  { $$ = new Encoding(); $$->AddRef(); $$->AddField(*$1); delete $1; }
+				   ;
+
+encoding_field: ID COLON INT_VAL  { $$ = EncodingField::CreateNormalField($1, $3); free($1); }
+			  | ID EQUAL_TOK INT_VAL COLON INT_VAL  { $$ = EncodingField::CreateDefaultValueField($1, $5, $3); free($1); }
+			  | INT_VAL COLON INT_VAL  { $$ = EncodingField::CreateFixedValueField($3, $1); }
+			  ;
+
+instr_stmt: INSTR_TOK ID instr_token_list instr_code
+		  	{
+				Instruction* instr = new Instruction($2, 0, *$3, $4);
+				state->DefineInstruction(instr);
+				free($2);
+				delete $3;
+				$4->Release();
+			}
+		  | INSTR_TOK LPAREN instr_flag_list RPAREN ID instr_token_list instr_code
+		  	{
+				Instruction* instr = new Instruction($5, $3, *$6, $7);
+				state->DefineInstruction(instr);
+				free($5);
+				delete $6;
+				$7->Release();
+			}
+		  ;
+
+instr_token_list: instr_token_list instr_token  { $$ = $1; $$->push_back(*$2); delete $2; }
+				| instr_token  { $$ = new vector<InstructionToken>(); $$->push_back(*$1); delete $1; }
+				;
+
+instr_token: operand_name  { $$ = InstructionToken::CreateTextToken(YYLOC, $1); free($1); }
+		   | operand_name COLON operand_type
+		   		{
+					if (($3 == OPERAND_REG) || ($3 == OPERAND_REG_LIST))
+						Codegen_error(state, "register operand requires access type");
+					$$ = InstructionToken::CreateOperandToken(YYLOC, $1, $3, ACCESS_DEFAULT);
+					free($1);
+				}
+		   | operand_name COLON operand_type LPAREN operand_access RPAREN
+		   		{
+					if (($3 != OPERAND_REG) && ($3 != OPERAND_REG_LIST))
+						Codegen_error(state, "access type only valid on register operands");
+					$$ = InstructionToken::CreateOperandToken(YYLOC, $1, $3, $5);
+					free($1);
+				}
+		   | LBRACKET  { $$ = InstructionToken::CreateTextToken(YYLOC, "["); }
+		   | RBRACKET  { $$ = InstructionToken::CreateTextToken(YYLOC, "]"); }
+		   | COMMA  { $$ = InstructionToken::CreateTextToken(YYLOC, ","); }
+		   | EQUAL_TOK  { $$ = InstructionToken::CreateTextToken(YYLOC, "="); }
+		   | OPERATOR  { $$ = InstructionToken::CreateTextToken(YYLOC, $1); free($1); }
+		   ;
+
+operand_type: ID
+				{
+					if (!strcmp($1, "REG"))
+						$$ = OPERAND_REG;
+					else if (!strcmp($1, "REGLIST"))
+						$$ = OPERAND_REG_LIST;
+					else if (!strcmp($1, "IMM"))
+						$$ = OPERAND_IMMED;
+					else if (!strcmp($1, "STACKVAR"))
+						$$ = OPERAND_STACK_VAR;
+					else if (!strcmp($1, "GLOBALVAR"))
+						$$ = OPERAND_GLOBAL_VAR;
+					else if (!strcmp($1, "FUNCTION"))
+						$$ = OPERAND_FUNCTION;
+					else if (!strcmp($1, "TEMP"))
+						$$ = OPERAND_TEMP;
+					else
+						Codegen_error(state, "invalid operand type");
+				}
+			;
+
+operand_access: ID
+			  	{
+					if (!strcmp($1, "r"))
+						$$ = ACCESS_READ;
+					else if (!strcmp($1, "w"))
+						$$ = ACCESS_WRITE;
+					else if (!strcmp($1, "rw"))
+						$$ = ACCESS_READ_WRITE;
+					else if (!strcmp($1, "wr"))
+						$$ = ACCESS_READ_WRITE;
+					else
+						Codegen_error(state, "invalid operand access type");
+				}
+			  ;
+
+operand_name: match_name  { $$ = $1; }
+			| VAR_TOK  { $$ = strdup("var"); }
+			| FUNCTION  { $$ = strdup("function"); }
+			| SIGNED8  { $$ = strdup("S8"); }
+			| UNSIGNED8  { $$ = strdup("U8"); }
+			| SIGNED16  { $$ = strdup("S16"); }
+			| UNSIGNED16  { $$ = strdup("U16"); }
+			| SIGNED32  { $$ = strdup("S32"); }
+			| UNSIGNED32  { $$ = strdup("U32"); }
+			| SIGNED64  { $$ = strdup("S64"); }
+			| UNSIGNED64  { $$ = strdup("U64"); }
+			| SIGNED128  { $$ = strdup("S128"); }
+			| UNSIGNED128  { $$ = strdup("U128"); }
+			| FLOAT32  { $$ = strdup("F32"); }
+			| FLOAT64  { $$ = strdup("F64"); }
+			| DEFAULT_TOK  { $$ = strdup("default"); }
+			| INCLUDE_TOK  { $$ = strdup("include"); }
+			| INSTR_TOK  { $$ = strdup("instr"); }
+			| ENCODING_TOK  { $$ = strdup("encoding"); }
+			| ASSIGN_TOK  { $$ = strdup("assign"); }
+			| LOAD_TOK  { $$ = strdup("load"); }
+			| STORE_TOK  { $$ = strdup("store"); }
+			| REF_TOK  { $$ = strdup("ref"); }
+			| ADD_TOK  { $$ = strdup("add"); }
+			| SUB_TOK  { $$ = strdup("sub"); }
+			| SMUL_TOK  { $$ = strdup("smul"); }
+			| UMUL_TOK  { $$ = strdup("umul"); }
+			| SDIV_TOK  { $$ = strdup("sdiv"); }
+			| UDIV_TOK  { $$ = strdup("udiv"); }
+			| SMOD_TOK  { $$ = strdup("smod"); }
+			| UMOD_TOK  { $$ = strdup("umod"); }
+			| AND_TOK  { $$ = strdup("and"); }
+			| OR_TOK  { $$ = strdup("or"); }
+			| XOR_TOK  { $$ = strdup("xor"); }
+			| SHL_TOK  { $$ = strdup("shl"); }
+			| SHR_TOK  { $$ = strdup("shr"); }
+			| SAR_TOK  { $$ = strdup("sar"); }
+			| NEG_TOK  { $$ = strdup("neg"); }
+			| NOT_TOK  { $$ = strdup("not"); }
+			| IFTRUE_TOK  { $$ = strdup("iftrue"); }
+			| IFSLT_TOK  { $$ = strdup("ifslt"); }
+			| IFULT_TOK  { $$ = strdup("ifult"); }
+			| IFSLE_TOK  { $$ = strdup("ifsle"); }
+			| IFULE_TOK  { $$ = strdup("ifule"); }
+			| IFE_TOK  { $$ = strdup("ife"); }
+			| GOTO_TOK  { $$ = strdup("goto"); }
+			| CALL_TOK  { $$ = strdup("call"); }
+			| CALLVOID_TOK  { $$ = strdup("callvoid"); }
+			| SYSCALL_TOK  { $$ = strdup("syscall"); }
+			| SYSCALLVOID_TOK  { $$ = strdup("syscallvoid"); }
+			| SCONVERT_TOK  { $$ = strdup("sconvert"); }
+			| UCONVERT_TOK  { $$ = strdup("uconvert"); }
+			| RETURN_TOK  { $$ = strdup("return"); }
+			| RETURNVOID_TOK  { $$ = strdup("returnvoid"); }
+			| ALLOCA_TOK  { $$ = strdup("alloca"); }
+			| MEMCPY_TOK  { $$ = strdup("memcpy"); }
+			| MEMSET_TOK  { $$ = strdup("memset"); }
+			| STRLEN_TOK  { $$ = strdup("strlen"); }
+			| RDTSC_TOK  { $$ = strdup("rdtsc"); }
+			| RDTSC_LOW_TOK  { $$ = strdup("rdtsc_low"); }
+			| RDTSC_HIGH_TOK  { $$ = strdup("rdtsc_high"); }
+			| VARARG_TOK  { $$ = strdup("vararg"); }
+			| BYTESWAP_TOK  { $$ = strdup("byteswap"); }
+			| BREAKPOINT_TOK  { $$ = strdup("breakpoint"); }
+			| POW_TOK  { $$ = strdup("pow"); }
+			| FLOOR_TOK  { $$ = strdup("floor"); }
+			| CEIL_TOK  { $$ = strdup("ceil"); }
+			| SQRT_TOK  { $$ = strdup("sqrt"); }
+			| SIN_TOK  { $$ = strdup("sin"); }
+			| COS_TOK  { $$ = strdup("cos"); }
+			| TAN_TOK  { $$ = strdup("tan"); }
+			| ASIN_TOK  { $$ = strdup("asin"); }
+			| ACOS_TOK  { $$ = strdup("acos"); }
+			| ATAN_TOK  { $$ = strdup("atan"); }
+			| PUSH_TOK  { $$ = strdup("push"); }
+			;
+
+instr_flag_list: instr_flag_list COMMA instr_flag  { $$ = $1 | $3; }
+			   | instr_flag  { $$ = $1; }
+			   ;
+
+instr_flag: MEMORY_TOK  { $$ = SYMFLAG_MEMORY_BARRIER; }
+		  | BRANCH_TOK  { $$ = SYMFLAG_CONTROL_FLOW; }
+		  | CALL_TOK  { $$ = SYMFLAG_CALL; }
+		  | READFLAGS_TOK  { $$ = SYMFLAG_USES_FLAGS; }
+		  | WRITEFLAGS_TOK  { $$ = SYMFLAG_WRITES_FLAGS; }
+		  | COPY_TOK  { $$ = SYMFLAG_COPY; }
+		  | STACK_TOK  { $$ = SYMFLAG_STACK; }
+		  ;
+
+instr_code: LBRACE instr_code_stmt_list RBRACE  { $$ = $2; }
+		  | LBRACE RBRACE  { $$ = new CodeBlock; $$->AddRef(); }
+		  ;
+
+instr_code_stmt_list: instr_code_stmt_list instr_code_stmt  { $$ = $1; $$->AddTokens($2->GetTokens()); $2->Release(); }
+					| instr_code_stmt  { $$ = $1; }
+					;
+
+instr_code_stmt: instr_code_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+			   | SEMICOLON  { $$ = new CodeBlock; $$->AddRef(); $$->AddTextToken(YYLOC, ";"); }
+			   | LBRACE instr_code_stmt_list RBRACE
+			   	{
+					$$ = new CodeBlock;
+					$$->AddRef();
+					$$->AddTextToken(YYLOC, "{");
+					$$->AddTokens($2->GetTokens());
+					$$->AddTextToken(YYLOC, "}");
+					$2->Release();
+		 		}
+			   | INSTR_ID operand_def_list SEMICOLON
+		 		{
+					$$ = new CodeBlock;
+					$$->AddRef();
+					$$->AddInstrEncodingToken(YYLOC, $1, *$2);
+					$$->AddTextToken(YYLOC, ";");
+					free($1);
+					delete $2;
+				}
+			   | INSTR_ID SEMICOLON
+			   	{
+					$$ = new CodeBlock;
+					$$->AddRef();
+					$$->AddInstrEncodingToken(YYLOC, $1, map< string, Ref<CodeBlock> >());
+					$$->AddTextToken(YYLOC, ";");
+					free($1);
+				}
+			   | INSTR_VAL_ID operand_def_list SEMICOLON
+		 		{
+					$$ = new CodeBlock;
+					$$->AddRef();
+					$$->AddInstrEncodingValueToken(YYLOC, $1, *$2);
+					$$->AddTextToken(YYLOC, ";");
+					free($1);
+					delete $2;
+				}
+			   | INSTR_VAL_ID SEMICOLON
+		 		{
+					$$ = new CodeBlock;
+					$$->AddRef();
+					$$->AddInstrEncodingValueToken(YYLOC, $1, map< string, Ref<CodeBlock> >());
+					$$->AddTextToken(YYLOC, ";");
+					free($1);
+				}
+			   ;
+
+instr_code_token: token { $$ = $1; }
+				| ARG_ID_COLON BASE_TOK  { $$ = CodeToken::CreateVarBaseToken(YYLOC, $1); free($1); }
+				| ARG_ID_COLON OFFSET_TOK  { $$ = CodeToken::CreateVarOffsetToken(YYLOC, $1); free($1); }
+				| ARG_ID_COLON TEMP_TOK  { $$ = CodeToken::CreateVarTempToken(YYLOC, $1); free($1); }
+				| ARG_ID_COLON FUNCTION  { $$ = CodeToken::CreateVarFunctionToken(YYLOC, $1); free($1); }
+				| ARG_ID_COLON BLOCK_TOK  { $$ = CodeToken::CreateVarBlockToken(YYLOC, $1); free($1); }
+				;
+
+operand_def_list: operand_def_list COMMA operand_def  { $$ = $1; (*$$)[$3->name] = $3->block; delete $3; }
+				| operand_def  { $$ = new map< string, Ref<CodeBlock> >(); (*$$)[$1->name] = $1->block; delete $1; }
+				;
+
+operand_def: operand_name EQUAL_TOK operand_token_list  { $$ = new OperandDefinition; $$->name = $1; $$->block = $3; free($1); }
+		   ;
+
+operand_token_list: operand_token_list operand_token  { $$ = $1; $$->AddToken(*$2); delete $2; }
+				  | operand_token_list LPAREN inner_operand_token_list RPAREN
+					{
+						$$ = $1;
+						$$->AddTextToken(YYLOC, "(");
+						$$->AddTokens($3->GetTokens());
+						$$->AddTextToken(YYLOC, ")");
+						delete $3;
+					}
+				  | operand_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+				  | LPAREN inner_operand_token_list RPAREN
+					{
+						$$ = new CodeBlock;
+						$$->AddTextToken(YYLOC, "(");
+						$$->AddTokens($2->GetTokens());
+						$$->AddTextToken(YYLOC, ")");
+						delete $2;
+					}
+				  ;
+
+operand_token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
+			 | INT_VAL
+			 	{
+					char str[32];
+					sprintf(str, "%" PRId64, $1);
+					$$ = CodeToken::CreateTextToken(YYLOC, str);
+				}
+			 | INT64_VAL
+			 	{
+					char str[32];
+					sprintf(str, "%" PRId64 "LL", $1);
+					$$ = CodeToken::CreateTextToken(YYLOC, str);
+				}
+			 | STRING_VAL
+			 	{
+					$$ = CodeToken::CreateTextToken(YYLOC, std::string("\"") + std::string($1) + std::string("\""));
+					free($1);
+				}
+			 | CHAR_VAL
+			 	{
+					$$ = CodeToken::CreateTextToken(YYLOC, std::string("\'") + std::string($1) + std::string("\'"));
+					free($1);
+				}
+			 | ARG_ID  { $$ = CodeToken::CreateVarToken(YYLOC, $1); free($1); }
+			 | ARG_ID_COLON BASE_TOK  { $$ = CodeToken::CreateVarBaseToken(YYLOC, $1); free($1); }
+			 | ARG_ID_COLON OFFSET_TOK  { $$ = CodeToken::CreateVarOffsetToken(YYLOC, $1); free($1); }
+			 | ARG_ID_COLON TEMP_TOK  { $$ = CodeToken::CreateVarTempToken(YYLOC, $1); free($1); }
+			 | ARG_ID_COLON FUNCTION  { $$ = CodeToken::CreateVarFunctionToken(YYLOC, $1); free($1); }
+			 | ARG_ID_COLON BLOCK_TOK  { $$ = CodeToken::CreateVarBlockToken(YYLOC, $1); free($1); }
+			 | OPERATOR  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
+			 | COLON  { $$ = CodeToken::CreateTextToken(YYLOC, ":"); }
+			 | LBRACKET  { $$ = CodeToken::CreateTextToken(YYLOC, "["); }
+			 | RBRACKET  { $$ = CodeToken::CreateTextToken(YYLOC, "]"); }
+			 | EQUAL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "="); }
+			 | keyword_token  { $$ = $1; }
+			 ;
+
+inner_operand_token_list: inner_operand_token_list inner_operand_token  { $$ = $1; $$->AddToken(*$2); delete $2; }
+			 			| inner_operand_token_list LPAREN inner_operand_token_list RPAREN
+							{
+								$$ = $1;
+								$$->AddTextToken(YYLOC, "(");
+								$$->AddTokens($3->GetTokens());
+								$$->AddTextToken(YYLOC, ")");
+								delete $3;
+							}
+						| inner_operand_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+			 			| LPAREN inner_operand_token_list RPAREN
+							{
+								$$ = new CodeBlock;
+								$$->AddTextToken(YYLOC, "(");
+								$$->AddTokens($2->GetTokens());
+								$$->AddTextToken(YYLOC, ")");
+								delete $2;
+							}
+						;
+
+inner_operand_token: operand_token  { $$ = $1; }
+				   | COMMA  { $$ = CodeToken::CreateTextToken(YYLOC, ","); }
+				   ;
 
 %%
 

@@ -67,12 +67,67 @@ CodeToken* CodeToken::CreateVarHighToken(const string& file, int line, const str
 }
 
 
-CodeToken* CodeToken::CreateVarOffsetToken(const string& file, int line, const string& name, int offset)
+CodeToken* CodeToken::CreateVarBaseToken(const string& file, int line, const string& name)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_VAR_BASE;
+	token->name = name;
+	return token;
+}
+
+
+CodeToken* CodeToken::CreateVarOffsetToken(const string& file, int line, const string& name)
 {
 	CodeToken* token = new CodeToken;
 	token->fileName = file;
 	token->line = line;
 	token->type = TOKEN_VAR_OFFSET;
+	token->name = name;
+	return token;
+}
+
+
+CodeToken* CodeToken::CreateVarTempToken(const string& file, int line, const string& name)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_VAR_TEMP;
+	token->name = name;
+	return token;
+}
+
+
+CodeToken* CodeToken::CreateVarFunctionToken(const string& file, int line, const string& name)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_VAR_FUNCTION;
+	token->name = name;
+	return token;
+}
+
+
+CodeToken* CodeToken::CreateVarBlockToken(const string& file, int line, const string& name)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_VAR_BLOCK;
+	token->name = name;
+	return token;
+}
+
+
+CodeToken* CodeToken::CreateVarIntToken(const string& file, int line, const string& name, int offset)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_VAR_INT;
 	token->name = name;
 	token->offset = offset;
 	return token;
@@ -100,6 +155,32 @@ CodeToken* CodeToken::CreateInstrEndToken(const string& file, int line)
 }
 
 
+CodeToken* CodeToken::CreateInstrEncodingToken(const string& file, int line, const string& name,
+	const map< string, Ref<CodeBlock> >& operands)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_INSTR_ENCODING;
+	token->name = name;
+	token->operands = operands;
+	return token;
+}
+
+
+CodeToken* CodeToken::CreateInstrEncodingValueToken(const string& file, int line, const string& name,
+	const map< string, Ref<CodeBlock> >& operands)
+{
+	CodeToken* token = new CodeToken;
+	token->fileName = file;
+	token->line = line;
+	token->type = TOKEN_INSTR_ENCODING_VALUE;
+	token->name = name;
+	token->operands = operands;
+	return token;
+}
+
+
 CodeBlock::CodeBlock()
 {
 }
@@ -118,51 +199,6 @@ void CodeBlock::AddTextToken(const string& file, int line, const string& text)
 	token.line = line;
 	token.type = TOKEN_TEXT;
 	token.name = text;
-	m_tokens.push_back(token);
-}
-
-
-void CodeBlock::AddVarToken(const string& file, int line, const string& name)
-{
-	CodeToken token;
-	token.fileName = file;
-	token.line = line;
-	token.type = TOKEN_VAR;
-	token.name = name;
-	m_tokens.push_back(token);
-}
-
-
-void CodeBlock::AddVarLowToken(const string& file, int line, const string& name)
-{
-	CodeToken token;
-	token.fileName = file;
-	token.line = line;
-	token.type = TOKEN_VAR_LOW;
-	token.name = name;
-	m_tokens.push_back(token);
-}
-
-
-void CodeBlock::AddVarHighToken(const string& file, int line, const string& name)
-{
-	CodeToken token;
-	token.fileName = file;
-	token.line = line;
-	token.type = TOKEN_VAR_HIGH;
-	token.name = name;
-	m_tokens.push_back(token);
-}
-
-
-void CodeBlock::AddVarOffsetToken(const string& file, int line, const string& name, int offset)
-{
-	CodeToken token;
-	token.fileName = file;
-	token.line = line;
-	token.type = TOKEN_VAR_OFFSET;
-	token.name = name;
-	token.offset = offset;
 	m_tokens.push_back(token);
 }
 
@@ -188,6 +224,32 @@ void CodeBlock::AddInstrEndToken(const string& file, int line)
 }
 
 
+void CodeBlock::AddInstrEncodingToken(const string& file, int line, const string& name,
+	const map< string, Ref<CodeBlock> >& operands)
+{
+	CodeToken token;
+	token.fileName = file;
+	token.line = line;
+	token.type = TOKEN_INSTR_ENCODING;
+	token.name = name;
+	token.operands = operands;
+	m_tokens.push_back(token);
+}
+
+
+void CodeBlock::AddInstrEncodingValueToken(const string& file, int line, const string& name,
+	const map< string, Ref<CodeBlock> >& operands)
+{
+	CodeToken token;
+	token.fileName = file;
+	token.line = line;
+	token.type = TOKEN_INSTR_ENCODING_VALUE;
+	token.name = name;
+	token.operands = operands;
+	m_tokens.push_back(token);
+}
+
+
 void CodeBlock::AddToken(const CodeToken& token)
 {
 	m_tokens.push_back(token);
@@ -205,7 +267,8 @@ void CodeBlock::ReplaceVar(const std::string& from, const std::string& to)
 {
 	for (vector<CodeToken>::iterator i = m_tokens.begin(); i != m_tokens.end(); ++i)
 	{
-		if ((i->type != TOKEN_VAR) && (i->type != TOKEN_VAR_LOW) && (i->type != TOKEN_VAR_HIGH) && (i->type == TOKEN_VAR_OFFSET))
+		if ((i->type != TOKEN_VAR) && (i->type != TOKEN_VAR_LOW) && (i->type != TOKEN_VAR_HIGH) && (i->type == TOKEN_VAR_INT) &&
+			(i->type != TOKEN_VAR_BASE) && (i->type != TOKEN_VAR_OFFSET) && (i->type != TOKEN_VAR_TEMP))
 			continue;
 		if (i->name != from)
 			continue;

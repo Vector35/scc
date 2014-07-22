@@ -238,7 +238,7 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 				break;
 			}
 			break;
-		case TOKEN_VAR_OFFSET:
+		case TOKEN_VAR_INT:
 			var = vars.find(i->name);
 			if (var == vars.end())
 			{

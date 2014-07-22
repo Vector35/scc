@@ -17,13 +17,12 @@
 #define SYMREG_IS_SPECIAL_REG(r) (((r) & 0x80000000) != 0)
 
 #define SYMFLAG_WRITES_FLAGS    1
-#define SYMFLAG_CLOBBERS_FLAGS  2
-#define SYMFLAG_USES_FLAGS      4
-#define SYMFLAG_MEMORY_BARRIER  8
-#define SYMFLAG_CONTROL_FLOW    0x10
-#define SYMFLAG_CALL            0x20
-#define SYMFLAG_COPY            0x40
-#define SYMFLAG_STACK           0x80
+#define SYMFLAG_USES_FLAGS      2
+#define SYMFLAG_MEMORY_BARRIER  4
+#define SYMFLAG_CONTROL_FLOW    8
+#define SYMFLAG_CALL            0x10
+#define SYMFLAG_COPY            0x20
+#define SYMFLAG_STACK           0x40
 
 #define SYMVAR_FRAME_SIZE       0xfffffff0
 #define SYMVAR_NEG_FRAME_SIZE   0xfffffff1

@@ -144,17 +144,17 @@ instr function void RelativeLoadOverflowHandler(OutputBlock* out, Relocation& re
 instr function void EmitStack(SymInstrFunction* func, OutputBlock* out, uint32_t opcode, uint32_t a,
 	uint32_t base, int32_t offset, uint32_t temp)
 {
-	if ((%var:offset >= -0x400) && (%var:offset <= 0x3ff))
+	if ((offset >= -0x400) && (offset <= 0x3ff))
 		@IMM11 op=opcode, a=a, b=base, i=offset;
-	else if ((%var:offset >= -0x10000) && (%var:offset <= 0xffff))
+	else if ((offset >= -0x10000) && (offset <= 0xffff))
 	{
 		@IMM17 op=20, a=temp, i=offset;
 		@DEFAULT op=opcode, a=a, b=base, c=temp, d=0;
 	}
 	else
 	{
-		@IMM17 op=20, a=%var:temp, i=offset;
-		@IMM17 op=21, a=%var:temp, i=(offset) >> 16;
+		@IMM17 op=20, a=temp, i=offset;
+		@IMM17 op=21, a=temp, i=(offset) >> 16;
 		@DEFAULT op=opcode, a=a, b=base, c=temp, d=0;
 	}
 }
@@ -178,7 +178,7 @@ instr function void EmitGlobal(SymInstrFunction* func, OutputBlock* out, uint32_
 }
 
 instr function void EmitBlock(SymInstrFunction* func, OutputBlock* out, uint32_t opcode, uint32_t a,
-	uint32_t base, OutputBlock* block, uint32_t temp)
+	uint32_t base, ILBlock* block, uint32_t temp)
 {
 	@IMM11 op=opcode, a=a, b=base, i=0;
 
@@ -261,7 +261,14 @@ instr(call) Call call dest:FUNCTION, retVal:REG(w), retValHigh:REG(w), reads:REG
 instr(branch) SyscallReg syscall a:REG(r), writes:REGLIST(w), reads:REGLIST(r) { @DEFAULT op=31, b=16; }
 instr(branch) SyscallImmed syscall i:IMM, writes:REGLIST(w), reads:REGLIST(r) { @IMM22 op=44; }
 
-instr AddStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 24, %a, %var:base, %var:offset, %var:temp); }
+instr AddStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 24, %a, %var:base, %var:offset, %var:temp); } update
+{
+	// Delete the instruction if it has no effect
+	if ((%a == %var:base) && (%var:offset == 0))
+		return true;
+	return false;
+}
+
 instr AddGlobal add a:REG(w), var:GLOBALVAR { EmitGlobal(func, out, 24, %a, %var:base, %var:offset, %var:temp); }
 instr AddBlock add a:REG(w), base:REG(r), dest:FUNCTION, temp:TEMP { EmitBlock(func, out, 24, %a, %base, %dest:block, %temp); }
 instr SubStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 25, %a, %var:base, %var:offset, %var:temp); }
@@ -323,7 +330,14 @@ instr(readflags, writeflags) CondIcmp icmp testcc:IMM = testval:IMM, op:IMM, cc:
 		@DEFAULT cond=QUARK_IF_FALSE(%testcc), op=46, b=QUARK_COND(%op, %cc);
 }
 
-instr Mov mov a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=31, b=0; }
+instr Mov mov a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=31, b=0; } update
+{
+	// Eliminate mov instructions that have the same source and destination
+	if ((%a == %c) && (%d == 0))
+		return true;
+	return false;
+}
+
 instr Mov mov a:REG(w), i:IMM { @IMM11 op=31, b=0; }
 instr Xchg xchg a:REG(rw), c:REG(rw) { @DEFAULT op=31, b=1; }
 instr Sxb sxb a:REG(w), c:REG(r) { @DEFAULT op=31, b=2; }
@@ -343,6 +357,7 @@ instr(readflags, writeflags) MovCC movcc a:IMM, c:IMM { @DEFAULT op=31, b=27; }
 instr(readflags, writeflags) AndCC andcc a:IMM, c:IMM, d:IMM { @DEFAULT op=31, b=28; }
 instr(readflags, writeflags) OrCC orcc a:IMM, c:IMM, d:IMM { @DEFAULT op=31, b=29; }
 instr(readflags, writeflags) XorCC xorcc a:IMM, c:IMM, d:IMM { @DEFAULT op=31, b=30; }
+instr Breakpoint bp { @DEFAULT op=31, b=31; }
 
 instr LoadFI ldfi a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=63, b=0; }
 instr LoadFI ldfi a:REG(w), i:IMM { @IMM11 op=63, b=0; }
@@ -384,8 +399,145 @@ instr Flog2 flog2 a:REG(w), c:REG(r) { @DEFAULT op=63, b=29; }
 instr Flog2Immed flog2 a:REG(w), i:IMM { @IMM11 op=63, b=29; }
 instr Flog10 flog10 a:REG(w), c:REG(r) { @DEFAULT op=63, b=30; }
 instr Flog10Immed flog10 a:REG(w), i:IMM { @IMM11 op=63, b=30; }
-instr Fmov fmov a:REG(w), c:REG(r) { @DEFAULT op=63, b=31; }
+instr Fmov fmov a:REG(w), c:REG(r) { @DEFAULT op=63, b=31; } update
+{
+	// Eliminate fmov instructions that have the same source and destination
+	if (%a == %c)
+		return true;
+	return false;
+}
+
 instr FmovImmed fmov a:REG(w), i:IMM { @IMM11 op=63, b=31; }
+
+instr SaveCalleeSavedRegs saveregs {} update
+{
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	uint32_t min = 29;
+	set<uint32_t> fpu;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+	{
+		uint32_t reg = (*i) & 63;
+		if (reg >= 32)
+			fpu.insert(reg & 31);
+		else if (reg < min)
+			min = reg;
+	}
+
+	// TODO: Support non-default stack pointer
+	if (settings.stackGrowsUp)
+	{
+		for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+			@StoreUpdate32 SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(0), 4;
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(i) != 0)
+				@StoreUpdateFD QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), 8;
+		}
+	}
+	else
+	{
+		@StoreMultipleUpdate SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(0), (min - 31) * 4;
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(i) != 0)
+				@StoreUpdateFD QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), -8;
+		}
+	}
+
+	return true;
+}
+
+instr RestoreCalleeSavedRegs restoreregs {} update
+{
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	uint32_t min = 29;
+	set<uint32_t> fpu;
+	uint32_t stackSize = 0;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+	{
+		uint32_t reg = (*i) & 63;
+		if (reg >= 32)
+		{
+			fpu.insert(reg & 31);
+			stackSize += 8;
+		}
+		else if (reg < min)
+		{
+			min = reg;
+			if (settings.stackGrowsUp)
+				stackSize += 4;
+		}
+	}
+
+	// TODO: Support non-default stack pointer
+	int32_t offset = 0;
+	if (settings.stackGrowsUp)
+	{
+		for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++, offset += 4)
+			@Load32 SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(0), -stackSize + offset;
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(31 - i) != 0)
+			{
+				@LoadFD QUARK_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), -stackSize + offset;
+				offset += 8;
+			}
+		}
+		if (stackSize != 0)
+			@Sub SYMREG_NATIVE_REG(0), SYMREG_NATIVE_REG(0), stackSize;
+	}
+	else
+	{
+		for (uint32_t i = 0; i < 32; i++)
+		{
+			if (fpu.count(31 - i) != 0)
+			{
+				@LoadFD QUARK_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), offset;
+				offset += 8;
+			}
+		}
+		if (stackSize != 0)
+			@Add SYMREG_NATIVE_REG(0), SYMREG_NATIVE_REG(0), stackSize;
+		@LoadMultipleUpdate SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(0), 0;
+	}
+
+	return true;
+}
+
+instr(writeflags) AntiDisassembly antidisasm temp:TEMP
+{
+	int32_t a, b, cc, offset;
+	cc = rand() & 3;
+	offset = rand() & 0x7f;
+	if (rand() & 1)
+		offset = -offset;
+
+	if (rand() & 1)
+	{
+		a = rand() & 0x3ff;
+		@IMM17 op=20, a=%temp, i=a; // ldi
+		@IMM11 op=24, a=%temp, b=%temp, i=-a; // add
+		@IMM11 op=45, a=%temp, b=QUARK_COND(QUARK_COND_NE, cc), i=0; // cmp
+		@IMM22 cond=QUARK_IF_TRUE(cc), op=22, i=offset; // jmp
+	}
+	else
+	{
+		a = rand() & 0x3ff;
+		b = rand() & 0x3ff;
+		if (rand() & 1)
+			a = -a;
+		if (rand() & 1)
+			b = -b;
+		@IMM17 op=20, a=%temp, i=a; // ldi
+		@IMM11 op=38, a=%temp, b=%temp, i=b; // xor
+		@IMM11 op=46, a=%temp, b=QUARK_COND(((a ^ b) & 0x80000000) ? QUARK_COND_GE : QUARK_COND_LT, cc), i=0; // icmp
+		@IMM22 cond=QUARK_IF_TRUE(cc), op=22, i=offset; // jmp
+	}
+}
+
+// Data flow pseudo-instructions
+instr RegParam regparam regs:REGLIST(r) {} update { return true; }
+instr SymReturn symreturn low:REG(r) high:REG(r) {} update { return true; }
 
 var uint32_t m_varargStart;
 

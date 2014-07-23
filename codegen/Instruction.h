@@ -79,14 +79,17 @@ class Instruction: public RefCountObject
 	uint32_t m_flags;
 	std::vector<InstructionToken> m_tokens;
 	Ref<CodeBlock> m_code;
+	Ref<CodeBlock> m_update;
 
 public:
-	Instruction(const std::string& name, uint32_t flags, const std::vector<InstructionToken>& tokens, CodeBlock* code);
+	Instruction(const std::string& name, uint32_t flags, const std::vector<InstructionToken>& tokens,
+		CodeBlock* code, CodeBlock* update);
 
 	const std::string& GetName() const { return m_name; }
 	uint32_t GetFlags() const { return m_flags; }
 	const std::vector<InstructionToken>& GetTokens() const { return m_tokens; }
 	CodeBlock* GetCode() const { return m_code; }
+	CodeBlock* GetUpdate() const { return m_update; }
 };
 
 

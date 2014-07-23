@@ -184,6 +184,15 @@ void ParserState::DefineEncoding(const std::string& name, Encoding* encoding)
 	}
 
 	m_encodings[name] = encoding;
+
+	if ((encoding->GetWidth() != 8) && (encoding->GetWidth() != 16) && (encoding->GetWidth() != 32) &&
+		(encoding->GetWidth() != 64))
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: encoding '%s' has invalid size %d\n", GetFileName().c_str(),
+			GetLineNumber(), name.c_str(), (int)encoding->GetWidth());
+		return;
+	}
 }
 
 
@@ -276,6 +285,15 @@ CodeBlock* ParserState::GetImmediateClass(const string& name) const
 {
 	map< string, Ref<CodeBlock> >::const_iterator i = m_immClasses.find(name);
 	if (i == m_immClasses.end())
+		return NULL;
+	return i->second;
+}
+
+
+Encoding* ParserState::GetEncoding(const std::string& name) const
+{
+	map< string, Ref<Encoding> >::const_iterator i = m_encodings.find(name);
+	if (i == m_encodings.end())
 		return NULL;
 	return i->second;
 }

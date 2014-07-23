@@ -88,7 +88,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %token LOW_TOK HIGH_TOK BASE_TOK OFFSET_TOK TEMP_TOK BLOCK_TOK
 %token MEMORY_TOK BRANCH_TOK READFLAGS_TOK WRITEFLAGS_TOK COPY_TOK STACK_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
-%token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK INSTR_TOK ENCODING_TOK EQUAL_TOK
+%token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK INSTR_TOK ENCODING_TOK EQUAL_TOK UPDATE_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
 %token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK CALL_TOK CALLVOID_TOK SYSCALL_TOK SYSCALLVOID_TOK
@@ -106,8 +106,8 @@ void Codegen_error(ParserState* state, const char* msg)
 %type <code> code code_stmt_list code_stmt token_list function_type_list function_arg_list
 %type <code> operand_token_list inner_operand_token_list
 %type <code> instr_code instr_code_stmt_list instr_code_stmt
-%type <token> token function_type_token function_arg_token keyword_token normal_token
-%type <token> instr_code_token operand_token inner_operand_token
+%type <token> token function_type_token function_arg_token keyword_token
+%type <token> operand_token inner_operand_token
 %type <node> match tree temp_list
 %type <intval> match_type match_type_list instr_flag instr_flag_list
 %type <str> match_name operand_name
@@ -125,8 +125,8 @@ void Codegen_error(ParserState* state, const char* msg)
 %destructor { $$->Release(); } code code_stmt_list code_stmt token_list function_type_list function_arg_list
 %destructor { $$->Release(); } operand_token_list inner_operand_token_list
 %destructor { $$->Release(); } instr_code instr_code_stmt_list instr_code_stmt
-%destructor { delete $$; } token function_type_token function_arg_token keyword_token normal_token
-%destructor { delete $$; } instr_code_token operand_token inner_operand_token
+%destructor { delete $$; } token function_type_token function_arg_token keyword_token
+%destructor { delete $$; } operand_token inner_operand_token
 %destructor { $$->Release(); } match tree temp_list
 %destructor { free($$); } match_name operand_name
 %destructor { delete $$; } operand_def
@@ -183,7 +183,7 @@ code_stmt_list: code_stmt_list code_stmt  { $$ = $1; $$->AddTokens($2->GetTokens
 			  | code_stmt  { $$ = $1; }
 			  ;
 
-code_stmt: normal_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+code_stmt: token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
 		 | SEMICOLON  { $$ = new CodeBlock; $$->AddRef(); $$->AddTextToken(YYLOC, ";"); }
 		 | LBRACE code_stmt_list RBRACE
 		 	{
@@ -216,8 +216,8 @@ code_stmt: normal_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); 
 			}
 		 ;
 
-token_list: token_list normal_token  { $$ = $1; $$->AddToken(*$2); delete $2; }
-		  | normal_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+token_list: token_list token  { $$ = $1; $$->AddToken(*$2); delete $2; }
+		  | token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
 		  ;
 
 token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
@@ -244,6 +244,14 @@ token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 			free($1);
 		}
 	 | ARG_ID  { $$ = CodeToken::CreateVarToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON LOW_TOK  { $$ = CodeToken::CreateVarLowToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON HIGH_TOK  { $$ = CodeToken::CreateVarHighToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON INT_VAL  { $$ = CodeToken::CreateVarIntToken(YYLOC, $1, (int)$2); free($1); }
+	 | ARG_ID_COLON BASE_TOK  { $$ = CodeToken::CreateVarBaseToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON OFFSET_TOK  { $$ = CodeToken::CreateVarOffsetToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON TEMP_TOK  { $$ = CodeToken::CreateVarTempToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON FUNCTION  { $$ = CodeToken::CreateVarFunctionToken(YYLOC, $1); free($1); }
+	 | ARG_ID_COLON BLOCK_TOK  { $$ = CodeToken::CreateVarBlockToken(YYLOC, $1); free($1); }
 	 | OPERATOR  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 	 | COLON  { $$ = CodeToken::CreateTextToken(YYLOC, ":"); }
 	 | COMMA  { $$ = CodeToken::CreateTextToken(YYLOC, ","); }
@@ -254,12 +262,6 @@ token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 	 | EQUAL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "="); }
 	 | keyword_token  { $$ = $1; }
 	 ;
-
-normal_token: token { $$ = $1; }
-			| ARG_ID_COLON LOW_TOK  { $$ = CodeToken::CreateVarLowToken(YYLOC, $1); free($1); }
-			| ARG_ID_COLON HIGH_TOK  { $$ = CodeToken::CreateVarHighToken(YYLOC, $1); free($1); }
-			| ARG_ID_COLON INT_VAL  { $$ = CodeToken::CreateVarIntToken(YYLOC, $1, (int)$2); free($1); }
-			;
 
 keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | UNSIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "U8"); }
@@ -347,6 +349,7 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | WRITEFLAGS_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "writeflags"); }
 			 | COPY_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "copy"); }
 			 | STACK_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "stack"); }
+			 | UPDATE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "update"); }
 			 ;
 
 function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
@@ -705,7 +708,7 @@ encoding_field: ID COLON INT_VAL  { $$ = EncodingField::CreateNormalField($1, $3
 
 instr_stmt: INSTR_TOK ID instr_token_list instr_code
 		  	{
-				Instruction* instr = new Instruction($2, 0, *$3, $4);
+				Instruction* instr = new Instruction($2, 0, *$3, $4, NULL);
 				state->DefineInstruction(instr);
 				free($2);
 				delete $3;
@@ -713,11 +716,29 @@ instr_stmt: INSTR_TOK ID instr_token_list instr_code
 			}
 		  | INSTR_TOK LPAREN instr_flag_list RPAREN ID instr_token_list instr_code
 		  	{
-				Instruction* instr = new Instruction($5, $3, *$6, $7);
+				Instruction* instr = new Instruction($5, $3, *$6, $7, NULL);
 				state->DefineInstruction(instr);
 				free($5);
 				delete $6;
 				$7->Release();
+			}
+		  | INSTR_TOK ID instr_token_list instr_code UPDATE_TOK code
+		  	{
+				Instruction* instr = new Instruction($2, 0, *$3, $4, $6);
+				state->DefineInstruction(instr);
+				free($2);
+				delete $3;
+				$4->Release();
+				$6->Release();
+			}
+		  | INSTR_TOK LPAREN instr_flag_list RPAREN ID instr_token_list instr_code UPDATE_TOK code
+		  	{
+				Instruction* instr = new Instruction($5, $3, *$6, $7, $9);
+				state->DefineInstruction(instr);
+				free($5);
+				delete $6;
+				$7->Release();
+				$9->Release();
 			}
 		  ;
 
@@ -881,7 +902,7 @@ instr_code_stmt_list: instr_code_stmt_list instr_code_stmt  { $$ = $1; $$->AddTo
 					| instr_code_stmt  { $$ = $1; }
 					;
 
-instr_code_stmt: instr_code_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
+instr_code_stmt: token  { $$ = new CodeBlock; $$->AddRef(); $$->AddToken(*$1); delete $1; }
 			   | SEMICOLON  { $$ = new CodeBlock; $$->AddRef(); $$->AddTextToken(YYLOC, ";"); }
 			   | LBRACE instr_code_stmt_list RBRACE
 			   	{
@@ -927,14 +948,6 @@ instr_code_stmt: instr_code_token  { $$ = new CodeBlock; $$->AddRef(); $$->AddTo
 					free($1);
 				}
 			   ;
-
-instr_code_token: token { $$ = $1; }
-				| ARG_ID_COLON BASE_TOK  { $$ = CodeToken::CreateVarBaseToken(YYLOC, $1); free($1); }
-				| ARG_ID_COLON OFFSET_TOK  { $$ = CodeToken::CreateVarOffsetToken(YYLOC, $1); free($1); }
-				| ARG_ID_COLON TEMP_TOK  { $$ = CodeToken::CreateVarTempToken(YYLOC, $1); free($1); }
-				| ARG_ID_COLON FUNCTION  { $$ = CodeToken::CreateVarFunctionToken(YYLOC, $1); free($1); }
-				| ARG_ID_COLON BLOCK_TOK  { $$ = CodeToken::CreateVarBlockToken(YYLOC, $1); free($1); }
-				;
 
 operand_def_list: operand_def_list COMMA operand_def  { $$ = $1; (*$$)[$3->name] = $3->block; delete $3; }
 				| operand_def  { $$ = new map< string, Ref<CodeBlock> >(); (*$$)[$1->name] = $1->block; delete $1; }

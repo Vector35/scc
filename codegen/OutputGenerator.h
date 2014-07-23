@@ -61,6 +61,7 @@ class OutputGenerator
 	void WriteUnindented(const char* fmt, ...);
 	void EndBlock();
 	void EndBlockSemicolon();
+	void WriteEncodingParams(Encoding* encoding, const CodeToken& token, std::map<std::string, MatchVariableType> vars);
 	void WriteCodeBlock(CodeBlock* code, std::map<std::string, MatchVariableType> vars = std::map<std::string, MatchVariableType>());
 
 	std::string GenerateTypeMatchCode(const std::string& prefix, TreeNode* node);

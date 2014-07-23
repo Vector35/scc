@@ -62,10 +62,17 @@ Encoding::Encoding(): m_width(0)
 }
 
 
-bool Encoding::IsFieldDefined(const std::string& name) const
+bool Encoding::IsFieldDefined(const string& name) const
 {
 	map<string, size_t>::const_iterator i = m_fieldsByName.find(name);
 	return i != m_fieldsByName.end();
+}
+
+
+size_t Encoding::GetFieldIndex(const string& name) const
+{
+	map<string, size_t>::const_iterator i = m_fieldsByName.find(name);
+	return i->second;
 }
 
 

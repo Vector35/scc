@@ -96,10 +96,83 @@ void OutputGenerator::EndBlockSemicolon()
 }
 
 
+void OutputGenerator::WriteEncodingParams(Encoding* encoding, const CodeToken& token, map<string, MatchVariableType> vars)
+{
+	map< string, Ref<CodeBlock> >::const_iterator operand;
+	bool first = true;
+	for (vector<EncodingField>::const_iterator i = encoding->GetFields().begin(); i != encoding->GetFields().end(); ++i)
+	{
+		switch (i->type)
+		{
+		case FIELD_NORMAL:
+			operand = token.operands.find(i->name);
+			if (operand == token.operands.end())
+			{
+				fprintf(stderr, "%s:%d: error: encoding field '%s' must be specified\n", token.fileName.c_str(), token.line,
+					i->name.c_str());
+				m_errors++;
+				if (first)
+				{
+					first = false;
+					WriteLine("0");
+				}
+				else
+				{
+					WriteLine(", 0");
+				}
+			}
+			else
+			{
+				if (first)
+					first = false;
+				else
+					WriteLine(",");
+				WriteCodeBlock(operand->second, vars);
+			}
+			break;
+
+		case FIELD_DEFAULT_VALUE:
+			operand = token.operands.find(i->name);
+			if (operand == token.operands.end())
+			{
+				if (first)
+				{
+					first = false;
+					if (encoding->GetWidth() == 64)
+						WriteLine("0x%" PRIx64 "LL", i->value);
+					else
+						WriteLine("0x%" PRIx32, (uint32_t)i->value);
+				}
+				else
+				{
+					if (encoding->GetWidth() == 64)
+						WriteLine(", 0x%" PRIx64 "LL", i->value);
+					else
+						WriteLine(", 0x%" PRIx32, (uint32_t)i->value);
+				}
+			}
+			else
+			{
+				if (first)
+					first = false;
+				else
+					WriteLine(",");
+				WriteCodeBlock(operand->second, vars);
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
+
 void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableType> vars)
 {
 	string result;
 	map<string, MatchVariableType>::iterator var;
+	Encoding* encoding;
 	char offsetStr[32];
 	bool first = true;
 
@@ -265,6 +338,58 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 				m_errors++;
 				break;
 			}
+			break;
+		case TOKEN_INSTR_ENCODING:
+			encoding = m_parser->GetEncoding(i->name);
+			if (!encoding)
+			{
+				fprintf(stderr, "%s:%d: error: invalid encoding '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (encoding->GetWidth())
+			{
+			case 8:
+				result += string("out->WriteUInt8(ENCODING_VALUE_") + i->name + "(";
+				break;
+			case 16:
+				result += string("out->WriteUInt16(ENCODING_VALUE_") + i->name + "(";
+				break;
+			case 32:
+				result += string("out->WriteUInt32(ENCODING_VALUE_") + i->name + "(";
+				break;
+			case 64:
+				result += string("out->WriteUInt64(ENCODING_VALUE_") + i->name + "(";
+				break;
+			default:
+				result += string("(ENCODING_VALUE_") + i->name + "(";
+				fprintf(stderr, "%s:%d: error: encoding '%s' has invalid size %d\n", i->fileName.c_str(),
+					i->line, i->name.c_str(), encoding->GetWidth());
+				m_errors++;
+				break;
+			}
+			WriteLine("%s", result.c_str());
+			result = "";
+			m_indentLevel++;
+			WriteEncodingParams(encoding, *i, vars);
+			WriteLine("))");
+			m_indentLevel--;
+			break;
+		case TOKEN_INSTR_ENCODING_VALUE:
+			encoding = m_parser->GetEncoding(i->name);
+			if (!encoding)
+			{
+				fprintf(stderr, "%s:%d: error: invalid encoding '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			result += string("ENCODING_VALUE_") + i->name + "(";
+			WriteLine("%s", result.c_str());
+			result = "";
+			m_indentLevel++;
+			WriteEncodingParams(encoding, *i, vars);
+			WriteLine(")");
+			m_indentLevel--;
 			break;
 		default:
 			fprintf(stderr, "%s:%d: error: invalid token in code block\n", i->fileName.c_str(), i->line);
@@ -815,7 +940,114 @@ bool OutputGenerator::Generate(string& output)
 	WriteLine("#define TEMP_REGISTER(cls) m_symFunc->AddRegister(cls)");
 	WriteLine("#define UNSAFE_STACK_PIVOT 0x1000");
 
+	for (map< string, Ref<Encoding> >::const_iterator i = m_parser->GetEncodings().begin();
+		i != m_parser->GetEncodings().end(); ++i)
+	{
+		string name = i->first;
+		Encoding* encoding = i->second;
+		string size;
+		switch (encoding->GetWidth())
+		{
+		case 8:
+			size = "uint8_t";
+			break;
+		case 16:
+			size = "uint16_t";
+			break;
+		case 32:
+			size = "uint32_t";
+			break;
+		case 64:
+			size = "uint64_t";
+			break;
+		default:
+			fprintf(stderr, "error: invalid encoding size %d for '%s'\n", (int)encoding->GetWidth(), name.c_str());
+			return false;
+		}
+
+		string value;
+		string def = string("#define ENCODING_VALUE_") + name + "(";
+		bool firstName = true;
+		for (vector<EncodingField>::const_iterator j = encoding->GetFields().begin(); j != encoding->GetFields().end(); ++j)
+		{
+			if ((j->type == FIELD_FIXED_VALUE) && (j->value == 0))
+				continue;
+
+			if (j != encoding->GetFields().begin())
+				value += " | ";
+
+			char maskStr[32], shiftStr[32];
+			if (encoding->GetWidth() == 64)
+				sprintf(maskStr, "0x%" PRIx64 "LL", ((uint64_t)1 << j->width) - 1);
+			else
+				sprintf(maskStr, "0x%" PRIx32, ((uint32_t)1 << j->width) - 1);
+			sprintf(shiftStr, "%d", (int)j->start);
+
+			if (j->type == FIELD_FIXED_VALUE)
+			{
+				char valueStr[32];
+				uint64_t fixedVal = j->value;
+				fixedVal &= (1LL << j->width) - 1;
+				if (encoding->GetWidth() == 64)
+					sprintf(valueStr, "0x%" PRIx64 "LL", fixedVal);
+				else
+					sprintf(valueStr, "0x%" PRIx32, (uint32_t)fixedVal);
+				if (j->start == 0)
+					value += string("((") + size + ")(" + valueStr + "))";
+				else
+					value += string("(((") + size + ")(" + valueStr + ")) << " + shiftStr + ")";
+			}
+			else
+			{
+				if (firstName)
+					firstName = false;
+				else
+					def += ", ";
+				def += j->name;
+				if (j->start == 0)
+					value += string("(((") + size + ")(" + j->name + ")) & " + maskStr + ")";
+				else
+					value += string("((((") + size + ")(" + j->name + ")) & " + maskStr + ") << " + shiftStr + ")";
+			}
+		}
+
+		if (value.size() == 0)
+			value = string("(") + size + ")0";
+
+		def += ") (" + value + ")";
+
+		WriteLine("%s", def.c_str());
+	}
+
 	WriteLine("using namespace std;");
+
+	WriteLine("class %s_SymInstr: public SymInstr", m_parser->GetArchName().c_str());
+	BeginBlock();
+		WriteUnindented("protected:");
+
+		for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetInstrFunctions().begin();
+			i != m_parser->GetInstrFunctions().end(); ++i)
+		{
+			WriteLine("static");
+			WriteCodeBlock(*i);
+		}
+
+		WriteUnindented("public:");
+
+		WriteLine("%s_SymInstr()", m_parser->GetArchName().c_str());
+		BeginBlock();
+		EndBlock();
+	EndBlockSemicolon();
+
+/*	for (vector< Ref<Instruction> >::const_iterator i = m_parser->GetInstructions().begin();
+		i != m_parser->GetInstructions().end(); ++i)
+	{
+		WriteLine("class %s%sInstr: public %sSymInstr", m_parser->GetArchName().c_str(), i->GetName().c_str(),
+			m_parser->GetArchName().c_str());
+		BeginBlock();
+			WriteUnindented("public:")
+		EndBlockSemicolon();
+	}*/
 
 	WriteLine("class %s: public Output", m_className.c_str());
 	BeginBlock();

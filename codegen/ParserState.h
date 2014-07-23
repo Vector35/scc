@@ -102,6 +102,7 @@ public:
 	bool IsRegisterClass(const std::string& name) const { return GetRegisterClass(name) != NULL; }
 	CodeBlock* GetImmediateClass(const std::string& name) const;
 	bool IsImmediateClass(const std::string& name) const { return GetImmediateClass(name) != NULL; }
+	Encoding* GetEncoding(const std::string& name) const;
 	const std::map< std::string, Ref<RegisterClass> >& GetRegisterClasses() const { return m_regClasses; }
 	const std::map< std::string, std::vector<std::string> >& GetRegisterSubclasses() const { return m_regSubclasses; }
 	const std::map< std::string, Ref<CodeBlock> >& GetImmediateClasses() const { return m_immClasses; }

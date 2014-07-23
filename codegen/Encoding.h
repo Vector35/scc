@@ -58,7 +58,10 @@ public:
 	uint32_t GetWidth() const { return m_width; }
 
 	bool IsFieldDefined(const std::string& name) const;
+	size_t GetFieldIndex(const std::string& name) const;
 	void AddField(const EncodingField& field);
+
+	const std::vector<EncodingField>& GetFields() const { return m_fields; }
 };
 
 

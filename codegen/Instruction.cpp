@@ -48,8 +48,8 @@ InstructionToken* InstructionToken::CreateOperandToken(const string& fileName, i
 }
 
 
-Instruction::Instruction(const string& name, uint32_t flags, const vector<InstructionToken>& tokens, CodeBlock* code):
-	m_name(name), m_flags(flags), m_tokens(tokens), m_code(code)
+Instruction::Instruction(const string& name, uint32_t flags, const vector<InstructionToken>& tokens,
+	CodeBlock* code, CodeBlock* update): m_name(name), m_flags(flags), m_tokens(tokens), m_code(code), m_update(update)
 {
 }
 

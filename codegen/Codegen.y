@@ -404,6 +404,32 @@ function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
 					$3->Release();
 					$6->Release();
 				}
+			| ARCH_TOK FUNCTION function_type_list LPAREN function_arg_list RPAREN code
+			 	{
+					CodeBlock* func = $3;
+					func->AddTextToken(YYLOC, "(");
+					func->AddTokens($5->GetTokens());
+					func->AddTextToken(YYLOC, ")");
+					func->AddTextToken(YYLOC, "{");
+					func->AddTokens($7->GetTokens());
+					func->AddTextToken(YYLOC, "}");
+					state->DefineArchFunction(func);
+					$3->Release();
+					$5->Release();
+					$7->Release();
+				}
+			 | ARCH_TOK FUNCTION function_type_list LPAREN RPAREN code
+			 	{
+					CodeBlock* func = $3;
+					func->AddTextToken(YYLOC, "(");
+					func->AddTextToken(YYLOC, ")");
+					func->AddTextToken(YYLOC, "{");
+					func->AddTokens($6->GetTokens());
+					func->AddTextToken(YYLOC, "}");
+					state->DefineArchFunction(func);
+					$3->Release();
+					$6->Release();
+				}
 			 ;
 
 var_stmt: VAR_TOK token_list SEMICOLON  { $2->AddTextToken(YYLOC, ";"); state->DefineVariable($2); $2->Release(); }

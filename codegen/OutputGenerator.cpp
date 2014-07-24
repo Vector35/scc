@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 
 using namespace std;
 
@@ -96,7 +97,7 @@ void OutputGenerator::EndBlockSemicolon()
 }
 
 
-void OutputGenerator::WriteEncodingParams(Encoding* encoding, const CodeToken& token, map<string, MatchVariableType> vars)
+void OutputGenerator::WriteEncodingParams(Encoding* encoding, const CodeToken& token, map<string, MatchVariableType>& vars)
 {
 	map< string, Ref<CodeBlock> >::const_iterator operand;
 	bool first = true;
@@ -105,54 +106,66 @@ void OutputGenerator::WriteEncodingParams(Encoding* encoding, const CodeToken& t
 		switch (i->type)
 		{
 		case FIELD_NORMAL:
-			operand = token.operands.find(i->name);
-			if (operand == token.operands.end())
-			{
-				fprintf(stderr, "%s:%d: error: encoding field '%s' must be specified\n", token.fileName.c_str(), token.line,
-					i->name.c_str());
-				m_errors++;
-				if (first)
-				{
-					first = false;
-					WriteLine("0");
-				}
-				else
-				{
-					WriteLine(", 0");
-				}
-			}
-			else
-			{
-				if (first)
-					first = false;
-				else
-					WriteLine(",");
-				WriteCodeBlock(operand->second, vars);
-			}
-			break;
-
 		case FIELD_DEFAULT_VALUE:
 			operand = token.operands.find(i->name);
 			if (operand == token.operands.end())
 			{
-				if (first)
+				map<string, MatchVariableType>::iterator var = vars.find(i->name);
+
+				if ((var == vars.end()) || ((var->second != MATCHVAR_IMM) && (var->second != MATCHVAR_REG)))
 				{
-					first = false;
-					if (encoding->GetWidth() == 64)
-						WriteLine("0x%" PRIx64 "LL", i->value);
+					// No operand for this field
+					if (i->type == FIELD_DEFAULT_VALUE)
+					{
+						// Field has default value, use it
+						if (first)
+						{
+							first = false;
+							if (encoding->GetWidth() == 64)
+								WriteLine("0x%" PRIx64 "LL", i->value);
+							else
+								WriteLine("0x%" PRIx32, (uint32_t)i->value);
+						}
+						else
+						{
+							if (encoding->GetWidth() == 64)
+								WriteLine(", 0x%" PRIx64 "LL", i->value);
+							else
+								WriteLine(", 0x%" PRIx32, (uint32_t)i->value);
+						}
+					}
 					else
-						WriteLine("0x%" PRIx32, (uint32_t)i->value);
+					{
+						// Field not defined, use zero as a default
+						// TODO: Should use these fields to satisfy blacklist restrictions
+						if (first)
+						{
+							first = false;
+							WriteLine("0");
+						}
+						else
+						{
+							WriteLine(", 0");
+						}
+					}
 				}
 				else
 				{
-					if (encoding->GetWidth() == 64)
-						WriteLine(", 0x%" PRIx64 "LL", i->value);
+					// Register or immediate operand with this name is present, use the value of the operand automatically
+					if (first)
+					{
+						first = false;
+						WriteLine("%s", i->name.c_str());
+					}
 					else
-						WriteLine(", 0x%" PRIx32, (uint32_t)i->value);
+					{
+						WriteLine(", %s", i->name.c_str());
+					}
 				}
 			}
 			else
 			{
+				// Encoding field specified directly, output code block for the field
 				if (first)
 					first = false;
 				else
@@ -168,7 +181,7 @@ void OutputGenerator::WriteEncodingParams(Encoding* encoding, const CodeToken& t
 }
 
 
-void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableType> vars)
+void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableType> vars, CodeBlockType codeType)
 {
 	string result;
 	map<string, MatchVariableType>::iterator var;
@@ -221,8 +234,20 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 			}
 			break;
 		case TOKEN_INSTR_START:
-			result += "out->AddInstruction(";
+			switch (codeType)
+			{
+			case CODEBLOCK_UPDATE:
+				result += "replacement.push_back(";
+				break;
+			case CODEBLOCK_ARCH:
+				result += "code.push_back(";
+				break;
+			default:
+				result += "out->AddInstruction(";
+				break;
+			}
 			result += m_parser->GetArchName();
+			result += "_";
 			result += i->name;
 			result += "(";
 			break;
@@ -334,6 +359,116 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 			default:
 				result += "0 ";
 				fprintf(stderr, "%s:%d: error: variable '%s' is not a stack or global variable\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_BASE:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_VAR_COMPONENTS:
+				result += i->name + "_base";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a stack or global variable\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_OFFSET:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_VAR_COMPONENTS:
+				result += i->name + "_offset";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a stack or global variable\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_TEMP:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_VAR_COMPONENTS:
+				result += i->name + "_temp";
+				break;
+			default:
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a stack or global variable\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_FUNCTION:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_FUNC_AND_BLOCK:
+				result += i->name + "_func";
+				break;
+			default:
+				result += "NULL ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a function\n", i->fileName.c_str(),
+					i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			break;
+		case TOKEN_VAR_BLOCK:
+			var = vars.find(i->name);
+			if (var == vars.end())
+			{
+				result += "0 ";
+				fprintf(stderr, "%s:%d: error: undefined match variable '%s'\n", i->fileName.c_str(), i->line, i->name.c_str());
+				m_errors++;
+				break;
+			}
+			switch (var->second)
+			{
+			case MATCHVAR_FUNC_AND_BLOCK:
+				result += i->name + "_block";
+				break;
+			default:
+				result += "NULL ";
+				fprintf(stderr, "%s:%d: error: variable '%s' is not a function\n", i->fileName.c_str(),
 					i->line, i->name.c_str());
 				m_errors++;
 				break;
@@ -919,12 +1054,488 @@ void OutputGenerator::GenerateOutputCode(Match* match)
 }
 
 
+void OutputGenerator::GenerateEncodingMacro(const string& name, Encoding* encoding)
+{
+	string size;
+	switch (encoding->GetWidth())
+	{
+	case 8:
+		size = "uint8_t";
+		break;
+	case 16:
+		size = "uint16_t";
+		break;
+	case 32:
+		size = "uint32_t";
+		break;
+	case 64:
+		size = "uint64_t";
+		break;
+	default:
+		fprintf(stderr, "error: invalid encoding size %d for '%s'\n", (int)encoding->GetWidth(), name.c_str());
+		m_errors++;
+		return;
+	}
+
+	string value;
+	string def = string("#define ENCODING_VALUE_") + name + "(";
+	bool firstName = true;
+	for (vector<EncodingField>::const_iterator j = encoding->GetFields().begin(); j != encoding->GetFields().end(); ++j)
+	{
+		if ((j->type == FIELD_FIXED_VALUE) && (j->value == 0))
+			continue;
+
+		if (j != encoding->GetFields().begin())
+			value += " | ";
+
+		char maskStr[32], shiftStr[32];
+		if (encoding->GetWidth() == 64)
+			sprintf(maskStr, "0x%" PRIx64 "LL", ((uint64_t)1 << j->width) - 1);
+		else
+			sprintf(maskStr, "0x%" PRIx32, ((uint32_t)1 << j->width) - 1);
+		sprintf(shiftStr, "%d", (int)j->start);
+
+		if (j->type == FIELD_FIXED_VALUE)
+		{
+			char valueStr[32];
+			uint64_t fixedVal = j->value;
+			fixedVal &= (1LL << j->width) - 1;
+			if (encoding->GetWidth() == 64)
+				sprintf(valueStr, "0x%" PRIx64 "LL", fixedVal);
+			else
+				sprintf(valueStr, "0x%" PRIx32, (uint32_t)fixedVal);
+			if (j->start == 0)
+				value += string("((") + size + ")(" + valueStr + "))";
+			else
+				value += string("(((") + size + ")(" + valueStr + ")) << " + shiftStr + ")";
+		}
+		else
+		{
+			if (firstName)
+				firstName = false;
+			else
+				def += ", ";
+			def += j->name;
+			if (j->start == 0)
+				value += string("(((") + size + ")(" + j->name + ")) & " + maskStr + ")";
+			else
+				value += string("((((") + size + ")(" + j->name + ")) & " + maskStr + ") << " + shiftStr + ")";
+		}
+	}
+
+	if (value.size() == 0)
+		value = string("(") + size + ")0";
+
+	def += ") (" + value + ")";
+
+	WriteLine("%s", def.c_str());
+}
+
+
+void OutputGenerator::WriteInstructionTokenVariables(Instruction* instr, std::map<std::string, MatchVariableType>& vars)
+{
+	for (vector<InstructionToken>::const_iterator i = instr->GetTokens().begin(); i != instr->GetTokens().end(); ++i)
+	{
+		if (i->type == INSTRTOKEN_TEXT)
+			continue;
+
+		switch (i->operand)
+		{
+		case OPERAND_REG:
+			vars[i->name] = MATCHVAR_REG;
+			WriteLine("uint32_t %s = m_operands[m_%s_index].reg;", i->name.c_str(), i->name.c_str());
+			WriteLine("(void)%s;", i->name.c_str());
+			break;
+		case OPERAND_IMMED:
+			vars[i->name] = MATCHVAR_IMM;
+			WriteLine("int64_t %s = m_operands[m_%s_index].immed;", i->name.c_str(), i->name.c_str());
+			WriteLine("(void)%s;", i->name.c_str());
+			break;
+		case OPERAND_FUNCTION:
+			vars[i->name] = MATCHVAR_FUNC_AND_BLOCK;
+			WriteLine("Function* %s_func = m_operands[m_%s_index].func;", i->name.c_str(), i->name.c_str());
+			WriteLine("ILBlock* %s_block = m_operands[m_%s_index].block;", i->name.c_str(), i->name.c_str());
+			WriteLine("(void)%s_func; (void)%s_block;", i->name.c_str(), i->name.c_str());
+			break;
+		case OPERAND_TEMP:
+			vars[i->name] = MATCHVAR_REG;
+			WriteLine("uint32_t %s = m_operands[m_%s_index].reg;", i->name.c_str(), i->name.c_str());
+			WriteLine("(void)%s;", i->name.c_str());
+			break;
+		case OPERAND_REG_LIST:
+			break;
+		case OPERAND_STACK_VAR:
+			vars[i->name] = MATCHVAR_VAR_COMPONENTS;
+			WriteLine("uint32_t %s_base = m_operands[m_%s_index].reg;", i->name.c_str(), i->name.c_str());
+			WriteLine("uint32_t %s_offset = func->GetStackVarOffset(m_operands[m_%s_index + 1].reg) +",
+				i->name.c_str(), i->name.c_str());
+			WriteLine("\tm_operands[m_%s_index + 1].immed;", i->name.c_str());
+			WriteLine("uint32_t %s_temp = m_operands[m_%s_index + 2].reg;", i->name.c_str(), i->name.c_str());
+			WriteLine("(void)%s_base; (void)%s_offset; (void)%s_temp;", i->name.c_str(), i->name.c_str(), i->name.c_str());
+			break;
+		case OPERAND_GLOBAL_VAR:
+			vars[i->name] = MATCHVAR_VAR_COMPONENTS;
+			WriteLine("uint32_t %s_base = m_operands[m_%s_index].reg;", i->name.c_str(), i->name.c_str());
+			WriteLine("uint32_t %s_offset = m_operands[m_%s_index + 1].immed;", i->name.c_str(), i->name.c_str());
+			WriteLine("uint32_t %s_temp = m_operands[m_%s_index + 2].reg;", i->name.c_str(), i->name.c_str());
+			WriteLine("(void)%s_base; (void)%s_offset; (void)%s_temp;", i->name.c_str(), i->name.c_str(), i->name.c_str());
+			break;
+		default:
+			fprintf(stderr, "error: invalid operand '%s' for instruction '%s'\n",
+				i->name.c_str(), instr->GetName().c_str());
+			m_errors++;
+			return;
+		}
+	}
+}
+
+
+void OutputGenerator::GenerateInstructionClass(size_t i, Instruction* instr)
+{
+	WriteLine("class %s_SymInstr_%d: public %s_SymInstr", m_parser->GetArchName().c_str(),
+		(int)i, m_parser->GetArchName().c_str());
+	BeginBlock();
+		// Write out variables to hold operand index for each token that contains an operand
+		for (vector<InstructionToken>::const_iterator j = instr->GetTokens().begin(); j != instr->GetTokens().end(); ++j)
+		{
+			if (j->type == INSTRTOKEN_TEXT)
+				continue;
+			if (j->operand == OPERAND_REG_LIST)
+				WriteLine("int32_t m_%s_count;", j->name.c_str());
+			WriteLine("int32_t m_%s_index;", j->name.c_str());
+		}
+
+		WriteUnindented("public:");
+
+		// Write out constructor
+		WriteLine("%s_SymInstr_%d(", m_parser->GetArchName().c_str(), (int)i);
+		m_indentLevel++;
+		bool first = true;
+		for (vector<InstructionToken>::const_iterator j = instr->GetTokens().begin(); j != instr->GetTokens().end(); ++j)
+		{
+			if (j->type == INSTRTOKEN_TEXT)
+				continue;
+			const char* comma = "";
+			if (first)
+				first = false;
+			else
+				comma = ", ";
+			switch (j->operand)
+			{
+			case OPERAND_REG:
+				WriteLine("%suint32_t %s", comma, j->name.c_str());
+				break;
+			case OPERAND_REG_LIST:
+				WriteLine("%sconst vector<uint32_t>& %s", comma, j->name.c_str());
+				break;
+			case OPERAND_IMMED:
+				WriteLine("%sint64_t %s", comma, j->name.c_str());
+				break;
+			case OPERAND_STACK_VAR:
+				WriteLine("%suint32_t %s_base, uint32_t %s_var, int64_t %s_offset, uint32_t %s_scratch",
+					comma, j->name.c_str(), j->name.c_str(), j->name.c_str(), j->name.c_str());
+				break;
+			case OPERAND_GLOBAL_VAR:
+				WriteLine("%suint32_t %s_base, int64_t %s_offset, uint32_t %s_scratch",
+					comma, j->name.c_str(), j->name.c_str(), j->name.c_str());
+				break;
+			case OPERAND_FUNCTION:
+				WriteLine("%sFunction* %s_func, ILBlock* %s_block", comma, j->name.c_str(), j->name.c_str());
+				break;
+			case OPERAND_TEMP:
+				WriteLine("%suint32_t %s", comma, j->name.c_str());
+				break;
+			default:
+				fprintf(stderr, "error: invalid operand '%s' for instruction '%s'\n", j->name.c_str(), instr->GetName().c_str());
+				m_errors++;
+				return;
+			}
+		}
+		WriteLine(")");
+		m_indentLevel--;
+		BeginBlock();
+			if (instr->GetFlags() & SYMFLAG_WRITES_FLAGS)
+				WriteLine("EnableFlag(SYMFLAG_WRITES_FLAGS);");
+			if (instr->GetFlags() & SYMFLAG_USES_FLAGS)
+				WriteLine("EnableFlag(SYMFLAG_USES_FLAGS);");
+			if (instr->GetFlags() & SYMFLAG_MEMORY_BARRIER)
+				WriteLine("EnableFlag(SYMFLAG_MEMORY_BARRIER);");
+			if (instr->GetFlags() & (SYMFLAG_CONTROL_FLOW | SYMFLAG_CALL))
+				WriteLine("EnableFlag(SYMFLAG_CONTROL_FLOW);");
+			if (instr->GetFlags() & SYMFLAG_CALL)
+				WriteLine("EnableFlag(SYMFLAG_CALL);");
+			if (instr->GetFlags() & SYMFLAG_COPY)
+				WriteLine("EnableFlag(SYMFLAG_COPY);");
+			if (instr->GetFlags() & SYMFLAG_STACK)
+				WriteLine("EnableFlag(SYMFLAG_STACK);");
+
+			for (vector<InstructionToken>::const_iterator j = instr->GetTokens().begin(); j != instr->GetTokens().end(); ++j)
+			{
+				if (j->type == INSTRTOKEN_TEXT)
+					continue;
+
+				WriteLine("m_%s_index = (int)m_operands.size();", j->name.c_str());
+
+				switch (j->operand)
+				{
+				case OPERAND_REG:
+					WriteLine("if (%s == SYMREG_NONE)", j->name.c_str());
+					WriteLine("\tm_%s_index = -1;", j->name.c_str());
+					WriteLine("else");
+					switch (j->access)
+					{
+					case ACCESS_READ:
+						WriteLine("\tAddReadRegisterOperand(%s);", j->name.c_str());
+						break;
+					case ACCESS_WRITE:
+						WriteLine("\tAddWriteRegisterOperand(%s);", j->name.c_str());
+						break;
+					case ACCESS_READ_WRITE:
+						WriteLine("\tAddReadWriteRegisterOperand(%s);", j->name.c_str());
+						break;
+					default:
+						fprintf(stderr, "error: invalid access type on operand '%s' for instruction '%s'\n",
+							j->name.c_str(), instr->GetName().c_str());
+						m_errors++;
+						return;
+					}
+					break;
+				case OPERAND_REG_LIST:
+					switch (j->access)
+					{
+					case ACCESS_READ:
+						WriteLine("for (vector<uint32_t>::const_iterator i = %s.begin(); i != %s.end(); ++i)",
+							j->name.c_str(), j->name.c_str());
+						WriteLine("\tAddReadRegisterOperand(*i);");
+						break;
+					case ACCESS_WRITE:
+						WriteLine("for (vector<uint32_t>::const_iterator i = %s.begin(); i != %s.end(); ++i)",
+							j->name.c_str(), j->name.c_str());
+						WriteLine("\tAddWriteRegisterOperand(*i);");
+						break;
+					case ACCESS_READ_WRITE:
+						WriteLine("for (vector<uint32_t>::const_iterator i = %s.begin(); i != %s.end(); ++i)",
+							j->name.c_str(), j->name.c_str());
+						WriteLine("\tAddReadWriteRegisterOperand(*i);");
+						break;
+					default:
+						fprintf(stderr, "error: invalid access type on operand '%s' for instruction '%s'\n",
+							j->name.c_str(), instr->GetName().c_str());
+						m_errors++;
+						return;
+					}
+					WriteLine("m_%s_count = (int32_t)%s.size();", j->name.c_str(), j->name.c_str());
+					break;
+				case OPERAND_IMMED:
+					WriteLine("AddImmediateOperand(%s);", j->name.c_str());
+					break;
+				case OPERAND_STACK_VAR:
+					WriteLine("AddReadRegisterOperand(%s_base);", j->name.c_str());
+					WriteLine("AddStackVarOperand(%s_var, %s_offset);", j->name.c_str(), j->name.c_str());
+					WriteLine("AddTemporaryRegisterOperand(%s_scratch);", j->name.c_str());
+					break;
+				case OPERAND_GLOBAL_VAR:
+					WriteLine("AddReadRegisterOperand(%s_base);", j->name.c_str());
+					WriteLine("AddGlobalVarOperand(%s_offset);", j->name.c_str());
+					WriteLine("AddTemporaryRegisterOperand(%s_scratch);", j->name.c_str());
+					break;
+				case OPERAND_FUNCTION:
+					WriteLine("AddBlockOperand(%s_func, %s_block);", j->name.c_str(), j->name.c_str());
+					break;
+				case OPERAND_TEMP:
+					WriteLine("AddTemporaryRegisterOperand(%s);", j->name.c_str());
+					break;
+				default:
+					fprintf(stderr, "error: invalid operand '%s' for instruction '%s'\n",
+						j->name.c_str(), instr->GetName().c_str());
+					m_errors++;
+					return;
+				}
+			}
+		EndBlock();
+
+		// Write out function to print the instruction
+		WriteLine("virtual void Print(SymInstrFunction* func)");
+		BeginBlock();
+			for (vector<InstructionToken>::const_iterator j = instr->GetTokens().begin(); j != instr->GetTokens().end(); ++j)
+			{
+				if (j->type == INSTRTOKEN_TEXT)
+				{
+					if (j->name == ",")
+						WriteLine("fprintf(stderr, \", \");");
+					else if (j->name == "\"")
+						WriteLine("fprintf(stderr, \"\\\"\");");
+					else if (j->name == "%")
+						WriteLine("fprintf(stderr, \"%%\");");
+					else if (isalnum(j->name[0]) || (j->name[0] == '_'))
+						WriteLine("fprintf(stderr, \"%s \");", j->name.c_str());
+					else
+						WriteLine("fprintf(stderr, \"%s\");", j->name.c_str());
+					continue;
+				}
+
+				switch (j->operand)
+				{
+				case OPERAND_REG:
+				case OPERAND_IMMED:
+				case OPERAND_FUNCTION:
+				case OPERAND_TEMP:
+					WriteLine("if (m_%s_index == -1)", j->name.c_str());
+					WriteLine("\tfprintf(stderr, \"none\");");
+					WriteLine("else");
+					WriteLine("\tm_operands[m_%s_index].Print(func);", j->name.c_str());
+					break;
+				case OPERAND_REG_LIST:
+					WriteLine("for (int32_t i = 0; i < m_%s_count; i++)", j->name.c_str());
+					BeginBlock();
+						WriteLine("if (i != 0)");
+						WriteLine("\tfprintf(stderr, \":\");");
+						WriteLine("m_operands[m_%s_index + i].Print(func);", j->name.c_str());
+					EndBlock();
+					break;
+				case OPERAND_STACK_VAR:
+				case OPERAND_GLOBAL_VAR:
+					WriteLine("m_operands[m_%s_index].Print(func);", j->name.c_str());
+					WriteLine("fprintf(stderr, \":\");");
+					WriteLine("m_operands[m_%s_index + 1].Print(func);", j->name.c_str());
+					WriteLine("fprintf(stderr, \":\");");
+					WriteLine("m_operands[m_%s_index + 2].Print(func);", j->name.c_str());
+					break;
+				default:
+					fprintf(stderr, "error: invalid operand '%s' for instruction '%s'\n",
+						j->name.c_str(), instr->GetName().c_str());
+					m_errors++;
+					return;
+				}
+			}
+		EndBlock();
+
+		// Write out code to emit the instruction's machine code
+		WriteLine("virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out)");
+		BeginBlock();
+			map<string, MatchVariableType> vars;
+			WriteInstructionTokenVariables(instr, vars);
+			WriteCodeBlock(instr->GetCode(), vars);
+			WriteLine("return true;");
+		EndBlock();
+
+		if (instr->GetUpdate())
+		{
+			// Write out code to replace instruction with a set of instructions after code generation completes
+			WriteLine("virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings,");
+			WriteLine("\tvector<SymInstr*>& replacement)");
+			BeginBlock();
+				map<string, MatchVariableType> vars;
+				WriteInstructionTokenVariables(instr, vars);
+				WriteCodeBlock(instr->GetUpdate(), vars, CODEBLOCK_UPDATE);
+			EndBlock();
+		}
+	EndBlockSemicolon();
+}
+
+
+void OutputGenerator::GenerateInstructionFunction(size_t i, Instruction* instr, bool proto)
+{
+	WriteLine("SymInstr* %s_%s(", m_parser->GetArchName().c_str(), instr->GetName().c_str());
+	m_indentLevel++;
+	bool first = true;
+	for (vector<InstructionToken>::const_iterator j = instr->GetTokens().begin(); j != instr->GetTokens().end(); ++j)
+	{
+		if (j->type == INSTRTOKEN_TEXT)
+			continue;
+		const char* comma = "";
+		if (first)
+			first = false;
+		else
+			comma = ", ";
+		switch (j->operand)
+		{
+		case OPERAND_REG:
+			WriteLine("%suint32_t %s", comma, j->name.c_str());
+			break;
+		case OPERAND_REG_LIST:
+			WriteLine("%sconst vector<uint32_t>& %s", comma, j->name.c_str());
+			break;
+		case OPERAND_IMMED:
+			WriteLine("%sint64_t %s", comma, j->name.c_str());
+			break;
+		case OPERAND_STACK_VAR:
+			WriteLine("%suint32_t %s_base, uint32_t %s_var, int64_t %s_offset, uint32_t %s_scratch",
+				comma, j->name.c_str(), j->name.c_str(), j->name.c_str(), j->name.c_str());
+			break;
+		case OPERAND_GLOBAL_VAR:
+			WriteLine("%suint32_t %s_base, int64_t %s_offset, uint32_t %s_scratch",
+				comma, j->name.c_str(), j->name.c_str(), j->name.c_str());
+			break;
+		case OPERAND_FUNCTION:
+			WriteLine("%sFunction* %s_func, ILBlock* %s_block", comma, j->name.c_str(), j->name.c_str());
+			break;
+		case OPERAND_TEMP:
+			WriteLine("%suint32_t %s", comma, j->name.c_str());
+			break;
+		default:
+			fprintf(stderr, "error: invalid operand '%s' for instruction '%s'\n", j->name.c_str(), instr->GetName().c_str());
+			m_errors++;
+			return;
+		}
+	}
+	m_indentLevel--;
+	if (proto)
+	{
+		WriteLine(");");
+		return;
+	}
+	WriteLine(")");
+	BeginBlock();
+		WriteLine("return new %s_SymInstr_%d(", m_parser->GetArchName().c_str(), (int)i);
+		m_indentLevel++;
+		first = true;
+		for (vector<InstructionToken>::const_iterator j = instr->GetTokens().begin(); j != instr->GetTokens().end(); ++j)
+		{
+			if (j->type == INSTRTOKEN_TEXT)
+				continue;
+			const char* comma = "";
+			if (first)
+				first = false;
+			else
+				comma = ", ";
+			switch (j->operand)
+			{
+			case OPERAND_REG:
+			case OPERAND_REG_LIST:
+			case OPERAND_IMMED:
+			case OPERAND_TEMP:
+				WriteLine("%s%s", comma, j->name.c_str());
+				break;
+			case OPERAND_STACK_VAR:
+				WriteLine("%s%s_base, %s_var, %s_offset, %s_scratch",
+					comma, j->name.c_str(), j->name.c_str(), j->name.c_str(), j->name.c_str());
+				break;
+			case OPERAND_GLOBAL_VAR:
+				WriteLine("%s%s_base, %s_offset, %s_scratch",
+					comma, j->name.c_str(), j->name.c_str(), j->name.c_str());
+				break;
+			case OPERAND_FUNCTION:
+				WriteLine("%s%s_func, %s_block", comma, j->name.c_str(), j->name.c_str());
+				break;
+			default:
+				fprintf(stderr, "error: invalid operand '%s' for instruction '%s'\n", j->name.c_str(), instr->GetName().c_str());
+				m_errors++;
+				return;
+			}
+		}
+		WriteLine(");");
+		m_indentLevel--;
+	EndBlock();
+}
+
+
 bool OutputGenerator::Generate(string& output)
 {
 	WriteLine("#include \"Output.h\"");
 	WriteLine("#include \"Struct.h\"");
 	WriteLine("#include \"TreeBlock.h\"");
-	WriteLine("#include \"%sSymInstr.h\"", m_parser->GetArchName().c_str());
+	WriteLine("#include \"SymInstr.h\"");
 	WriteLine("#include <stdio.h>");
 	WriteLine("#include <stdlib.h>");
 	WriteLine("#include <string.h>");
@@ -940,87 +1551,31 @@ bool OutputGenerator::Generate(string& output)
 	WriteLine("#define TEMP_REGISTER(cls) m_symFunc->AddRegister(cls)");
 	WriteLine("#define UNSAFE_STACK_PIVOT 0x1000");
 
+	// Write out register class enumeration
+	WriteLine("enum %s_RegisterClass", m_parser->GetArchName().c_str());
+	BeginBlock();
+		for (set<string>::const_iterator i = m_parser->GetRegisterClassNames().begin();
+			i != m_parser->GetRegisterClassNames().end(); ++i)
+		{
+			if (i == m_parser->GetRegisterClassNames().begin())
+				WriteLine("%s", i->c_str());
+			else
+				WriteLine(", %s", i->c_str());
+		}
+	EndBlockSemicolon();
+
+	// Write out each encoding type
 	for (map< string, Ref<Encoding> >::const_iterator i = m_parser->GetEncodings().begin();
 		i != m_parser->GetEncodings().end(); ++i)
-	{
-		string name = i->first;
-		Encoding* encoding = i->second;
-		string size;
-		switch (encoding->GetWidth())
-		{
-		case 8:
-			size = "uint8_t";
-			break;
-		case 16:
-			size = "uint16_t";
-			break;
-		case 32:
-			size = "uint32_t";
-			break;
-		case 64:
-			size = "uint64_t";
-			break;
-		default:
-			fprintf(stderr, "error: invalid encoding size %d for '%s'\n", (int)encoding->GetWidth(), name.c_str());
-			return false;
-		}
-
-		string value;
-		string def = string("#define ENCODING_VALUE_") + name + "(";
-		bool firstName = true;
-		for (vector<EncodingField>::const_iterator j = encoding->GetFields().begin(); j != encoding->GetFields().end(); ++j)
-		{
-			if ((j->type == FIELD_FIXED_VALUE) && (j->value == 0))
-				continue;
-
-			if (j != encoding->GetFields().begin())
-				value += " | ";
-
-			char maskStr[32], shiftStr[32];
-			if (encoding->GetWidth() == 64)
-				sprintf(maskStr, "0x%" PRIx64 "LL", ((uint64_t)1 << j->width) - 1);
-			else
-				sprintf(maskStr, "0x%" PRIx32, ((uint32_t)1 << j->width) - 1);
-			sprintf(shiftStr, "%d", (int)j->start);
-
-			if (j->type == FIELD_FIXED_VALUE)
-			{
-				char valueStr[32];
-				uint64_t fixedVal = j->value;
-				fixedVal &= (1LL << j->width) - 1;
-				if (encoding->GetWidth() == 64)
-					sprintf(valueStr, "0x%" PRIx64 "LL", fixedVal);
-				else
-					sprintf(valueStr, "0x%" PRIx32, (uint32_t)fixedVal);
-				if (j->start == 0)
-					value += string("((") + size + ")(" + valueStr + "))";
-				else
-					value += string("(((") + size + ")(" + valueStr + ")) << " + shiftStr + ")";
-			}
-			else
-			{
-				if (firstName)
-					firstName = false;
-				else
-					def += ", ";
-				def += j->name;
-				if (j->start == 0)
-					value += string("(((") + size + ")(" + j->name + ")) & " + maskStr + ")";
-				else
-					value += string("((((") + size + ")(" + j->name + ")) & " + maskStr + ") << " + shiftStr + ")";
-			}
-		}
-
-		if (value.size() == 0)
-			value = string("(") + size + ")0";
-
-		def += ") (" + value + ")";
-
-		WriteLine("%s", def.c_str());
-	}
+		GenerateEncodingMacro(i->first, i->second);
 
 	WriteLine("using namespace std;");
 
+	// Write out prototypes for instruction generator functions
+	for (size_t i = 0; i < m_parser->GetInstructions().size(); i++)
+		GenerateInstructionFunction(i, m_parser->GetInstructions()[i], true);
+
+	// Write out base class for instructions
 	WriteLine("class %s_SymInstr: public SymInstr", m_parser->GetArchName().c_str());
 	BeginBlock();
 		WriteUnindented("protected:");
@@ -1039,15 +1594,31 @@ bool OutputGenerator::Generate(string& output)
 		EndBlock();
 	EndBlockSemicolon();
 
-/*	for (vector< Ref<Instruction> >::const_iterator i = m_parser->GetInstructions().begin();
-		i != m_parser->GetInstructions().end(); ++i)
-	{
-		WriteLine("class %s%sInstr: public %sSymInstr", m_parser->GetArchName().c_str(), i->GetName().c_str(),
+	// Write out classes for each instruction
+	for (size_t i = 0; i < m_parser->GetInstructions().size(); i++)
+		GenerateInstructionClass(i, m_parser->GetInstructions()[i]);
+
+	// Write out implementations for instruction generator functions
+	for (size_t i = 0; i < m_parser->GetInstructions().size(); i++)
+		GenerateInstructionFunction(i, m_parser->GetInstructions()[i], false);
+
+	// Write out architecture-specific function class
+	WriteLine("class %s_SymInstrFunction: public SymInstrFunction", m_parser->GetArchName().c_str());
+	BeginBlock();
+		WriteUnindented("public:");
+
+		WriteLine("%s_SymInstrFunction(const Settings& settings, Function* func): SymInstrFunction(settings, func)",
 			m_parser->GetArchName().c_str());
 		BeginBlock();
-			WriteUnindented("public:")
-		EndBlockSemicolon();
-	}*/
+		EndBlock();
+
+		for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetArchFunctions().begin();
+			i != m_parser->GetArchFunctions().end(); ++i)
+		{
+			map<string, MatchVariableType> vars;
+			WriteCodeBlock(*i, vars, CODEBLOCK_ARCH);
+		}
+	EndBlockSemicolon();
 
 	WriteLine("class %s: public Output", m_className.c_str());
 	BeginBlock();
@@ -1080,7 +1651,7 @@ bool OutputGenerator::Generate(string& output)
 		EndBlockSemicolon();
 
 		WriteLine("Function* m_func;");
-		WriteLine("%sSymInstrFunction* m_symFunc;", m_parser->GetArchName().c_str());
+		WriteLine("%s_SymInstrFunction* m_symFunc;", m_parser->GetArchName().c_str());
 		WriteLine("TreeBlock* m_currentBlock;");
 		WriteLine("VariableAssignments m_vars;");
 		WriteLine("vector<IncomingParameterCopy> m_paramCopy;");
@@ -1400,7 +1971,7 @@ bool OutputGenerator::Generate(string& output)
 
 		WriteLine("virtual bool GenerateCode(Function* func)");
 		BeginBlock();
-			WriteLine("%sSymInstrFunction symFunc(m_settings, func);", m_parser->GetArchName().c_str());
+			WriteLine("%s_SymInstrFunction symFunc(m_settings, func);", m_parser->GetArchName().c_str());
 			WriteLine("m_func = func;");
 			WriteLine("m_symFunc = &symFunc;");
 

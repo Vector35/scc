@@ -1,6 +1,7 @@
-include "asmquark.h"
-
 arch Quark
+
+#define QUARK_FPU_REG(n) SYMREG_NATIVE_REG((n) + 32)
+
 registerclass default IREG(8,16,32) QUARKREGCLASS_INTEGER
 registerclass INTEGER_RETURN_VALUE(8,16,32) QUARKREGCLASS_INTEGER_RETURN_VALUE
 registerclass SYSCALL_RETURN(8,16,32) QUARKREGCLASS_SYSCALL_RESULT_1
@@ -183,7 +184,7 @@ instr function void EmitBlock(SymInstrFunction* func, OutputBlock* out, uint32_t
 	@IMM11 op=opcode, a=a, b=base, i=0;
 
 	Relocation reloc;
-	reloc.type = DATA_RELOC_RELATIVE_32_FIELD;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
 	reloc.bitOffset = 0;
 	reloc.bitSize = 11;
 	reloc.bitShift = 0;
@@ -195,7 +196,7 @@ instr function void EmitBlock(SymInstrFunction* func, OutputBlock* out, uint32_t
 	out->relocs.push_back(reloc);
 }
 
-#define LOAD_STORE_INSTR(cls, updatecls, stackcls, globalcls, access, name, updatename, opcode, upcodeopcode) \
+#define LOAD_STORE_INSTR(cls, updatecls, stackcls, globalcls, access, name, updatename, opcode, updateopcode) \
 instr(memory) cls name a:REG(access), b:REG(r), c:REG(r) << d:IMM { @DEFAULT op=opcode; } \
 instr(memory) cls name a:REG(access), b:REG(r), i:IMM { @IMM11 op=opcode; } \
 instr(memory) updatecls updatename a:REG(access), b:REG(rw), c:REG(r) << d:IMM { @DEFAULT op=updateopcode; } \
@@ -221,17 +222,17 @@ instr(memory) LoadMultipleUpdate ldmwu a:REG(w), b:REG(rw), i:IMM { @IMM11 op=11
 instr(memory) StoreMultipleUpdate stmwu a:REG(r), b:REG(rw), c:REG(r) << d:IMM { @DEFAULT op=15; }
 instr(memory) StoreMultipleUpdate stmwu a:REG(r), b:REG(rw), i:IMM { @IMM11 op=15; }
 
-instr LoadImm ldi i:IMM { @IMM17 op=20; }
-instr LoadImmHigh ldih i:IMM { @IMM17 op=21; }
+instr LoadImm ldi a:REG(w), i:IMM { @IMM17 op=20; }
+instr LoadImmHigh ldih a:REG(rw), i:IMM { @IMM17 op=21; }
 
-#define BRANCH_RELOC(dest, offset, size, shift) \
+#define BRANCH_RELOC(dest, ofs, size, shift) \
 	Relocation reloc; \
 	reloc.type = CODE_RELOC_RELATIVE_32_FIELD; \
 	reloc.overflow = NULL; \
 	reloc.instruction = out->len - 4; \
 	reloc.offset = out->len - 4; \
 	reloc.target = dest; \
-	reloc.bitOffset = offset; \
+	reloc.bitOffset = ofs; \
 	reloc.bitSize = size; \
 	reloc.bitShift = shift; \
 	out->relocs.push_back(reloc);
@@ -269,9 +270,16 @@ instr AddStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 24, %a, %var:ba
 	return false;
 }
 
+instr SubStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 25, %a, %var:base, %var:offset, %var:temp); } update
+{
+	// Delete the instruction if it has no effect
+	if ((%a == %var:base) && (%var:offset == 0))
+		return true;
+	return false;
+}
+
 instr AddGlobal add a:REG(w), var:GLOBALVAR { EmitGlobal(func, out, 24, %a, %var:base, %var:offset, %var:temp); }
 instr AddBlock add a:REG(w), base:REG(r), dest:FUNCTION, temp:TEMP { EmitBlock(func, out, 24, %a, %base, %dest:block, %temp); }
-instr SubStack add a:REG(w), var:STACKVAR { EmitStack(func, out, 25, %a, %var:base, %var:offset, %var:temp); }
 
 #define ARITH_INSTR(cls, name, opcode) \
 instr cls name a:REG(w), b:REG(r), c:REG(r) << d:IMM { @DEFAULT op=opcode; } \
@@ -322,6 +330,13 @@ instr(readflags, writeflags) CondCmp cmp testcc:IMM = testval:IMM, op:IMM, cc:IM
 	else
 		@DEFAULT cond=QUARK_IF_FALSE(%testcc), op=45, b=QUARK_COND(%op, %cc);
 }
+instr(readflags, writeflags) CondCmp cmp testcc:IMM = testval:IMM, op:IMM, cc:IMM, a:REG(r), i:IMM
+{
+	if (%testval)
+		@IMM11 cond=QUARK_IF_TRUE(%testcc), op=45, b=QUARK_COND(%op, %cc);
+	else
+		@IMM11 cond=QUARK_IF_FALSE(%testcc), op=45, b=QUARK_COND(%op, %cc);
+}
 instr(readflags, writeflags) CondIcmp icmp testcc:IMM = testval:IMM, op:IMM, cc:IMM, a:REG(r), c:REG(r) << d:IMM
 {
 	if (%testval)
@@ -329,16 +344,24 @@ instr(readflags, writeflags) CondIcmp icmp testcc:IMM = testval:IMM, op:IMM, cc:
 	else
 		@DEFAULT cond=QUARK_IF_FALSE(%testcc), op=46, b=QUARK_COND(%op, %cc);
 }
+instr(readflags, writeflags) CondIcmp icmp testcc:IMM = testval:IMM, op:IMM, cc:IMM, a:REG(r), i:IMM
+{
+	if (%testval)
+		@IMM11 cond=QUARK_IF_TRUE(%testcc), op=46, b=QUARK_COND(%op, %cc);
+	else
+		@IMM11 cond=QUARK_IF_FALSE(%testcc), op=46, b=QUARK_COND(%op, %cc);
+}
 
-instr Mov mov a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=31, b=0; } update
+instr(copy) Mov mov a:REG(w), c:REG(r) { @DEFAULT op=31, b=0, d=0; } update
 {
 	// Eliminate mov instructions that have the same source and destination
-	if ((%a == %c) && (%d == 0))
+	if (%a == %c)
 		return true;
 	return false;
 }
 
-instr Mov mov a:REG(w), i:IMM { @IMM11 op=31, b=0; }
+instr MovShift mov a:REG(w), c:REG(r) << d:IMM { @DEFAULT op=31, b=0; }
+instr MovImmed mov a:REG(w), i:IMM { @IMM11 op=31, b=0; }
 instr Xchg xchg a:REG(rw), c:REG(rw) { @DEFAULT op=31, b=1; }
 instr Sxb sxb a:REG(w), c:REG(r) { @DEFAULT op=31, b=2; }
 instr Sxh sxh a:REG(w), c:REG(r) { @DEFAULT op=31, b=3; }
@@ -436,7 +459,7 @@ instr SaveCalleeSavedRegs saveregs {} update
 	}
 	else
 	{
-		@StoreMultipleUpdate SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(0), (min - 31) * 4;
+		@StoreMultipleUpdate SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(0), ((int32_t)min - 31) * 4;
 		for (uint32_t i = 0; i < 32; i++)
 		{
 			if (fpu.count(i) != 0)
@@ -536,7 +559,7 @@ instr(writeflags) AntiDisassembly antidisasm temp:TEMP
 }
 
 // Data flow pseudo-instructions
-instr RegParam regparam regs:REGLIST(r) {} update { return true; }
+instr RegParam regparam regs:REGLIST(w) {} update { return true; }
 instr SymReturn symreturn low:REG(r) high:REG(r) {} update { return true; }
 
 var uint32_t m_varargStart;
@@ -561,12 +584,12 @@ src:IRESULT => dest:IREG(32) {}
 func:FUNCTION => dest:IREG, temp:IREG { @AddBlock %dest, SYMREG_IP, %func, %func->GetIL()[0], %temp; }
 
 assign dest:IREG src:IMM { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
-assign dest:IREG src:IREG { @Mov %dest, %src, 0; }
+assign dest:IREG src:IREG { @Mov %dest, %src; }
 assign dest:IREG src:IMM17 { @LoadImm %dest, %src; }
 assign dest:IREG src:IMM { @LoadImm %dest, (%src & 0xffff); @LoadImmHigh %dest, (%src >> 16); }
 assign dest:FREG src:FREG { @Fmov %dest, %src; }
 assign dest:FREG src:IMM { @FmovImmed %dest, %src; }
-assign dest:IREG64 src:IREG64 { @Mov %dest:low, %src:low, 0; @Mov %dest:high, %src:high, 0; }
+assign dest:IREG64 src:IREG64 { @Mov %dest:low, %src:low; @Mov %dest:high, %src:high; }
 
 load(S8) base:IREG => dest:IREG { @LoadSX8 %dest, %base, 0; }
 load(S8) add base:IREG ofs:IREG => dest:IREG { @LoadSX8 %dest, %base, %ofs, 0; }
@@ -795,8 +818,8 @@ ife a:IREG64 b:IMM11 t:BLOCK f:BLOCK
 }
 
 goto dest:BLOCK { UnconditionalJump(out, %dest); }
-goto dest:IREG { @Mov SYMREG_IP, %dest, 0; }
-goto shl dest:IREG c:IMM { @Mov SYMREG_IP, %dest, %c; }
+goto dest:IREG { @Mov SYMREG_IP, %dest; }
+goto shl dest:IREG c:IMM { @MovShift SYMREG_IP, %dest, %c; }
 goto dest:IMM11 { @LoadImm SYMREG_IP, %dest; }
 
 function void AdjustStackAfterCall(SymInstrBlock* out, uint32_t stackAdjust)
@@ -899,8 +922,8 @@ sconvert src:IREG(16) => dest:IREG(32) { @Sxh %dest, %src; }
 sconvert src:IREG(16) => dest:IREG64 { @Sxh %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
 uconvert src:IREG(16) => dest:IREG(32) { @Zxh %dest, %src; }
 uconvert src:IREG(16) => dest:IREG64 { @Zxh %dest:low, %src; @LoadImm %dest:high, 0; }
-sconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src, 0; @Sar %dest:high, %dest:low, 31; }
-uconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src, 0; @LoadImm %dest:high, 0; }
+sconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src; @Sar %dest:high, %dest:low, 31; }
+uconvert src:IREG(32) => dest:IREG64 { @Mov %dest:low, %src; @LoadImm %dest:high, 0; }
 sconvert src:IREG(16,32) => dest:IREG(8) { @Sxb %dest, %src; }
 sconvert src:IREG64 => dest:IREG(8) { @Sxb %dest, %src:low; }
 uconvert src:IREG(16,32) => dest:IREG(8) { @Zxb %dest, %src; }
@@ -909,15 +932,15 @@ sconvert src:IREG(32) => dest:IREG(16) { @Sxh %dest, %src; }
 sconvert src:IREG64 => dest:IREG(16) { @Sxh %dest, %src:low; }
 uconvert src:IREG(32) => dest:IREG(16) { @Zxh %dest, %src; }
 uconvert src:IREG64 => dest:IREG(16) { @Zxh %dest, %src:low; }
-sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low, 0; }
-uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low, 0; }
+sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
+uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 
 function bool GenerateReturnVoid(SymInstrBlock* out)
 {
 	// Restore frame pointer (if present) and adjust stack
 	if (m_framePointerEnabled)
 	{
-		@Mov SYMREG_SP, SYMREG_BP, 0;
+		@Mov SYMREG_SP, SYMREG_BP;
 	}
 	else
 	{
@@ -937,16 +960,16 @@ function bool GenerateReturnVoid(SymInstrBlock* out)
 		@Xor SYMREG_LR, SYMREG_LR, temp, 0;
 	}
 
-	@Mov SYMREG_IP, SYMREG_LR, 0;
+	@Mov SYMREG_IP, SYMREG_LR;
 	return true;
 }
 
-return src:IREG, retval:INTEGER_RETURN_VALUE { @Mov %retval, %src, 0; GenerateReturnVoid(out); @SymReturn %retval, SYMREG_NONE; }
+return src:IREG, retval:INTEGER_RETURN_VALUE { @Mov %retval, %src; GenerateReturnVoid(out); @SymReturn %retval, SYMREG_NONE; }
 return src:FREG, retval:FLOAT_RETURN_VALUE { @Fmov %retval, %src; GenerateReturnVoid(out); @SymReturn %retval, SYMREG_NONE; }
 return src:IREG64, retval:INTEGER_RETURN_VALUE_64
 {
-	@Mov %retval:low, %src:low, 0;
-	@Mov %retval:high, %src:high, 0;
+	@Mov %retval:low, %src:low;
+	@Mov %retval:high, %src:high;
 	GenerateReturnVoid(out);
 	@SymReturn %retval:low, %retval:high;
 }
@@ -958,7 +981,7 @@ alloca size:IREG => result:IREG
 	if (m_settings.stackGrowsUp)
 	{
 		@Add SYMREG_SP, SYMREG_SP, 4;
-		@Mov %result, SYMREG_SP, 0;
+		@Mov %result, SYMREG_SP;
 		@Add SYMREG_SP, SYMREG_SP, %size, 0;
 		@And SYMREG_SP, SYMREG_SP, ~3;
 	}
@@ -966,7 +989,7 @@ alloca size:IREG => result:IREG
 	{
 		@Sub SYMREG_SP, SYMREG_SP, %size, 0;
 		@And SYMREG_SP, SYMREG_SP, ~3;
-		@Mov %result, SYMREG_SP, 0;
+		@Mov %result, SYMREG_SP;
 	}
 }
 
@@ -975,13 +998,13 @@ alloca size:IMM11 => result:IREG
 	if (m_settings.stackGrowsUp)
 	{
 		@Add SYMREG_SP, SYMREG_SP, 4;
-		@Mov %result, SYMREG_SP, 0;
+		@Mov %result, SYMREG_SP;
 		@Add SYMREG_SP, SYMREG_SP, %size & (~3);
 	}
 	else
 	{
 		@Sub SYMREG_SP, SYMREG_SP, (%size + 3) & (~3);
-		@Mov %result, SYMREG_SP, 0;
+		@Mov %result, SYMREG_SP;
 	}
 }
 
@@ -1180,6 +1203,9 @@ function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector
 {
 	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
 	size_t regIndex = 0;
+	const uint32_t paramClasses[8] = {QUARKREGCLASS_SYSCALL_PARAM_0, QUARKREGCLASS_SYSCALL_PARAM_1,
+		QUARKREGCLASS_SYSCALL_PARAM_2, QUARKREGCLASS_SYSCALL_PARAM_3, QUARKREGCLASS_SYSCALL_PARAM_4,
+		QUARKREGCLASS_SYSCALL_PARAM_5, QUARKREGCLASS_SYSCALL_PARAM_6, QUARKREGCLASS_SYSCALL_PARAM_7};
 	for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)
 	{
 		if ((*i)->GetClass() == NODE_UNDEFINED)
@@ -1187,35 +1213,38 @@ function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector
 			regIndex++;
 			if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
 				regIndex++;
+			if (regIndex > 8)
+				return NULL;
 			continue;
 		}
 
 		if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
 		{
-			uint32_t reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex));
-			uint32_t highReg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1));
-			input->AddChildNode(TreeNode::CreateRegNode(reg, QUARKREGCLASS_SYSCALL_PARAM(regIndex), NODETYPE_U32));
-			input->AddChildNode(TreeNode::CreateRegNode(highReg, QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1), NODETYPE_U32));
+			if (regIndex > 6)
+				return NULL;
+			uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);
+			uint32_t highReg = m_symFunc->AddRegister(paramClasses[regIndex + 1]);
+			input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], NODETYPE_U32));
+			input->AddChildNode(TreeNode::CreateRegNode(highReg, paramClasses[regIndex + 1], NODETYPE_U32));
 
 			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateLargeRegNode(reg, highReg,
-				QUARKREGCLASS_SYSCALL_PARAM(regIndex), QUARKREGCLASS_SYSCALL_PARAM(regIndex + 1), (*i)->GetType()), *i));
+				paramClasses[regIndex], paramClasses[regIndex + 1], (*i)->GetType()), *i));
 
 			regIndex += 2;
 		}
 		else
 		{
-			uint32_t reg = m_symFunc->AddRegister(QUARKREGCLASS_SYSCALL_PARAM(regIndex));
-			input->AddChildNode(TreeNode::CreateRegNode(reg, QUARKREGCLASS_SYSCALL_PARAM(regIndex), (*i)->GetType()));
+			if (regIndex > 7)
+				return NULL;
+			uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);
+			input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], (*i)->GetType()));
 
 			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateRegNode(reg,
-				QUARKREGCLASS_SYSCALL_PARAM(regIndex), (*i)->GetType()), *i));
+				paramClasses[regIndex], (*i)->GetType()), *i));
 
 			regIndex++;
 		}
 	}
-
-	if (regIndex > 8)
-		return NULL;
 
 	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL, resultType, num, input);
 }
@@ -1394,7 +1423,7 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	if (m_framePointerEnabled)
 	{
 		@SaveCalleeSavedRegs;
-		@Mov SYMREG_BP, SYMREG_SP, 0;
+		@Mov SYMREG_BP, SYMREG_SP;
 	}
 	else
 	{
@@ -1475,9 +1504,9 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 			if (j->var->GetType()->GetWidth() == 8)
 				newHighReg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
 
-			@Mov newReg, j->incomingReg, 0;
+			@Mov newReg, j->incomingReg;
 			if (newHighReg != SYMREG_NONE)
-				@Mov newHighReg, j->incomingHighReg, 0;
+				@Mov newHighReg, j->incomingHighReg;
 			m_vars.registerVariables[j->var] = newReg;
 			if (newHighReg != SYMREG_NONE)
 				m_vars.highRegisterVariables[j->var] = newHighReg;
@@ -1494,5 +1523,392 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	}
 
 	return true;
+}
+
+arch function vector<uint32_t> GetCallerSavedRegisters()
+{
+	vector<uint32_t> result;
+	// TODO: Support non-default special registers
+	for (uint32_t i = 1; i < 16; i++)
+		result.push_back(SYMREG_NATIVE_REG(i));
+	for (uint32_t i = 0; i < 16; i++)
+		result.push_back(QUARK_FPU_REG(i));
+	return result;
+}
+
+arch function vector<uint32_t> GetCalleeSavedRegisters()
+{
+	vector<uint32_t> result;
+	// TODO: Support non-default special registers
+	for (uint32_t i = 28; i >= 16; i--)
+		result.push_back(SYMREG_NATIVE_REG(i));
+	for (uint32_t i = 31; i >= 16; i--)
+		result.push_back(QUARK_FPU_REG(i));
+	return result;
+}
+
+arch function set<uint32_t> GetRegisterClassInterferences(uint32_t cls)
+{
+	set<uint32_t> result;
+	uint32_t i;
+	switch (cls)
+	{
+	case QUARKREGCLASS_INTEGER:
+		for (i = 0; i < 32; i++)
+			result.insert(QUARK_FPU_REG(i));
+		break;
+	case QUARKREGCLASS_FLOAT:
+		for (i = 0; i < 32; i++)
+			result.insert(SYMREG_NATIVE_REG(i));
+		break;
+	default:
+		break;
+	}
+	return result;
+}
+
+arch function bool IsRegisterClassFixed(uint32_t cls)
+{
+	switch (cls)
+	{
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
+	case QUARKREGCLASS_INTEGER_PARAM_0:
+	case QUARKREGCLASS_INTEGER_PARAM_1:
+	case QUARKREGCLASS_INTEGER_PARAM_2:
+	case QUARKREGCLASS_INTEGER_PARAM_3:
+	case QUARKREGCLASS_INTEGER_PARAM_4:
+	case QUARKREGCLASS_INTEGER_PARAM_5:
+	case QUARKREGCLASS_INTEGER_PARAM_6:
+	case QUARKREGCLASS_INTEGER_PARAM_7:
+	case QUARKREGCLASS_FLOAT_RETURN_VALUE:
+	case QUARKREGCLASS_FLOAT_PARAM_0:
+	case QUARKREGCLASS_FLOAT_PARAM_1:
+	case QUARKREGCLASS_FLOAT_PARAM_2:
+	case QUARKREGCLASS_FLOAT_PARAM_3:
+	case QUARKREGCLASS_FLOAT_PARAM_4:
+	case QUARKREGCLASS_FLOAT_PARAM_5:
+	case QUARKREGCLASS_FLOAT_PARAM_6:
+	case QUARKREGCLASS_FLOAT_PARAM_7:
+	case QUARKREGCLASS_SYSCALL_PARAM_0:
+	case QUARKREGCLASS_SYSCALL_PARAM_1:
+	case QUARKREGCLASS_SYSCALL_PARAM_2:
+	case QUARKREGCLASS_SYSCALL_PARAM_3:
+	case QUARKREGCLASS_SYSCALL_PARAM_4:
+	case QUARKREGCLASS_SYSCALL_PARAM_5:
+	case QUARKREGCLASS_SYSCALL_PARAM_6:
+	case QUARKREGCLASS_SYSCALL_PARAM_7:
+	case QUARKREGCLASS_SYSCALL_RESULT_1:
+	case QUARKREGCLASS_SYSCALL_RESULT_2:
+		return true;
+	default:
+		return false;
+	}
+}
+
+arch function uint32_t GetFixedRegisterForClass(uint32_t cls)
+{
+	// TODO: Support non-default special registers
+	switch (cls)
+	{
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
+		return SYMREG_NATIVE_REG(2);
+	case QUARKREGCLASS_INTEGER_PARAM_0:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_INTEGER_PARAM_1:
+		return SYMREG_NATIVE_REG(2);
+	case QUARKREGCLASS_INTEGER_PARAM_2:
+		return SYMREG_NATIVE_REG(3);
+	case QUARKREGCLASS_INTEGER_PARAM_3:
+		return SYMREG_NATIVE_REG(4);
+	case QUARKREGCLASS_INTEGER_PARAM_4:
+		return SYMREG_NATIVE_REG(5);
+	case QUARKREGCLASS_INTEGER_PARAM_5:
+		return SYMREG_NATIVE_REG(6);
+	case QUARKREGCLASS_INTEGER_PARAM_6:
+		return SYMREG_NATIVE_REG(7);
+	case QUARKREGCLASS_INTEGER_PARAM_7:
+		return SYMREG_NATIVE_REG(8);
+	case QUARKREGCLASS_FLOAT_RETURN_VALUE:
+		return QUARK_FPU_REG(0);
+	case QUARKREGCLASS_FLOAT_PARAM_0:
+		return QUARK_FPU_REG(0);
+	case QUARKREGCLASS_FLOAT_PARAM_1:
+		return QUARK_FPU_REG(1);
+	case QUARKREGCLASS_FLOAT_PARAM_2:
+		return QUARK_FPU_REG(2);
+	case QUARKREGCLASS_FLOAT_PARAM_3:
+		return QUARK_FPU_REG(3);
+	case QUARKREGCLASS_FLOAT_PARAM_4:
+		return QUARK_FPU_REG(4);
+	case QUARKREGCLASS_FLOAT_PARAM_5:
+		return QUARK_FPU_REG(5);
+	case QUARKREGCLASS_FLOAT_PARAM_6:
+		return QUARK_FPU_REG(6);
+	case QUARKREGCLASS_FLOAT_PARAM_7:
+		return QUARK_FPU_REG(7);
+	case QUARKREGCLASS_SYSCALL_PARAM_0:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_SYSCALL_PARAM_1:
+		return SYMREG_NATIVE_REG(2);
+	case QUARKREGCLASS_SYSCALL_PARAM_2:
+		return SYMREG_NATIVE_REG(3);
+	case QUARKREGCLASS_SYSCALL_PARAM_3:
+		return SYMREG_NATIVE_REG(4);
+	case QUARKREGCLASS_SYSCALL_PARAM_4:
+		return SYMREG_NATIVE_REG(5);
+	case QUARKREGCLASS_SYSCALL_PARAM_5:
+		return SYMREG_NATIVE_REG(6);
+	case QUARKREGCLASS_SYSCALL_PARAM_6:
+		return SYMREG_NATIVE_REG(7);
+	case QUARKREGCLASS_SYSCALL_PARAM_7:
+		return SYMREG_NATIVE_REG(8);
+	case QUARKREGCLASS_SYSCALL_RESULT_1:
+		return SYMREG_NATIVE_REG(1);
+	case QUARKREGCLASS_SYSCALL_RESULT_2:
+		return SYMREG_NATIVE_REG(2);
+	default:
+		return SYMREG_NONE;
+	}
+}
+
+arch function uint32_t GetSpecialRegisterAssignment(uint32_t reg)
+{
+	// TODO: Support non-default special registers
+	switch (reg)
+	{
+	case SYMREG_SP:
+		return SYMREG_NATIVE_REG(0);
+	case SYMREG_BP:
+		return SYMREG_NATIVE_REG(29);
+	case SYMREG_LR:
+		return SYMREG_NATIVE_REG(30);
+	case SYMREG_IP:
+		return SYMREG_NATIVE_REG(31);
+	default:
+		return SYMREG_NONE;
+	}
+}
+
+arch function bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls)
+{
+	return false;
+}
+
+arch function size_t GetNativeSize()
+{
+	return 4;
+}
+
+arch function void LayoutStackFrame()
+{
+	// Lay out stack variables
+	int64_t offset = 0;
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+
+		int64_t align = 1;
+		if (m_stackVarWidths[i] >= 4)
+			align = 4;
+		else if (m_stackVarWidths[i] >= 2)
+			align = 2;
+
+		if ((offset & (align - 1)) != 0)
+			offset += align - (offset & (align - 1));
+
+		m_stackVarOffsets[i] = offset;
+		offset += m_stackVarWidths[i];
+	}
+
+	// Ensure stack stays aligned on native boundary
+	if (offset & 3)
+		offset += 4 - (offset & 3);
+
+	m_stackFrameSize = offset;
+
+	// Adjust variable offsets to be relative to the frame pointer (negative offsets)
+	if (m_settings.stackGrowsUp)
+	{
+		for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+		{
+			if (!m_stackVarIsParam[i])
+				m_stackVarOffsets[i] -= offset;
+		}
+	}
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] += m_stackFrameSize;
+		else
+			m_stackVarOffsets[i] -= m_stackFrameSize;
+	}
+
+	// Analyze callee saved registers
+	uint32_t min = 29;
+	set<uint32_t> fpu;
+	int64_t adjust = 0;
+	for (vector<uint32_t>::iterator i = m_clobberedCalleeSavedRegs.begin(); i != m_clobberedCalleeSavedRegs.end(); i++)
+	{
+		uint32_t reg = (*i) & 63;
+		if (reg >= 32)
+		{
+			fpu.insert(reg & 31);
+			adjust += 8;
+		}
+		else if (reg < min)
+		{
+			min = reg;
+			if (m_settings.stackGrowsUp)
+				adjust += 4;
+		}
+	}
+
+	// Adjust parameter locations to account for callee saved registers
+	if (!m_settings.stackGrowsUp)
+		adjust += (31 - min) * 4;
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (!m_stackVarIsParam[i])
+			continue;
+
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] -= adjust;
+		else
+			m_stackVarOffsets[i] += adjust;
+	}
+}
+
+arch function bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(((type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE)) ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@LoadStack8 reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@LoadStack16 reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@LoadStack32 reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_FLOAT:
+		@LoadStackFS reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_DOUBLE:
+		@LoadStackFD reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(((type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE)) ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@StoreStack8 reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@StoreStack16 reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@StoreStack32 reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_FLOAT:
+		@StoreStackFS reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_DOUBLE:
+		@StoreStackFD reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function void PrintRegisterClass(uint32_t cls)
+{
+	switch (cls)
+	{
+	case QUARKREGCLASS_INTEGER:
+		fprintf(stderr, "int");
+		break;
+	case QUARKREGCLASS_FLOAT:
+		fprintf(stderr, "float");
+		break;
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
+		fprintf(stderr, "retval");
+		break;
+	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
+		fprintf(stderr, "retvalhigh");
+		break;
+	case QUARKREGCLASS_INTEGER_PARAM_0:
+	case QUARKREGCLASS_INTEGER_PARAM_1:
+	case QUARKREGCLASS_INTEGER_PARAM_2:
+	case QUARKREGCLASS_INTEGER_PARAM_3:
+	case QUARKREGCLASS_INTEGER_PARAM_4:
+	case QUARKREGCLASS_INTEGER_PARAM_5:
+	case QUARKREGCLASS_INTEGER_PARAM_6:
+	case QUARKREGCLASS_INTEGER_PARAM_7:
+		fprintf(stderr, "intparam%d", cls - QUARKREGCLASS_INTEGER_PARAM_0);
+		break;
+	case QUARKREGCLASS_FLOAT_PARAM_0:
+	case QUARKREGCLASS_FLOAT_PARAM_1:
+	case QUARKREGCLASS_FLOAT_PARAM_2:
+	case QUARKREGCLASS_FLOAT_PARAM_3:
+	case QUARKREGCLASS_FLOAT_PARAM_4:
+	case QUARKREGCLASS_FLOAT_PARAM_5:
+	case QUARKREGCLASS_FLOAT_PARAM_6:
+	case QUARKREGCLASS_FLOAT_PARAM_7:
+		fprintf(stderr, "floatparam%d", cls - QUARKREGCLASS_FLOAT_PARAM_0);
+		break;
+	case QUARKREGCLASS_SYSCALL_PARAM_0:
+	case QUARKREGCLASS_SYSCALL_PARAM_1:
+	case QUARKREGCLASS_SYSCALL_PARAM_2:
+	case QUARKREGCLASS_SYSCALL_PARAM_3:
+	case QUARKREGCLASS_SYSCALL_PARAM_4:
+	case QUARKREGCLASS_SYSCALL_PARAM_5:
+	case QUARKREGCLASS_SYSCALL_PARAM_6:
+	case QUARKREGCLASS_SYSCALL_PARAM_7:
+		fprintf(stderr, "sysparam%d", cls - QUARKREGCLASS_SYSCALL_PARAM_0);
+		break;
+	case QUARKREGCLASS_SYSCALL_RESULT_1:
+		fprintf(stderr, "sysresult1");
+		break;
+	case QUARKREGCLASS_SYSCALL_RESULT_2:
+		fprintf(stderr, "sysresult2");
+		break;
+	default:
+		fprintf(stderr, "invalid");
+		break;
+	}
+}
+
+arch function void PrintRegister(uint32_t reg)
+{
+	if ((reg >= SYMREG_NATIVE_REG(0)) && (reg < SYMREG_NATIVE_REG(32)))
+		fprintf(stderr, "r%d", reg & 31);
+	else if ((reg >= QUARK_FPU_REG(0)) && (reg < QUARK_FPU_REG(32)))
+		fprintf(stderr, "f%d", reg & 31);
+	else
+		SymInstrFunction::PrintRegister(reg);
 }
 

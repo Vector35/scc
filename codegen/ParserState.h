@@ -22,9 +22,9 @@
 #define __PARSERSTATE_H__
 
 #include <string>
-#include <map>
 #include <vector>
 #include <map>
+#include <set>
 #include <inttypes.h>
 #include "PreprocessState.h"
 #include "CodeBlock.h"
@@ -50,10 +50,12 @@ class ParserState
 	std::map< std::string, Ref<Encoding> > m_encodings;
 	std::vector< Ref<CodeBlock> > m_funcs;
 	std::vector< Ref<CodeBlock> > m_instrFuncs;
+	std::vector< Ref<CodeBlock> > m_archFuncs;
 	std::vector< Ref<CodeBlock> > m_vars;
 	std::vector< Ref<Match> > m_matches;
 	std::vector< Ref<Match> > m_tempRegMatches;
 	std::vector< Ref<Instruction> > m_instrs;
+	std::set<std::string> m_regClassNames;
 	std::vector<std::string> m_includes;
 
 public:
@@ -86,6 +88,7 @@ public:
 
 	void DefineFunction(CodeBlock* func);
 	void DefineInstrFunction(CodeBlock* func);
+	void DefineArchFunction(CodeBlock* func);
 	void DefineVariable(CodeBlock* var);
 
 	void DefineMatch(const std::string& file, int line, TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code);
@@ -109,10 +112,12 @@ public:
 	const std::map< std::string, Ref<Encoding> >& GetEncodings() const { return m_encodings; }
 	const std::vector< Ref<CodeBlock> >& GetFunctions() const { return m_funcs; }
 	const std::vector< Ref<CodeBlock> >& GetInstrFunctions() const { return m_instrFuncs; }
+	const std::vector< Ref<CodeBlock> >& GetArchFunctions() const { return m_archFuncs; }
 	const std::vector< Ref<CodeBlock> >& GetVariables() const { return m_vars; }
 	const std::vector< Ref<Match> >& GetMatches() const { return m_matches; }
 	const std::vector< Ref<Instruction> >& GetInstructions() const { return m_instrs; }
 	const std::vector<std::string>& GetIncludes() const { return m_includes; }
+	const std::set<std::string>& GetRegisterClassNames() const { return m_regClassNames; }
 };
 
 

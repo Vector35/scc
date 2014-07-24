@@ -70,6 +70,8 @@ void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, co
 
 		m_defaultRegClass = m_regClasses[name];
 	}
+
+	m_regClassNames.insert(symRegClass);
 }
 
 
@@ -85,6 +87,9 @@ void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& nam
 	}
 
 	m_regClasses[name] = new RegisterClass(sizeFlags, name, lowRegClass, highRegClass);
+
+	m_regClassNames.insert(lowRegClass);
+	m_regClassNames.insert(highRegClass);
 }
 
 
@@ -119,6 +124,9 @@ void ParserState::DefineImmediateClass(const std::string& name, CodeBlock* code)
 void ParserState::DefineRegisterSubclass(const std::string& name, const std::string& base)
 {
 	m_regSubclasses[base].push_back(name);
+
+	m_regClassNames.insert(name);
+	m_regClassNames.insert(base);
 }
 
 
@@ -131,6 +139,12 @@ void ParserState::DefineFunction(CodeBlock* func)
 void ParserState::DefineInstrFunction(CodeBlock* func)
 {
 	m_instrFuncs.push_back(func);
+}
+
+
+void ParserState::DefineArchFunction(CodeBlock* func)
+{
+	m_archFuncs.push_back(func);
 }
 
 

@@ -41,6 +41,7 @@
 	std::vector<InstructionToken>* instrtokenlist;
 	Encoding* encoding;
 	EncodingField* field;
+	std::vector< Ref<CodeBlock> >* reglist;
 }
 
 %{
@@ -83,12 +84,13 @@ void Codegen_error(ParserState* state, const char* msg)
 %token LPAREN RPAREN LBRACKET RBRACKET
 %token COMMA
 %token ARROW SEMICOLON LBRACE RBRACE
-%token ARCH_TOK REGISTERCLASS LARGEREGISTERCLASS TEMPREGISTERCLASS REGISTERSUBCLASS
+%token ARCH_TOK REGISTERCLASS LARGEREGISTERCLASS TEMPREGISTERCLASS
 %token IMMEDIATECLASS
 %token LOW_TOK HIGH_TOK BASE_TOK OFFSET_TOK TEMP_TOK BLOCK_TOK
 %token MEMORY_TOK BRANCH_TOK READFLAGS_TOK WRITEFLAGS_TOK COPY_TOK STACK_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
 %token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK INSTR_TOK ENCODING_TOK EQUAL_TOK UPDATE_TOK
+%token FIXED_TOK CALLERSAVED_TOK CALLEESAVED_TOK SPECIAL_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
 %token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK CALL_TOK CALLVOID_TOK SYSCALL_TOK SYSCALLVOID_TOK
@@ -119,6 +121,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %type <instrtokenlist> instr_token_list
 %type <encoding> encoding_field_list
 %type <field> encoding_field
+%type <reglist> reg_list
 
 %destructor { free($$); } STRING_VAL CHAR_VAL
 %destructor { free($$); } ID ARG_ID ARG_ID_COLON INSTR_ID INSTR_VAL_ID
@@ -135,6 +138,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %destructor { delete $$; } instr_token_list
 %destructor { $$->Release(); } encoding_field_list
 %destructor { delete $$; } encoding_field
+%destructor { delete $$; } reg_list
 
 %%
 
@@ -152,16 +156,64 @@ toplevel_stmt: class_stmt
 			 | match_stmt
 			 | encoding_stmt
 			 | instr_stmt
-			 | ARCH_TOK ID  { state->SetArchName($2); free($2); }
+			 | ARCH_TOK ID INT_VAL  { state->SetArchName($2); state->SetArchBits((uint32_t)$3); free($2); }
 			 | INCLUDE_TOK STRING_VAL  { state->AddInclude($2); free($2); }
+			 | CALLERSAVED_TOK LBRACE reg_list RBRACE  { state->AddCallerSavedRegs(*$3); delete $3; }
+			 | CALLEESAVED_TOK LBRACE reg_list RBRACE  { state->AddCalleeSavedRegs(*$3); delete $3; }
+			 | SPECIAL_TOK ID code  { state->DefineSpecialReg($2, $3); free($2); $3->Release(); }
 			 ;	
 
-class_stmt: REGISTERCLASS ID LPAREN match_type_list RPAREN ID  { state->DefineRegisterClass($4, $2, $6, false); free($2); free($6); }
-		  | REGISTERCLASS DEFAULT_TOK ID LPAREN match_type_list RPAREN ID
+reg_list: reg_list COMMA operand_token_list  { $$ = $1; $$->push_back($3); $3->Release(); }
+		| operand_token_list  { $$ = new vector< Ref<CodeBlock> >(); $$->push_back($1); $1->Release(); }
+		;
+
+class_stmt: REGISTERCLASS ID LPAREN match_type_list RPAREN  { state->DefineRegisterClass($4, $2, NULL, false); free($2); }
+		  | REGISTERCLASS ID LPAREN match_type_list RPAREN COLON ID
 		  	{
-				state->DefineRegisterClass($5, $3, $7, true);
-				free($3);
+				state->DefineRegisterClass($4, $2, NULL, false);
+				state->DefineRegisterSubclass($2, $7);
+				free($2);
 				free($7);
+			}
+		  | REGISTERCLASS ID LPAREN match_type_list RPAREN FIXED_TOK code
+		  	{
+				state->DefineRegisterClass($4, $2, $7, false);
+				free($2);
+				$7->Release();
+			}
+		  | REGISTERCLASS ID LPAREN match_type_list RPAREN FIXED_TOK code COLON ID
+		  	{
+				state->DefineRegisterClass($4, $2, $7, false);
+				state->DefineRegisterSubclass($2, $9);
+				free($2);
+				$7->Release();
+				free($9);
+			}
+		  | REGISTERCLASS DEFAULT_TOK ID LPAREN match_type_list RPAREN
+		  	{
+				state->DefineRegisterClass($5, $3, NULL, true);
+				free($3);
+			}
+		  | REGISTERCLASS DEFAULT_TOK ID LPAREN match_type_list RPAREN COLON ID
+		  	{
+				state->DefineRegisterClass($5, $3, NULL, true);
+				state->DefineRegisterSubclass($3, $8);
+				free($3);
+				free($8);
+			}
+		  | REGISTERCLASS DEFAULT_TOK ID LPAREN match_type_list RPAREN FIXED_TOK code
+		  	{
+				state->DefineRegisterClass($5, $3, $8, true);
+				free($3);
+				$8->Release();
+			}
+		  | REGISTERCLASS DEFAULT_TOK ID LPAREN match_type_list RPAREN FIXED_TOK code COLON ID
+		  	{
+				state->DefineRegisterClass($5, $3, $8, true);
+				state->DefineRegisterSubclass($3, $10);
+				free($3);
+				$8->Release();
+				free($10);
 			}
 		  | LARGEREGISTERCLASS ID LPAREN match_type_list RPAREN ID ID
 		  	{
@@ -171,7 +223,6 @@ class_stmt: REGISTERCLASS ID LPAREN match_type_list RPAREN ID  { state->DefineRe
 				free($7);
 			}
 		  | TEMPREGISTERCLASS ID LPAREN match_type_list RPAREN ID  { state->DefineTempRegisterClass($4, $2, $6); free($2); free($6); }
-		  | REGISTERSUBCLASS ID COLON ID  { state->DefineRegisterSubclass($2, $4); free($2); free($4); }
 		  | IMMEDIATECLASS ID code  { state->DefineImmediateClass($2, $3); free($2); $3->Release(); }
 		  ;
 
@@ -350,6 +401,10 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | COPY_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "copy"); }
 			 | STACK_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "stack"); }
 			 | UPDATE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "update"); }
+			 | FIXED_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "fixed"); }
+			 | CALLERSAVED_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "callersaved"); }
+			 | CALLEESAVED_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "calleesaved"); }
+			 | SPECIAL_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "special"); }
 			 ;
 
 function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
@@ -995,6 +1050,7 @@ operand_token_list: operand_token_list operand_token  { $$ = $1; $$->AddToken(*$
 				  | LPAREN inner_operand_token_list RPAREN
 					{
 						$$ = new CodeBlock;
+						$$->AddRef();
 						$$->AddTextToken(YYLOC, "(");
 						$$->AddTokens($2->GetTokens());
 						$$->AddTextToken(YYLOC, ")");
@@ -1052,6 +1108,7 @@ inner_operand_token_list: inner_operand_token_list inner_operand_token  { $$ = $
 			 			| LPAREN inner_operand_token_list RPAREN
 							{
 								$$ = new CodeBlock;
+								$$->AddRef();
 								$$->AddTextToken(YYLOC, "(");
 								$$->AddTokens($2->GetTokens());
 								$$->AddTextToken(YYLOC, ")");

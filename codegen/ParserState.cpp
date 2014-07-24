@@ -29,6 +29,7 @@ ParserState::ParserState(const string& name, void* scanner):
 {
 	m_errors = 0;
 	m_line = 1;
+	m_archBits = 32;
 }
 
 
@@ -46,7 +47,7 @@ Location ParserState::GetLocation()
 }
 
 
-void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, const string& symRegClass, bool isDefault)
+void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, CodeBlock* fixed, bool isDefault)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
@@ -56,7 +57,7 @@ void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, co
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(REGCLASS_NORMAL, sizeFlags, name, symRegClass);
+	m_regClasses[name] = new RegisterClass(REGCLASS_NORMAL, sizeFlags, name, name, fixed);
 
 	if (isDefault)
 	{
@@ -71,7 +72,7 @@ void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, co
 		m_defaultRegClass = m_regClasses[name];
 	}
 
-	m_regClassNames.insert(symRegClass);
+	m_regClassNames.insert(name);
 }
 
 
@@ -86,10 +87,23 @@ void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& nam
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(sizeFlags, name, lowRegClass, highRegClass);
+	if (m_regClasses.find(lowRegClass) == m_regClasses.end())
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
+			GetLineNumber(), lowRegClass.c_str());
+		return;
+	}
 
-	m_regClassNames.insert(lowRegClass);
-	m_regClassNames.insert(highRegClass);
+	if (m_regClasses.find(highRegClass) == m_regClasses.end())
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
+			GetLineNumber(), highRegClass.c_str());
+		return;
+	}
+
+	m_regClasses[name] = new RegisterClass(sizeFlags, name, lowRegClass, highRegClass);
 }
 
 
@@ -103,7 +117,15 @@ void ParserState::DefineTempRegisterClass(uint32_t sizeFlags, const string& name
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(REGCLASS_TEMP, sizeFlags, name, symRegClass);
+	if (m_regClasses.find(symRegClass) == m_regClasses.end())
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
+			GetLineNumber(), symRegClass.c_str());
+		return;
+	}
+
+	m_regClasses[name] = new RegisterClass(REGCLASS_TEMP, sizeFlags, name, symRegClass, NULL);
 }
 
 
@@ -123,10 +145,15 @@ void ParserState::DefineImmediateClass(const std::string& name, CodeBlock* code)
 
 void ParserState::DefineRegisterSubclass(const std::string& name, const std::string& base)
 {
-	m_regSubclasses[base].push_back(name);
+	if (m_regClasses.find(base) == m_regClasses.end())
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
+			GetLineNumber(), base.c_str());
+		return;
+	}
 
-	m_regClassNames.insert(name);
-	m_regClassNames.insert(base);
+	m_regSubclasses[base].push_back(name);
 }
 
 
@@ -213,6 +240,32 @@ void ParserState::DefineEncoding(const std::string& name, Encoding* encoding)
 void ParserState::DefineInstruction(Instruction* instr)
 {
 	m_instrs.push_back(instr);
+}
+
+
+void ParserState::AddCallerSavedRegs(const vector< Ref<CodeBlock> >& regs)
+{
+	m_callerSavedRegs.insert(m_callerSavedRegs.end(), regs.begin(), regs.end());
+}
+
+
+void ParserState::AddCalleeSavedRegs(const vector< Ref<CodeBlock> >& regs)
+{
+	m_calleeSavedRegs.insert(m_calleeSavedRegs.end(), regs.begin(), regs.end());
+}
+
+
+void ParserState::DefineSpecialReg(const std::string& name, CodeBlock* reg)
+{
+	if (m_specialRegs.find(name) != m_specialRegs.end())
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: special register '%s' already defined\n", GetFileName().c_str(),
+			GetLineNumber(), name.c_str());
+		return;
+	}
+
+	m_specialRegs[name] = reg;
 }
 
 

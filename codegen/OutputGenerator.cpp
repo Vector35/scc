@@ -1612,6 +1612,119 @@ bool OutputGenerator::Generate(string& output)
 		BeginBlock();
 		EndBlock();
 
+		WriteLine("size_t GetNativeSize()");
+		BeginBlock();
+			WriteLine("return %d;", m_parser->GetArchBits() / 8);
+		EndBlock();
+
+		WriteLine("void PrintRegisterClass(uint32_t cls)");
+		BeginBlock();
+			WriteLine("switch (cls)");
+			BeginBlock();
+				for (set<string>::const_iterator i = m_parser->GetRegisterClassNames().begin();
+					i != m_parser->GetRegisterClassNames().end(); ++i)
+				{
+					WriteLine("case %s:", i->c_str());
+					WriteLine("\tfprintf(stderr, \"%s\");", i->c_str());
+					WriteLine("\tbreak;");
+				}
+				WriteLine("default:");
+				WriteLine("\tfprintf(stderr, \"invalid\");");
+				WriteLine("\tbreak;");
+			EndBlock();
+		EndBlock();
+
+		WriteLine("bool IsRegisterClassFixed(uint32_t cls)");
+		BeginBlock();
+			WriteLine("switch (cls)");
+			BeginBlock();
+				for (std::map< std::string, Ref<RegisterClass> >::const_iterator i = m_parser->GetRegisterClasses().begin();
+					i != m_parser->GetRegisterClasses().end(); ++i)
+				{
+					if (i->second->GetClassType() != REGCLASS_NORMAL)
+						continue;
+					if (!i->second->GetFixedRegister())
+						continue;
+					WriteLine("case %s:", i->first.c_str());
+					WriteLine("\treturn true;");
+				}
+				WriteLine("default:");
+				WriteLine("\treturn false;");
+			EndBlock();
+		EndBlock();
+
+		WriteLine("uint32_t GetFixedRegisterForClass(uint32_t cls)");
+		BeginBlock();
+			WriteLine("switch (cls)");
+			BeginBlock();
+				for (std::map< std::string, Ref<RegisterClass> >::const_iterator i = m_parser->GetRegisterClasses().begin();
+					i != m_parser->GetRegisterClasses().end(); ++i)
+				{
+					if (i->second->GetClassType() != REGCLASS_NORMAL)
+						continue;
+					if (!i->second->GetFixedRegister())
+						continue;
+					WriteLine("case %s:", i->first.c_str());
+					WriteLine("\treturn SYMREG_NATIVE_REG(");
+					m_indentLevel += 2;
+					WriteCodeBlock(i->second->GetFixedRegister());
+					WriteLine(");");
+					m_indentLevel -= 2;
+				}
+				WriteLine("default:");
+				WriteLine("\treturn SYMREG_NONE;");
+			EndBlock();
+		EndBlock();
+
+		WriteLine("uint32_t GetSpecialRegisterAssignment(uint32_t reg)");
+		BeginBlock();
+			WriteLine("switch (reg)");
+			BeginBlock();
+				for (std::map< std::string, Ref<CodeBlock> >::const_iterator i = m_parser->GetSpecialRegs().begin();
+					i != m_parser->GetSpecialRegs().end(); ++i)
+				{
+					WriteLine("case %s:", i->first.c_str());
+					WriteLine("\treturn SYMREG_NATIVE_REG(");
+					m_indentLevel += 2;
+					WriteCodeBlock(i->second);
+					WriteLine(");");
+					m_indentLevel -= 2;
+				}
+				WriteLine("default:");
+				WriteLine("\treturn SYMREG_NONE;");
+			EndBlock();
+		EndBlock();
+
+		WriteLine("vector<uint32_t> GetCallerSavedRegisters()");
+		BeginBlock();
+			WriteLine("vector<uint32_t> result;");
+			for (std::vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetCallerSavedRegs().begin();
+				i != m_parser->GetCallerSavedRegs().end(); ++i)
+			{
+				WriteLine("result.push_back(SYMREG_NATIVE_REG(");
+				m_indentLevel++;
+				WriteCodeBlock(*i);
+				WriteLine("));");
+				m_indentLevel--;
+			}
+			WriteLine("return result;");
+		EndBlock();
+
+		WriteLine("vector<uint32_t> GetCalleeSavedRegisters()");
+		BeginBlock();
+			WriteLine("vector<uint32_t> result;");
+			for (std::vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetCalleeSavedRegs().begin();
+				i != m_parser->GetCalleeSavedRegs().end(); ++i)
+			{
+				WriteLine("result.push_back(SYMREG_NATIVE_REG(");
+				m_indentLevel++;
+				WriteCodeBlock(*i);
+				WriteLine("));");
+				m_indentLevel--;
+			}
+			WriteLine("return result;");
+		EndBlock();
+
 		for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetArchFunctions().begin();
 			i != m_parser->GetArchFunctions().end(); ++i)
 		{

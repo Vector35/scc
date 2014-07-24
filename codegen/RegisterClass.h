@@ -33,14 +33,18 @@ enum RegisterClassType
 	REGCLASS_TEMP
 };
 
+class CodeBlock;
+
 class RegisterClass: public RefCountObject
 {
 	RegisterClassType m_classType;
 	uint32_t m_sizeFlags;
 	std::string m_matchName, m_regClass, m_highClass;
+	Ref<CodeBlock> m_fixed;
 
 public:
-	RegisterClass(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName, const std::string& regClass);
+	RegisterClass(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName, const std::string& regClass,
+		CodeBlock* fixed);
 	RegisterClass(uint32_t sizeFlags, const std::string& matchName, const std::string& lowClass, const std::string& highClass);
 
 	RegisterClassType GetClassType() const { return m_classType; }
@@ -50,6 +54,7 @@ public:
 	const std::string& GetRegisterClassName() const { return m_regClass; }
 	const std::string& GetLowRegisterClassName() const { return m_regClass; }
 	const std::string& GetHighRegisterClassName() const { return m_highClass; }
+	CodeBlock* GetFixedRegister() const { return m_fixed; }
 };
 
 

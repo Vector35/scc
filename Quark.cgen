@@ -1,46 +1,58 @@
-arch Quark
+arch Quark 32
 
-#define QUARK_FPU_REG(n) SYMREG_NATIVE_REG((n) + 32)
+#define FPU_REG(n) ((n) + 32)
+#define SYMREG_FPU_REG(n) SYMREG_NATIVE_REG((n) + 32)
 
-registerclass default IREG(8,16,32) QUARKREGCLASS_INTEGER
-registerclass INTEGER_RETURN_VALUE(8,16,32) QUARKREGCLASS_INTEGER_RETURN_VALUE
-registerclass SYSCALL_RETURN(8,16,32) QUARKREGCLASS_SYSCALL_RESULT_1
-registerclass FREG(F32,F64) QUARKREGCLASS_FLOAT
-registerclass FLOAT_RETURN_VALUE(F32,F64) QUARKREGCLASS_FLOAT_RETURN_VALUE
-largeregisterclass IREG64(64) QUARKREGCLASS_INTEGER QUARKREGCLASS_INTEGER
-largeregisterclass INTEGER_RETURN_VALUE_64(64) QUARKREGCLASS_INTEGER_RETURN_VALUE QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH
-largeregisterclass SYSCALL_RETURN_64(64) QUARKREGCLASS_SYSCALL_RESULT_1 QUARKREGCLASS_SYSCALL_RESULT_2
-tempregisterclass IRESULT(8,16,32) QUARKREGCLASS_INTEGER
+registerclass default IREG(8,16,32)
+registerclass INTEGER_RETURN_VALUE(8,16,32) fixed { 1 } : IREG
+registerclass INTEGER_RETURN_VALUE_HIGH(32) fixed { 2 } : IREG
+registerclass SYSCALL_RETURN(8,16,32) fixed { 1 } : IREG
+registerclass SYSCALL_RETURN_HIGH(32) fixed { 2 } : IREG
+registerclass FREG(F32,F64)
+registerclass FLOAT_RETURN_VALUE(F32,F64) fixed { FPU_REG(0) } : FREG
+largeregisterclass IREG64(64) IREG IREG
+largeregisterclass INTEGER_RETURN_VALUE_64(64) INTEGER_RETURN_VALUE INTEGER_RETURN_VALUE_HIGH
+largeregisterclass SYSCALL_RETURN_64(64) SYSCALL_RETURN SYSCALL_RETURN_HIGH
+tempregisterclass IRESULT(8,16,32) IREG
 
-registersubclass QUARKREGCLASS_INTEGER_RETURN_VALUE: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_RESULT_1: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_RESULT_2: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_0: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_1: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_2: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_3: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_4: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_5: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_6: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_INTEGER_PARAM_7: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_0: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_1: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_2: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_3: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_4: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_5: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_6: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_SYSCALL_PARAM_7: QUARKREGCLASS_INTEGER
-registersubclass QUARKREGCLASS_FLOAT_RETURN_VALUE: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_0: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_1: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_2: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_3: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_4: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_5: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_6: QUARKREGCLASS_FLOAT
-registersubclass QUARKREGCLASS_FLOAT_PARAM_7: QUARKREGCLASS_FLOAT
+registerclass INTEGER_PARAM_0(8,16,32) fixed { 1 } : IREG
+registerclass INTEGER_PARAM_1(8,16,32) fixed { 2 } : IREG
+registerclass INTEGER_PARAM_2(8,16,32) fixed { 3 } : IREG
+registerclass INTEGER_PARAM_3(8,16,32) fixed { 4 } : IREG
+registerclass INTEGER_PARAM_4(8,16,32) fixed { 5 } : IREG
+registerclass INTEGER_PARAM_5(8,16,32) fixed { 6 } : IREG
+registerclass INTEGER_PARAM_6(8,16,32) fixed { 7 } : IREG
+registerclass INTEGER_PARAM_7(8,16,32) fixed { 8 } : IREG
+
+registerclass SYSCALL_PARAM_0(8,16,32) fixed { 1 } : IREG
+registerclass SYSCALL_PARAM_1(8,16,32) fixed { 2 } : IREG
+registerclass SYSCALL_PARAM_2(8,16,32) fixed { 3 } : IREG
+registerclass SYSCALL_PARAM_3(8,16,32) fixed { 4 } : IREG
+registerclass SYSCALL_PARAM_4(8,16,32) fixed { 5 } : IREG
+registerclass SYSCALL_PARAM_5(8,16,32) fixed { 6 } : IREG
+registerclass SYSCALL_PARAM_6(8,16,32) fixed { 7 } : IREG
+registerclass SYSCALL_PARAM_7(8,16,32) fixed { 8 } : IREG
+
+registerclass FLOAT_PARAM_0(F32,F64) fixed { FPU_REG(0) } : FREG
+registerclass FLOAT_PARAM_1(F32,F64) fixed { FPU_REG(1) } : FREG
+registerclass FLOAT_PARAM_2(F32,F64) fixed { FPU_REG(2) } : FREG
+registerclass FLOAT_PARAM_3(F32,F64) fixed { FPU_REG(3) } : FREG
+registerclass FLOAT_PARAM_4(F32,F64) fixed { FPU_REG(4) } : FREG
+registerclass FLOAT_PARAM_5(F32,F64) fixed { FPU_REG(5) } : FREG
+registerclass FLOAT_PARAM_6(F32,F64) fixed { FPU_REG(6) } : FREG
+registerclass FLOAT_PARAM_7(F32,F64) fixed { FPU_REG(7) } : FREG
+
+callersaved { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, FPU_REG(0), FPU_REG(1), FPU_REG(2), FPU_REG(3), FPU_REG(4),
+	FPU_REG(5), FPU_REG(6), FPU_REG(7), FPU_REG(8), FPU_REG(9), FPU_REG(10), FPU_REG(11), FPU_REG(12), FPU_REG(13),
+	FPU_REG(14), FPU_REG(15) }
+calleesaved { 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, FPU_REG(31), FPU_REG(30), FPU_REG(29), FPU_REG(28),
+	FPU_REG(27), FPU_REG(26), FPU_REG(25), FPU_REG(24), FPU_REG(23), FPU_REG(22), FPU_REG(21), FPU_REG(20), FPU_REG(19),
+	FPU_REG(18), FPU_REG(17), FPU_REG(16) }
+
+special SYMREG_SP { 0 }
+special SYMREG_BP { 29 }
+special SYMREG_LR { 30 }
+special SYMREG_IP { 31 }
 
 immediateclass IMM11
 {
@@ -454,7 +466,7 @@ instr SaveCalleeSavedRegs saveregs {} update
 		for (uint32_t i = 0; i < 32; i++)
 		{
 			if (fpu.count(i) != 0)
-				@StoreUpdateFD QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), 8;
+				@StoreUpdateFD SYMREG_FPU_REG(i), SYMREG_NATIVE_REG(0), 8;
 		}
 	}
 	else
@@ -463,7 +475,7 @@ instr SaveCalleeSavedRegs saveregs {} update
 		for (uint32_t i = 0; i < 32; i++)
 		{
 			if (fpu.count(i) != 0)
-				@StoreUpdateFD QUARK_FPU_REG(i), SYMREG_NATIVE_REG(0), -8;
+				@StoreUpdateFD SYMREG_FPU_REG(i), SYMREG_NATIVE_REG(0), -8;
 		}
 	}
 
@@ -502,7 +514,7 @@ instr RestoreCalleeSavedRegs restoreregs {} update
 		{
 			if (fpu.count(31 - i) != 0)
 			{
-				@LoadFD QUARK_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), -stackSize + offset;
+				@LoadFD SYMREG_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), -stackSize + offset;
 				offset += 8;
 			}
 		}
@@ -515,7 +527,7 @@ instr RestoreCalleeSavedRegs restoreregs {} update
 		{
 			if (fpu.count(31 - i) != 0)
 			{
-				@LoadFD QUARK_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), offset;
+				@LoadFD SYMREG_FPU_REG(31 - i), SYMREG_NATIVE_REG(0), offset;
 				offset += 8;
 			}
 		}
@@ -954,8 +966,8 @@ function bool GenerateReturnVoid(SymInstrBlock* out)
 	if (m_settings.encodePointers)
 	{
 		// Using encoded pointers, decode return address before returning
-		uint32_t temp = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
-		uint32_t scratch = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+		uint32_t temp = TEMP_REGISTER(IREG);
+		uint32_t scratch = TEMP_REGISTER(IREG);
 		@LoadGlobal32 temp, SYMREG_IP, m_settings.encodePointerKey->GetDataSectionOffset(), scratch;
 		@Xor SYMREG_LR, SYMREG_LR, temp, 0;
 	}
@@ -1067,7 +1079,7 @@ push src:FREG(F64)
 
 function void GenerateAntiDisassembly(SymInstrBlock* out)
 {
-	@AntiDisassembly TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+	@AntiDisassembly TEMP_REGISTER(IREG);
 }
 
 function TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
@@ -1080,12 +1092,12 @@ function TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedPa
 	}
 
 	// First try to place parameters in registers
-	uint32_t intParamRegs[9] = {QUARKREGCLASS_INTEGER_PARAM_0, QUARKREGCLASS_INTEGER_PARAM_1, QUARKREGCLASS_INTEGER_PARAM_2,
-		QUARKREGCLASS_INTEGER_PARAM_3, QUARKREGCLASS_INTEGER_PARAM_4, QUARKREGCLASS_INTEGER_PARAM_5, QUARKREGCLASS_INTEGER_PARAM_6,
-		QUARKREGCLASS_INTEGER_PARAM_7, SYMREG_NONE};
-	uint32_t floatParamRegs[9] = {QUARKREGCLASS_FLOAT_PARAM_0, QUARKREGCLASS_FLOAT_PARAM_1, QUARKREGCLASS_FLOAT_PARAM_2,
-		QUARKREGCLASS_FLOAT_PARAM_3, QUARKREGCLASS_FLOAT_PARAM_4, QUARKREGCLASS_FLOAT_PARAM_5, QUARKREGCLASS_FLOAT_PARAM_6,
-		QUARKREGCLASS_FLOAT_PARAM_7, SYMREG_NONE};
+	uint32_t intParamRegs[9] = {INTEGER_PARAM_0, INTEGER_PARAM_1, INTEGER_PARAM_2,
+		INTEGER_PARAM_3, INTEGER_PARAM_4, INTEGER_PARAM_5, INTEGER_PARAM_6,
+		INTEGER_PARAM_7, SYMREG_NONE};
+	uint32_t floatParamRegs[9] = {FLOAT_PARAM_0, FLOAT_PARAM_1, FLOAT_PARAM_2,
+		FLOAT_PARAM_3, FLOAT_PARAM_4, FLOAT_PARAM_5, FLOAT_PARAM_6,
+		FLOAT_PARAM_7, SYMREG_NONE};
 	uint32_t curIntParamReg = 0;
 	uint32_t curFloatParamReg = 0;
 	vector<bool> paramOnStack;
@@ -1203,9 +1215,9 @@ function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector
 {
 	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
 	size_t regIndex = 0;
-	const uint32_t paramClasses[8] = {QUARKREGCLASS_SYSCALL_PARAM_0, QUARKREGCLASS_SYSCALL_PARAM_1,
-		QUARKREGCLASS_SYSCALL_PARAM_2, QUARKREGCLASS_SYSCALL_PARAM_3, QUARKREGCLASS_SYSCALL_PARAM_4,
-		QUARKREGCLASS_SYSCALL_PARAM_5, QUARKREGCLASS_SYSCALL_PARAM_6, QUARKREGCLASS_SYSCALL_PARAM_7};
+	const uint32_t paramClasses[8] = {SYSCALL_PARAM_0, SYSCALL_PARAM_1,
+		SYSCALL_PARAM_2, SYSCALL_PARAM_3, SYSCALL_PARAM_4,
+		SYSCALL_PARAM_5, SYSCALL_PARAM_6, SYSCALL_PARAM_7};
 	for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)
 	{
 		if ((*i)->GetClass() == NODE_UNDEFINED)
@@ -1251,14 +1263,14 @@ function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector
 
 function void AssignRegisterVariable(Variable* var)
 {
-	uint32_t reg = m_symFunc->AddRegister((var->GetType()->GetClass() == TYPE_FLOAT) ?
-		QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER, ILParameter::ReduceType(var->GetType()));
+	uint32_t reg = m_symFunc->AddRegister((var->GetType()->GetClass() == TYPE_FLOAT) ? FREG : IREG,
+		ILParameter::ReduceType(var->GetType()));
 	m_vars.registerVariables[var] = reg;
 
 	// 64-bit variables take two adjacent registers
 	if ((var->GetType()->GetWidth() == 8) && (var->GetType()->GetClass() != TYPE_FLOAT))
 	{
-		uint32_t highReg = m_symFunc->AddRegister(QUARKREGCLASS_INTEGER, ILParameter::ReduceType(var->GetType()), 4);
+		uint32_t highReg = m_symFunc->AddRegister(IREG, ILParameter::ReduceType(var->GetType()), 4);
 		m_vars.highRegisterVariables[var] = highReg;
 	}
 }
@@ -1271,12 +1283,12 @@ function void AssignParameters()
 	if ((m_func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
 
-	uint32_t intParamRegs[9] = {QUARKREGCLASS_INTEGER_PARAM_0, QUARKREGCLASS_INTEGER_PARAM_1, QUARKREGCLASS_INTEGER_PARAM_2,
-		QUARKREGCLASS_INTEGER_PARAM_3, QUARKREGCLASS_INTEGER_PARAM_4, QUARKREGCLASS_INTEGER_PARAM_5, QUARKREGCLASS_INTEGER_PARAM_6,
-		QUARKREGCLASS_INTEGER_PARAM_7, SYMREG_NONE};
-	uint32_t floatParamRegs[9] = {QUARKREGCLASS_FLOAT_PARAM_0, QUARKREGCLASS_FLOAT_PARAM_1, QUARKREGCLASS_FLOAT_PARAM_2,
-		QUARKREGCLASS_FLOAT_PARAM_3, QUARKREGCLASS_FLOAT_PARAM_4, QUARKREGCLASS_FLOAT_PARAM_5, QUARKREGCLASS_FLOAT_PARAM_6,
-		QUARKREGCLASS_FLOAT_PARAM_7, SYMREG_NONE};
+	uint32_t intParamRegs[9] = {INTEGER_PARAM_0, INTEGER_PARAM_1, INTEGER_PARAM_2,
+		INTEGER_PARAM_3, INTEGER_PARAM_4, INTEGER_PARAM_5, INTEGER_PARAM_6,
+		INTEGER_PARAM_7, SYMREG_NONE};
+	uint32_t floatParamRegs[9] = {FLOAT_PARAM_0, FLOAT_PARAM_1, FLOAT_PARAM_2,
+		FLOAT_PARAM_3, FLOAT_PARAM_4, FLOAT_PARAM_5, FLOAT_PARAM_6,
+		FLOAT_PARAM_7, SYMREG_NONE};
 	uint32_t curIntParamReg = 0;
 	uint32_t curFloatParamReg = 0;
 
@@ -1414,7 +1426,7 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	{
 		// This is the start function, and we can't assume we have a safe stack (the code may be
 		// at or near the stack pointer), pivot the stack to make it safe
-		uint32_t reg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+		uint32_t reg = TEMP_REGISTER(IREG);
 		@LoadImm reg, UNSAFE_STACK_PIVOT;
 		@Sub SYMREG_SP, SYMREG_SP, reg, 0;
 	}
@@ -1456,10 +1468,10 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 				switch (j->var->GetType()->GetWidth())
 				{
 				case 4:
-					@StoreStackFS j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_FLOAT);
+					@StoreStackFS j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(FREG);
 					break;
 				case 8:
-					@StoreStackFD j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_FLOAT);
+					@StoreStackFD j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(FREG);
 					break;
 				default:
 					fprintf(stderr, "error: spilling invalid parameter\n");
@@ -1471,17 +1483,17 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 				switch (j->var->GetType()->GetWidth())
 				{
 				case 1:
-					@StoreStack8 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					@StoreStack8 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
 					break;
 				case 2:
-					@StoreStack16 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					@StoreStack16 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
 					break;
 				case 4:
-					@StoreStack32 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					@StoreStack32 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
 					break;
 				case 8:
-					@StoreStack32 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
-					@StoreStack32 j->incomingHighReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+					@StoreStack32 j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+					@StoreStack32 j->incomingHighReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(IREG);
 					break;
 				default:
 					fprintf(stderr, "error: spilling invalid parameter\n");
@@ -1492,17 +1504,17 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 		else if (j->var->GetType()->IsFloat())
 		{
 			// Parameter is in a floating point register
-			uint32_t newReg = TEMP_REGISTER(QUARKREGCLASS_FLOAT);
+			uint32_t newReg = TEMP_REGISTER(FREG);
 			@Fmov newReg, j->incomingReg;
 			m_vars.registerVariables[j->var] = newReg;
 		}
 		else
 		{
 			// Parameter is in an integer register
-			uint32_t newReg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+			uint32_t newReg = TEMP_REGISTER(IREG);
 			uint32_t newHighReg = SYMREG_NONE;
 			if (j->var->GetType()->GetWidth() == 8)
-				newHighReg = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+				newHighReg = TEMP_REGISTER(IREG);
 
 			@Mov newReg, j->incomingReg;
 			if (newHighReg != SYMREG_NONE)
@@ -1515,7 +1527,7 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 
 	if (m_framePointerEnabled)
 	{
-		uint32_t temp = TEMP_REGISTER(QUARKREGCLASS_INTEGER);
+		uint32_t temp = TEMP_REGISTER(IREG);
 		if (m_settings.stackGrowsUp)
 			@AddStack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
 		else
@@ -1525,39 +1537,17 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	return true;
 }
 
-arch function vector<uint32_t> GetCallerSavedRegisters()
-{
-	vector<uint32_t> result;
-	// TODO: Support non-default special registers
-	for (uint32_t i = 1; i < 16; i++)
-		result.push_back(SYMREG_NATIVE_REG(i));
-	for (uint32_t i = 0; i < 16; i++)
-		result.push_back(QUARK_FPU_REG(i));
-	return result;
-}
-
-arch function vector<uint32_t> GetCalleeSavedRegisters()
-{
-	vector<uint32_t> result;
-	// TODO: Support non-default special registers
-	for (uint32_t i = 28; i >= 16; i--)
-		result.push_back(SYMREG_NATIVE_REG(i));
-	for (uint32_t i = 31; i >= 16; i--)
-		result.push_back(QUARK_FPU_REG(i));
-	return result;
-}
-
 arch function set<uint32_t> GetRegisterClassInterferences(uint32_t cls)
 {
 	set<uint32_t> result;
 	uint32_t i;
 	switch (cls)
 	{
-	case QUARKREGCLASS_INTEGER:
+	case IREG:
 		for (i = 0; i < 32; i++)
-			result.insert(QUARK_FPU_REG(i));
+			result.insert(SYMREG_FPU_REG(i));
 		break;
-	case QUARKREGCLASS_FLOAT:
+	case FREG:
 		for (i = 0; i < 32; i++)
 			result.insert(SYMREG_NATIVE_REG(i));
 		break;
@@ -1567,139 +1557,9 @@ arch function set<uint32_t> GetRegisterClassInterferences(uint32_t cls)
 	return result;
 }
 
-arch function bool IsRegisterClassFixed(uint32_t cls)
-{
-	switch (cls)
-	{
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
-	case QUARKREGCLASS_INTEGER_PARAM_0:
-	case QUARKREGCLASS_INTEGER_PARAM_1:
-	case QUARKREGCLASS_INTEGER_PARAM_2:
-	case QUARKREGCLASS_INTEGER_PARAM_3:
-	case QUARKREGCLASS_INTEGER_PARAM_4:
-	case QUARKREGCLASS_INTEGER_PARAM_5:
-	case QUARKREGCLASS_INTEGER_PARAM_6:
-	case QUARKREGCLASS_INTEGER_PARAM_7:
-	case QUARKREGCLASS_FLOAT_RETURN_VALUE:
-	case QUARKREGCLASS_FLOAT_PARAM_0:
-	case QUARKREGCLASS_FLOAT_PARAM_1:
-	case QUARKREGCLASS_FLOAT_PARAM_2:
-	case QUARKREGCLASS_FLOAT_PARAM_3:
-	case QUARKREGCLASS_FLOAT_PARAM_4:
-	case QUARKREGCLASS_FLOAT_PARAM_5:
-	case QUARKREGCLASS_FLOAT_PARAM_6:
-	case QUARKREGCLASS_FLOAT_PARAM_7:
-	case QUARKREGCLASS_SYSCALL_PARAM_0:
-	case QUARKREGCLASS_SYSCALL_PARAM_1:
-	case QUARKREGCLASS_SYSCALL_PARAM_2:
-	case QUARKREGCLASS_SYSCALL_PARAM_3:
-	case QUARKREGCLASS_SYSCALL_PARAM_4:
-	case QUARKREGCLASS_SYSCALL_PARAM_5:
-	case QUARKREGCLASS_SYSCALL_PARAM_6:
-	case QUARKREGCLASS_SYSCALL_PARAM_7:
-	case QUARKREGCLASS_SYSCALL_RESULT_1:
-	case QUARKREGCLASS_SYSCALL_RESULT_2:
-		return true;
-	default:
-		return false;
-	}
-}
-
-arch function uint32_t GetFixedRegisterForClass(uint32_t cls)
-{
-	// TODO: Support non-default special registers
-	switch (cls)
-	{
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
-		return SYMREG_NATIVE_REG(1);
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
-		return SYMREG_NATIVE_REG(2);
-	case QUARKREGCLASS_INTEGER_PARAM_0:
-		return SYMREG_NATIVE_REG(1);
-	case QUARKREGCLASS_INTEGER_PARAM_1:
-		return SYMREG_NATIVE_REG(2);
-	case QUARKREGCLASS_INTEGER_PARAM_2:
-		return SYMREG_NATIVE_REG(3);
-	case QUARKREGCLASS_INTEGER_PARAM_3:
-		return SYMREG_NATIVE_REG(4);
-	case QUARKREGCLASS_INTEGER_PARAM_4:
-		return SYMREG_NATIVE_REG(5);
-	case QUARKREGCLASS_INTEGER_PARAM_5:
-		return SYMREG_NATIVE_REG(6);
-	case QUARKREGCLASS_INTEGER_PARAM_6:
-		return SYMREG_NATIVE_REG(7);
-	case QUARKREGCLASS_INTEGER_PARAM_7:
-		return SYMREG_NATIVE_REG(8);
-	case QUARKREGCLASS_FLOAT_RETURN_VALUE:
-		return QUARK_FPU_REG(0);
-	case QUARKREGCLASS_FLOAT_PARAM_0:
-		return QUARK_FPU_REG(0);
-	case QUARKREGCLASS_FLOAT_PARAM_1:
-		return QUARK_FPU_REG(1);
-	case QUARKREGCLASS_FLOAT_PARAM_2:
-		return QUARK_FPU_REG(2);
-	case QUARKREGCLASS_FLOAT_PARAM_3:
-		return QUARK_FPU_REG(3);
-	case QUARKREGCLASS_FLOAT_PARAM_4:
-		return QUARK_FPU_REG(4);
-	case QUARKREGCLASS_FLOAT_PARAM_5:
-		return QUARK_FPU_REG(5);
-	case QUARKREGCLASS_FLOAT_PARAM_6:
-		return QUARK_FPU_REG(6);
-	case QUARKREGCLASS_FLOAT_PARAM_7:
-		return QUARK_FPU_REG(7);
-	case QUARKREGCLASS_SYSCALL_PARAM_0:
-		return SYMREG_NATIVE_REG(1);
-	case QUARKREGCLASS_SYSCALL_PARAM_1:
-		return SYMREG_NATIVE_REG(2);
-	case QUARKREGCLASS_SYSCALL_PARAM_2:
-		return SYMREG_NATIVE_REG(3);
-	case QUARKREGCLASS_SYSCALL_PARAM_3:
-		return SYMREG_NATIVE_REG(4);
-	case QUARKREGCLASS_SYSCALL_PARAM_4:
-		return SYMREG_NATIVE_REG(5);
-	case QUARKREGCLASS_SYSCALL_PARAM_5:
-		return SYMREG_NATIVE_REG(6);
-	case QUARKREGCLASS_SYSCALL_PARAM_6:
-		return SYMREG_NATIVE_REG(7);
-	case QUARKREGCLASS_SYSCALL_PARAM_7:
-		return SYMREG_NATIVE_REG(8);
-	case QUARKREGCLASS_SYSCALL_RESULT_1:
-		return SYMREG_NATIVE_REG(1);
-	case QUARKREGCLASS_SYSCALL_RESULT_2:
-		return SYMREG_NATIVE_REG(2);
-	default:
-		return SYMREG_NONE;
-	}
-}
-
-arch function uint32_t GetSpecialRegisterAssignment(uint32_t reg)
-{
-	// TODO: Support non-default special registers
-	switch (reg)
-	{
-	case SYMREG_SP:
-		return SYMREG_NATIVE_REG(0);
-	case SYMREG_BP:
-		return SYMREG_NATIVE_REG(29);
-	case SYMREG_LR:
-		return SYMREG_NATIVE_REG(30);
-	case SYMREG_IP:
-		return SYMREG_NATIVE_REG(31);
-	default:
-		return SYMREG_NONE;
-	}
-}
-
 arch function bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls)
 {
 	return false;
-}
-
-arch function size_t GetNativeSize()
-{
-	return 4;
 }
 
 arch function void LayoutStackFrame()
@@ -1789,7 +1649,7 @@ arch function void LayoutStackFrame()
 arch function bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
 	ILParameterType type, vector<SymInstr*>& code)
 {
-	uint32_t temp = AddRegister(((type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE)) ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
+	uint32_t temp = AddRegister(((type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE)) ? FREG : IREG);
 	switch (type)
 	{
 	case ILTYPE_INT8:
@@ -1818,7 +1678,7 @@ arch function bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
 arch function bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
 	ILParameterType type, vector<SymInstr*>& code)
 {
-	uint32_t temp = AddRegister(((type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE)) ? QUARKREGCLASS_FLOAT : QUARKREGCLASS_INTEGER);
+	uint32_t temp = AddRegister(((type == ILTYPE_FLOAT) || (type == ILTYPE_DOUBLE)) ? FREG : IREG);
 	switch (type)
 	{
 	case ILTYPE_INT8:
@@ -1844,69 +1704,11 @@ arch function bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset
 	return true;
 }
 
-arch function void PrintRegisterClass(uint32_t cls)
-{
-	switch (cls)
-	{
-	case QUARKREGCLASS_INTEGER:
-		fprintf(stderr, "int");
-		break;
-	case QUARKREGCLASS_FLOAT:
-		fprintf(stderr, "float");
-		break;
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE:
-		fprintf(stderr, "retval");
-		break;
-	case QUARKREGCLASS_INTEGER_RETURN_VALUE_HIGH:
-		fprintf(stderr, "retvalhigh");
-		break;
-	case QUARKREGCLASS_INTEGER_PARAM_0:
-	case QUARKREGCLASS_INTEGER_PARAM_1:
-	case QUARKREGCLASS_INTEGER_PARAM_2:
-	case QUARKREGCLASS_INTEGER_PARAM_3:
-	case QUARKREGCLASS_INTEGER_PARAM_4:
-	case QUARKREGCLASS_INTEGER_PARAM_5:
-	case QUARKREGCLASS_INTEGER_PARAM_6:
-	case QUARKREGCLASS_INTEGER_PARAM_7:
-		fprintf(stderr, "intparam%d", cls - QUARKREGCLASS_INTEGER_PARAM_0);
-		break;
-	case QUARKREGCLASS_FLOAT_PARAM_0:
-	case QUARKREGCLASS_FLOAT_PARAM_1:
-	case QUARKREGCLASS_FLOAT_PARAM_2:
-	case QUARKREGCLASS_FLOAT_PARAM_3:
-	case QUARKREGCLASS_FLOAT_PARAM_4:
-	case QUARKREGCLASS_FLOAT_PARAM_5:
-	case QUARKREGCLASS_FLOAT_PARAM_6:
-	case QUARKREGCLASS_FLOAT_PARAM_7:
-		fprintf(stderr, "floatparam%d", cls - QUARKREGCLASS_FLOAT_PARAM_0);
-		break;
-	case QUARKREGCLASS_SYSCALL_PARAM_0:
-	case QUARKREGCLASS_SYSCALL_PARAM_1:
-	case QUARKREGCLASS_SYSCALL_PARAM_2:
-	case QUARKREGCLASS_SYSCALL_PARAM_3:
-	case QUARKREGCLASS_SYSCALL_PARAM_4:
-	case QUARKREGCLASS_SYSCALL_PARAM_5:
-	case QUARKREGCLASS_SYSCALL_PARAM_6:
-	case QUARKREGCLASS_SYSCALL_PARAM_7:
-		fprintf(stderr, "sysparam%d", cls - QUARKREGCLASS_SYSCALL_PARAM_0);
-		break;
-	case QUARKREGCLASS_SYSCALL_RESULT_1:
-		fprintf(stderr, "sysresult1");
-		break;
-	case QUARKREGCLASS_SYSCALL_RESULT_2:
-		fprintf(stderr, "sysresult2");
-		break;
-	default:
-		fprintf(stderr, "invalid");
-		break;
-	}
-}
-
 arch function void PrintRegister(uint32_t reg)
 {
 	if ((reg >= SYMREG_NATIVE_REG(0)) && (reg < SYMREG_NATIVE_REG(32)))
 		fprintf(stderr, "r%d", reg & 31);
-	else if ((reg >= QUARK_FPU_REG(0)) && (reg < QUARK_FPU_REG(32)))
+	else if ((reg >= SYMREG_FPU_REG(0)) && (reg < SYMREG_FPU_REG(32)))
 		fprintf(stderr, "f%d", reg & 31);
 	else
 		SymInstrFunction::PrintRegister(reg);

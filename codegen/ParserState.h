@@ -43,6 +43,7 @@ class ParserState
 	void* m_lvalue;
 	int m_errors;
 	Ref<RegisterClass> m_defaultRegClass;
+	uint32_t m_archBits;
 
 	std::map< std::string, Ref<RegisterClass> > m_regClasses;
 	std::map< std::string, std::vector<std::string> > m_regSubclasses;
@@ -56,6 +57,9 @@ class ParserState
 	std::vector< Ref<Match> > m_tempRegMatches;
 	std::vector< Ref<Instruction> > m_instrs;
 	std::set<std::string> m_regClassNames;
+	std::vector< Ref<CodeBlock> > m_callerSavedRegs;
+	std::vector< Ref<CodeBlock> > m_calleeSavedRegs;
+	std::map< std::string, Ref<CodeBlock> > m_specialRegs;
 	std::vector<std::string> m_includes;
 
 public:
@@ -64,6 +68,9 @@ public:
 
 	const std::string& GetArchName() const { return m_archName; }
 	void SetArchName(const std::string& name) { m_archName = name; }
+
+	uint32_t GetArchBits() const { return m_archBits; }
+	void SetArchBits(uint32_t bits) { m_archBits = bits; }
 
 	const std::string& GetFileName() const { return m_fileName; }
 	int GetLineNumber() const { return m_line; }
@@ -78,7 +85,7 @@ public:
 	void Error() { m_errors++; }
 	bool HasErrors() const { return m_errors != 0; }
 
-	void DefineRegisterClass(uint32_t sizeFlags, const std::string& name, const std::string& symRegClass, bool isDefault);
+	void DefineRegisterClass(uint32_t sizeFlags, const std::string& name, CodeBlock* fixed, bool isDefault);
 	void DefineLargeRegisterClass(uint32_t sizeFlags, const std::string& name,
 		const std::string& lowRegClass, const std::string& highRegClass);
 	void DefineTempRegisterClass(uint32_t sizeFlags, const std::string& name, const std::string& symRegClass);
@@ -95,6 +102,10 @@ public:
 	
 	void DefineEncoding(const std::string& name, Encoding* encoding);
 	void DefineInstruction(Instruction* instr);
+
+	void AddCallerSavedRegs(const std::vector< Ref<CodeBlock> >& regs);
+	void AddCalleeSavedRegs(const std::vector< Ref<CodeBlock> >& regs);
+	void DefineSpecialReg(const std::string& name, CodeBlock* reg);
 
 	void AddInclude(const std::string& name) { m_includes.push_back(name); }
 
@@ -118,6 +129,9 @@ public:
 	const std::vector< Ref<Instruction> >& GetInstructions() const { return m_instrs; }
 	const std::vector<std::string>& GetIncludes() const { return m_includes; }
 	const std::set<std::string>& GetRegisterClassNames() const { return m_regClassNames; }
+	const std::vector< Ref<CodeBlock> >& GetCallerSavedRegs() const { return m_callerSavedRegs; }
+	const std::vector< Ref<CodeBlock> >& GetCalleeSavedRegs() const { return m_calleeSavedRegs; }
+	const std::map< std::string, Ref<CodeBlock> >& GetSpecialRegs() const { return m_specialRegs; }
 };
 
 

@@ -19,12 +19,14 @@
 // IN THE SOFTWARE.
 
 #include "RegisterClass.h"
+#include "CodeBlock.h"
 
 using namespace std;
 
 
-RegisterClass::RegisterClass(RegisterClassType type, uint32_t sizeFlags, const string& matchName, const string& regClass):
-	m_classType(type), m_sizeFlags(sizeFlags), m_matchName(matchName), m_regClass(regClass)
+RegisterClass::RegisterClass(RegisterClassType type, uint32_t sizeFlags, const string& matchName, const string& regClass,
+	CodeBlock* fixed): m_classType(type), m_sizeFlags(sizeFlags), m_matchName(matchName), m_regClass(regClass),
+	m_fixed(fixed)
 {
 }
 

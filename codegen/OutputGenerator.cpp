@@ -56,7 +56,8 @@ void OutputGenerator::WriteLine(const char* fmt, ...)
 	char* str;
 	va_list args;
 	va_start(args, fmt);
-	vasprintf(&str, fmt, args);
+	if (vasprintf(&str, fmt, args) < 0)
+		return;
 	va_end(args);
 
 	m_output += str;
@@ -71,7 +72,8 @@ void OutputGenerator::WriteUnindented(const char* fmt, ...)
 	char* str;
 	va_list args;
 	va_start(args, fmt);
-	vasprintf(&str, fmt, args);
+	if (vasprintf(&str, fmt, args) < 0)
+		return;
 	va_end(args);
 
 	m_output += str;
@@ -2077,6 +2079,230 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("return false;");
 		EndBlock();
 
+		WriteLine("TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams,");
+		WriteLine("\tconst vector< Ref<TreeNode> >& params, TreeNodeType resultType)");
+		BeginBlock();
+			WriteLine("if (m_settings.encodePointers)");
+			BeginBlock();
+				// FIXME: Symbolic representation of return address is not there yet
+				WriteLine("return NULL;");
+			EndBlock();
+
+			// First try to place parameters in registers
+			WriteLine("const uint32_t intParamRegs[] = {");
+			for (int i = 0; ; i++)
+			{
+				char className[32];
+				sprintf(className, "INTEGER_PARAM_%d", i);
+				if (!m_parser->IsRegisterClass(className))
+					break;
+				if (i != 0)
+					WriteLine("\t, %s", className);
+				else
+					WriteLine("\t%s", className);
+			}
+			WriteLine("\t};");
+
+			WriteLine("const uint32_t floatParamRegs[] = {");
+			for (int i = 0; ; i++)
+			{
+				char className[32];
+				sprintf(className, "FLOAT_PARAM_%d", i);
+				if (!m_parser->IsRegisterClass(className))
+					break;
+				if (i != 0)
+					WriteLine("\t, %s", className);
+				else
+					WriteLine("\t%s", className);
+			}
+			WriteLine("\t};");
+
+			WriteLine("uint32_t curIntParamReg = 0;");
+			WriteLine("uint32_t curFloatParamReg = 0;");
+			WriteLine("vector<bool> paramOnStack;");
+			WriteLine("Ref<TreeNode> input = new TreeNode(NODE_INPUT);");
+
+			WriteLine("for (size_t i = 0; i < params.size(); i++)");
+			BeginBlock();
+				WriteLine("if (i >= fixedParams)");
+				BeginBlock();
+					// Additional parameters to variable argument functions must be on stack
+					WriteLine("paramOnStack.push_back(true);");
+					WriteLine("continue;");
+				EndBlock();
+
+				WriteLine("bool stackParam = false;");
+				WriteLine("if (params[i]->GetClass() == NODE_UNDEFINED)");
+				BeginBlock();
+					// Parameter is undefined, skip it
+					WriteLine("if ((params[i]->GetType() == NODETYPE_F32) || (params[i]->GetType() == NODETYPE_F64))");
+					BeginBlock();
+						WriteLine("if (floatParamRegs[curFloatParamReg] == SYMREG_NONE)");
+						WriteLine("\tstackParam = true;");
+						WriteLine("else");
+						WriteLine("\tcurFloatParamReg++;");
+					EndBlock();
+					WriteLine("else if ((m_settings.preferredBits == 32) && ((params[i]->GetType() == NODETYPE_U64) ||");
+					WriteLine("\t(params[i]->GetType() == NODETYPE_S64)))");
+					BeginBlock();
+						WriteLine("if ((intParamRegs[curIntParamReg] == SYMREG_NONE) ||");
+						WriteLine("\t(intParamRegs[curIntParamReg + 1] == SYMREG_NONE))");
+						WriteLine("\tstackParam = true;");
+						WriteLine("else");
+						WriteLine("\tcurIntParamReg += 2;");
+					EndBlock();
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("if (intParamRegs[curIntParamReg] == SYMREG_NONE)");
+						WriteLine("\tstackParam = true;");
+						WriteLine("else");
+						WriteLine("\tcurIntParamReg++;");
+					EndBlock();
+
+					WriteLine("paramOnStack.push_back(stackParam);");
+					WriteLine("continue;");
+				EndBlock();
+
+				WriteLine("if ((params[i]->GetType() == NODETYPE_F32) || (params[i]->GetType() == NODETYPE_F64))");
+				BeginBlock();
+					WriteLine("if (floatParamRegs[curFloatParamReg] == SYMREG_NONE)");
+					WriteLine("\tstackParam = true;");
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("uint32_t cls = floatParamRegs[curFloatParamReg++];");
+						WriteLine("uint32_t reg = m_symFunc->AddRegister(cls);");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));");
+
+						WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(");
+						WriteLine("\treg, cls, params[i]->GetType()), params[i]));");
+					EndBlock();
+				EndBlock();
+				WriteLine("else if ((m_settings.preferredBits == 32) && ((params[i]->GetType() == NODETYPE_U64) ||");
+				WriteLine("\t(params[i]->GetType() == NODETYPE_S64)))");
+				BeginBlock();
+					WriteLine("if ((intParamRegs[curIntParamReg] == SYMREG_NONE) ||");
+					WriteLine("\t(intParamRegs[curIntParamReg + 1] == SYMREG_NONE))");
+					WriteLine("\tstackParam = true;");
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("uint32_t lowCls = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t highCls = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t lowReg = m_symFunc->AddRegister(lowCls);");
+						WriteLine("uint32_t highReg = m_symFunc->AddRegister(highCls);");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(lowReg, lowCls, NODETYPE_U32));");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(highReg, highCls, NODETYPE_U32));");
+
+						WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(),");
+						WriteLine("\tTreeNode::CreateLargeRegNode(lowReg, highReg,");
+						WriteLine("\tlowCls, highCls, params[i]->GetType()), params[i]));");
+					EndBlock();
+				EndBlock();
+				WriteLine("else");
+				BeginBlock();
+					WriteLine("if (intParamRegs[curIntParamReg] == SYMREG_NONE)");
+					WriteLine("\tstackParam = true;");
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("uint32_t cls = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t reg = m_symFunc->AddRegister(cls);");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));");
+
+						WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(");
+						WriteLine("\treg, cls, params[i]->GetType()), params[i]));");
+					EndBlock();
+				EndBlock();
+
+				WriteLine("paramOnStack.push_back(stackParam);");
+			EndBlock();
+
+			// Push parameters from right to left
+			WriteLine("size_t pushSize = 0;");
+			WriteLine("for (int i = (int)params.size() - 1; i >= 0; i--)");
+			BeginBlock();
+				WriteLine("if (!paramOnStack[i])");
+				WriteLine("\tcontinue;");
+
+				WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));");
+
+				WriteLine("if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||");
+				WriteLine("\t(params[i]->GetType() == NODETYPE_F64) || (m_settings.preferredBits == 64))");
+				WriteLine("\tpushSize += 8;");
+				WriteLine("else");
+				WriteLine("\tpushSize += 4;");
+			EndBlock();
+
+			WriteLine("return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_CALLVOID : NODE_CALL, resultType,");
+			WriteLine("\tfunc, input, TreeNode::CreateImmediateNode(pushSize, (m_settings.preferredBits == 64) ?");
+			WriteLine("\tNODETYPE_U64 : NODETYPE_U32));");
+		EndBlock();
+
+		WriteLine("TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params,");
+		WriteLine("\tTreeNodeType resultType)");
+		BeginBlock();
+			WriteLine("Ref<TreeNode> input = new TreeNode(NODE_INPUT);");
+			WriteLine("size_t regIndex = 0;");
+			
+			WriteLine("const uint32_t paramClasses[] = {");
+			int syscallParamCount;
+			for (syscallParamCount = 0; ; syscallParamCount++)
+			{
+				char className[32];
+				sprintf(className, "SYSCALL_PARAM_%d", syscallParamCount);
+				if (!m_parser->IsRegisterClass(className))
+					break;
+				if (syscallParamCount != 0)
+					WriteLine("\t, %s", className);
+				else
+					WriteLine("\t%s", className);
+			}
+			WriteLine("\t};");
+
+			WriteLine("for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)");
+			BeginBlock();
+				WriteLine("if ((*i)->GetClass() == NODE_UNDEFINED)");
+				BeginBlock();
+					WriteLine("regIndex++;");
+					WriteLine("if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))");
+					WriteLine("\tregIndex++;");
+					WriteLine("if (regIndex > %d)", syscallParamCount);
+					WriteLine("\treturn NULL;");
+					WriteLine("continue;");
+				EndBlock();
+
+				WriteLine("if ((m_settings.preferredBits == 32) && (((*i)->GetType() == NODETYPE_U64) ||");
+				WriteLine("\t((*i)->GetType() == NODETYPE_S64)))");
+				BeginBlock();
+					WriteLine("if (((int)regIndex - 2) > %d)", syscallParamCount);
+					WriteLine("\treturn NULL;");
+					WriteLine("uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);");
+					WriteLine("uint32_t highReg = m_symFunc->AddRegister(paramClasses[regIndex + 1]);");
+					WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], NODETYPE_U32));");
+					WriteLine("input->AddChildNode(TreeNode::CreateRegNode(highReg, paramClasses[regIndex + 1], NODETYPE_U32));");
+
+					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(),");
+					WriteLine("\tTreeNode::CreateLargeRegNode(reg, highReg,");
+					WriteLine("\tparamClasses[regIndex], paramClasses[regIndex + 1], (*i)->GetType()), *i));");
+
+					WriteLine("regIndex += 2;");
+				EndBlock();
+				WriteLine("else");
+				BeginBlock();
+					WriteLine("if (((int)regIndex - 1) > %d)", syscallParamCount);
+					WriteLine("\treturn NULL;");
+					WriteLine("uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);");
+					WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], (*i)->GetType()));");
+
+					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateRegNode(reg,");
+					WriteLine("\tparamClasses[regIndex], (*i)->GetType()), *i));");
+
+					WriteLine("regIndex++;");
+				EndBlock();
+			EndBlock();
+
+			WriteLine("return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL,");
+			WriteLine("\tresultType, num, input);");
+		EndBlock();
+
 		WriteUnindented("public:");
 
 		WriteLine("%s(const Settings& settings, Function* startFunc): Output(settings, startFunc)", m_className.c_str());
@@ -2141,7 +2367,28 @@ bool OutputGenerator::Generate(string& output)
 					EndBlock();
 
 					// Variable can be stored in a register
-					WriteLine("AssignRegisterVariable(*i);");
+					if (m_parser->IsRegisterClass("FREG"))
+						WriteLine("uint32_t regClass = ((*i)->GetType()->GetClass() == TYPE_FLOAT) ? FREG : IREG;");
+					else
+						WriteLine("uint32_t regClass = IREG;");
+
+					WriteLine("if ((m_settings.preferredBits == 32) && ((*i)->GetType()->GetWidth() == 8) &&");
+					WriteLine("\t((*i)->GetType()->GetClass() != TYPE_FLOAT))");
+					BeginBlock();
+						// 64-bit variables take two adjacent registers
+						WriteLine("uint32_t reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*i)->GetType()),");
+						WriteLine("\tm_settings.bigEndian ? 4 : 0);");
+						WriteLine("m_vars.registerVariables[*i] = reg;");
+
+						WriteLine("uint32_t highReg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*i)->GetType()),");
+						WriteLine("\tm_settings.bigEndian ? 0 : 4);");
+						WriteLine("m_vars.highRegisterVariables[*i] = highReg;");
+					EndBlock();
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("uint32_t reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*i)->GetType()));");
+						WriteLine("m_vars.registerVariables[*i] = reg;");
+					EndBlock();
 				EndBlock();
 				WriteLine("else");
 				BeginBlock();
@@ -2151,7 +2398,172 @@ bool OutputGenerator::Generate(string& output)
 				EndBlock();
 			EndBlock();
 
-			WriteLine("AssignParameters();");
+			// Generate parameter offsets
+			WriteLine("int64_t offset = 0;");
+
+			WriteLine("if ((m_func->GetName() == \"_start\") && (m_settings.unsafeStack))");
+			WriteLine("\toffset += UNSAFE_STACK_PIVOT;");
+
+			WriteLine("const uint32_t intParamRegs[] = {");
+			for (int i = 0; ; i++)
+			{
+				char className[32];
+				sprintf(className, "INTEGER_PARAM_%d", i);
+				if (!m_parser->IsRegisterClass(className))
+					break;
+				if (i != 0)
+					WriteLine("\t, %s", className);
+				else
+					WriteLine("\t%s", className);
+			}
+			WriteLine("\t};");
+
+			WriteLine("const uint32_t floatParamRegs[] = {");
+			for (int i = 0; ; i++)
+			{
+				char className[32];
+				sprintf(className, "FLOAT_PARAM_%d", i);
+				if (!m_parser->IsRegisterClass(className))
+					break;
+				if (i != 0)
+					WriteLine("\t, %s", className);
+				else
+					WriteLine("\t%s", className);
+			}
+			WriteLine("\t};");
+			WriteLine("uint32_t curIntParamReg = 0;");
+			WriteLine("uint32_t curFloatParamReg = 0;");
+
+			WriteLine("for (size_t i = 0; i < m_func->GetParameters().size(); i++)");
+			BeginBlock();
+				// Find variable object for this parameter
+				WriteLine("vector< Ref<Variable> >::const_iterator var = m_func->GetVariables().end();");
+				WriteLine("for (vector< Ref<Variable> >::const_iterator j = m_func->GetVariables().begin();");
+				WriteLine("\tj != m_func->GetVariables().end(); j++)");
+				BeginBlock();
+					WriteLine("if ((*j)->IsParameter() && ((*j)->GetParameterIndex() == i))");
+					BeginBlock();
+						WriteLine("var = j;");
+						WriteLine("break;");
+					EndBlock();
+				EndBlock();
+
+				WriteLine("size_t paramSize = (m_func->GetParameters()[i].type->GetWidth() + 3) & (~3);");
+
+				// See if a register is used for this parameter
+				WriteLine("uint32_t reg = SYMREG_NONE;");
+				WriteLine("uint32_t highReg = SYMREG_NONE;");
+				WriteLine("if (m_func->GetParameters()[i].type->IsFloat())");
+				BeginBlock();
+					WriteLine("if (floatParamRegs[curFloatParamReg] != SYMREG_NONE)");
+					BeginBlock();
+						WriteLine("uint32_t regClass = floatParamRegs[curFloatParamReg++];");
+						WriteLine("if (var != m_func->GetVariables().end())");
+						WriteLine("\treg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));");
+					EndBlock();
+				EndBlock();
+				WriteLine("else if (paramSize <= (m_settings.preferredBits / 8))");
+				BeginBlock();
+					WriteLine("if (intParamRegs[curIntParamReg] != SYMREG_NONE)");
+					BeginBlock();
+						WriteLine("uint32_t regClass = intParamRegs[curIntParamReg++];");
+						WriteLine("if (var != m_func->GetVariables().end())");
+						WriteLine("\treg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));");
+					EndBlock();
+				EndBlock();
+				WriteLine("else");
+				BeginBlock();
+					WriteLine("if ((intParamRegs[curIntParamReg] != SYMREG_NONE) &&");
+					WriteLine("\t(intParamRegs[curIntParamReg + 1] != SYMREG_NONE))");
+					BeginBlock();
+						WriteLine("uint32_t regClass = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t highRegClass = intParamRegs[curIntParamReg++];");
+						WriteLine("if (var != m_func->GetVariables().end())");
+						BeginBlock();
+							WriteLine("reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()),");
+							WriteLine("\tm_settings.bigEndian ? 4 : 0);");
+							WriteLine("highReg = m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()),");
+							WriteLine("\tm_settings.bigEndian ? 0 : 4);");
+						EndBlock();
+					EndBlock();
+				EndBlock();
+
+				WriteLine("if (var == m_func->GetVariables().end())");
+				BeginBlock();
+					// Variable not named, so it won't be referenced
+					WriteLine("continue;");
+				EndBlock();
+
+				WriteLine("if (reg != SYMREG_NONE)");
+				BeginBlock();
+					// If the variable has its address taken, it must be stored on the stack
+					WriteLine("bool addressTaken = false;");
+					WriteLine("for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)");
+					BeginBlock();
+						WriteLine("for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();");
+						WriteLine("\tk != (*j)->GetInstructions().end(); k++)");
+						BeginBlock();
+							WriteLine("if (k->operation != ILOP_ADDRESS_OF)");
+							WriteLine("\tcontinue;");
+							WriteLine("if (k->params[1].variable == *var)");
+							BeginBlock();
+								WriteLine("addressTaken = true;");
+								WriteLine("break;");
+							EndBlock();
+						EndBlock();
+					EndBlock();
+
+					WriteLine("if (addressTaken)");
+					BeginBlock();
+						// Must spill register to stack
+						WriteLine("m_vars.stackVariables[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),");
+						WriteLine("\tILParameter::ReduceType((*var)->GetType()));");
+
+						WriteLine("IncomingParameterCopy copy;");
+						WriteLine("copy.var = *var;");
+						WriteLine("copy.incomingReg = reg;");
+						WriteLine("copy.incomingHighReg = highReg;");
+						WriteLine("copy.stackVar = m_vars.stackVariables[*var];");
+						WriteLine("m_paramCopy.push_back(copy);");
+						WriteLine("continue;");
+					EndBlock();
+
+					WriteLine("m_vars.registerVariables[*var] = reg;");
+					WriteLine("if (highReg != SYMREG_NONE)");
+					WriteLine("\tm_vars.highRegisterVariables[*var] = highReg;");
+
+					WriteLine("IncomingParameterCopy copy;");
+					WriteLine("copy.var = *var;");
+					WriteLine("copy.incomingReg = reg;");
+					WriteLine("copy.incomingHighReg = highReg;");
+					WriteLine("copy.stackVar = SYMREG_NONE;");
+					WriteLine("m_paramCopy.push_back(copy);");
+					WriteLine("continue;");
+				EndBlock();
+
+				// Allocate stack space for this parameter
+				WriteLine("int64_t paramOffset = offset;");
+
+				WriteLine("if (m_settings.stackGrowsUp)");
+				BeginBlock();
+					WriteLine("paramOffset = -paramOffset;");
+					WriteLine("paramOffset += (m_settings.preferredBits / 8) - paramSize;");
+				EndBlock();
+
+				WriteLine("m_vars.stackVariables[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),");
+				WriteLine("\tILParameter::ReduceType((*var)->GetType()));");
+
+				// Adjust offset for next parameter
+				WriteLine("offset += (*var)->GetType()->GetWidth();");
+				WriteLine("if (offset & ((m_settings.preferredBits / 8) - 1))");
+				WriteLine("\toffset += (m_settings.preferredBits / 8) - (offset & ((m_settings.preferredBits / 8) - 1));");
+			EndBlock();
+
+			// Generate a variable to mark the start of additional paramaters
+			WriteLine("int64_t paramOffset = offset;");
+			WriteLine("if (m_settings.stackGrowsUp)");
+			WriteLine("\tparamOffset = -paramOffset;");
+			WriteLine("m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);");
 
 			// Generate function start
 			WriteLine("SymInstrBlock* startOutput = m_symFunc->GetBlock(func->GetIL()[0]);");

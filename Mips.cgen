@@ -127,6 +127,13 @@ instr sllv  sllv rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=4; }
 instr srlv  srlv rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=6; }
 instr srav  srav rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=7; }
 
+instr(copy) mov  mov rt:REG(w), rs:REG(r)  { @I op=9, i=0; } update
+{
+	if (%rt == %rs)
+		return true;
+	return false;
+}
+
 instr addstack  addi rt:REG(w), var:STACKVAR
 {
 	if (%var:offset < 0x8000)
@@ -301,7 +308,7 @@ instr saveregs  saveregs {} update
 	}
 
 	if (offset != 0)
-		@addi SYMREG_SP, SYMREG_SP, offset;
+		@addiu SYMREG_SP, SYMREG_SP, offset;
 	return true;
 }
 
@@ -324,10 +331,10 @@ instr restoreregs  restoreregs {} update
 
 
 src:IMM16U => dest:IREG  { @ori %dest, SYMREG_ZERO, %src; }
-src:IMM16 => dest:IREG  { @addi %dest, SYMREG_ZERO, %src; }
+src:IMM16 => dest:IREG  { @addiu %dest, SYMREG_ZERO, %src; }
 src:IMM => dest:IREG  { @lui %dest, %src >> 16; @ori %dest, %dest, %src & 0xffff; }
 src:IMM16U => dest:IREG64  { @ori %dest:low, SYMREG_ZERO, %src; @ori %dest:high, SYMREG_ZERO, 0; }
-src:IMM16 => dest:IREG64  { @addi %dest:low, SYMREG_ZERO, %src; @addi %dest:high, SYMREG_ZERO, %src >> 32; }
+src:IMM16 => dest:IREG64  { @addiu %dest:low, SYMREG_ZERO, %src; @addiu %dest:high, SYMREG_ZERO, %src >> 32; }
 
 src:IRESULT => dest:IREG(S8)  { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
 src:IRESULT => dest:IREG(U8)  { @andi %dest, %src, 0xff; }
@@ -338,8 +345,8 @@ src:IRESULT => dest:IREG(32)  {}
 func:FUNCTION => dest:IREG  { @ldblockptr %dest, %func, %func->GetIL()[0]; }
 ref src:GLOBALVAR => dest:IREG  { @ldglobalptr %dest, %src; }
 
-assign dest:IREG src:IREG  { @addi %dest, %src, 0; }
-assign dest:IREG64 src:IREG64  { @addi %dest:low, %src:low, 0; @addi %dest:high, %src:high, 0; }
+assign dest:IREG src:IREG  { @mov %dest, %src; }
+assign dest:IREG64 src:IREG64  { @mov %dest:low, %src:low; @mov %dest:high, %src:high; }
 
 load(S8) addr:IREG => dest:IREG  { @lb %dest, %addr, 0; }
 load(S8) add addr:IREG ofs:IMM16 => dest:IREG  { @lb %dest, %addr, %ofs; }
@@ -452,8 +459,8 @@ sconvert src:IREG(16) => dest:IREG(32)  { @sll %dest, %src, 16; @sra %dest, %des
 sconvert src:IREG(16) => dest:IREG64  { @sll %dest:low, %src, 16; @sra %dest:low, %dest:low, 16; @sra %dest:high, %src, 31; }
 uconvert src:IREG(16) => dest:IREG(32)  { @andi %dest, %src, 0xffff; }
 uconvert src:IREG(16) => dest:IREG64  { @andi %dest:low, %src, 0xffff; @ori %dest:high, SYMREG_ZERO, 0; }
-sconvert src:IREG(32) => dest:IREG64  { @addi %dest:low, %src, 0; @sra %dest:high, %src, 31; }
-uconvert src:IREG(32) => dest:IREG64  { @addi %dest:low, %src, 0; @ori %dest:high, SYMREG_ZERO, 0; }
+sconvert src:IREG(32) => dest:IREG64  { @mov %dest:low, %src; @sra %dest:high, %src, 31; }
+uconvert src:IREG(32) => dest:IREG64  { @mov %dest:low, %src; @ori %dest:high, SYMREG_ZERO, 0; }
 sconvert src:IREG(16,32) => dest:IREG(8) { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
 sconvert src:IREG64 => dest:IREG(8) { @sll %dest, %src:low, 24; @sra %dest, %dest, 24; }
 uconvert src:IREG(16,32) => dest:IREG(8) { @andi %dest, %src, 0xff; }
@@ -462,8 +469,8 @@ sconvert src:IREG(32) => dest:IREG(16) { @sll %dest, %src, 16; @sra %dest, %dest
 sconvert src:IREG64 => dest:IREG(16) { @sll %dest, %src:low, 16; @sra %dest, %dest, 16; }
 uconvert src:IREG(32) => dest:IREG(16) { @andi %dest, %src, 0xffff; }
 uconvert src:IREG64 => dest:IREG(16) { @andi %dest, %src:low, 0xffff; }
-sconvert src:IREG64 => dest:IREG(32) { @addi %dest, %src:low, 0; }
-uconvert src:IREG64 => dest:IREG(32) { @addi %dest, %src:low, 0; }
+sconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
+uconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
 
 syscall (num:IMM16U) reads:INPUT => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
 {
@@ -477,305 +484,12 @@ syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
 {
 	vector<uint32_t> writes;
 	writes.push_back(%dest);
-	@addi %numreg, %num, 0;
+	@mov %numreg, %num;
 	@syscall %numreg, writes, %reads;
 }
 
 function void GenerateAntiDisassembly(SymInstrBlock* out)
 {
-}
-
-function TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
-	TreeNodeType resultType)
-{
-	if (m_settings.encodePointers)
-	{
-		// FIXME: Symbolic representation of return address is not there yet
-		return NULL;
-	}
-
-	// First try to place parameters in registers
-	uint32_t intParamRegs[5] = {INTEGER_PARAM_0, INTEGER_PARAM_1, INTEGER_PARAM_2, INTEGER_PARAM_3, SYMREG_NONE};
-	uint32_t curIntParamReg = 0;
-	vector<bool> paramOnStack;
-	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
-
-	for (size_t i = 0; i < params.size(); i++)
-	{
-		if (i >= fixedParams)
-		{
-			// Additional parameters to variable argument functions must be on stack
-			paramOnStack.push_back(true);
-			continue;
-		}
-
-		bool stackParam = false;
-		if (params[i]->GetClass() == NODE_UNDEFINED)
-		{
-			// Parameter is undefined, skip it
-			if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64))
-			{
-				if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
-					stackParam = true;
-				else
-					curIntParamReg += 2;
-			}
-			else
-			{
-				if (intParamRegs[curIntParamReg] == SYMREG_NONE)
-					stackParam = true;
-				else
-					curIntParamReg++;
-			}
-
-			paramOnStack.push_back(stackParam);
-			continue;
-		}
-
-		if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64))
-		{
-			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
-				stackParam = true;
-			else
-			{
-				uint32_t lowCls = intParamRegs[curIntParamReg++];
-				uint32_t highCls = intParamRegs[curIntParamReg++];
-				uint32_t lowReg = m_symFunc->AddRegister(lowCls);
-				uint32_t highReg = m_symFunc->AddRegister(highCls);
-				input->AddChildNode(TreeNode::CreateRegNode(lowReg, lowCls, NODETYPE_U32));
-				input->AddChildNode(TreeNode::CreateRegNode(highReg, highCls, NODETYPE_U32));
-
-				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateLargeRegNode(lowReg, highReg,
-					lowCls, highCls, params[i]->GetType()), params[i]));
-			}
-		}
-		else
-		{
-			if (intParamRegs[curIntParamReg] == SYMREG_NONE)
-				stackParam = true;
-			else
-			{
-				uint32_t cls = intParamRegs[curIntParamReg++];
-				uint32_t reg = m_symFunc->AddRegister(cls);
-				input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));
-
-				block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(reg,
-					cls, params[i]->GetType()), params[i]));
-			}
-		}
-
-		paramOnStack.push_back(stackParam);
-	}
-
-	// Push parameters from right to left
-	size_t pushSize = 0;
-	for (int i = (int)params.size() - 1; i >= 0; i--)
-	{
-		if (!paramOnStack[i])
-			continue;
-
-		block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));
-
-		if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||
-			(params[i]->GetType() == NODETYPE_F64))
-			pushSize += 8;
-		else
-			pushSize += 4;
-	}
-
-	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_CALLVOID : NODE_CALL, resultType, func, input,
-		TreeNode::CreateImmediateNode(pushSize, NODETYPE_U32));
-}
-
-function TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params, TreeNodeType resultType)
-{
-	Ref<TreeNode> input = new TreeNode(NODE_INPUT);
-	size_t regIndex = 0;
-	const uint32_t paramClasses[4] = {SYSCALL_PARAM_0, SYSCALL_PARAM_1, SYSCALL_PARAM_2, SYSCALL_PARAM_3};
-	for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)
-	{
-		if ((*i)->GetClass() == NODE_UNDEFINED)
-		{
-			regIndex++;
-			if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
-				regIndex++;
-			if (regIndex > 4)
-				return NULL;
-			continue;
-		}
-
-		if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))
-		{
-			if (regIndex > 2)
-				return NULL;
-			uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);
-			uint32_t highReg = m_symFunc->AddRegister(paramClasses[regIndex + 1]);
-			input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], NODETYPE_U32));
-			input->AddChildNode(TreeNode::CreateRegNode(highReg, paramClasses[regIndex + 1], NODETYPE_U32));
-
-			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateLargeRegNode(reg, highReg,
-				paramClasses[regIndex], paramClasses[regIndex + 1], (*i)->GetType()), *i));
-
-			regIndex += 2;
-		}
-		else
-		{
-			if (regIndex > 3)
-				return NULL;
-			uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);
-			input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], (*i)->GetType()));
-
-			block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateRegNode(reg,
-				paramClasses[regIndex], (*i)->GetType()), *i));
-
-			regIndex++;
-		}
-	}
-
-	return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL, resultType, num, input);
-}
-
-function void AssignRegisterVariable(Variable* var)
-{
-	uint32_t reg = m_symFunc->AddRegister(IREG, ILParameter::ReduceType(var->GetType()));
-	m_vars.registerVariables[var] = reg;
-
-	// 64-bit variables take two adjacent registers
-	if (var->GetType()->GetWidth() == 8)
-	{
-		uint32_t highReg = m_symFunc->AddRegister(IREG, ILParameter::ReduceType(var->GetType()), 4);
-		m_vars.highRegisterVariables[var] = highReg;
-	}
-}
-
-function void AssignParameters()
-{
-	// Generate parameter offsets
-	int64_t offset = 0;
-
-	if ((m_func->GetName() == "_start") && (m_settings.unsafeStack))
-		offset += UNSAFE_STACK_PIVOT;
-
-	uint32_t intParamRegs[5] = {INTEGER_PARAM_0, INTEGER_PARAM_1, INTEGER_PARAM_2, INTEGER_PARAM_3, SYMREG_NONE};
-	uint32_t curIntParamReg = 0;
-
-	for (size_t i = 0; i < m_func->GetParameters().size(); i++)
-	{
-		// Find variable object for this parameter
-		vector< Ref<Variable> >::const_iterator var = m_func->GetVariables().end();
-		for (vector< Ref<Variable> >::const_iterator j = m_func->GetVariables().begin(); j != m_func->GetVariables().end(); j++)
-		{
-			if ((*j)->IsParameter() && ((*j)->GetParameterIndex() == i))
-			{
-				var = j;
-				break;
-			}
-		}
-
-		size_t paramSize = (m_func->GetParameters()[i].type->GetWidth() + 3) & (~3);
-
-		// See if a register is used for this parameter
-		uint32_t reg = SYMREG_NONE;
-		uint32_t highReg = SYMREG_NONE;
-		if (paramSize <= 4)
-		{
-			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
-			{
-				uint32_t regClass = intParamRegs[curIntParamReg++];
-				if (var != m_func->GetVariables().end())
-					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
-			}
-		}
-		else
-		{
-			if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
-			{
-				uint32_t regClass = intParamRegs[curIntParamReg++];
-				uint32_t highRegClass = intParamRegs[curIntParamReg++];
-				if (var != m_func->GetVariables().end())
-				{
-					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
-					highReg = m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
-				}
-			}
-		}
-
-		if (var == m_func->GetVariables().end())
-		{
-			// Variable not named, so it won't be referenced
-			continue;
-		}
-
-		if (reg != SYMREG_NONE)
-		{
-			// If the variable has its address taken, it must be stored on the stack
-			bool addressTaken = false;
-			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
-			{
-				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
-					k != (*j)->GetInstructions().end(); k++)
-				{
-					if (k->operation != ILOP_ADDRESS_OF)
-						continue;
-					if (k->params[1].variable == *var)
-					{
-						addressTaken = true;
-						break;
-					}
-				}
-			}
-
-			if (addressTaken)
-			{
-				// Must spill register to stack
-				m_vars.stackVariables[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),
-					ILParameter::ReduceType((*var)->GetType()));
-
-				IncomingParameterCopy copy;
-				copy.var = *var;
-				copy.incomingReg = reg;
-				copy.incomingHighReg = highReg;
-				copy.stackVar = m_vars.stackVariables[*var];
-				m_paramCopy.push_back(copy);
-				continue;
-			}
-
-			m_vars.registerVariables[*var] = reg;
-			if (highReg != SYMREG_NONE)
-				m_vars.highRegisterVariables[*var] = highReg;
-
-			IncomingParameterCopy copy;
-			copy.var = *var;
-			copy.incomingReg = reg;
-			copy.incomingHighReg = highReg;
-			copy.stackVar = SYMREG_NONE;
-			m_paramCopy.push_back(copy);
-			continue;
-		}
-
-		// Allocate stack space for this parameter
-		int64_t paramOffset = offset;
-
-		if (m_settings.stackGrowsUp)
-		{
-			paramOffset = -paramOffset;
-			paramOffset += 4 - paramSize;
-		}
-
-		m_vars.stackVariables[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),
-			ILParameter::ReduceType((*var)->GetType()));
-
-		// Adjust offset for next parameter
-		offset += (*var)->GetType()->GetWidth();
-		if (offset & 3)
-			offset += 4 - (offset & 3);
-	}
-
-	// Generate a variable to mark the start of additional paramaters
-	int64_t paramOffset = offset;
-	if (m_settings.stackGrowsUp)
-		paramOffset = -paramOffset;
-	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
 }
 
 function bool GenerateFunctionStart(SymInstrBlock* out)
@@ -784,14 +498,14 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	{
 		// This is the start function, and we can't assume we have a safe stack (the code may be
 		// at or near the stack pointer), pivot the stack to make it safe
-		@addi SYMREG_SP, SYMREG_SP, -UNSAFE_STACK_PIVOT;
+		@addiu SYMREG_SP, SYMREG_SP, -UNSAFE_STACK_PIVOT;
 	}
 
 	// Generate function prologue
 	if (m_framePointerEnabled)
 	{
 		@saveregs;
-		@addi SYMREG_BP, SYMREG_SP, 0;
+		@mov SYMREG_BP, SYMREG_SP;
 	}
 	else
 	{
@@ -855,9 +569,9 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 			if (j->var->GetType()->GetWidth() == 8)
 				newHighReg = TEMP_REGISTER(IREG);
 
-			@addi newReg, j->incomingReg, 0;
+			@mov newReg, j->incomingReg;
 			if (newHighReg != SYMREG_NONE)
-				@addi newHighReg, j->incomingHighReg, 0;
+				@mov newHighReg, j->incomingHighReg;
 			m_vars.registerVariables[j->var] = newReg;
 			if (newHighReg != SYMREG_NONE)
 				m_vars.highRegisterVariables[j->var] = newHighReg;

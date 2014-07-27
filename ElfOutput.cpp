@@ -127,10 +127,16 @@ static const char* GetInterpreterName(const Settings& settings)
 {
 	if (settings.os == OS_LINUX)
 	{
-		if (settings.preferredBits == 64)
-			return "/lib64/ld-linux-x86-64.so.2";
-		else
-			return "/lib/ld-linux.so.2";
+		switch (settings.architecture)
+		{
+		case ARCH_X86:
+			if (settings.preferredBits == 64)
+				return "/lib64/ld-linux-x86-64.so.2";
+			else
+				return "/lib/ld-linux.so.2";
+		default:
+			return "/lib/ld.so.1";
+		}
 	}
 
 	if (settings.os == OS_FREEBSD)

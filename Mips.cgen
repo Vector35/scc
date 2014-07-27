@@ -89,6 +89,8 @@ immediateclass IMM16U
 	return true;
 }
 
+immediateclass ZERO  { return value == 0; }
+
 special SYMREG_SP { REG_SP }
 special SYMREG_BP { REG_FP }
 special SYMREG_LR { REG_RA }
@@ -272,18 +274,12 @@ instr(call) call  call dest:FUNCTION, retval:REG(w), retvalhigh:REG(w), reads:RE
 
 instr(call) callr  callr rs:REG(r), retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
 {
-	@I op=1, rs=0, rt=0x11, i=2; // bgezal zero
+	@R op=0, f=9, rd=31, sh=0; // jalr
 	NOP;
-	@I op=4, rs=0, rt=0, i=2; // beq zero, zero
-	NOP;
-	@R op=0, f=8;
-	NOP;
-//	@R op=0, f=5, rd=31, sh=0; // jalr
-//	NOP;
 }
 
 instr(branch) jr  jr rs:REG(r)  { @R op=0, f=8; NOP; }
-instr(call) jalr  jalr rd:REG(w), rs:REG(r)  { @R op=0, f=5, sh=0; NOP; }
+instr(call) jalr  jalr rd:REG(w), rs:REG(r)  { @R op=0, f=9, sh=0; NOP; }
 
 instr(branch) syscall  syscall num:REG(r), retval:REG(w), error:REG(w), writes:REGLIST(w), reads:REGLIST(r)
 {
@@ -628,10 +624,17 @@ iftrue src:IREG64 t:BLOCK f:BLOCK
 }
 
 ife a:IREG b:IREG t:BLOCK f:BLOCK  { @beq %a, %b, m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG b:ZERO t:BLOCK f:BLOCK  { @beq %a, SYMREG_ZERO, m_func, %t->GetSource(); UnconditionalJump(out, %f); }
 ife a:IREG64 b:IREG64 t:BLOCK f:BLOCK
 {
 	@bne %a:low, %b:low, m_func, %f->GetSource();
 	@beq %a:high, %b:high, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ife a:IREG64 b:ZERO t:BLOCK f:BLOCK
+{
+	@bne %a:low, SYMREG_ZERO, m_func, %f->GetSource();
+	@beq %a:high, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
 
@@ -639,6 +642,11 @@ ifslt a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
 {
 	@slt %temp, %a, %b;
 	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifslt a:IREG b:ZERO t:BLOCK f:BLOCK
+{
+	@bltz %a, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
 ifslt a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
@@ -650,10 +658,25 @@ ifslt a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
 	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
+ifslt a:IREG64 b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@slt %temp, %a:high, SYMREG_ZERO;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, SYMREG_ZERO, m_func, %f->GetSource();
+	@sltu %temp, %a:low, SYMREG_ZERO;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
 
 ifult a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
 {
 	@sltu %temp, %a, %b;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifult a:IREG b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %a, SYMREG_ZERO;
 	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
@@ -666,11 +689,25 @@ ifult a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
 	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
+ifult a:IREG64 b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %a:high, SYMREG_ZERO;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, SYMREG_ZERO, m_func, %f->GetSource();
+	@sltu %temp, %a:low, SYMREG_ZERO;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
 
 ifsle a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
 {
 	@slt %temp, %b, %a;
 	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifsle a:IREG b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@blez %a, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
 ifsle a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
@@ -682,10 +719,25 @@ ifsle a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
 	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
+ifsle a:IREG64 b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@slt %temp, %a:high, SYMREG_ZERO;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, SYMREG_ZERO, m_func, %f->GetSource();
+	@sltu %temp, SYMREG_ZERO, %a:low;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
 
 ifule a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
 {
 	@sltu %temp, %b, %a;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifule a:IREG b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, SYMREG_ZERO, %a;
 	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
@@ -695,6 +747,15 @@ ifule a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
 	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	@bne %a:high, %b:high, m_func, %f->GetSource();
 	@sltu %temp, %b:low, %a:low;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifule a:IREG64 b:ZERO t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %a:high, SYMREG_ZERO;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, SYMREG_ZERO, m_func, %f->GetSource();
+	@sltu %temp, SYMREG_ZERO, %a:low;
 	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
 	UnconditionalJump(out, %f);
 }
@@ -832,6 +893,30 @@ syscall num:IREG reads:INPUT stackAdjust:IMM16 => dest:SYSCALL_RETURN, numreg:SY
 		@addiu SYMREG_SP, SYMREG_SP, -16; // ABI assumes there is space for the first four params
 	@move %numreg, %num;
 	@syscall %numreg, %dest, %error, writes, %reads;
+	if (%stackAdjust != 0)
+		AdjustStackAfterCall(out, (uint32_t)%stackAdjust + 16);
+}
+
+syscall num:IMM16U reads:INPUT stackAdjust:IMM16 => dest:SYSCALL_RETURN_64, numreg:SYSCALL_NUM, error:SYSCALL_ERROR_FLAG
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest:high);
+	if (%stackAdjust != 0)
+		@addiu SYMREG_SP, SYMREG_SP, -16; // ABI assumes there is space for the first four params
+	@ori %numreg, SYMREG_ZERO, %num;
+	@syscall %numreg, %dest:low, %error, writes, %reads;
+	if (%stackAdjust != 0)
+		AdjustStackAfterCall(out, (uint32_t)%stackAdjust + 16);
+}
+
+syscall num:IREG reads:INPUT stackAdjust:IMM16 => dest:SYSCALL_RETURN_64, numreg:SYSCALL_NUM, error:SYSCALL_ERROR_FLAG
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest:high);
+	if (%stackAdjust != 0)
+		@addiu SYMREG_SP, SYMREG_SP, -16; // ABI assumes there is space for the first four params
+	@move %numreg, %num;
+	@syscall %numreg, %dest:low, %error, writes, %reads;
 	if (%stackAdjust != 0)
 		AdjustStackAfterCall(out, (uint32_t)%stackAdjust + 16);
 }

@@ -23,3 +23,12 @@ int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* errorfds, struct
 	return __syscall(SYS__newselect, nfds, readfds, writefds, errorfds, timeout);
 }
 
+int pipe(int* fds)
+{
+	int a, b;
+	a = (int)__syscall2(b, SYS_pipe);
+	fds[0] = a;
+	fds[1] = b;
+	return a;
+}
+

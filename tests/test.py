@@ -131,8 +131,6 @@ def test(arch_name, name, testcase, arch_options, options, arch_type):
 		input_contents = open("Obj/testsc", "r").read()
 		if arch_type == "quark":
 			cmd = ["Obj/testvm"]
-		elif arch_type == "mipsel":
-			cmd = ["qemu-mipsel", "Obj/test"]
 		else:
 			cmd = ["Obj/test"]
 		if "targetparams" in testcase:
@@ -180,7 +178,7 @@ def test(arch_name, name, testcase, arch_options, options, arch_type):
 
 	return True
 
-def test_all(arch_name, arch_options, arch_type):
+def test_all(arch_name, arch_options, arch_type, native):
 	global only_archs
 
 	if (only_archs is not None) and (arch_type not in only_archs):
@@ -190,6 +188,10 @@ def test_all(arch_name, arch_options, arch_type):
 
 	failed = 0
 	for t in tests:
+		if (not native) and ("--pie" in list(t[2])):
+			# Don't try to run ELF files that require dynamic loader on non-native archs
+			continue
+
 		padded_name = t[0] + (" " * (60 - len(t[0])))
 		sys.stdout.write("\033[01;34m" + padded_name + "\033[00m")
 		sys.stdout.flush()
@@ -224,19 +226,19 @@ else:
 
 failed = 0
 if os.uname()[0] == "Darwin":
-	failed += test_all("Mac OS X x86", ["--platform", "mac", "--arch", "x86"], "x86")
-	failed += test_all("Mac OS X x64", ["--platform", "mac", "--arch", "x64"], "x64")
-	failed += test_all("Mac OS X Quark", ["--platform", "mac", "--arch", "quark"], "quark")
+	failed += test_all("Mac OS X x86", ["--platform", "mac", "--arch", "x86"], "x86", True)
+	failed += test_all("Mac OS X x64", ["--platform", "mac", "--arch", "x64"], "x64", True)
+	failed += test_all("Mac OS X Quark", ["--platform", "mac", "--arch", "quark"], "quark", False)
 elif os.name != "nt":
-	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"], "x86")
-	failed += test_all("Linux Quark", ["--platform", "linux", "--arch", "quark"], "quark")
+	failed += test_all("Linux x86", ["--platform", "linux", "--arch", "x86"], "x86", True)
+	failed += test_all("Linux Quark", ["--platform", "linux", "--arch", "quark"], "quark", False)
 	if os.uname()[0] == "FreeBSD":
-		failed += test_all("FreeBSD x86", ["--platform", "freebsd", "--arch", "x86"], "x86")
-		failed += test_all("FreeBSD x64", ["--platform", "freebsd", "--arch", "x64"], "x64")
-		failed += test_all("FreeBSD Quark", ["--platform", "freebsd", "--arch", "quark"], "quark")
+		failed += test_all("FreeBSD x86", ["--platform", "freebsd", "--arch", "x86"], "x86", True)
+		failed += test_all("FreeBSD x64", ["--platform", "freebsd", "--arch", "x64"], "x64", True)
+		failed += test_all("FreeBSD Quark", ["--platform", "freebsd", "--arch", "quark"], "quark", False)
 	else:
-		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64")
-		failed += test_all("Linux MIPS little-endian", ["--platform", "linux", "--arch", "mipsel"], "mipsel")
+		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64", True)
+		failed += test_all("Linux MIPS little-endian", ["--platform", "linux", "--arch", "mipsel"], "mipsel", False)
 
 if failed != 0:
 	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)

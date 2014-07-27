@@ -50,8 +50,3 @@ int getdents(int fd, struct dirent* dirp, size_t count)
 	return __syscall(SYS_getdents, fd, dirp, count);
 }
 
-int pipe(int* fds)
-{
-	return __syscall(SYS_pipe, fds);
-}
-

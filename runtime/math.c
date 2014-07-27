@@ -18,6 +18,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#ifdef BIG_ENDIAN
+#define LOW_PART 1
+#define HIGH_PART 0
+#else
+#define LOW_PART 0
+#define HIGH_PART 1
+#endif
+
 static uint64_t __udivmod64(uint64_t a, uint64_t b, uint64_t* remainder)
 {
 	uint64_t quotient = 0;
@@ -108,13 +116,13 @@ uint64_t __shl64(uint64_t a, uint8_t count)
 	count &= 63;
 	if (count >= 32)
 	{
-		parts[1] = parts[0] << (count - 32);
-		parts[0] = 0;
+		parts[HIGH_PART] = parts[LOW_PART] << (count - 32);
+		parts[LOW_PART] = 0;
 	}
 	else
 	{
-		parts[1] = (parts[1] << count) | (parts[0] >> (32 - count));
-		parts[0] <<= count;
+		parts[HIGH_PART] = (parts[HIGH_PART] << count) | (parts[LOW_PART] >> (32 - count));
+		parts[LOW_PART] <<= count;
 	}
 	return a;
 }
@@ -125,13 +133,13 @@ uint64_t __shr64(uint64_t a, uint8_t count)
 	count &= 63;
 	if (count >= 32)
 	{
-		parts[0] = parts[1] >> (count - 32);
-		parts[1] = 0;
+		parts[LOW_PART] = parts[HIGH_PART] >> (count - 32);
+		parts[HIGH_PART] = 0;
 	}
 	else
 	{
-		parts[0] = (parts[0] >> count) | (parts[1] << (32 - count));
-		parts[1] >>= count;
+		parts[LOW_PART] = (parts[LOW_PART] >> count) | (parts[HIGH_PART] << (32 - count));
+		parts[HIGH_PART] >>= count;
 	}
 	return a;
 }
@@ -142,13 +150,13 @@ int64_t __sar64(int64_t a, uint8_t count)
 	count &= 63;
 	if (count >= 32)
 	{
-		parts[0] = parts[1] >> (count - 32);
-		parts[1] >>= 31;
+		parts[LOW_PART] = parts[HIGH_PART] >> (count - 32);
+		parts[HIGH_PART] >>= 31;
 	}
 	else
 	{
-		parts[0] = (((uint32_t)parts[0]) >> count) | (((uint32_t)parts[1]) << (32 - count));
-		parts[1] >>= count;
+		parts[LOW_PART] = (((uint32_t)parts[LOW_PART]) >> count) | (((uint32_t)parts[HIGH_PART]) << (32 - count));
+		parts[HIGH_PART] >>= count;
 	}
 	return a;
 }

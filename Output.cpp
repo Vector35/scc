@@ -180,7 +180,7 @@ void OutputBlock::WriteInt8(int8_t value)
 void OutputBlock::WriteInt16(int16_t value)
 {
 	if (bigEndian)
-		value = (value >> 8) | (value << 8);
+		value = BE16(value);
 	Write(&value, sizeof(value));
 }
 
@@ -188,7 +188,7 @@ void OutputBlock::WriteInt16(int16_t value)
 void OutputBlock::WriteInt32(int32_t value)
 {
 	if (bigEndian)
-		value = ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
+		value = BE32(value);
 	Write(&value, sizeof(value));
 }
 
@@ -196,11 +196,7 @@ void OutputBlock::WriteInt32(int32_t value)
 void OutputBlock::WriteInt64(int64_t value)
 {
 	if (bigEndian)
-	{
-		value = ((value >> 56) & 0xff) | ((value >> 40) & 0xff00) | ((value >> 24) & 0xff0000) |
-			((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) | ((value << 24) & 0xff0000000000LL) |
-			((value << 40) & 0xff000000000000LL) | (value << 56);
-	}
+		value = BE64(value);
 	Write(&value, sizeof(value));
 }
 
@@ -214,7 +210,7 @@ void OutputBlock::WriteUInt8(uint8_t value)
 void OutputBlock::WriteUInt16(uint16_t value)
 {
 	if (bigEndian)
-		value = ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
+		value = BE16(value);
 	Write(&value, sizeof(value));
 }
 
@@ -222,7 +218,7 @@ void OutputBlock::WriteUInt16(uint16_t value)
 void OutputBlock::WriteUInt32(uint32_t value)
 {
 	if (bigEndian)
-		value = ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
+		value = BE32(value);
 	Write(&value, sizeof(value));
 }
 
@@ -230,11 +226,7 @@ void OutputBlock::WriteUInt32(uint32_t value)
 void OutputBlock::WriteUInt64(uint64_t value)
 {
 	if (bigEndian)
-	{
-		value = ((value >> 56) & 0xff) | ((value >> 40) & 0xff00) | ((value >> 24) & 0xff0000) |
-			((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) | ((value << 24) & 0xff0000000000LL) |
-			((value << 40) & 0xff000000000000LL) | (value << 56);
-	}
+		value = BE64(value);
 	Write(&value, sizeof(value));
 }
 
@@ -260,6 +252,142 @@ void OutputBlock::WriteDouble(double value)
 	} u;
 	u.floatValue = value;
 	WriteUInt64(u.intValue);
+}
+
+
+int8_t OutputBlock::ReadOffsetInt8(size_t ofs)
+{
+	int8_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	return value;
+}
+
+
+int16_t OutputBlock::ReadOffsetInt16(size_t ofs)
+{
+	int16_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	if (bigEndian)
+		return BE16(value);
+	return value;
+}
+
+
+int32_t OutputBlock::ReadOffsetInt32(size_t ofs)
+{
+	int32_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	if (bigEndian)
+		return BE32(value);
+	return value;
+}
+
+
+int64_t OutputBlock::ReadOffsetInt64(size_t ofs)
+{
+	int64_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	if (bigEndian)
+		return BE64(value);
+	return value;
+}
+
+
+uint8_t OutputBlock::ReadOffsetUInt8(size_t ofs)
+{
+	uint8_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	return value;
+}
+
+
+uint16_t OutputBlock::ReadOffsetUInt16(size_t ofs)
+{
+	uint16_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	if (bigEndian)
+		return BE16(value);
+	return value;
+}
+
+
+uint32_t OutputBlock::ReadOffsetUInt32(size_t ofs)
+{
+	uint32_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	if (bigEndian)
+		return BE32(value);
+	return value;
+}
+
+
+uint64_t OutputBlock::ReadOffsetUInt64(size_t ofs)
+{
+	uint64_t value;
+	memcpy(&value, (char*)code + ofs, sizeof(value));
+	if (bigEndian)
+		return BE64(value);
+	return value;
+}
+
+
+void OutputBlock::WriteOffsetInt8(size_t ofs, int8_t value)
+{
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetInt16(size_t ofs, int16_t value)
+{
+	if (bigEndian)
+		value = BE16(value);
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetInt32(size_t ofs, int32_t value)
+{
+	if (bigEndian)
+		value = BE32(value);
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetInt64(size_t ofs, int64_t value)
+{
+	if (bigEndian)
+		value = BE64(value);
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetUInt8(size_t ofs, uint8_t value)
+{
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetUInt16(size_t ofs, uint16_t value)
+{
+	if (bigEndian)
+		value = BE16(value);
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetUInt32(size_t ofs, uint32_t value)
+{
+	if (bigEndian)
+		value = BE32(value);
+	memcpy((char*)code + ofs, &value, sizeof(value));
+}
+
+
+void OutputBlock::WriteOffsetUInt64(size_t ofs, uint64_t value)
+{
+	if (bigEndian)
+		value = BE64(value);
+	memcpy((char*)code + ofs, &value, sizeof(value));
 }
 
 
@@ -415,5 +543,25 @@ Output::Output(const Settings& settings, Function* startFunc): m_settings(settin
 
 Output::~Output()
 {
+}
+
+
+uint16_t BE16(uint16_t value)
+{
+	return (value >> 8) | (value << 8);
+}
+
+
+uint32_t BE32(uint32_t value)
+{
+	return ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
+}
+
+
+uint64_t BE64(uint64_t value)
+{
+	return ((value >> 56) & 0xff) | ((value >> 40) & 0xff00) | ((value >> 24) & 0xff0000) |
+		((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) | ((value << 24) & 0xff0000000000LL) |
+		((value << 40) & 0xff000000000000LL) | (value << 56);
 }
 

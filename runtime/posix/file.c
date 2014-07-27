@@ -56,7 +56,8 @@ ssize_t write(int fd, const void* buf, size_t count)
 
 int fputc(int ch, FILE* fp)
 {
-	return write((int)fp, &ch, 1);
+	char c = (char)ch;
+	return write((int)fp, &c, 1);
 }
 
 int fputs(const char* str, FILE* fp)

@@ -88,6 +88,23 @@ struct OutputBlock
 	void WriteFloat(float value);
 	void WriteDouble(double value);
 
+	int8_t ReadOffsetInt8(size_t ofs);
+	int16_t ReadOffsetInt16(size_t ofs);
+	int32_t ReadOffsetInt32(size_t ofs);
+	int64_t ReadOffsetInt64(size_t ofs);
+	uint8_t ReadOffsetUInt8(size_t ofs);
+	uint16_t ReadOffsetUInt16(size_t ofs);
+	uint32_t ReadOffsetUInt32(size_t ofs);
+	uint64_t ReadOffsetUInt64(size_t ofs);
+	void WriteOffsetInt8(size_t ofs, int8_t value);
+	void WriteOffsetInt16(size_t ofs, int16_t value);
+	void WriteOffsetInt32(size_t ofs, int32_t value);
+	void WriteOffsetInt64(size_t ofs, int64_t value);
+	void WriteOffsetUInt8(size_t ofs, uint8_t value);
+	void WriteOffsetUInt16(size_t ofs, uint16_t value);
+	void WriteOffsetUInt32(size_t ofs, uint32_t value);
+	void WriteOffsetUInt64(size_t ofs, uint64_t value);
+
 	void ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset);
 };
 
@@ -136,6 +153,11 @@ public:
 	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const std::vector< Ref<TreeNode> >& params,
 		TreeNodeType resultType) = 0;
 };
+
+
+uint16_t BE16(uint16_t val);
+uint32_t BE32(uint32_t val);
+uint64_t BE64(uint64_t val);
 
 
 #endif

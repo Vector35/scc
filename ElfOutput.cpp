@@ -40,6 +40,15 @@ struct ElfCommonHeader
 	uint16_t type;
 	uint16_t arch;
 	uint32_t version;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		ElfCommonHeader copy;
+		copy.type = BE16(type);
+		copy.arch = BE16(arch);
+		copy.version = BE32(version);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 struct Elf32Header
@@ -54,6 +63,22 @@ struct Elf32Header
 	uint16_t sectionHeaderSize;
 	uint16_t sectionHeaderCount;
 	uint16_t stringTable;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		Elf32Header copy;
+		copy.entry = BE32(entry);
+		copy.programHeaderOffset = BE32(programHeaderOffset);
+		copy.sectionHeaderOffset = BE32(sectionHeaderOffset);
+		copy.flags = BE32(flags);
+		copy.headerSize = BE16(headerSize);
+		copy.programHeaderSize = BE16(programHeaderSize);
+		copy.programHeaderCount = BE16(programHeaderCount);
+		copy.sectionHeaderSize = BE16(sectionHeaderSize);
+		copy.sectionHeaderCount = BE16(sectionHeaderCount);
+		copy.stringTable = BE16(stringTable);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 struct Elf32ProgramHeader
@@ -66,6 +91,20 @@ struct Elf32ProgramHeader
 	uint32_t memorySize;
 	uint32_t flags;
 	uint32_t align;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		Elf32ProgramHeader copy;
+		copy.type = BE32(type);
+		copy.offset = BE32(offset);
+		copy.virtualAddress = BE32(virtualAddress);
+		copy.physicalAddress = BE32(physicalAddress);
+		copy.fileSize = BE32(fileSize);
+		copy.memorySize = BE32(memorySize);
+		copy.flags = BE32(flags);
+		copy.align = BE32(align);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 struct Elf32SectionHeader
@@ -80,6 +119,22 @@ struct Elf32SectionHeader
 	uint32_t info;
 	uint32_t align;
 	uint32_t entrySize;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		Elf32SectionHeader copy;
+		copy.name = BE32(name);
+		copy.type = BE32(type);
+		copy.flags = BE32(flags);
+		copy.address = BE32(address);
+		copy.offset = BE32(offset);
+		copy.size = BE32(size);
+		copy.link = BE32(link);
+		copy.info = BE32(info);
+		copy.align = BE32(align);
+		copy.entrySize = BE32(entrySize);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 struct Elf64Header
@@ -94,6 +149,22 @@ struct Elf64Header
 	uint16_t sectionHeaderSize;
 	uint16_t sectionHeaderCount;
 	uint16_t stringTable;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		Elf64Header copy;
+		copy.entry = BE64(entry);
+		copy.programHeaderOffset = BE64(programHeaderOffset);
+		copy.sectionHeaderOffset = BE64(sectionHeaderOffset);
+		copy.flags = BE32(flags);
+		copy.headerSize = BE16(headerSize);
+		copy.programHeaderSize = BE16(programHeaderSize);
+		copy.programHeaderCount = BE16(programHeaderCount);
+		copy.sectionHeaderSize = BE16(sectionHeaderSize);
+		copy.sectionHeaderCount = BE16(sectionHeaderCount);
+		copy.stringTable = BE16(stringTable);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 struct Elf64ProgramHeader
@@ -106,6 +177,20 @@ struct Elf64ProgramHeader
 	uint64_t fileSize;
 	uint64_t memorySize;
 	uint64_t align;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		Elf64ProgramHeader copy;
+		copy.type = BE32(type);
+		copy.flags = BE32(flags);
+		copy.offset = BE64(offset);
+		copy.virtualAddress = BE64(virtualAddress);
+		copy.physicalAddress = BE64(physicalAddress);
+		copy.fileSize = BE64(fileSize);
+		copy.memorySize = BE64(memorySize);
+		copy.align = BE64(align);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 struct Elf64SectionHeader
@@ -120,6 +205,22 @@ struct Elf64SectionHeader
 	uint32_t info;
 	uint64_t align;
 	uint64_t entrySize;
+
+	void WriteByteSwap(OutputBlock* output)
+	{
+		Elf64SectionHeader copy;
+		copy.name = BE32(name);
+		copy.type = BE32(type);
+		copy.flags = BE64(flags);
+		copy.address = BE64(address);
+		copy.offset = BE64(offset);
+		copy.size = BE64(size);
+		copy.link = BE32(link);
+		copy.info = BE32(info);
+		copy.align = BE64(align);
+		copy.entrySize = BE64(entrySize);
+		output->Write(&copy, sizeof(copy));
+	}
 };
 
 
@@ -156,7 +257,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 	if (settings.preferredBits == 64)
 		ident.fileClass = 2; // 64-bit
 
-	ident.encoding = 1; // Little endian
+	ident.encoding = settings.bigEndian ? 2 : 1;
 	ident.version = 1;
 
 	ident.os = 0;
@@ -194,7 +295,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 	}
 
 	commonHeader.version = 1;
-	output->Write(&commonHeader, sizeof(commonHeader));
+	if (settings.bigEndian)
+		commonHeader.WriteByteSwap(output);
+	else
+		output->Write(&commonHeader, sizeof(commonHeader));
 
 	// Write out rest of header
 	if (settings.preferredBits == 64)
@@ -210,8 +314,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.programHeaderCount = settings.positionIndependent ? 6 : 3;
 		header.flags = 0;
 		header.entry = settings.base;
-
-		output->Write(&header, sizeof(header));
+		if (settings.bigEndian)
+			header.WriteByteSwap(output);
+		else
+			output->Write(&header, sizeof(header));
 
 		if (settings.positionIndependent)
 		{
@@ -224,7 +330,11 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			phdr.fileSize = header.programHeaderSize * header.programHeaderCount;
 			phdr.memorySize = phdr.fileSize;
 			phdr.align = 8;
-			output->Write(&phdr, sizeof(phdr));
+
+			if (settings.bigEndian)
+				phdr.WriteByteSwap(output);
+			else
+				output->Write(&phdr, sizeof(phdr));
 
 			const char* interpName = GetInterpreterName(settings);
 			Elf64ProgramHeader interp;
@@ -236,7 +346,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			interp.fileSize = strlen(interpName) + 1;
 			interp.memorySize = interp.fileSize;
 			interp.align = 1;
-			output->Write(&interp, sizeof(interp));
+			if (settings.bigEndian)
+				interp.WriteByteSwap(output);
+			else
+				output->Write(&interp, sizeof(interp));
 		}
 
 		Elf64ProgramHeader code;
@@ -248,7 +361,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		code.fileSize = (header.entry & 0xfff) + codeSection->len;
 		code.memorySize = code.fileSize;
 		code.align = 0x1000;
-		output->Write(&code, sizeof(code));
+		if (settings.bigEndian)
+			code.WriteByteSwap(output);
+		else
+			output->Write(&code, sizeof(code));
 
 		uint64_t dataStart = code.virtualAddress + code.fileSize;
 		if (dataStart & 0xfff)
@@ -271,6 +387,12 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			dynEntries[7] = 16;
 			dynEntries[8] = 0; // NULL
 			dynEntries[9] = 0;
+
+			if (settings.bigEndian)
+			{
+				for (size_t i = 0; i < 10; i++)
+					dynEntries[i] = BE64(dynEntries[i]);
+			}
 			dataSection->Write(dynEntries, sizeof(dynEntries));
 		}
 
@@ -283,7 +405,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		data.fileSize = dataSection->len;
 		data.memorySize = data.fileSize;
 		data.align = 0x1000;
-		output->Write(&data, sizeof(data));
+		if (settings.bigEndian)
+			data.WriteByteSwap(output);
+		else
+			output->Write(&data, sizeof(data));
 
 		Elf64ProgramHeader stack;
 		stack.type = 0x6474e551; // GNU_STACK
@@ -294,7 +419,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		stack.fileSize = 0;
 		stack.memorySize = 0;
 		stack.align = 8;
-		output->Write(&stack, sizeof(stack));
+		if (settings.bigEndian)
+			stack.WriteByteSwap(output);
+		else
+			output->Write(&stack, sizeof(stack));
 
 		if (settings.positionIndependent)
 		{
@@ -307,7 +435,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			dynamic.fileSize = 80;
 			dynamic.memorySize = 80;
 			dynamic.align = 8;
-			output->Write(&dynamic, sizeof(dynamic));
+			if (settings.bigEndian)
+				dynamic.WriteByteSwap(output);
+			else
+				output->Write(&dynamic, sizeof(dynamic));
 
 			const char* interpName = GetInterpreterName(settings);
 			output->Write(interpName, strlen(interpName) + 1);
@@ -326,8 +457,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.programHeaderCount = settings.positionIndependent ? 6 : 3;
 		header.flags = 0;
 		header.entry = (uint32_t)settings.base;
-
-		output->Write(&header, sizeof(header));
+		if (settings.bigEndian)
+			header.WriteByteSwap(output);
+		else
+			output->Write(&header, sizeof(header));
 
 		if (settings.positionIndependent)
 		{
@@ -340,7 +473,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			phdr.fileSize = header.programHeaderSize * header.programHeaderCount;
 			phdr.memorySize = phdr.fileSize;
 			phdr.align = 4;
-			output->Write(&phdr, sizeof(phdr));
+			if (settings.bigEndian)
+				phdr.WriteByteSwap(output);
+			else
+				output->Write(&phdr, sizeof(phdr));
 
 			const char* interpName = GetInterpreterName(settings);
 			Elf32ProgramHeader interp;
@@ -352,7 +488,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			interp.fileSize = strlen(interpName) + 1;
 			interp.memorySize = interp.fileSize;
 			interp.align = 1;
-			output->Write(&interp, sizeof(interp));
+			if (settings.bigEndian)
+				interp.WriteByteSwap(output);
+			else
+				output->Write(&interp, sizeof(interp));
 		}
 
 		Elf32ProgramHeader code;
@@ -364,7 +503,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		code.fileSize = (header.entry & 0xfff) + codeSection->len;
 		code.memorySize = code.fileSize;
 		code.align = 0x1000;
-		output->Write(&code, sizeof(code));
+		if (settings.bigEndian)
+			code.WriteByteSwap(output);
+		else
+			output->Write(&code, sizeof(code));
 
 		uint32_t dataStart = code.virtualAddress + code.fileSize;
 		if (dataStart & 0xfff)
@@ -387,6 +529,12 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			dynEntries[7] = 16;
 			dynEntries[8] = 0; // NULL
 			dynEntries[9] = 0;
+
+			if (settings.bigEndian)
+			{
+				for (size_t i = 0; i < 10; i++)
+					dynEntries[i] = BE32(dynEntries[i]);
+			}
 			dataSection->Write(dynEntries, sizeof(dynEntries));
 		}
 
@@ -399,7 +547,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		data.fileSize = dataSection->len;
 		data.memorySize = data.fileSize;
 		data.align = 0x1000;
-		output->Write(&data, sizeof(data));
+		if (settings.bigEndian)
+			data.WriteByteSwap(output);
+		else
+			output->Write(&data, sizeof(data));
 
 		Elf32ProgramHeader stack;
 		stack.type = 0x6474e551; // GNU_STACK
@@ -410,7 +561,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		stack.fileSize = 0;
 		stack.memorySize = 0;
 		stack.align = 4;
-		output->Write(&stack, sizeof(stack));
+		if (settings.bigEndian)
+			stack.WriteByteSwap(output);
+		else
+			output->Write(&stack, sizeof(stack));
 
 		if (settings.positionIndependent)
 		{
@@ -423,7 +577,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			dynamic.fileSize = 40;
 			dynamic.memorySize = 40;
 			dynamic.align = 4;
-			output->Write(&dynamic, sizeof(dynamic));
+			if (settings.bigEndian)
+				dynamic.WriteByteSwap(output);
+			else
+				output->Write(&dynamic, sizeof(dynamic));
 
 			const char* interpName = GetInterpreterName(settings);
 			output->Write(interpName, strlen(interpName) + 1);

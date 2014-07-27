@@ -242,6 +242,7 @@ elif os.name != "nt":
 		failed += test_all("FreeBSD Quark", ["--platform", "freebsd", "--arch", "quark"], "quark", False)
 	else:
 		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64", True)
+		failed += test_all("Linux MIPS big-endian", ["--platform", "linux", "--arch", "mips"], "mips", False)
 		failed += test_all("Linux MIPS little-endian", ["--platform", "linux", "--arch", "mipsel"], "mipsel", False)
 
 if failed != 0:

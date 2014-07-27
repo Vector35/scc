@@ -1004,10 +1004,10 @@ static int32_t SignedFieldExtract(uint32_t value, size_t offset, size_t size)
 }
 
 
-static void SignedFieldInsert(uint32_t* data, size_t offset, size_t size, int32_t value)
+static void SignedFieldInsert(OutputBlock* output, size_t dataOffset, size_t offset, size_t size, int32_t value)
 {
 	uint32_t mask = ((1 << size) - 1) << offset;
-	*data = ((*data) & ~mask) | ((value << offset) & mask);
+	output->WriteOffsetUInt32(dataOffset, (output->ReadOffsetUInt32(dataOffset) & ~mask) | ((value << offset) & mask));
 }
 
 
@@ -1028,7 +1028,7 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 1);
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				RelocationReference ref;
@@ -1041,7 +1041,7 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(*(uint32_t*)((size_t)m_output->code + i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
@@ -1056,7 +1056,7 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 				diff = i->target->m_addr - codeSectionBase;
 			else
 				diff = (m_addr + i->offset + 1) - codeSectionBase;
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				RelocationReference ref;
@@ -1067,7 +1067,7 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			break;
 		case DATA_RELOC_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				RelocationReference ref;
@@ -1078,7 +1078,7 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			break;
 		case DATA_RELOC_RELATIVE_32_FIELD:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(*(uint32_t*)((size_t)m_output->code + i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
@@ -1090,7 +1090,7 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			break;
 		case DATA_RELOC_BASE_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				RelocationReference ref;
@@ -1137,133 +1137,133 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 1);
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				fprintf(stderr, "error: 8-bit relative reference out of range\n");
 				return false;
 			}
-			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			m_output->WriteOffsetInt8(i->offset, (int8_t)diff);
 			break;
 		case CODE_RELOC_BASE_RELATIVE_8:
 			if (i->target)
 				diff = i->target->m_addr - codeSectionBase;
 			else
 				diff = (m_addr + i->offset + 1) - codeSectionBase;
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				fprintf(stderr, "error: 8-bit relative reference out of range\n");
 				return false;
 			}
-			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			m_output->WriteOffsetInt8(i->offset, (int8_t)diff);
 			break;
 		case CODE_RELOC_RELATIVE_32:
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
-			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt32(i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{
 				fprintf(stderr, "error: 32-bit relative reference out of range\n");
 				return false;
 			}
-			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			m_output->WriteOffsetInt32(i->offset, (int32_t)diff);
 			break;
 		case CODE_RELOC_RELATIVE_32_FIELD:
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(*(uint32_t*)((size_t)m_output->code + i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
 				fprintf(stderr, "error: %d-bit relative reference out of range\n", (int)i->bitSize);
 				return false;
 			}
-			SignedFieldInsert((uint32_t*)((size_t)m_output->code + i->offset), i->bitOffset, i->bitSize, (int32_t)diff);
+			SignedFieldInsert(m_output, i->offset, i->bitOffset, i->bitSize, (int32_t)diff);
 			break;
 		case CODE_RELOC_BASE_RELATIVE_32:
 			if (i->target)
 				diff = i->target->m_addr - codeSectionBase;
 			else
 				diff = (m_addr + i->offset + 4) - codeSectionBase;
-			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt32(i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{
 				fprintf(stderr, "error: 32-bit relative reference out of range\n");
 				return false;
 			}
-			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			m_output->WriteOffsetInt32(i->offset, (int32_t)diff);
 			break;
 		case CODE_RELOC_ABSOLUTE_32:
 			if (i->target)
-				*(uint32_t*)((size_t)m_output->code + i->offset) += (uint32_t)(i->target->m_addr);
+				m_output->WriteOffsetUInt32(i->offset, m_output->ReadOffsetUInt32(i->offset) + (uint32_t)(i->target->m_addr));
 			else
-				*(uint32_t*)((size_t)m_output->code + i->offset) += (uint32_t)(m_addr + i->offset + 4);
+				m_output->WriteOffsetUInt32(i->offset, m_output->ReadOffsetUInt32(i->offset) + (uint32_t)(m_addr + i->offset + 4));
 			break;
 		case CODE_RELOC_ABSOLUTE_64:
 			if (i->target)
-				*(uint64_t*)((size_t)m_output->code + i->offset) += i->target->m_addr;
+				m_output->WriteOffsetUInt64(i->offset, m_output->ReadOffsetUInt64(i->offset) + i->target->m_addr);
 			else
-				*(uint64_t*)((size_t)m_output->code + i->offset) += m_addr + i->offset + 8;
+				m_output->WriteOffsetUInt64(i->offset, m_output->ReadOffsetUInt64(i->offset) + m_addr + i->offset + 8);
 			break;
 		case DATA_RELOC_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				fprintf(stderr, "error: 8-bit relative reference out of range\n");
 				return false;
 			}
-			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			m_output->WriteOffsetInt8(i->offset, (int8_t)diff);
 			break;
 		case DATA_RELOC_BASE_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;
-			diff += *(int8_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt8(i->offset);
 			if ((diff < -0x80) || (diff >= 0x80))
 			{
 				fprintf(stderr, "error: 8-bit relative reference out of range\n");
 				return false;
 			}
-			*(int8_t*)((size_t)m_output->code + i->offset) = (int8_t)diff;
+			m_output->WriteOffsetInt8(i->offset, (int8_t)diff);
 			break;
 		case DATA_RELOC_RELATIVE_32:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
-			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt32(i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{
 				fprintf(stderr, "error: 32-bit relative reference out of range\n");
 				return false;
 			}
-			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			m_output->WriteOffsetInt32(i->offset, (int32_t)diff);
 			break;
 		case DATA_RELOC_RELATIVE_32_FIELD:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(*(uint32_t*)((size_t)m_output->code + i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
 				fprintf(stderr, "error: %d-bit relative reference out of range\n", (int)i->bitSize);
 				return false;
 			}
-			SignedFieldInsert((uint32_t*)((size_t)m_output->code + i->offset), i->bitOffset, i->bitSize, (int32_t)diff);
+			SignedFieldInsert(m_output, i->offset, i->bitOffset, i->bitSize, (int32_t)diff);
 			break;
 		case DATA_RELOC_BASE_RELATIVE_32:
 			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;
-			diff += *(int32_t*)((size_t)m_output->code + i->offset);
+			diff += m_output->ReadOffsetInt32(i->offset);
 			if ((diff < -0x80000000LL) || (diff >= 0x80000000LL))
 			{
 				fprintf(stderr, "error: 32-bit relative reference out of range\n");
 				return false;
 			}
-			*(int32_t*)((size_t)m_output->code + i->offset) = (int32_t)diff;
+			m_output->WriteOffsetInt32(i->offset, (int32_t)diff);
 			break;
 		case DATA_RELOC_ABSOLUTE_32:
-			*(uint32_t*)((size_t)m_output->code + i->offset) = (uint32_t)(dataSectionBase + i->dataOffset);
+			m_output->WriteOffsetUInt32(i->offset, (uint32_t)(dataSectionBase + i->dataOffset));
 			break;
 		case DATA_RELOC_ABSOLUTE_64:
-			*(uint64_t*)((size_t)m_output->code + i->offset) = dataSectionBase + i->dataOffset;
+			m_output->WriteOffsetUInt64(i->offset, dataSectionBase + i->dataOffset);
 			break;
 		default:
 			fprintf(stderr, "error: invalid relocation\n");

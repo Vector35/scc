@@ -63,8 +63,11 @@ tests = [
 
 seeds = [17, 42, 1024, 1337, 4096, 4141, 7331, 31337, 65536, 1048576]
 
+quarkvm_built = False
+
 def test(arch_name, name, testcase, arch_options, options, arch_type):
-	if arch_type == "quark":
+	global quarkvm_built
+	if arch_type == "quark" and not quarkvm_built:
 		interpret_arch_options = list(arch_options)
 		interpret_arch_options[interpret_arch_options.index("quark")] = "x86"
 		if os.uname()[0] == "Darwin":
@@ -82,6 +85,7 @@ def test(arch_name, name, testcase, arch_options, options, arch_type):
 			return False
 
 		os.chmod("Obj/testvm", 0o700)
+		quarkvm_built = True
 
 	if "target" in testcase:
 		if arch_type == "quark":

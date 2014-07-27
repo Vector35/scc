@@ -745,6 +745,8 @@ int main(int argc, char* argv[])
 	// Adjust alignment for architectures that require it
 	if ((settings.architecture == ARCH_QUARK) && (!alignmentExplicit))
 		settings.alignment = 4;
+	if ((settings.architecture == ARCH_MIPS) && (!alignmentExplicit))
+		settings.alignment = 4;
 
 	// Set pointer size
 	if (settings.preferredBits == 32)
@@ -818,6 +820,26 @@ int main(int argc, char* argv[])
 				fprintf(stderr, "error: invalid define '%s'\n", i->c_str());
 				return 1;
 			}
+		}
+	}
+
+	// Add define for endianness
+	if (settings.bigEndian)
+	{
+		string source = "#ifndef BIG_ENDIAN\n#define BIG_ENDIAN\n#endif\n";
+		if (!linker.PrecompileSource(source))
+		{
+			fprintf(stderr, "internal error: unable to define BIG_ENDIAN\n");
+			return 1;
+		}
+	}
+	else
+	{
+		string source = "#ifndef LITTLE_ENDIAN\n#define LITTLE_ENDIAN\n#endif\n";
+		if (!linker.PrecompileSource(source))
+		{
+			fprintf(stderr, "internal error: unable to define LITTLE_ENDIAN\n");
+			return 1;
 		}
 	}
 

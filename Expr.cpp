@@ -3315,7 +3315,23 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 	case EXPR_BYTESWAP:
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
-		block->AddInstruction(ILOP_BYTESWAP, result, a);
+		if (!state->HasIntrinsicByteSwap())
+		{
+			// No instrinsic byte swap instruction, emit call to routine
+			char name[32];
+			sprintf(name, "__byteswap%d", (int)(m_children[0]->GetType()->GetWidth() * 8));
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)1), a);
+		}
+		else
+		{
+			block->AddInstruction(ILOP_BYTESWAP, result, a);
+		}
 		break;
 	case EXPR_BREAKPOINT:
 		block->AddInstruction(ILOP_BREAKPOINT);

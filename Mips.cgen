@@ -38,6 +38,7 @@ registerclass INTEGER_PARAM_2(8,16,32) fixed { REG_A(2) } : IREG
 registerclass INTEGER_PARAM_3(8,16,32) fixed { REG_A(3) } : IREG
 
 registerclass SYSCALL_NUM(32) fixed { REG_V(0) } : IREG
+registerclass SYSCALL_ERROR_FLAG(32) fixed { REG_A(3) } : IREG
 registerclass SYSCALL_PARAM_0(8,16,32) fixed { REG_A(0) } : IREG
 registerclass SYSCALL_PARAM_1(8,16,32) fixed { REG_A(1) } : IREG
 registerclass SYSCALL_PARAM_2(8,16,32) fixed { REG_A(2) } : IREG
@@ -57,6 +58,15 @@ immediateclass IMM16NEG
 	if (value <= -0x8000)
 		return false;
 	if (value > 0x8000)
+		return false;
+	return true;
+}
+
+immediateclass IMM16M1
+{
+	if (value <= -0x8000)
+		return false;
+	if (value >= 0x8000)
 		return false;
 	return true;
 }
@@ -120,6 +130,8 @@ instr xor  xor rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x26; }
 instr nor  nor rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x27; }
 instr slt  slt rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x2a; }
 instr slti  slti rt:REG(w), rs:REG(r), i:IMM  { @I op=0xa; }
+instr sltu  sltu rd:REG(w), rs:REG(r), rt:REG(r)  { @R op=0, f=0x2b; }
+instr sltiu  sltiu rt:REG(w), rs:REG(r), i:IMM  { @I op=0xb; }
 instr sll  sll rd:REG(w), rt:REG(r), sh:IMM  { @R op=0, f=0; }
 instr srl  srl rd:REG(w), rt:REG(r), sh:IMM  { @R op=0, f=2; }
 instr sra  sra rd:REG(w), rt:REG(r), sh:IMM  { @R op=0, f=3; }
@@ -127,41 +139,41 @@ instr sllv  sllv rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=4; }
 instr srlv  srlv rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=6; }
 instr srav  srav rd:REG(w), rt:REG(r), rs:REG(r)  { @R op=0, f=7; }
 
-instr(copy) mov  mov rt:REG(w), rs:REG(r)  { @I op=9, i=0; } update
+instr(copy) move  move rd:REG(w), rs:REG(r)  { @R op=0, f=0x20, rt=0; } update
 {
-	if (%rt == %rs)
+	if (%rd == %rs)
 		return true;
 	return false;
 }
 
 instr addstack  addi rt:REG(w), var:STACKVAR
 {
-	if (%var:offset < 0x8000)
+	if ((%var:offset >= -0x8000) && (%var:offset < 0x8000))
 		@I op=9, rs=%var:base, i=%var:offset; // addiu
 	else
 	{
 		@I op=0xf, rt=%var:temp, i=%var:offset >> 16; // lui
 		@I op=0xd, rt=%var:temp, rs=%var:temp, i=%var:offset & 0xffff; // ori
-		@I op=0, f=0x21, rd=%rt, rs=%var:base, rt=%var:temp; // addu
+		@R op=0, f=0x21, rd=%rt, rs=%var:base, rt=%var:temp; // addu
 	}
 }
 
 instr substack  subi rt:REG(w), var:STACKVAR
 {
-	if (%var:offset <= 0x8000)
+	if ((%var:offset > -0x8000) && (%var:offset <= 0x8000))
 		@I op=9, rs=%var:base, i=-%var:offset; // addiu
 	else
 	{
 		@I op=0xf, rt=%var:temp, i=%var:offset >> 16; // lui
 		@I op=0xd, rt=%var:temp, rs=%var:temp, i=%var:offset & 0xffff; // ori
-		@I op=0, f=0x23, rd=%rt, rs=%var:base, rt=%var:temp; // subu
+		@R op=0, f=0x23, rd=%rt, rs=%var:base, rt=%var:temp; // subu
 	}
 }
 
-#define STACK_MEM_OP(cls, name, opcode) \
-instr(memory) cls  name rt:REG(w), [var:STACKVAR] \
+#define STACK_MEM_OP(cls, name, regaccess, opcode) \
+instr(memory) cls  name rt:REG(regaccess), [var:STACKVAR] \
 { \
-	if (%var:offset < 0x8000) \
+	if ((%var:offset >= -0x8000) && (%var:offset < 0x8000)) \
 		@I op=opcode, rs=%var:base, i=%var:offset; \
 	else \
 	{ \
@@ -172,16 +184,16 @@ instr(memory) cls  name rt:REG(w), [var:STACKVAR] \
 	} \
 }
 
-STACK_MEM_OP(lbstack, lb, 0x20)
-STACK_MEM_OP(lbustack, lbu, 0x22)
-STACK_MEM_OP(lhstack, lh, 0x21)
-STACK_MEM_OP(lhustack, lhu, 0x25)
-STACK_MEM_OP(lwstack, lw, 0x23)
-STACK_MEM_OP(sbstack, sb, 0x28)
-STACK_MEM_OP(shstack, sh, 0x29)
-STACK_MEM_OP(swstack, sw, 0x2b)
+STACK_MEM_OP(lbstack, lb, w, 0x20)
+STACK_MEM_OP(lbustack, lbu, w, 0x24)
+STACK_MEM_OP(lhstack, lh, w, 0x21)
+STACK_MEM_OP(lhustack, lhu, w, 0x25)
+STACK_MEM_OP(lwstack, lw, w, 0x23)
+STACK_MEM_OP(sbstack, sb, r, 0x28)
+STACK_MEM_OP(shstack, sh, r, 0x29)
+STACK_MEM_OP(swstack, sw, r, 0x2b)
 
-#define NOP @R op=0, f=0, rd=0, rt=0, sh=0
+#define NOP @R op=0, f=0, rs=0, rd=0, rt=0, sh=0
 
 #define BRANCH_RELOC(bits) \
 	Relocation reloc; \
@@ -216,7 +228,7 @@ instr(branch) bgez  bgez rs:REG(r), dest:FUNCTION
 	BRANCH_RELOC(16);
 }
 
-instr(call) bgezal  bgezal rs:REG(r), dest:FUNCTION
+instr(branch) bgezal  bgezal rs:REG(r), dest:FUNCTION
 {
 	@I op=1, rt=0x11, i=0;
 	NOP;
@@ -251,9 +263,36 @@ instr(branch) bltzal  bne rs:REG(r), dest:FUNCTION
 	BRANCH_RELOC(16);
 }
 
+instr(call) call  call dest:FUNCTION, retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
+{
+	@I op=1, rs=0, rt=0x11, i=0; // bgezal zero
+	NOP;
+	BRANCH_RELOC(16);
+}
+
+instr(call) callr  callr rs:REG(r), retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
+{
+	@I op=1, rs=0, rt=0x11, i=2; // bgezal zero
+	NOP;
+	@I op=4, rs=0, rt=0, i=2; // beq zero, zero
+	NOP;
+	@R op=0, f=8;
+	NOP;
+//	@R op=0, f=5, rd=31, sh=0; // jalr
+//	NOP;
+}
+
 instr(branch) jr  jr rs:REG(r)  { @R op=0, f=8; NOP; }
-instr(call) jalr  jalr rd:REG(w), rs:REG(r)  { @R op=0, f=5; NOP; }
-instr(branch) syscall  syscall num:REG(r), writes:REGLIST(w), reads:REGLIST(r)  { @R op=0, f=0xc; }
+instr(call) jalr  jalr rd:REG(w), rs:REG(r)  { @R op=0, f=5, sh=0; NOP; }
+
+instr(branch) syscall  syscall num:REG(r), retval:REG(w), error:REG(w), writes:REGLIST(w), reads:REGLIST(r)
+{
+	@R op=0, f=0xc; // syscall
+	NOP;
+	@I op=4, rs=%error, rt=0, i=2; // beq %error, zero
+	NOP;
+	@R op=0, f=0x23, rd=%retval, rs=0, rt=%retval; // subu %retval, zero, %retval
+}
 
 instr break  break  { @R op=0, f=0xd; }
 
@@ -301,14 +340,17 @@ instr saveregs  saveregs {} update
 	// TODO: Support non-default stack pointer
 	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
 	int32_t offset = 0;
+	offset += settings.stackGrowsUp ? 4 : -4;
+	@sw SYMREG_LR, SYMREG_SP, offset;
+	offset += settings.stackGrowsUp ? 4 : -4;
+	@sw SYMREG_BP, SYMREG_SP, offset;
 	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
 	{
 		offset += settings.stackGrowsUp ? 4 : -4;
 		@sw SYMREG_NATIVE_REG(*i), SYMREG_SP, offset;
 	}
 
-	if (offset != 0)
-		@addiu SYMREG_SP, SYMREG_SP, offset;
+	@addiu SYMREG_SP, SYMREG_SP, offset;
 	return true;
 }
 
@@ -316,8 +358,17 @@ instr restoreregs  restoreregs {} update
 {
 	// TODO: Support non-default stack pointer
 	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
-	uint32_t stackSize = clobbered.size() * 4;
-	int32_t offset = 0;
+	uint32_t stackSize = 8 + (clobbered.size() * 4);
+	int32_t offset = 4;
+	if (settings.stackGrowsUp)
+		@lw SYMREG_LR, SYMREG_SP, offset - stackSize;
+	else
+		@lw SYMREG_LR, SYMREG_SP, stackSize - offset;
+	offset += 4;
+	if (settings.stackGrowsUp)
+		@lw SYMREG_BP, SYMREG_SP, offset - stackSize;
+	else
+		@lw SYMREG_BP, SYMREG_SP, stackSize - offset;
 	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
 	{
 		offset += 4;
@@ -335,6 +386,13 @@ src:IMM16 => dest:IREG  { @addiu %dest, SYMREG_ZERO, %src; }
 src:IMM => dest:IREG  { @lui %dest, %src >> 16; @ori %dest, %dest, %src & 0xffff; }
 src:IMM16U => dest:IREG64  { @ori %dest:low, SYMREG_ZERO, %src; @ori %dest:high, SYMREG_ZERO, 0; }
 src:IMM16 => dest:IREG64  { @addiu %dest:low, SYMREG_ZERO, %src; @addiu %dest:high, SYMREG_ZERO, %src >> 32; }
+src:IMM => dest:IREG64
+{
+	@lui %dest:low, (%src >> 16) & 0xffff;
+	@ori %dest:low, %dest:low, %src & 0xffff;
+	@lui %dest:high, (%src >> 48) & 0xffff;
+	@ori %dest:high, %dest:high, (%src >> 32) & 0xffff;
+}
 
 src:IRESULT => dest:IREG(S8)  { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
 src:IRESULT => dest:IREG(U8)  { @andi %dest, %src, 0xff; }
@@ -343,33 +401,39 @@ src:IRESULT => dest:IREG(U16)  { @andi %dest, %src, 0xffff; }
 src:IRESULT => dest:IREG(32)  {}
 
 func:FUNCTION => dest:IREG  { @ldblockptr %dest, %func, %func->GetIL()[0]; }
+ref src:STACKVAR => dest:IREG  { @addstack %dest, %src; }
 ref src:GLOBALVAR => dest:IREG  { @ldglobalptr %dest, %src; }
 
-assign dest:IREG src:IREG  { @mov %dest, %src; }
-assign dest:IREG64 src:IREG64  { @mov %dest:low, %src:low; @mov %dest:high, %src:high; }
+assign dest:IREG src:IREG  { @move %dest, %src; }
+assign dest:IREG64 src:IREG64  { @move %dest:low, %src:low; @move %dest:high, %src:high; }
 
 load(S8) addr:IREG => dest:IREG  { @lb %dest, %addr, 0; }
 load(S8) add addr:IREG ofs:IMM16 => dest:IREG  { @lb %dest, %addr, %ofs; }
+load(S8) ref src:STACKVAR => dest:IREG  { @lbstack %dest, %src; }
 load(U8) addr:IREG => dest:IREG  { @lbu %dest, %addr, 0; }
 load(U8) add addr:IREG ofs:IMM16 => dest:IREG  { @lbu %dest, %addr, %ofs; }
+load(U8) ref src:STACKVAR => dest:IREG  { @lbustack %dest, %src; }
 load(S16) addr:IREG => dest:IREG  { @lh %dest, %addr, 0; }
 load(S16) add addr:IREG ofs:IMM16 => dest:IREG  { @lh %dest, %addr, %ofs; }
+load(S16) ref src:STACKVAR => dest:IREG  { @lhstack %dest, %src; }
 load(U16) addr:IREG => dest:IREG  { @lhu %dest, %addr, 0; }
 load(U16) add addr:IREG ofs:IMM16 => dest:IREG  { @lhu %dest, %addr, %ofs; }
+load(U16) ref src:STACKVAR => dest:IREG  { @lhustack %dest, %src; }
 load(32) addr:IREG => dest:IREG  { @lw %dest, %addr, 0; }
 load(32) add addr:IREG ofs:IMM16 => dest:IREG  { @lw %dest, %addr, %ofs; }
+load(32) ref src:STACKVAR => dest:IREG  { @lwstack %dest, %src; }
 
 load(64) addr:IREG => dest:IREG64
 {
 	if (m_settings.bigEndian)
 	{
-		@lw %dest:low, %addr, 0;
-		@lw %dest:high, %addr, 4;
+		@lw %dest:high, %addr, 0;
+		@lw %dest:low, %addr, 4;
 	}
 	else
 	{
-		@lw %dest:high, %addr, 0;
-		@lw %dest:low, %addr, 4;
+		@lw %dest:low, %addr, 0;
+		@lw %dest:high, %addr, 4;
 	}
 }
 load(64) add addr:IREG ofs:IMM16M4 => dest:IREG64
@@ -385,13 +449,29 @@ load(64) add addr:IREG ofs:IMM16M4 => dest:IREG64
 		@lw %dest:high, %addr, %ofs + 4;
 	}
 }
+load(64) ref src:STACKVAR => dest:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@lwstack %dest:high, %src:0;
+		@lwstack %dest:low, %src:4;
+	}
+	else
+	{
+		@lwstack %dest:low, %src:0;
+		@lwstack %dest:high, %src:4;
+	}
+}
 
 store(8) addr:IREG src:IREG  { @sb %src, %addr, 0; }
 store(8) add addr:IREG ofs:IMM16 src:IREG  { @sb %src, %addr, %ofs; }
+store(8) ref dest:STACKVAR src:IREG  { @sbstack %src, %dest; }
 store(16) addr:IREG src:IREG  { @sh %src, %addr, 0; }
 store(16) add addr:IREG ofs:IMM16 src:IREG  { @sh %src, %addr, %ofs; }
+store(16) ref dest:STACKVAR src:IREG  { @shstack %src, %dest; }
 store(32) addr:IREG src:IREG  { @sw %src, %addr, 0; }
 store(32) add addr:IREG ofs:IMM16 src:IREG  { @sw %src, %addr, %ofs; }
+store(32) ref dest:STACKVAR src:IREG  { @swstack %src, %dest; }
 
 store(64) addr:IREG src:IREG64
 {
@@ -419,15 +499,57 @@ store(64) add addr:IREG ofs:IMM16M4 src:IREG64
 		@sw %src:high, %addr, %ofs + 4;
 	}
 }
+store(64) ref dest:STACKVAR src:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@swstack %src:high, %dest:0;
+		@swstack %src:low, %dest:4;
+	}
+	else
+	{
+		@swstack %src:low, %dest:0;
+		@swstack %src:high, %dest:4;
+	}
+}
 
 add a:IREG b:IREG => dest:IRESULT  { @addu %dest, %a, %b; }
 add a:IREG b:IMM16 => dest:IRESULT  { @addiu %dest, %a, %b; }
+add a:IREG64 b:IREG64 => dest:IREG64
+{
+	@addu %dest:low, %a:low, %b:low;
+	@sltu %dest:high, %dest:low, %b:low;
+	@addu %dest:high, %dest:high, %a:high;
+	@addu %dest:high, %dest:high, %b:high;
+}
 
 sub a:IREG b:IREG => dest:IRESULT  { @subu %dest, %a, %b; }
 sub a:IREG b:IMM16NEG => dest:IRESULT  { @addiu %dest, %a, -%b; }
+sub a:IREG64 b:IREG64 => dest:IREG64
+{
+	@subu %dest:low, %a:low, %b:low;
+	@sltu %dest:high, %a:low, %b:low;
+	@addu %dest:high, %b:high, %dest:high;
+	@subu %dest:high, %a:high, %dest:high;
+}
 
-smul a:IREG b:IREG => dest:IRESULT  { @multu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
-umul a:IREG b:IREG => dest:IRESULT  { @multu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
+#define MUL_INSTR(op) \
+op a:IREG b:IREG => dest:IRESULT  { @multu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; } \
+op a:IREG b:IREG => dest:IRESULT  { @multu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; } \
+op a:IREG64 b:IREG64 => dest:IREG64, temp:IREG \
+{ \
+	@multu SYMREG_LO, SYMREG_HI, %a:low, %b:low; \
+	@mflo %dest:low, SYMREG_LO; \
+	@mfhi %dest:high, SYMREG_HI; \
+	@multu SYMREG_LO, SYMREG_HI, %a:low, %b:high; \
+	@mflo %temp, SYMREG_LO; \
+	@addu %dest:high, %dest:high, %temp; \
+	@multu SYMREG_LO, SYMREG_HI, %a:high, %b:low; \
+	@mflo %temp, SYMREG_LO; \
+	@addu %dest:high, %dest:high, %temp; \
+}
+MUL_INSTR(smul)
+MUL_INSTR(umul)
 
 sdiv a:IREG b:IREG => dest:IRESULT  { @div SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
 udiv a:IREG b:IREG => dest:IRESULT  { @divu SYMREG_LO, SYMREG_HI, %a, %b; @mflo %dest, SYMREG_LO; }
@@ -436,10 +558,14 @@ umod a:IREG b:IREG => dest:IRESULT  { @divu SYMREG_LO, SYMREG_HI, %a, %b; @mfhi 
 
 and a:IREG b:IREG => dest:IREG  { @and %dest, %a, %b; }
 and a:IREG b:IMM16U => dest:IREG  { @andi %dest, %a, %b; }
+and a:IREG64 b:IREG64 => dest:IREG64  { @and %dest:low, %a:low, %b:low; @and %dest:high, %a:high, %b:high; }
 or a:IREG b:IREG => dest:IREG  { @or %dest, %a, %b; }
 or a:IREG b:IMM16U => dest:IREG  { @ori %dest, %a, %b; }
+or a:IREG64 b:IREG64 => dest:IREG64  { @or %dest:low, %a:low, %b:low; @or %dest:high, %a:high, %b:high; }
 xor a:IREG b:IREG => dest:IREG  { @xor %dest, %a, %b; }
+xor a:IREG64 b:IREG64 => dest:IREG64  { @xor %dest:low, %a:low, %b:low; @xor %dest:high, %a:high, %b:high; }
 not or a:IREG b:IREG => dest:IRESULT  { @nor %dest, %a, %b; }
+not or a:IREG64 b:IREG64 => dest:IREG64  { @nor %dest:low, %a:low, %b:low; @nor %dest:high, %a:high, %b:high; }
 
 shl a:IREG b:IREG => dest:IRESULT  { @sllv %dest, %a, %b; }
 shl a:IREG b:IMM => dest:IRESULT  { @sll %dest, %a, %b; }
@@ -449,7 +575,16 @@ sar a:IREG b:IREG => dest:IRESULT  { @srav %dest, %a, %b; }
 sar a:IREG b:IMM => dest:IRESULT  { @sra %dest, %a, %b; }
 
 neg a:IREG => dest:IRESULT  { @sub %dest, SYMREG_ZERO, %a; }
+neg a:IREG64 => dest:IREG64
+{
+	@subu %dest:low, SYMREG_ZERO, %a:low;
+	@sltu %dest:high, SYMREG_ZERO, %a:low;
+	@addu %dest:high, %a:high, %dest:high;
+	@subu %dest:high, SYMREG_ZERO, %dest:high;
+}
+
 not a:IREG => dest:IRESULT  { @nor %dest, SYMREG_ZERO, %a; }
+not a:IREG64 => dest:IREG64  { @nor %dest:low, SYMREG_ZERO, %a:low; @nor %dest:high, SYMREG_ZERO, %a:high; }
 
 sconvert src:IREG(8) => dest:IREG(16, 32)  { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
 sconvert src:IREG(8) => dest:IREG64  { @sll %dest:low, %src, 24; @sra %dest:low, %dest:low, 24; @sra %dest:high, %src, 31; }
@@ -459,33 +594,268 @@ sconvert src:IREG(16) => dest:IREG(32)  { @sll %dest, %src, 16; @sra %dest, %des
 sconvert src:IREG(16) => dest:IREG64  { @sll %dest:low, %src, 16; @sra %dest:low, %dest:low, 16; @sra %dest:high, %src, 31; }
 uconvert src:IREG(16) => dest:IREG(32)  { @andi %dest, %src, 0xffff; }
 uconvert src:IREG(16) => dest:IREG64  { @andi %dest:low, %src, 0xffff; @ori %dest:high, SYMREG_ZERO, 0; }
-sconvert src:IREG(32) => dest:IREG64  { @mov %dest:low, %src; @sra %dest:high, %src, 31; }
-uconvert src:IREG(32) => dest:IREG64  { @mov %dest:low, %src; @ori %dest:high, SYMREG_ZERO, 0; }
-sconvert src:IREG(16,32) => dest:IREG(8) { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
-sconvert src:IREG64 => dest:IREG(8) { @sll %dest, %src:low, 24; @sra %dest, %dest, 24; }
-uconvert src:IREG(16,32) => dest:IREG(8) { @andi %dest, %src, 0xff; }
-uconvert src:IREG64 => dest:IREG(8) { @andi %dest, %src:low, 0xff; }
-sconvert src:IREG(32) => dest:IREG(16) { @sll %dest, %src, 16; @sra %dest, %dest, 16; }
-sconvert src:IREG64 => dest:IREG(16) { @sll %dest, %src:low, 16; @sra %dest, %dest, 16; }
-uconvert src:IREG(32) => dest:IREG(16) { @andi %dest, %src, 0xffff; }
-uconvert src:IREG64 => dest:IREG(16) { @andi %dest, %src:low, 0xffff; }
-sconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
-uconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
+sconvert src:IREG(32) => dest:IREG64  { @move %dest:low, %src; @sra %dest:high, %src, 31; }
+uconvert src:IREG(32) => dest:IREG64  { @move %dest:low, %src; @ori %dest:high, SYMREG_ZERO, 0; }
+sconvert src:IREG(16,32) => dest:IREG(8)  { @sll %dest, %src, 24; @sra %dest, %dest, 24; }
+sconvert src:IREG64 => dest:IREG(8)  { @sll %dest, %src:low, 24; @sra %dest, %dest, 24; }
+uconvert src:IREG(16,32) => dest:IREG(8)  { @andi %dest, %src, 0xff; }
+uconvert src:IREG64 => dest:IREG(8)  { @andi %dest, %src:low, 0xff; }
+sconvert src:IREG(32) => dest:IREG(16)  { @sll %dest, %src, 16; @sra %dest, %dest, 16; }
+sconvert src:IREG64 => dest:IREG(16)  { @sll %dest, %src:low, 16; @sra %dest, %dest, 16; }
+uconvert src:IREG(32) => dest:IREG(16)  { @andi %dest, %src, 0xffff; }
+uconvert src:IREG64 => dest:IREG(16)  { @andi %dest, %src:low, 0xffff; }
+sconvert src:IREG64 => dest:IREG(32)  { @move %dest, %src:low; }
+uconvert src:IREG64 => dest:IREG(32)  { @move %dest, %src:low; }
 
-syscall (num:IMM16U) reads:INPUT => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
+breakpoint  { @break; }
+
+function void UnconditionalJump(SymInstrBlock* out, TreeBlock* block)
 {
-	vector<uint32_t> writes;
-	writes.push_back(%dest);
-	@ori %numreg, SYMREG_ZERO, %num;
-	@syscall %numreg, writes, %reads;
+	if ((!m_settings.pad) && (block->GetSource()->GetGlobalIndex() == (m_currentBlock->GetSource()->GetGlobalIndex() + 1)))
+	{
+		// The destination block is the one just after the current one, just fall through
+		return;
+	}
+	@beq SYMREG_ZERO, SYMREG_ZERO, m_func, block->GetSource();
 }
 
-syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
+iftrue src:IREG t:BLOCK f:BLOCK  { @bne %src, SYMREG_ZERO, m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+iftrue src:IREG64 t:BLOCK f:BLOCK
+{
+	@bne %src:low, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %src:high, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+ife a:IREG b:IREG t:BLOCK f:BLOCK  { @beq %a, %b, m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG64 b:IREG64 t:BLOCK f:BLOCK
+{
+	@bne %a:low, %b:low, m_func, %f->GetSource();
+	@beq %a:high, %b:high, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+ifslt a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
+{
+	@slt %temp, %a, %b;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifslt a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
+{
+	@slt %temp, %a:high, %b:high;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, %b:high, m_func, %f->GetSource();
+	@sltu %temp, %a:low, %b:low;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+ifult a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %a, %b;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifult a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %a:high, %b:high;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, %b:high, m_func, %f->GetSource();
+	@sltu %temp, %a:low, %b:low;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+ifsle a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
+{
+	@slt %temp, %b, %a;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifsle a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
+{
+	@slt %temp, %a:high, %b:high;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, %b:high, m_func, %f->GetSource();
+	@sltu %temp, %b:low, %a:low;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+ifule a:IREG b:IREG t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %b, %a;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+ifule a:IREG64 b:IREG64 t:BLOCK f:BLOCK, temp:IREG
+{
+	@sltu %temp, %a:high, %b:high;
+	@bne %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	@bne %a:high, %b:high, m_func, %f->GetSource();
+	@sltu %temp, %b:low, %a:low;
+	@beq %temp, SYMREG_ZERO, m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+goto dest:BLOCK  { UnconditionalJump(out, %dest); }
+goto dest:IREG  { @jr %dest; }
+
+function void AdjustStackAfterCall(SymInstrBlock* out, uint32_t stackAdjust)
+{
+	if (stackAdjust != 0)
+		@addiu SYMREG_SP, SYMREG_SP, m_settings.stackGrowsUp ? -stackAdjust : stackAdjust;
+}
+
+call func:FUNCTION reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE
+{
+	@call %func, %func->GetIL()[0], %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+call func:FUNCTION reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE_64
+{
+	@call %func, %func->GetIL()[0], %dest:low, %dest:high, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+callvoid func:FUNCTION reads:INPUT stackAdjust:IMM16
+{
+	@call %func, %func->GetIL()[0], SYMREG_NONE, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+call func:IREG reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE
+{
+	@callr %func, %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+call func:IREG reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE_64
+{
+	@callr %func, %dest:low, %dest:high, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+callvoid func:IREG reads:INPUT stackAdjust:IMM16
+{
+	@callr %func, SYMREG_NONE, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+function bool GenerateReturnVoid(SymInstrBlock* out)
+{
+	// Restore frame pointer (if present) and adjust stack
+	if (m_framePointerEnabled)
+	{
+		@move SYMREG_SP, SYMREG_BP;
+	}
+	else
+	{
+		// TODO: Support frames without a frame pointer
+		return false;
+	}
+
+	@restoreregs;
+
+	// Return to caller
+	@jr SYMREG_LR;
+	return true;
+}
+
+return src:IREG, retval:INTEGER_RETURN_VALUE  { @move %retval, %src; GenerateReturnVoid(out); @symreturn %retval, SYMREG_NONE; }
+return src:IREG64, retval:INTEGER_RETURN_VALUE_64
+{
+	@move %retval:low, %src:low;
+	@move %retval:high, %src:high;
+	GenerateReturnVoid(out);
+	@symreturn %retval:low, %retval:high;
+}
+returnvoid  { GenerateReturnVoid(out); }
+
+alloca size:IREG => result:IREG, temp:IREG
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@addiu SYMREG_SP, SYMREG_SP, 4;
+		@move %result, SYMREG_SP;
+		@addu SYMREG_SP, SYMREG_SP, %size;
+		@addiu %temp, SYMREG_ZERO, ~3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+	}
+	else
+	{
+		@subu SYMREG_SP, SYMREG_SP, %size;
+		@addiu %temp, SYMREG_ZERO, ~3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+		@move %result, SYMREG_SP;
+	}
+}
+
+alloca size:IMM16M1 => result:IREG, temp:IREG
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@addiu SYMREG_SP, SYMREG_SP, 4;
+		@move %result, SYMREG_SP;
+		@addiu SYMREG_SP, SYMREG_SP, %size;
+		@addiu %temp, SYMREG_ZERO, ~3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+	}
+	else
+	{
+		@addiu SYMREG_SP, SYMREG_SP, -%size;
+		@addiu %temp, SYMREG_ZERO, ~3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+		@move %result, SYMREG_SP;
+	}
+}
+
+vararg => result:IREG, temp:IREG  { @addstack %result, SYMREG_BP, m_varargStart, 0, %temp; }
+
+syscall num:IMM16U reads:INPUT stackAdjust:IMM16 => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM, error:SYSCALL_ERROR_FLAG
 {
 	vector<uint32_t> writes;
-	writes.push_back(%dest);
-	@mov %numreg, %num;
-	@syscall %numreg, writes, %reads;
+	if (%stackAdjust != 0)
+		@addiu SYMREG_SP, SYMREG_SP, -16; // ABI assumes there is space for the first four params
+	@ori %numreg, SYMREG_ZERO, %num;
+	@syscall %numreg, %dest, %error, writes, %reads;
+	if (%stackAdjust != 0)
+		AdjustStackAfterCall(out, (uint32_t)%stackAdjust + 16);
+}
+
+syscall num:IREG reads:INPUT stackAdjust:IMM16 => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM, error:SYSCALL_ERROR_FLAG
+{
+	vector<uint32_t> writes;
+	if (%stackAdjust != 0)
+		@addiu SYMREG_SP, SYMREG_SP, -16; // ABI assumes there is space for the first four params
+	@move %numreg, %num;
+	@syscall %numreg, %dest, %error, writes, %reads;
+	if (%stackAdjust != 0)
+		AdjustStackAfterCall(out, (uint32_t)%stackAdjust + 16);
+}
+
+push src:IREG
+{
+	@sw %src, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4;
+	@addiu SYMREG_SP, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4;
+}
+
+push src:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@sw %src:high, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -8;
+		@sw %src:low, SYMREG_SP, m_settings.stackGrowsUp ? 8 : -4;
+		@addiu SYMREG_SP, SYMREG_SP, m_settings.stackGrowsUp ? 8 : -8;
+	}
+	else
+	{
+		@sw %src:low, SYMREG_SP, m_settings.stackGrowsUp ? 4 : -8;
+		@sw %src:high, SYMREG_SP, m_settings.stackGrowsUp ? 8 : -4;
+		@addiu SYMREG_SP, SYMREG_SP, m_settings.stackGrowsUp ? 8 : -8;
+	}
 }
 
 function void GenerateAntiDisassembly(SymInstrBlock* out)
@@ -505,7 +875,7 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	if (m_framePointerEnabled)
 	{
 		@saveregs;
-		@mov SYMREG_BP, SYMREG_SP;
+		@move SYMREG_BP, SYMREG_SP;
 	}
 	else
 	{
@@ -569,9 +939,9 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 			if (j->var->GetType()->GetWidth() == 8)
 				newHighReg = TEMP_REGISTER(IREG);
 
-			@mov newReg, j->incomingReg;
+			@move newReg, j->incomingReg;
 			if (newHighReg != SYMREG_NONE)
-				@mov newHighReg, j->incomingHighReg;
+				@move newHighReg, j->incomingHighReg;
 			m_vars.registerVariables[j->var] = newReg;
 			if (newHighReg != SYMREG_NONE)
 				m_vars.highRegisterVariables[j->var] = newHighReg;
@@ -650,7 +1020,7 @@ arch function void LayoutStackFrame()
 	}
 
 	// Account for callee saved registers
-	int32_t adjust = m_clobberedCalleeSavedRegs.size() * 4;
+	int32_t adjust = 8 + (m_clobberedCalleeSavedRegs.size() * 4);
 	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
 	{
 		if (!m_stackVarIsParam[i])
@@ -719,7 +1089,7 @@ arch function void PrintRegister(uint32_t reg)
 		fprintf(stderr, "v%d", reg - SYMREG_NATIVE_REG(REG_V(0)));
 	else if ((reg >= SYMREG_NATIVE_REG(REG_A(0))) && (reg < SYMREG_NATIVE_REG(REG_A(8))))
 		fprintf(stderr, "a%d", reg - SYMREG_NATIVE_REG(REG_A(0)));
-	else if ((reg >= SYMREG_NATIVE_REG(REG_T(0))) && (reg < SYMREG_NATIVE_REG(REG_T(8))))
+	else if ((reg >= SYMREG_NATIVE_REG(REG_T(0))) && (reg < SYMREG_NATIVE_REG(REG_T(0) + 8)))
 		fprintf(stderr, "t%d", reg - SYMREG_NATIVE_REG(REG_T(0)));
 	else if ((reg >= SYMREG_NATIVE_REG(REG_T(8))) && (reg < SYMREG_NATIVE_REG(REG_T(10))))
 		fprintf(stderr, "t%d", (reg - SYMREG_NATIVE_REG(REG_T(8))) + 8);

@@ -46,6 +46,8 @@ extern unsigned char Obj_quark_lib[];
 extern unsigned int Obj_quark_lib_len;
 extern unsigned char Obj_mips_lib[];
 extern unsigned int Obj_mips_lib_len;
+extern unsigned char Obj_mipsel_lib[];
+extern unsigned int Obj_mipsel_lib_len;
 extern unsigned char Obj_linux_x86_lib[];
 extern unsigned int Obj_linux_x86_lib_len;
 extern unsigned char Obj_linux_x64_lib[];
@@ -54,6 +56,8 @@ extern unsigned char Obj_linux_quark_lib[];
 extern unsigned int Obj_linux_quark_lib_len;
 extern unsigned char Obj_linux_mips_lib[];
 extern unsigned int Obj_linux_mips_lib_len;
+extern unsigned char Obj_linux_mipsel_lib[];
+extern unsigned int Obj_linux_mipsel_lib_len;
 extern unsigned char Obj_freebsd_x86_lib[];
 extern unsigned int Obj_freebsd_x86_lib_len;
 extern unsigned char Obj_freebsd_x64_lib[];
@@ -454,16 +458,33 @@ bool Linker::ImportStandardLibrary()
 	}
 	else if (m_settings.architecture == ARCH_MIPS)
 	{
-		switch (m_settings.os)
+		if (m_settings.bigEndian)
 		{
-		case OS_LINUX:
-			lib = Obj_linux_mips_lib;
-			len = Obj_linux_mips_lib_len;
-			break;
-		default:
-			lib = Obj_mips_lib;
-			len = Obj_mips_lib_len;
-			break;
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_mips_lib;
+				len = Obj_linux_mips_lib_len;
+				break;
+			default:
+				lib = Obj_mips_lib;
+				len = Obj_mips_lib_len;
+				break;
+			}
+		}
+		else
+		{
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_mipsel_lib;
+				len = Obj_linux_mipsel_lib_len;
+				break;
+			default:
+				lib = Obj_mipsel_lib;
+				len = Obj_mipsel_lib_len;
+				break;
+			}
 		}
 	}
 

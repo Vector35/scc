@@ -18,19 +18,39 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__MATH_H__
-#define __LIBC__MATH_H__
+#ifndef __LIBC__MIPS_STAT_H__
+#define __LIBC__MIPS_STAT_H__
 
-uint64_t __udiv64(uint64_t a, uint64_t b);
-uint64_t __umod64(uint64_t a, uint64_t b);
-int64_t __sdiv64(int64_t a, int64_t b);
-int64_t __smod64(int64_t a, int64_t b);
-uint64_t __shl64(uint64_t a, uint8_t count);
-uint64_t __shr64(uint64_t a, uint8_t count);
-int64_t __sar64(int64_t a, uint8_t count);
-uint16_t __byteswap16(uint16_t a);
-uint32_t __byteswap32(uint32_t a);
-uint64_t __byteswap64(uint64_t a);
+struct stat
+{
+	uint32_t st_dev;
+	uint32_t __pad0;
+	uint32_t __pad1;
+	uint32_t __pad2;
+	uint64_t st_ino;
+	uint32_t st_mode;
+	uint32_t st_nlink;
+	uint32_t st_uid;
+	uint32_t st_gid;
+	uint32_t st_rdev;
+	uint32_t __pad3;
+	uint32_t __pad4;
+	uint32_t __pad5;
+	uint64_t st_size;
+	uint32_t st_atime;
+	uint32_t st_atime_nsec;
+	uint32_t st_mtime;
+	uint32_t st_mtime_nsec;
+	uint32_t st_ctime;
+	uint32_t st_ctime_nsec;
+	uint32_t st_blksize;
+	uint32_t __pad6;
+	uint64_t st_blocks;
+};
+
+int fstat(int fd, struct stat* buf);
+int stat(const char* path, struct stat* buf);
+int lstat(const char* path, struct stat* buf);
 
 #endif
 

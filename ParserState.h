@@ -140,6 +140,7 @@ public:
 	bool HasIntrinsicDivide64();
 	bool HasIntrinsicShift64();
 	bool HasIntrinsicPow();
+	bool HasIntrinsicByteSwap();
 
 	bool IsValidFloatImmediate(double value);
 	Variable* GetFloatImmediateVariable(Type* type, double value);

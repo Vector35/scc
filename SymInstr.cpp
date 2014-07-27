@@ -1601,6 +1601,20 @@ bool SymInstrFunction::AllocateRegisters()
 				vector<SymInstr*> replacement;
 				if ((*i)->GetInstructions()[j]->UpdateInstruction(this, m_settings, replacement))
 				{
+					// Ensure symbolic special registers get their acutal register assignments
+					for (vector<SymInstr*>::iterator k = replacement.begin(); k != replacement.end(); k++)
+					{
+						for (vector<SymInstrOperand>::iterator o = (*k)->GetOperands().begin(); o != (*k)->GetOperands().end(); o++)
+						{
+							if (o->type != SYMOPERAND_REG)
+								continue;
+							if (o->reg == SYMREG_NONE)
+								continue;
+							if (o->reg >= SYMREG_MIN_SPECIAL_REG)
+								o->reg = GetSpecialRegisterAssignment(o->reg);
+						}
+					}
+
 					(*i)->ReplaceInstruction(j, replacement);
 					j += replacement.size() - 1;
 				}

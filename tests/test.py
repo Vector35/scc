@@ -131,6 +131,8 @@ def test(arch_name, name, testcase, arch_options, options, arch_type):
 		input_contents = open("Obj/testsc", "r").read()
 		if arch_type == "quark":
 			cmd = ["Obj/testvm"]
+		elif arch_type == "mipsel":
+			cmd = ["qemu-mipsel", "Obj/test"]
 		else:
 			cmd = ["Obj/test"]
 		if "targetparams" in testcase:
@@ -179,6 +181,11 @@ def test(arch_name, name, testcase, arch_options, options, arch_type):
 	return True
 
 def test_all(arch_name, arch_options, arch_type):
+	global only_archs
+
+	if (only_archs is not None) and (arch_type not in only_archs):
+		return 0
+
 	sys.stdout.write("\033[01;33m" + arch_name + "\033[00m\n")
 
 	failed = 0
@@ -210,6 +217,11 @@ def test_all(arch_name, arch_options, arch_type):
 
 	return failed
 
+if len(sys.argv) > 1:
+	only_archs = sys.argv[1:]
+else:
+	only_archs = None
+
 failed = 0
 if os.uname()[0] == "Darwin":
 	failed += test_all("Mac OS X x86", ["--platform", "mac", "--arch", "x86"], "x86")
@@ -224,6 +236,7 @@ elif os.name != "nt":
 		failed += test_all("FreeBSD Quark", ["--platform", "freebsd", "--arch", "quark"], "quark")
 	else:
 		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64")
+		failed += test_all("Linux MIPS little-endian", ["--platform", "linux", "--arch", "mipsel"], "mipsel")
 
 if failed != 0:
 	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)

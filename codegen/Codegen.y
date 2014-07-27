@@ -527,7 +527,7 @@ match_stmt: tree code  { state->DefineMatch(YYLOC, $1, NULL, NULL, $2); $1->Rele
 			}
 		  ;
 
-temp_list: temp_list COMMA match  { $$ = $1; $$->AddChildNodes($3->GetChildNodes()); $3->Release(); }
+temp_list: temp_list COMMA match  { $$ = $1; $$->AddChildNode($3); $3->Release(); }
 		 | match  { $$ = new TreeNode(NODE_REG); $$->AddRef(); $$->AddChildNode($1); $1->Release(); }
 		 ;
 
@@ -708,21 +708,21 @@ tree: match  { $$ = $1; }
 			$3->Release();
 			$4->Release();
 		}
-	| SYSCALL_TOK tree  { $$ = TreeNode::CreateNode(NODE_SYSCALL, $2); $$->AddRef(); $2->Release(); }
-	| SYSCALL_TOK LPAREN tree RPAREN tree
+	| SYSCALL_TOK tree tree tree
 		{
-			$$ = TreeNode::CreateNode(NODE_SYSCALL, $3, $5);
+			$$ = TreeNode::CreateNode(NODE_SYSCALL, $2, $3, $4);
 			$$->AddRef();
+			$2->Release();
 			$3->Release();
-			$5->Release();
+			$4->Release();
 		}
-	| SYSCALLVOID_TOK tree  { $$ = TreeNode::CreateNode(NODE_SYSCALLVOID, $2); $$->AddRef(); $2->Release(); }
-	| SYSCALLVOID_TOK LPAREN tree RPAREN tree
+	| SYSCALLVOID_TOK tree tree tree
 		{
-			$$ = TreeNode::CreateNode(NODE_SYSCALLVOID, $3, $5);
+			$$ = TreeNode::CreateNode(NODE_SYSCALLVOID, $2, $3, $4);
 			$$->AddRef();
+			$2->Release();
 			$3->Release();
-			$5->Release();
+			$4->Release();
 		}
 	| SCONVERT_TOK tree  { $$ = TreeNode::CreateNode(NODE_SCONVERT, $2); $$->AddRef(); $2->Release(); }
 	| UCONVERT_TOK tree  { $$ = TreeNode::CreateNode(NODE_UCONVERT, $2); $$->AddRef(); $2->Release(); }

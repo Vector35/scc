@@ -78,7 +78,7 @@ SCC_CODEGEN_OBJS := $(patsubst %.cgen,Obj/%CodeGen.o,$(wildcard *.cgen))
 ASMX86_OBJS := Obj/asmx86/asmx86.o
 ASMX86_HEADERS := asmx86/asmx86.h asmx86/asmx86str.h
 
-RUNTIME_LIBS := linux_x86.lib linux_x64.lib linux_quark.lib linux_mips.lib freebsd_x86.lib freebsd_x64.lib freebsd_quark.lib mac_x86.lib mac_x64.lib mac_quark.lib windows_x86.lib windows_x64.lib windows_quark.lib x86.lib x64.lib quark.lib mips.lib
+RUNTIME_LIBS := linux_x86.lib linux_x64.lib linux_quark.lib linux_mips.lib linux_mipsel.lib freebsd_x86.lib freebsd_x64.lib freebsd_quark.lib mac_x86.lib mac_x64.lib mac_quark.lib windows_x86.lib windows_x64.lib windows_quark.lib x86.lib x64.lib quark.lib mips.lib mipsel.lib
 RUNTIME_SOURCES := $(patsubst %.lib,Obj/%.cpp,$(RUNTIME_LIBS))
 RUNTIME_OBJS := $(patsubst %.lib,Obj/Obj/%.o,$(RUNTIME_LIBS))
 
@@ -257,6 +257,8 @@ Obj/quark.lib: $(BOOTSTRAP) $(QUARK_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile 
 	$(BOOTSTRAP) $(QUARK_RUNTIME) $(COMMON_RUNTIME) --arch quark --platform none -f lib -o $@
 Obj/mips.lib: $(BOOTSTRAP) $(MIPS_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(MIPS_RUNTIME) $(COMMON_RUNTIME) --arch mips --platform none -f lib -o $@
+Obj/mipsel.lib: $(BOOTSTRAP) $(MIPS_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(MIPS_RUNTIME) $(COMMON_RUNTIME) --arch mipsel --platform none -f lib -o $@
 Obj/linux_x86.lib: $(BOOTSTRAP) $(LINUX_X86_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(LINUX_X86_RUNTIME) --arch x86 --platform linux -f lib -o $@
 Obj/linux_x64.lib: $(BOOTSTRAP) $(LINUX_X64_RUNTIME_SRC) Makefile | Obj/
@@ -265,6 +267,8 @@ Obj/linux_quark.lib: $(BOOTSTRAP) $(LINUX_QUARK_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(LINUX_QUARK_RUNTIME) --arch quark --platform linux -f lib -o $@
 Obj/linux_mips.lib: $(BOOTSTRAP) $(LINUX_MIPS_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(LINUX_MIPS_RUNTIME) --arch mips --platform linux -f lib -o $@
+Obj/linux_mipsel.lib: $(BOOTSTRAP) $(LINUX_MIPS_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(LINUX_MIPS_RUNTIME) --arch mipsel --platform linux -f lib -o $@
 Obj/freebsd_x86.lib: $(BOOTSTRAP) $(FREEBSD_X86_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(FREEBSD_X86_RUNTIME) --arch x86 --platform freebsd -f lib -o $@
 Obj/freebsd_x64.lib: $(BOOTSTRAP) $(FREEBSD_X64_RUNTIME_SRC) Makefile | Obj/

@@ -788,9 +788,6 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 		first = false;
 		WriteLine("%s", code.c_str());
 
-		if (info.node->GetClass() == NODE_SYSCALL)
-			WriteLine("\t&& (%s->GetChildNodes().size() == %d)", info.prefix.c_str(), (int)info.node->GetChildNodes().size());
-
 		for (size_t i = 0; i < info.node->GetChildNodes().size(); i++)
 		{
 			MatchNodeInfo child;
@@ -1169,7 +1166,7 @@ void OutputGenerator::WriteInstructionTokenVariables(Instruction* instr, std::ma
 		case OPERAND_STACK_VAR:
 			vars[i->name] = MATCHVAR_VAR_COMPONENTS;
 			WriteLine("uint32_t %s_base = m_operands[m_%s_index].reg;", i->name.c_str(), i->name.c_str());
-			WriteLine("uint32_t %s_offset = func->GetStackVarOffset(m_operands[m_%s_index + 1].reg) +",
+			WriteLine("int32_t %s_offset = func->GetStackVarOffset(m_operands[m_%s_index + 1].reg) +",
 				i->name.c_str(), i->name.c_str());
 			WriteLine("\tm_operands[m_%s_index + 1].immed;", i->name.c_str());
 			WriteLine("uint32_t %s_temp = m_operands[m_%s_index + 2].reg;", i->name.c_str(), i->name.c_str());
@@ -2095,7 +2092,13 @@ bool OutputGenerator::Generate(string& output)
 				char className[32];
 				sprintf(className, "INTEGER_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
+				{
+					if (i != 0)
+						WriteLine("\t, SYMREG_NONE");
+					else
+						WriteLine("\tSYMREG_NONE");
 					break;
+				}
 				if (i != 0)
 					WriteLine("\t, %s", className);
 				else
@@ -2109,7 +2112,13 @@ bool OutputGenerator::Generate(string& output)
 				char className[32];
 				sprintf(className, "FLOAT_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
+				{
+					if (i != 0)
+						WriteLine("\t, SYMREG_NONE");
+					else
+						WriteLine("\tSYMREG_NONE");
 					break;
+				}
 				if (i != 0)
 					WriteLine("\t, %s", className);
 				else
@@ -2240,67 +2249,113 @@ bool OutputGenerator::Generate(string& output)
 		WriteLine("\tTreeNodeType resultType)");
 		BeginBlock();
 			WriteLine("Ref<TreeNode> input = new TreeNode(NODE_INPUT);");
-			WriteLine("size_t regIndex = 0;");
 			
-			WriteLine("const uint32_t paramClasses[] = {");
-			int syscallParamCount;
-			for (syscallParamCount = 0; ; syscallParamCount++)
+			WriteLine("const uint32_t intParamRegs[] = {");
+			for (int i = 0; ; i++)
 			{
 				char className[32];
-				sprintf(className, "SYSCALL_PARAM_%d", syscallParamCount);
+				sprintf(className, "SYSCALL_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
+				{
+					if (i != 0)
+						WriteLine("\t, SYMREG_NONE");
+					else
+						WriteLine("\tSYMREG_NONE");
 					break;
-				if (syscallParamCount != 0)
+				}
+				if (i != 0)
 					WriteLine("\t, %s", className);
 				else
 					WriteLine("\t%s", className);
 			}
 			WriteLine("\t};");
+			WriteLine("size_t curIntParamReg = 0;");
+			WriteLine("vector<bool> paramOnStack;");
 
-			WriteLine("for (vector< Ref<TreeNode> >::const_iterator i = params.begin(); i != params.end(); ++i)");
+			WriteLine("for (size_t i = 0; i < params.size(); i++)");
 			BeginBlock();
-				WriteLine("if ((*i)->GetClass() == NODE_UNDEFINED)");
+				WriteLine("bool stackParam = false;");
+				WriteLine("if (params[i]->GetClass() == NODE_UNDEFINED)");
 				BeginBlock();
-					WriteLine("regIndex++;");
-					WriteLine("if (((*i)->GetType() == NODETYPE_U64) || ((*i)->GetType() == NODETYPE_S64))");
-					WriteLine("\tregIndex++;");
-					WriteLine("if (regIndex > %d)", syscallParamCount);
-					WriteLine("\treturn NULL;");
+					// Parameter is undefined, skip it
+					WriteLine("if ((m_settings.preferredBits == 32) && ((params[i]->GetType() == NODETYPE_U64) ||");
+					WriteLine("\t(params[i]->GetType() == NODETYPE_S64)))");
+					BeginBlock();
+						WriteLine("if ((intParamRegs[curIntParamReg] == SYMREG_NONE) ||");
+						WriteLine("\t(intParamRegs[curIntParamReg + 1] == SYMREG_NONE))");
+						WriteLine("\tstackParam = true;");
+						WriteLine("else");
+						WriteLine("\tcurIntParamReg += 2;");
+					EndBlock();
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("if (intParamRegs[curIntParamReg] == SYMREG_NONE)");
+						WriteLine("\tstackParam = true;");
+						WriteLine("else");
+						WriteLine("\tcurIntParamReg++;");
+					EndBlock();
+
+					WriteLine("paramOnStack.push_back(stackParam);");
 					WriteLine("continue;");
 				EndBlock();
 
-				WriteLine("if ((m_settings.preferredBits == 32) && (((*i)->GetType() == NODETYPE_U64) ||");
-				WriteLine("\t((*i)->GetType() == NODETYPE_S64)))");
+				WriteLine("if ((m_settings.preferredBits == 32) && ((params[i]->GetType() == NODETYPE_U64) ||");
+				WriteLine("\t(params[i]->GetType() == NODETYPE_S64)))");
 				BeginBlock();
-					WriteLine("if (((int)regIndex - 2) > %d)", syscallParamCount);
-					WriteLine("\treturn NULL;");
-					WriteLine("uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);");
-					WriteLine("uint32_t highReg = m_symFunc->AddRegister(paramClasses[regIndex + 1]);");
-					WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], NODETYPE_U32));");
-					WriteLine("input->AddChildNode(TreeNode::CreateRegNode(highReg, paramClasses[regIndex + 1], NODETYPE_U32));");
+					WriteLine("if ((intParamRegs[curIntParamReg] == SYMREG_NONE) ||");
+					WriteLine("\t(intParamRegs[curIntParamReg + 1] == SYMREG_NONE))");
+					WriteLine("\tstackParam = true;");
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("uint32_t lowCls = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t highCls = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t lowReg = m_symFunc->AddRegister(lowCls);");
+						WriteLine("uint32_t highReg = m_symFunc->AddRegister(highCls);");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(lowReg, lowCls, NODETYPE_U32));");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(highReg, highCls, NODETYPE_U32));");
 
-					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(),");
-					WriteLine("\tTreeNode::CreateLargeRegNode(reg, highReg,");
-					WriteLine("\tparamClasses[regIndex], paramClasses[regIndex + 1], (*i)->GetType()), *i));");
-
-					WriteLine("regIndex += 2;");
+						WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(),");
+						WriteLine("\tTreeNode::CreateLargeRegNode(lowReg, highReg,");
+						WriteLine("\tlowCls, highCls, params[i]->GetType()), params[i]));");
+					EndBlock();
 				EndBlock();
 				WriteLine("else");
 				BeginBlock();
-					WriteLine("if (((int)regIndex - 1) > %d)", syscallParamCount);
-					WriteLine("\treturn NULL;");
-					WriteLine("uint32_t reg = m_symFunc->AddRegister(paramClasses[regIndex]);");
-					WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, paramClasses[regIndex], (*i)->GetType()));");
+					WriteLine("if (intParamRegs[curIntParamReg] == SYMREG_NONE)");
+					WriteLine("\tstackParam = true;");
+					WriteLine("else");
+					BeginBlock();
+						WriteLine("uint32_t cls = intParamRegs[curIntParamReg++];");
+						WriteLine("uint32_t reg = m_symFunc->AddRegister(cls);");
+						WriteLine("input->AddChildNode(TreeNode::CreateRegNode(reg, cls, params[i]->GetType()));");
 
-					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, (*i)->GetType(), TreeNode::CreateRegNode(reg,");
-					WriteLine("\tparamClasses[regIndex], (*i)->GetType()), *i));");
-
-					WriteLine("regIndex++;");
+						WriteLine("block->AddNode(TreeNode::CreateNode(NODE_ASSIGN, params[i]->GetType(), TreeNode::CreateRegNode(");
+						WriteLine("\treg, cls, params[i]->GetType()), params[i]));");
+					EndBlock();
 				EndBlock();
+
+				WriteLine("paramOnStack.push_back(stackParam);");
+			EndBlock();
+
+			// Push parameters from right to left
+			WriteLine("size_t pushSize = 0;");
+			WriteLine("for (int i = (int)params.size() - 1; i >= 0; i--)");
+			BeginBlock();
+				WriteLine("if (!paramOnStack[i])");
+				WriteLine("\tcontinue;");
+
+				WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));");
+
+				WriteLine("if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||");
+				WriteLine("\t(m_settings.preferredBits == 64))");
+				WriteLine("\tpushSize += 8;");
+				WriteLine("else");
+				WriteLine("\tpushSize += 4;");
 			EndBlock();
 
 			WriteLine("return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL,");
-			WriteLine("\tresultType, num, input);");
+			WriteLine("\tresultType, num, input, TreeNode::CreateImmediateNode(pushSize, (m_settings.preferredBits == 64) ?");
+			WriteLine("\tNODETYPE_U64 : NODETYPE_U32));");
 		EndBlock();
 
 		WriteUnindented("public:");
@@ -2410,7 +2465,13 @@ bool OutputGenerator::Generate(string& output)
 				char className[32];
 				sprintf(className, "INTEGER_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
+				{
+					if (i != 0)
+						WriteLine("\t, SYMREG_NONE");
+					else
+						WriteLine("\tSYMREG_NONE");
 					break;
+				}
 				if (i != 0)
 					WriteLine("\t, %s", className);
 				else
@@ -2424,7 +2485,13 @@ bool OutputGenerator::Generate(string& output)
 				char className[32];
 				sprintf(className, "FLOAT_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
+				{
+					if (i != 0)
+						WriteLine("\t, SYMREG_NONE");
+					else
+						WriteLine("\tSYMREG_NONE");
 					break;
+				}
 				if (i != 0)
 					WriteLine("\t, %s", className);
 				else

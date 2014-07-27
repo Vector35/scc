@@ -21,10 +21,17 @@
 #ifndef __LIBC__BYTESWAP_H__
 #define __LIBC__BYTESWAP_H__
 
+#ifdef LITTLE_ENDIAN
 #define htons(x) __byteswap((uint16_t)(x))
 #define htonl(x) __byteswap((uint32_t)(x))
 #define ntohs(x) __byteswap((uint16_t)(x))
 #define ntohl(x) __byteswap((uint32_t)(x))
+#else
+#define htons(x) ((uint16_t)(x))
+#define htonl(x) ((uint32_t)(x))
+#define ntohs(x) ((uint16_t)(x))
+#define ntohl(x) ((uint32_t)(x))
+#endif
 
 #endif
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,13 +18,18 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__BYTESWAP_H__
-#define __LIBC__BYTESWAP_H__
+int fstat(int fd, struct stat* buf)
+{
+	return __syscall(SYS_fstat64, fd, buf);
+}
 
-#define htons(x) __byteswap((uint16_t)(x))
-#define htonl(x) __byteswap((uint32_t)(x))
-#define ntohs(x) __byteswap((uint16_t)(x))
-#define ntohl(x) __byteswap((uint32_t)(x))
+int stat(const char* path, struct stat* buf)
+{
+	return __syscall(SYS_stat64, path, buf);
+}
 
-#endif
+int lstat(const char* path, struct stat* buf)
+{
+	return __syscall(SYS_lstat64, path, buf);
+}
 

@@ -884,38 +884,38 @@ callvoid func:IREG reads:INPUT stackAdjust:IMM11
 	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 
-syscall (num:IMM11) reads:INPUT => dest:SYSCALL_RETURN
+syscall num:IMM11 reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN
 {
 	vector<uint32_t> writes;
 	writes.push_back(%dest);
 	@SyscallImmed %num, writes, %reads;
 }
-syscall (num:IMM11) reads:INPUT => dest:SYSCALL_RETURN_64
+syscall num:IMM11 reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN_64
 {
 	vector<uint32_t> writes;
 	writes.push_back(%dest:low);
 	writes.push_back(%dest:high);
 	@SyscallImmed %num, writes, %reads;
 }
-syscallvoid (num:IMM11) reads:INPUT
+syscallvoid num:IMM11 reads:INPUT stackAdjust:IMM
 {
 	vector<uint32_t> writes;
 	@SyscallImmed %num, writes, %reads;
 }
-syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN
+syscall num:IREG reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN
 {
 	vector<uint32_t> writes;
 	writes.push_back(%dest);
 	@SyscallReg %num, writes, %reads;
 }
-syscall (num:IREG) reads:INPUT => dest:SYSCALL_RETURN_64
+syscall num:IREG reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN_64
 {
 	vector<uint32_t> writes;
 	writes.push_back(%dest:low);
 	writes.push_back(%dest:high);
 	@SyscallReg %num, writes, %reads;
 }
-syscallvoid (num:IREG) reads:INPUT
+syscallvoid num:IREG reads:INPUT stackAdjust:IMM
 {
 	vector<uint32_t> writes;
 	@SyscallReg %num, writes, %reads;

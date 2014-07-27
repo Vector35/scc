@@ -18,13 +18,12 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__BYTESWAP_H__
-#define __LIBC__BYTESWAP_H__
+#ifndef __LIBC__LINUX_X64_MEMORY_H__
+#define __LIBC__LINUX_X64_MEMORY_H__
 
-#define htons(x) ((uint16_t)(x))
-#define htonl(x) ((uint32_t)(x))
-#define ntohs(x) ((uint16_t)(x))
-#define ntohl(x) ((uint32_t)(x))
+#define PROT_SEM          8
+#define MAP_ANON          0x20
+#define MAP_ANONYMOUS     0x20
 
 #endif
 

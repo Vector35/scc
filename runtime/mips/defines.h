@@ -1,4 +1,4 @@
-// Copyright (c) 2012 Rusty Wagner
+// Copyright (c) 2011-2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,19 +18,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__MATH_H__
-#define __LIBC__MATH_H__
+#ifndef __LIBC__ARCH_DEFINES_H__
+#define __LIBC__ARCH_DEFINES_H__
 
-uint64_t __udiv64(uint64_t a, uint64_t b);
-uint64_t __umod64(uint64_t a, uint64_t b);
-int64_t __sdiv64(int64_t a, int64_t b);
-int64_t __smod64(int64_t a, int64_t b);
-uint64_t __shl64(uint64_t a, uint8_t count);
-uint64_t __shr64(uint64_t a, uint8_t count);
-int64_t __sar64(int64_t a, uint8_t count);
-uint16_t __byteswap16(uint16_t a);
-uint32_t __byteswap32(uint32_t a);
-uint64_t __byteswap64(uint64_t a);
+#define MIPS
+#define __32BIT
 
 #endif
 

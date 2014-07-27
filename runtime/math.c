@@ -153,3 +153,23 @@ int64_t __sar64(int64_t a, uint8_t count)
 	return a;
 }
 
+uint16_t __byteswap16(uint16_t a)
+{
+	return (a >> 8) | (a << 8);
+}
+
+uint32_t __byteswap32(uint32_t a)
+{
+	return (a >> 24) | ((a >> 8) & 0xff00) | ((a << 8) & 0xff0000) | (a << 24);
+}
+
+uint64_t __byteswap64(uint64_t a)
+{
+	uint32_t* parts = (uint32_t*)&a;
+	uint32_t s0 = __byteswap32(parts[1]);
+	uint32_t s1 = __byteswap32(parts[0]);
+	parts[0] = s0;
+	parts[1] = s1;
+	return a;
+}
+

@@ -586,6 +586,14 @@ bool ParserState::HasIntrinsicPow()
 }
 
 
+bool ParserState::HasIntrinsicByteSwap()
+{
+	if (m_settings.architecture == ARCH_MIPS)
+		return false;
+	return true;
+}
+
+
 bool ParserState::IsValidFloatImmediate(double value)
 {
 	if (m_settings.architecture == ARCH_QUARK)

@@ -1,0 +1,714 @@
+arch Arm 32
+
+#define COND_EQ 0
+#define COND_NE 1
+#define COND_CS 2
+#define COND_CC 3
+#define COND_MI 4
+#define COND_PL 5
+#define COND_VS 6
+#define COND_VC 7
+#define COND_HI 8
+#define COND_LS 9
+#define COND_GE 10
+#define COND_LT 11
+#define COND_GT 12
+#define COND_LE 13
+#define COND_AL 14
+#define UNCONDITIONAL 15
+
+#define REG_FP 11
+#define REG_SP 13
+#define REG_LR 14
+#define REG_PC 15
+
+registerclass default IREG(8,16,32)
+registerclass INTEGER_RETURN_VALUE(8,16,32) fixed { 0 } : IREG
+registerclass INTEGER_RETURN_VALUE_HIGH(32) fixed { 1 } : IREG
+registerclass SYSCALL_RETURN(8,16,32) fixed { 0 } : IREG
+registerclass SYSCALL_RETURN_HIGH(32) fixed { 1 } : IREG
+largeregisterclass IREG64(64) IREG IREG
+largeregisterclass INTEGER_RETURN_VALUE_64(64) INTEGER_RETURN_VALUE INTEGER_RETURN_VALUE_HIGH
+largeregisterclass SYSCALL_RETURN_64(64) SYSCALL_RETURN SYSCALL_RETURN_HIGH
+tempregisterclass IRESULT(8,16,32) IREG
+
+registerclass INTEGER_PARAM_0(8,16,32) fixed { 0 } : IREG
+registerclass INTEGER_PARAM_1(8,16,32) fixed { 1 } : IREG
+registerclass INTEGER_PARAM_2(8,16,32) fixed { 2 } : IREG
+registerclass INTEGER_PARAM_3(8,16,32) fixed { 3 } : IREG
+
+registerclass SYSCALL_PARAM_0(8,16,32) fixed { 0 } : IREG
+registerclass SYSCALL_PARAM_1(8,16,32) fixed { 1 } : IREG
+registerclass SYSCALL_PARAM_2(8,16,32) fixed { 2 } : IREG
+registerclass SYSCALL_PARAM_3(8,16,32) fixed { 3 } : IREG
+registerclass SYSCALL_PARAM_4(8,16,32) fixed { 4 } : IREG
+registerclass SYSCALL_PARAM_5(8,16,32) fixed { 5 } : IREG
+registerclass SYSCALL_PARAM_6(8,16,32) fixed { 6 } : IREG
+registerclass SYSCALL_NUM(32) fixed { 7 } : IREG
+
+callersaved { 0, 1, 2, 3, 12 }
+calleesaved { 4, 5, 6, 7, 8, 9, 10, 11 }
+
+special SYMREG_SP { SYMREG_NATIVE_REG(REG_SP) }
+special SYMREG_BP { SYMREG_NATIVE_REG(REG_FP) }
+special SYMREG_LR { SYMREG_NATIVE_REG(REG_LR) }
+special SYMREG_IP { SYMREG_NATIVE_REG(REG_PC) }
+
+encoding DATA_REG { cond=COND_AL:4, 0:3, op1:4, s:1, rn:4, rd:4, i=0:5, type=0:2, 0:1, rm:4 }
+encoding DATA_SHIFT_REG { cond=COND_AL:4, 0:3, op1:4, s:1, rn:4, rd:4, rs=0:4, 0:1, type=0:2, 1:1, rm:4 }
+encoding DATA_IMM { cond=COND_AL:4, 1:3, op1:4, s:1, rn:4, rd:4, rot=0:4, i:8 }
+encoding MOV16 { cond=COND_AL:4, 1:3, op1:5, hi:4, rd:4, lo:12 }
+encoding MUL { cond=COND_AL:4, 0:4, op:3, s:1, rd:4, ra:4, rm:4, 9:4, rn:4 }
+encoding SATURATE { cond=COND_AL:4, 2:5, op:2, 0:1, rn:4, rd:4, rs:4, 5:4, rm:4 }
+encoding EXTRA_LOAD { cond=COND_AL:4, 0:3, op1:5, rn:4, rt:4, hi:4, 1:1, op2:2, 1:1, rm:4 }
+encoding LOAD_REG { cond=COND_AL:4, 3:3, op1:5, rn:4, rt:4, i=0:5, type=0:2, 0:1, rm:4 }
+encoding LOAD_IMM { cond=COND_AL:4, 2:3, op1:5, rn:4, rt:4, i:12 }
+encoding MISC { cond=COND_AL:4, 2:5, op:2, 0:1, op1:4, rd:4, rs:4, op2:4, rm:4 }
+encoding REV { cond=COND_AL:4, 0x6bf:12, rd:4, 0xf:4, op2:3, 1:1, rm:4 }
+encoding LOAD_MULTIPLE { cond=COND_AL:4, 2:2, op:6, rn:4, i:16 }
+encoding BRANCH { cond=COND_AL:4, 2:2, op:2, i:24 }
+encoding SVC { cond=COND_AL:4, 0xf:4, i:24 }
+
+#define DATA_INSTR(name, opcode) \
+instr name  name rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=0; } \
+instr name##_lsl_imm  name rd:REG(w), rn:REG(r), rm:REG(r) lsl i:IMM  { @DATA_REG op1=opcode, s=0, type=0; } \
+instr name##_lsr_imm  name rd:REG(w), rn:REG(r), rm:REG(r) lsr i:IMM  { @DATA_REG op1=opcode, s=0, type=1; } \
+instr name##_asr_imm  name rd:REG(w), rn:REG(r), rm:REG(r) asr i:IMM  { @DATA_REG op1=opcode, s=0, type=2; } \
+instr name##_lsl_reg  name rd:REG(w), rn:REG(r), rm:REG(r) lsl rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=0, type=0; } \
+instr name##_lsr_reg  name rd:REG(w), rn:REG(r), rm:REG(r) lsr rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=0, type=1; } \
+instr name##_asr_reg  name rd:REG(w), rn:REG(r), rm:REG(r) asr rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=0, type=2; } \
+instr name##_imm  name rd:REG(w), rn:REG(r), i:IMM  { @DATA_IMM op1=opcode, s=0; } \
+instr(writeflags) name##s  name##s rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=1; } \
+instr(writeflags) name##s_lsl_imm  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsl i:IMM  { @DATA_REG op1=opcode, s=1, type=0; } \
+instr(writeflags) name##s_lsr_imm  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsr i:IMM  { @DATA_REG op1=opcode, s=1, type=1; } \
+instr(writeflags) name##s_asr_imm  name##s rd:REG(w), rn:REG(r), rm:REG(r) asr i:IMM  { @DATA_REG op1=opcode, s=1, type=2; } \
+instr(writeflags) name##s_lsl_reg  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsl rs:REG(r) \
+	{ @DATA_SHIFT_REG op1=opcode, s=1, type=0; } \
+instr(writeflags) name##s_lsr_reg  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsr rs:REG(r) \
+	{ @DATA_SHIFT_REG op1=opcode, s=1, type=1; } \
+instr(writeflags) name##s_asr_reg  name##s rd:REG(w), rn:REG(r), rm:REG(r) asr rs:REG(r) \
+	{ @DATA_SHIFT_REG op1=opcode, s=1, type=2; } \
+instr(writeflags) name##s_imm  name##s rd:REG(w), rn:REG(r), i:IMM  { @DATA_IMM op1=opcode, s=1; }
+DATA_INSTR(and, 0)
+DATA_INSTR(eor, 1)
+DATA_INSTR(sub, 2)
+DATA_INSTR(rsb, 3)
+DATA_INSTR(add, 4)
+DATA_INSTR(orr, 0xc)
+DATA_INSTR(bic, 0xe)
+
+instr add_stack  add rd:REG(w), var:STACKVAR
+{
+	if ((%var:offset > -0x100) && (%var:offset < 0))
+		@DATA_IMM op1=2, s=0, rn=%var:base, i=-%var:offset; // sub
+	else if ((%var:offset < 0x100) && (%var:offset >= 0))
+		@DATA_IMM op1=4, s=0, rn=%var:base, i=-%var:offset; // add
+	else if ((%var:offset > -0x10000) && (%var:offset < 0))
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@DATA_REG op1=2, s=0, rn=%var:base, rm=%var:temp; // sub
+	}
+	else if ((%var:offset < 0x10000) && (%var:offset >= 0))
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@DATA_REG op1=4, s=0, rn=%var:base, rm=%var:temp; // add
+	}
+	else
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@MOV16 op1=0x14, rd=%var:temp, hi=%var:offset>>28, lo=%var:offset>>16; // movt
+		@DATA_REG op1=4, s=0, rn=%var:base, rm=%var:temp; // add
+	}
+}
+
+instr sub_stack  add rd:REG(w), var:STACKVAR
+{
+	if ((%var:offset > -0x100) && (%var:offset < 0))
+		@DATA_IMM op1=4, s=0, rn=%var:base, i=-%var:offset; // add
+	else if ((%var:offset < 0x100) && (%var:offset >= 0))
+		@DATA_IMM op1=2, s=0, rn=%var:base, i=-%var:offset; // sub
+	else if ((%var:offset > -0x10000) && (%var:offset < 0))
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@DATA_REG op1=4, s=0, rn=%var:base, rm=%var:temp; // add
+	}
+	else if ((%var:offset < 0x10000) && (%var:offset >= 0))
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@DATA_REG op1=2, s=0, rn=%var:base, rm=%var:temp; // sub
+	}
+	else
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@MOV16 op1=0x14, rd=%var:temp, hi=%var:offset>>28, lo=%var:offset>>16; // movt
+		@DATA_REG op1=2, s=0, rn=%var:base, rm=%var:temp; // sub
+	}
+}
+
+#define DATA_INSTR_CARRY(name, opcode) \
+instr(readflags) name  name rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=0; } \
+instr(readflags) name##_lsl_imm  name rd:REG(w), rn:REG(r), rm:REG(r) lsl i:IMM  { @DATA_REG op1=opcode, s=0, type=0; } \
+instr(readflags) name##_lsr_imm  name rd:REG(w), rn:REG(r), rm:REG(r) lsr i:IMM  { @DATA_REG op1=opcode, s=0, type=1; } \
+instr(readflags) name##_asr_imm  name rd:REG(w), rn:REG(r), rm:REG(r) asr i:IMM  { @DATA_REG op1=opcode, s=0, type=2; } \
+instr(readflags) name##_lsl_reg  name rd:REG(w), rn:REG(r), rm:REG(r) lsl rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=0, type=0; } \
+instr(readflags) name##_lsr_reg  name rd:REG(w), rn:REG(r), rm:REG(r) lsr rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=0, type=1; } \
+instr(readflags) name##_asr_reg  name rd:REG(w), rn:REG(r), rm:REG(r) asr rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=0, type=2; } \
+instr(readflags) name##_imm  name rd:REG(w), rn:REG(r), i:IMM  { @DATA_IMM op1=opcode, s=0; } \
+instr(readflags, writeflags) name##s  name##s rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=1; } \
+instr(readflags, writeflags) name##s_lsl_imm  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsl i:IMM \
+	{ @DATA_REG op1=opcode, s=1, type=0; } \
+instr(readflags, writeflags) name##s_lsr_imm  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsr i:IMM \
+	{ @DATA_REG op1=opcode, s=1, type=1; } \
+instr(readflags, writeflags) name##s_asr_imm  name##s rd:REG(w), rn:REG(r), rm:REG(r) asr i:IMM \
+	{ @DATA_REG op1=opcode, s=1, type=2; } \
+instr(readflags, writeflags) name##s_lsl_reg  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsl rs:REG(r) \
+	{ @DATA_SHIFT_REG op1=opcode, s=1, type=0; } \
+instr(readflags, writeflags) name##s_lsr_reg  name##s rd:REG(w), rn:REG(r), rm:REG(r) lsr rs:REG(r) \
+	{ @DATA_SHIFT_REG op1=opcode, s=1, type=1; } \
+instr(readflags, writeflags) name##s_asr_reg  name##s rd:REG(w), rn:REG(r), rm:REG(r) asr rs:REG(r) \
+	{ @DATA_SHIFT_REG op1=opcode, s=1, type=2; } \
+instr(readflags, writeflags) name##s_imm  name##s rd:REG(w), rn:REG(r), i:IMM  { @DATA_IMM op1=opcode, s=1; }
+DATA_INSTR_CARRY(adc, 5)
+DATA_INSTR_CARRY(sbc, 6)
+DATA_INSTR_CARRY(rsc, 7)
+
+#define COMPARE_INSTR(name, opcode) \
+instr(writeflags) name  name rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=1; } \
+instr(writeflags) name##_lsl_imm  name rn:REG(r), rm:REG(r) lsl i:IMM  { @DATA_REG op1=opcode, s=1, type=0; } \
+instr(writeflags) name##_lsr_imm  name rn:REG(r), rm:REG(r) lsr i:IMM  { @DATA_REG op1=opcode, s=1, type=1; } \
+instr(writeflags) name##_asr_imm  name rn:REG(r), rm:REG(r) asr i:IMM  { @DATA_REG op1=opcode, s=1, type=2; } \
+instr(writeflags) name##_lsl_reg  name rn:REG(r), rm:REG(r) lsl rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=1, type=0; } \
+instr(writeflags) name##_lsr_reg  name rn:REG(r), rm:REG(r) lsr rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=1, type=1; } \
+instr(writeflags) name##_asr_reg  name rn:REG(r), rm:REG(r) asr rs:REG(r)  { @DATA_SHIFT_REG op1=opcode, s=1, type=2; } \
+instr(writeflags) name##_imm  name rn:REG(r), i:IMM  { @DATA_IMM op1=opcode, s=1; }
+COMPARE_INSTR(tst, 8)
+COMPARE_INSTR(teq, 9)
+COMPARE_INSTR(cmp, 0xa)
+COMPARE_INSTR(cmn, 0xb)
+
+instr(copy) mov  mov rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=0; }
+instr mov_imm  mov rd:REG(w), i:IMM  { @DATA_IMM op1=0xd, s=0; }
+instr lsl_imm  lsl rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=0; }
+instr lsr_imm  lsr rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=1; }
+instr asr_imm  asr rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=2; }
+instr(readflags) rrx  lsl rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=0, type=3, i=0; }
+instr ror_imm  ror rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=3; }
+instr lsl  lsl rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=0; }
+instr lsr  lsr rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=1; }
+instr asr  asr rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=2; }
+instr ror  ror rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=3; }
+instr(copy, writeflags) movs  movs rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=1; }
+instr(writeflags) movs_imm  movs rd:REG(w), i:IMM  { @DATA_IMM op1=0xd, s=1; }
+instr(writeflags) lsls_imm  lsls rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=0; }
+instr(writeflags) lsrs_imm  lsrs rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=1; }
+instr(writeflags) asrs_imm  asrs rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=2; }
+instr(readflags, writeflags) rrxs  rrxs rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=1, type=3, i=0; }
+instr(writeflags) rors_imm  rors rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=3; }
+instr(writeflags) lsls  lsls rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=0; }
+instr(writeflags) lsrs  lsrs rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=1; }
+instr(writeflags) asrs  asrs rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=2; }
+instr(writeflags) rors  rors rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=3; }
+
+instr mvn  mvn rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xf, s=0; }
+instr mvn_imm  mvn rd:REG(w), i:IMM  { @DATA_IMM op1=0xf, s=0; }
+instr mvn_lsl_imm  mvn rd:REG(w), rm:REG(r) lsl i:IMM  { @DATA_REG op1=0xf, s=0, type=0; }
+instr mvn_lsr_imm  mvn rd:REG(w), rm:REG(r) lsr i:IMM  { @DATA_REG op1=0xf, s=0, type=1; }
+instr mvn_asr_imm  mvn rd:REG(w), rm:REG(r) asr i:IMM  { @DATA_REG op1=0xf, s=0, type=2; }
+instr mvn_lsl_reg  mvn rd:REG(w), rm:REG(r) lsl rs:REG(r)  { @DATA_REG op1=0xf, s=0, type=0; }
+instr mvn_lsr_reg  mvn rd:REG(w), rm:REG(r) lsr rs:REG(r)  { @DATA_REG op1=0xf, s=0, type=1; }
+instr mvn_asr_reg  mvn rd:REG(w), rm:REG(r) asr rs:REG(r)  { @DATA_REG op1=0xf, s=0, type=2; }
+instr(writeflags) mvns  movs rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xf, s=1; }
+instr(writeflags) mvns_imm  movs rd:REG(w), i:IMM  { @DATA_IMM op1=0xf, s=1; }
+instr(writeflags) mvns_lsl_imm  mvns rd:REG(w), rm:REG(r) lsl i:IMM  { @DATA_REG op1=0xf, s=1, type=0; }
+instr(writeflags) mvns_lsr_imm  mvns rd:REG(w), rm:REG(r) lsr i:IMM  { @DATA_REG op1=0xf, s=1, type=1; }
+instr(writeflags) mvns_asr_imm  mvns rd:REG(w), rm:REG(r) asr i:IMM  { @DATA_REG op1=0xf, s=1, type=2; }
+instr(writeflags) mvns_lsl_reg  mvns rd:REG(w), rm:REG(r) lsl rs:REG(r)  { @DATA_REG op1=0xf, s=1, type=0; }
+instr(writeflags) mvns_lsr_reg  mvns rd:REG(w), rm:REG(r) lsr rs:REG(r)  { @DATA_REG op1=0xf, s=1, type=1; }
+instr(writeflags) mvns_asr_reg  mvns rd:REG(w), rm:REG(r) asr rs:REG(r)  { @DATA_REG op1=0xf, s=1, type=2; }
+
+instr movw  movw rd:REG(w), i:IMM  { @MOV16 op1=0x10, hi=i>>12, lo=i; }
+instr movt  movt rd:REG(rw), i:IMM  { @MOV16 op1=0x14, hi=i>>12, lo=i; }
+
+instr mul  mul rd:REG(w), rn:REG(r), rm:REG(r)  { @MUL op=0, s=0; }
+instr(writeflags) muls  muls rd:REG(w), rn:REG(r), rm:REG(r)  { @MUL op=0, s=1; }
+instr mla  mla rd:REG(w), rn:REG(r), rm:REG(r), ra:REG(r)  { @MUL op=1, s=0; }
+instr(writeflags) mlas  mlas rd:REG(w), rn:REG(r), rm:REG(r), ra:REG(r)  { @MUL op=1, s=1; }
+instr umaal  umaal ra:REG(rw), rd:REG(rw), rn:REG(r), rm:REG(r)  { @MUL op=2, s=0; }
+instr(writeflags) mls  mls rd:REG(w), rn:REG(r), rm:REG(r), ra:REG(r)  { @MUL op=3, s=0; }
+instr umull  umull ra:REG(w), rd:REG(w), rn:REG(r), rm:REG(r)  { @MUL op=4, s=0; }
+instr(writeflags) umulls  umulls ra:REG(w), rd:REG(w), rn:REG(r), rm:REG(r)  { @MUL op=4, s=1; }
+instr umlal  umlal ra:REG(rw), rd:REG(rw), rn:REG(r), rm:REG(r)  { @MUL op=5, s=0; }
+instr(writeflags) umlals  umlals ra:REG(rw), rd:REG(rw), rn:REG(r), rm:REG(r)  { @MUL op=5, s=1; }
+instr smull  smull ra:REG(w), rd:REG(w), rn:REG(r), rm:REG(r)  { @MUL op=6, s=0; }
+instr(writeflags) smulls  smulls ra:REG(w), rd:REG(w), rn:REG(r), rm:REG(r)  { @MUL op=6, s=1; }
+instr smlal  smlal ra:REG(rw), rd:REG(rw), rn:REG(r), rm:REG(r)  { @MUL op=7, s=0; }
+instr(writeflags) smlals  smlals ra:REG(rw), rd:REG(rw), rn:REG(r), rm:REG(r)  { @MUL op=7, s=1; }
+
+instr(writeflags) qadd  qadd rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=0; }
+instr(writeflags) qsub  qsub rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=1; }
+instr(writeflags) qdadd  qdadd rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=2; }
+instr(writeflags) qdsub  qdsub rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=3; }
+
+instr(memory) strh  strh rt:REG(r), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x18, op2=1; }
+instr(memory) strh_pre  strh rt:REG(r), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1a, op2=1; }
+instr(memory) strh_post  strh rt:REG(r), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=8, op2=1; }
+instr(memory) strh_sub  strh rt:REG(r), [rn:REG(r) - rm:REG(r)]  { @EXTRA_LOAD op1=0x10, op2=1; }
+instr(memory) strh_sub_pre  strh rt:REG(r), [rn:REG(rw)], -rm:REG(r)  { @EXTRA_LOAD op1=0x12, op2=1; }
+instr(memory) strh_sub_post  strh rt:REG(r), [rn:REG(rw) - rm:REG(r)]!  { @EXTRA_LOAD op1=0, op2=1; }
+instr(memory) strh_imm  strh rt:REG(r), [rn:REG(r) + i:IMM]  { @EXTRA_LOAD op1=0x1c, op2=1, hi=i>>4, rm=i; }
+instr(memory) strh_pre_imm  strh rt:REG(r), [rn:REG(rw) + i:IMM]!  { @EXTRA_LOAD op1=0x1e, op2=1, hi=i>>4, rm=i; }
+instr(memory) strh_post_imm  strh rt:REG(r), [rn:REG(rw)], i:IMM  { @EXTRA_LOAD op1=0xc, op2=1, hi=i>>4, rm=i; }
+instr(memory) strh_sub_imm  strh rt:REG(r), [rn:REG(r) - i:IMM]  { @EXTRA_LOAD op1=0x14, op2=1, hi=i>>4, rm=i; }
+instr(memory) strh_sub_pre_imm  strh rt:REG(r), [rn:REG(rw)], -i:IMM  { @EXTRA_LOAD op1=0x16, op2=1, hi=i>>4, rm=i; }
+instr(memory) strh_sub_post_imm  strh rt:REG(r), [rn:REG(rw) - i:IMM]!  { @EXTRA_LOAD op1=4, op2=1, hi=i>>4, rm=i; }
+instr(memory) strh_stack  strh rt:REG(r), [var:STACKVAR]
+{
+	if ((%var:offset > -0x100) && (%var:offset < 0))
+		@EXTRA_LOAD op1=0x14, op2=1, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; // strh
+	else if ((%var:offset < 0x100) && (%var:offset >= 0))
+		@EXTRA_LOAD op1=0x1c, op2=1, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; // strh
+	else if ((%var:offset > -0x10000) && (%var:offset < 0))
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@EXTRA_LOAD op1=0x10, op2=1, rn=%var:base, rm=%var:temp; // strh
+	}
+	else if ((%var:offset < 0x10000) && (%var:offset >= 0))
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@EXTRA_LOAD op1=0x18, op2=1, rn=%var:base, rm=%var:temp; // strh
+	}
+	else
+	{
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@MOV16 op1=0x14, rd=%var:temp, hi=%var:offset>>28, lo=%var:offset>>16; // movt
+		@EXTRA_LOAD op1=0x18, op2=1, rn=%var:base, rm=%var:temp; // strh
+	}
+}
+
+#define LOAD_EXTRA_INSTR(name, opcode) \
+instr(memory) name  name rt:REG(w), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x19, op2=opcode; } \
+instr(memory) name##_pre  name rt:REG(w), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1b, op2=opcode; } \
+instr(memory) name##_post  name rt:REG(w), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=9, op2=opcode; } \
+instr(memory) name##_sub  name rt:REG(w), [rn:REG(r) - rm:REG(r)]  { @EXTRA_LOAD op1=0x11, op2=opcode; } \
+instr(memory) name##_sub_pre  name rt:REG(w), [rn:REG(rw)], -rm:REG(r)  { @EXTRA_LOAD op1=0x13, op2=opcode; } \
+instr(memory) name##_sub_post  name rt:REG(w), [rn:REG(rw) - rm:REG(r)]!  { @EXTRA_LOAD op1=1, op2=opcode; } \
+instr(memory) name##_imm  name rt:REG(w), [rn:REG(r) + i:IMM]  { @EXTRA_LOAD op1=0x1d, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_pre_imm  name rt:REG(w), [rn:REG(rw) + i:IMM]!  { @EXTRA_LOAD op1=0x1f, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_post_imm  name rt:REG(w), [rn:REG(rw)], i:IMM  { @EXTRA_LOAD op1=0xd, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_sub_imm  name rt:REG(w), [rn:REG(r) - i:IMM]  { @EXTRA_LOAD op1=0x15, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_sub_pre_imm  name rt:REG(w), [rn:REG(rw)], -i:IMM  { @EXTRA_LOAD op1=0x17, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_sub_post_imm  name rt:REG(w), [rn:REG(rw) - i:IMM]!  { @EXTRA_LOAD op1=5, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_stack  name rt:REG(w), [var:STACKVAR] \
+{ \
+	if ((%var:offset > -0x100) && (%var:offset < 0)) \
+		@EXTRA_LOAD op1=0x15, op2=opcode, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; \
+	else if ((%var:offset < 0x100) && (%var:offset >= 0)) \
+		@EXTRA_LOAD op1=0x1d, op2=opcode, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; \
+	else if ((%var:offset > -0x10000) && (%var:offset < 0)) \
+	{ \
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@EXTRA_LOAD op1=0x11, op2=opcode, rn=%var:base, rm=%var:temp; \
+	} \
+	else if ((%var:offset < 0x10000) && (%var:offset >= 0)) \
+	{ \
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@EXTRA_LOAD op1=0x19, op2=opcode, rn=%var:base, rm=%var:temp; \
+	} \
+	else \
+	{ \
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@MOV16 op1=0x14, rd=%var:temp, hi=%var:offset>>28, lo=%var:offset>>16; \
+		@EXTRA_LOAD op1=0x19, op2=opcode, rn=%var:base, rm=%var:temp; \
+	} \
+}
+LOAD_EXTRA_INSTR(ldrh, 1)
+LOAD_EXTRA_INSTR(ldrsb, 2)
+LOAD_EXTRA_INSTR(ldrsh, 3)
+
+#define LOAD_INSTR(name, v, opcode) \
+instr(memory) name##_reg  name rt:REG(v), [rn:REG(r) + rm:REG(r)]  { @LOAD_REG op1=opcode+0x18; } \
+instr(memory) name##_reg_pre  name rt:REG(v), [rn:REG(rw) + rm:REG(r)]!  { @LOAD_REG op1=opcode+0x1a; } \
+instr(memory) name##_reg_post  name rt:REG(v), [rn:REG(rw)], rm:REG(r)  { @LOAD_REG op1=opcode+8; } \
+instr(memory) name##_sub_reg  name rt:REG(v), [rn:REG(r) - rm:REG(r)]  { @LOAD_REG op1=opcode+0x10; } \
+instr(memory) name##_sub_reg_pre  name rt:REG(v), [rn:REG(rw)], -rm:REG(r)  { @LOAD_REG op1=opcode+0x12; } \
+instr(memory) name##_sub_reg_post  name rt:REG(v), [rn:REG(rw) - rm:REG(r)]!  { @LOAD_REG op1=opcode; } \
+instr(memory) name##_lsl  name rt:REG(v), [rn:REG(r) + rm:REG(r) lsl i:IMM]  { @LOAD_REG op1=opcode+0x18, type=0; } \
+instr(memory) name##_lsl_pre  name rt:REG(v), [rn:REG(rw) + rm:REG(r) lsl i:IMM]!  { @LOAD_REG op1=opcode+0x1a, type=0; } \
+instr(memory) name##_lsl_post  name rt:REG(v), [rn:REG(rw)], rm:REG(r) lsl i:IMM  { @LOAD_REG op1=opcode+8, type=0; } \
+instr(memory) name##_sub_lsl  name rt:REG(v), [rn:REG(r) - rm:REG(r) lsl i:IMM]  { @LOAD_REG op1=opcode+0x10, type=0; } \
+instr(memory) name##_sub_lsl_pre  name rt:REG(v), [rn:REG(rw)], -rm:REG(r) lsl i:IMM  { @LOAD_REG op1=opcode+0x12, type=0; } \
+instr(memory) name##_sub_lsl_post  name rt:REG(v), [rn:REG(rw) - rm:REG(r) lsl i:IMM]!  { @LOAD_REG op1=opcode, type=0; } \
+instr(memory) name##_lsr  name rt:REG(v), [rn:REG(r) + rm:REG(r) lsr i:IMM]  { @LOAD_REG op1=opcode+0x18, type=1; } \
+instr(memory) name##_lsr_pre  name rt:REG(v), [rn:REG(rw) + rm:REG(r) lsr i:IMM]!  { @LOAD_REG op1=opcode+0x1a, type=1; } \
+instr(memory) name##_lsr_post  name rt:REG(v), [rn:REG(rw)], rm:REG(r) lsr i:IMM  { @LOAD_REG op1=opcode+8, type=1; } \
+instr(memory) name##_sub_lsr  name rt:REG(v), [rn:REG(r) - rm:REG(r) lsr i:IMM]  { @LOAD_REG op1=opcode+0x10, type=1; } \
+instr(memory) name##_sub_lsr_pre  name rt:REG(v), [rn:REG(rw)], -rm:REG(r) lsr i:IMM  { @LOAD_REG op1=opcode+0x12, type=1; } \
+instr(memory) name##_sub_lsr_post  name rt:REG(v), [rn:REG(rw) - rm:REG(r) lsr i:IMM]!  { @LOAD_REG op1=opcode, type=1; } \
+instr(memory) name##_asr  name rt:REG(v), [rn:REG(r) + rm:REG(r) asr i:IMM]  { @LOAD_REG op1=opcode+0x18, type=2; } \
+instr(memory) name##_asr_pre  name rt:REG(v), [rn:REG(rw) + rm:REG(r) asr i:IMM]!  { @LOAD_REG op1=opcode+0x1a, type=2; } \
+instr(memory) name##_asr_post  name rt:REG(v), [rn:REG(rw)], rm:REG(r) asr i:IMM  { @LOAD_REG op1=opcode+8, type=2; } \
+instr(memory) name##_sub_asr  name rt:REG(v), [rn:REG(r) - rm:REG(r) asr i:IMM]  { @LOAD_REG op1=opcode+0x10, type=2; } \
+instr(memory) name##_sub_asr_pre  name rt:REG(v), [rn:REG(rw)], -rm:REG(r) asr i:IMM  { @LOAD_REG op1=opcode+0x12, type=2; } \
+instr(memory) name##_sub_asr_post  name rt:REG(v), [rn:REG(rw) - rm:REG(r) asr i:IMM]!  { @LOAD_REG op1=opcode, type=2; } \
+instr(memory) name##_imm  name rt:REG(v), [rn:REG(r) + i:IMM]  { @LOAD_IMM op1=opcode+0x18; } \
+instr(memory) name##_pre_imm  name rt:REG(v), [rn:REG(rw) + i:IMM]!  { @LOAD_IMM op1=opcode+0x1a; } \
+instr(memory) name##_post_imm  name rt:REG(v), [rn:REG(rw)], i:IMM  { @LOAD_IMM op1=opcode+8; } \
+instr(memory) name##_sub_imm  name rt:REG(v), [rn:REG(r) - i:IMM]  { @LOAD_IMM op1=opcode+0x10; } \
+instr(memory) name##_sub_pre_imm  name rt:REG(v), [rn:REG(rw)], -i:IMM  { @LOAD_IMM op1=opcode+0x12; } \
+instr(memory) name##_sub_post_imm  name rt:REG(v), [rn:REG(rw) - i:IMM]!  { @LOAD_IMM op1=opcode; } \
+instr(memory) name##_stack  name rt:REG(v), [var:STACKVAR] \
+{ \
+	if ((%var:offset > -0x1000) && (%var:offset < 0)) \
+		@LOAD_IMM op1=opcode+0x10, rn=%var:base, i=-%var:offset; \
+	else if ((%var:offset < 0x1000) && (%var:offset >= 0)) \
+		@LOAD_IMM op1=opcode+0x18, rn=%var:base, i=%var:offset; \
+	else if ((%var:offset > -0x10000) && (%var:offset < 0)) \
+	{ \
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@LOAD_REG op1=opcode+0x10, rn=%var:base, rm=%var:temp; \
+	} \
+	else if ((%var:offset < 0x10000) && (%var:offset >= 0)) \
+	{ \
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@LOAD_REG op1=opcode+0x18, rn=%var:base, rm=%var:temp; \
+	} \
+	else \
+	{ \
+		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@MOV16 op1=0x14, rd=%var:temp, hi=%var:offset>>28, lo=%var:offset>>16; \
+		@LOAD_REG op1=opcode+0x18, rn=%var:base, rm=%var:temp; \
+	} \
+}
+LOAD_INSTR(str, r, 0)
+LOAD_INSTR(ldr, w, 1)
+LOAD_INSTR(strb, r, 4)
+LOAD_INSTR(ldrb, w, 5)
+
+
+instr(branch) bx  bx rm:REG(r)  { @MISC op=1, op1=0xf, op2=1, rd=0xf, rs=0xf; }
+instr(call) blx  blx rm:REG(r)  { @MISC op=1, op1=0xf, op2=3, rd=0xf, rs=0xf; }
+instr clz  clz rd:REG(w), rm:REG(r)  { @MISC op=3, op1=0xf, op2=1; }
+instr bkpt  bkpt  { @MISC op=1, op2=7; }
+
+instr rev  rev rd:REG(w), rm:REG(r)  { @REV op2=1; }
+instr rev16  rev16 rd:REG(w), rm:REG(r)  { @REV op2=5; }
+
+instr(memory) stmda  stmda rn:REG(r), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=0; }
+instr(memory) stmda_update  stmda! rn:REG(rw), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=2; }
+instr(memory) ldmda  ldmda rn:REG(r), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=1; }
+instr(memory) ldmda_update  ldmda! rn:REG(rw), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=3; }
+instr(memory) stmia  stmda rn:REG(r), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=8; }
+instr(memory) stmia_update  stmda! rn:REG(rw), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=0xa; }
+instr(memory) ldmia  ldmda rn:REG(r), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=9; }
+instr(memory) ldmia_update  ldmda! rn:REG(rw), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0xb; }
+instr(memory) stmdb  stmda rn:REG(r), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=0x10; }
+instr(memory) stmdb_update  stmda! rn:REG(rw), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=0x12; }
+instr(memory) ldmdb  ldmda rn:REG(r), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0x11; }
+instr(memory) ldmdb_update  ldmda! rn:REG(rw), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0x13; }
+instr(memory) stmib  stmda rn:REG(r), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=0x18; }
+instr(memory) stmib_update  stmda! rn:REG(rw), i:IMM, regs:REGLIST(r)  { @LOAD_MULTIPLE op=0x1a; }
+instr(memory) ldmib  ldmda rn:REG(r), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0x19; }
+instr(memory) ldmib_update  ldmda! rn:REG(rw), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0x1b; }
+
+#define BRANCH_RELOC(dest) \
+	Relocation reloc; \
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD; \
+	reloc.overflow = NULL; \
+	reloc.instruction = out->len - 4; \
+	reloc.offset = out->len - 4; \
+	reloc.target = dest; \
+	reloc.bitOffset = 0; \
+	reloc.bitSize = 24; \
+	reloc.bitShift = 2; \
+	out->relocs.push_back(reloc);
+
+instr(branch) b  b dest:FUNCTION  { @BRANCH op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) beq  beq dest:FUNCTION  { @BRANCH cond=COND_EQ, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bne  bne dest:FUNCTION  { @BRANCH cond=COND_NE, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bcs  bcs dest:FUNCTION  { @BRANCH cond=COND_CS, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bcc  bcc dest:FUNCTION  { @BRANCH cond=COND_CC, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bmi  bmi dest:FUNCTION  { @BRANCH cond=COND_MI, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bpl  bpl dest:FUNCTION  { @BRANCH cond=COND_PL, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bvs  bvs dest:FUNCTION  { @BRANCH cond=COND_VS, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bvc  bvc dest:FUNCTION  { @BRANCH cond=COND_VC, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bhi  bhi dest:FUNCTION  { @BRANCH cond=COND_HI, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bls  bls dest:FUNCTION  { @BRANCH cond=COND_LS, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bge  bge dest:FUNCTION  { @BRANCH cond=COND_GE, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) blt  blt dest:FUNCTION  { @BRANCH cond=COND_LT, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) bgt  bgt dest:FUNCTION  { @BRANCH cond=COND_GT, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) ble  ble dest:FUNCTION  { @BRANCH cond=COND_LE, op=2, i=0; BRANCH_RELOC(%dest:block); }
+
+instr(call) bl  bl dest:FUNCTION, retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
+{
+	@BRANCH op=3, i=0;
+	BRANCH_RELOC(%dest:block);
+}
+
+instr(call) svc  svc writes:REGLIST(w), reads:REGLIST(r)  { @SVC; }
+
+instr saveregs  saveregs {} update
+{
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	clobbered.push_back(REG_FP);
+	clobbered.push_back(REG_LR);
+	uint32_t mask = 0;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+		mask |= 1 << *i;
+	@stmdb_update SYMREG_SP, mask, clobbered;
+	return true;
+}
+
+instr restoreregs  restoreregs {} update
+{
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	clobbered.push_back(REG_FP);
+	clobbered.push_back(REG_LR);
+	clobbered.push_back(REG_PC);
+	uint32_t mask = 0;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+		mask |= 1 << *i;
+	@ldmia_update SYMREG_SP, mask, clobbered;
+	return true;
+}
+
+// Data flow pseudo-instructions
+instr regparam  regparam regs:REGLIST(w)  {} update { return true; }
+instr symreturn  symreturn low:REG(r) high:REG(r)  {} update { return true; }
+
+function void GenerateAntiDisassembly(SymInstrBlock* out)
+{
+}
+
+function bool GenerateFunctionStart(SymInstrBlock* out)
+{
+	if ((m_func->GetName() == "_start") && m_settings.unsafeStack)
+	{
+		// This is the start function, and we can't assume we have a safe stack (the code may be
+		// at or near the stack pointer), pivot the stack to make it safe
+		@sub_imm SYMREG_SP, SYMREG_SP, UNSAFE_STACK_PIVOT;
+	}
+
+	// Generate function prologue
+	if (m_framePointerEnabled)
+	{
+		@saveregs;
+		@mov SYMREG_BP, SYMREG_SP;
+	}
+	else
+	{
+		@saveregs;
+	}
+
+	// Generate a pseudo instruction to ensure the incoming parameters are defined
+	vector<uint32_t> incomingRegs;
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+			continue;
+
+		incomingRegs.push_back(j->incomingReg);
+		if (j->var->GetType()->GetWidth() == 8)
+			incomingRegs.push_back(j->incomingReg + 1);
+	}
+
+	if (incomingRegs.size() != 0)
+		@regparam incomingRegs;
+
+	// Copy parameters into variables so that they can be spilled if needed
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+		{
+			// Parameter was spilled onto stack
+			switch (j->var->GetType()->GetWidth())
+			{
+			case 1:
+				@strb_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 2:
+				@strh_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 4:
+				@str_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 8:
+				if (m_settings.bigEndian)
+				{
+					@str_stack j->incomingHighReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+					@str_stack j->incomingReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(IREG);
+				}
+				else
+				{
+					@str_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+					@str_stack j->incomingHighReg, SYMREG_BP, j->stackVar, 4, TEMP_REGISTER(IREG);
+				}
+				break;
+			default:
+				fprintf(stderr, "error: spilling invalid parameter\n");
+				return false;
+			}
+		}
+		else
+		{
+			// Parameter is in an integer register
+			uint32_t newReg = TEMP_REGISTER(IREG);
+			uint32_t newHighReg = SYMREG_NONE;
+			if (j->var->GetType()->GetWidth() == 8)
+				newHighReg = TEMP_REGISTER(IREG);
+
+			@mov newReg, j->incomingReg;
+			if (newHighReg != SYMREG_NONE)
+				@mov newHighReg, j->incomingHighReg;
+			m_vars.registerVariables[j->var] = newReg;
+			if (newHighReg != SYMREG_NONE)
+				m_vars.highRegisterVariables[j->var] = newHighReg;
+		}
+	}
+
+	if (m_framePointerEnabled)
+	{
+		uint32_t temp = TEMP_REGISTER(IREG);
+		if (m_settings.stackGrowsUp)
+			@add_stack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+		else
+			@sub_stack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+	}
+
+	return true;
+}
+
+arch function set<uint32_t> GetRegisterClassInterferences(uint32_t cls)
+{
+	set<uint32_t> result;
+	return result;
+}
+
+arch function bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls)
+{
+	return false;
+}
+
+arch function void LayoutStackFrame()
+{
+	// Lay out stack variables
+	int64_t offset = 0;
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+
+		int64_t align = 1;
+		if (m_stackVarWidths[i] >= 4)
+			align = 4;
+		else if (m_stackVarWidths[i] >= 2)
+			align = 2;
+
+		if ((offset & (align - 1)) != 0)
+			offset += align - (offset & (align - 1));
+
+		m_stackVarOffsets[i] = offset;
+		offset += m_stackVarWidths[i];
+	}
+
+	// Ensure stack stays aligned on native boundary
+	if (offset & 3)
+		offset += 4 - (offset & 3);
+
+	m_stackFrameSize = offset;
+
+	// Adjust variable offsets to be relative to the frame pointer (negative offsets)
+	if (m_settings.stackGrowsUp)
+	{
+		for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+		{
+			if (!m_stackVarIsParam[i])
+				m_stackVarOffsets[i] -= offset;
+		}
+	}
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] += m_stackFrameSize;
+		else
+			m_stackVarOffsets[i] -= m_stackFrameSize;
+	}
+
+	// Account for callee saved registers
+	int32_t adjust = 8 + (m_clobberedCalleeSavedRegs.size() * 4);
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (!m_stackVarIsParam[i])
+			continue;
+
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] -= adjust;
+		else
+			m_stackVarOffsets[i] += adjust;
+	}
+}
+
+arch function bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(IREG);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@ldrb_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@ldrh_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@ldr_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(IREG);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@strb_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@strh_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@str_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function void PrintRegister(uint32_t reg)
+{
+	if (reg == SYMREG_NATIVE_REG(REG_FP))
+		fprintf(stderr, "fp");
+	else if (reg == SYMREG_NATIVE_REG(REG_LR))
+		fprintf(stderr, "lr");
+	else if (reg == SYMREG_NATIVE_REG(REG_SP))
+		fprintf(stderr, "sp");
+	else if (reg == SYMREG_NATIVE_REG(REG_PC))
+		fprintf(stderr, "pc");
+	else if ((reg >= SYMREG_NATIVE_REG(0)) && (reg <= SYMREG_NATIVE_REG(15)))
+		fprintf(stderr, "r%d", reg - SYMREG_NATIVE_REG(0));
+	else
+		SymInstrFunction::PrintRegister(reg);
+}
+

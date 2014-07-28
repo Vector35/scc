@@ -71,6 +71,8 @@ class PreprocessState
 	std::string m_output;
 	bool m_locationRequest;
 
+	bool m_paste;
+
 public:
 	PreprocessState(const std::string& name, void* scanner);
 	PreprocessState(PreprocessState& parent, const std::string& name, void* scanner);

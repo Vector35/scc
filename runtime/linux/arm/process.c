@@ -18,41 +18,32 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __TOKEN_H__
-#define __TOKEN_H__
-
-#include <string>
-#include "RefCountObject.h"
-#include "Output.h"
-
-
-enum TokenClass
+pid_t wait(int* status)
 {
-	TOKEN_BASIC,
-	TOKEN_ID,
-	TOKEN_LPAREN,
-	TOKEN_RPAREN,
-	TOKEN_COMMA,
-	TOKEN_PASTE
-};
+	return __syscall(SYS_wait4, -1, status, 0, NULL);
+}
 
-class Token: public RefCountObject
+pid_t waitpid(pid_t pid, int* status, int options)
 {
-	TokenClass m_type;
-	std::string m_string;
+	return __syscall(SYS_wait4, pid, status, options, NULL);
+}
 
-public:
-	Token(TokenClass type);
-	Token(TokenClass type, const std::string& str);
-	virtual ~Token();
+sig_t signal(int sig, sig_t func)
+{
+	// FIXME: Handlers do not work because there is no way to force the correct calling convention.  Special
+	// values such as SIG_IGN do work.
+	struct sigaction act, old;
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = func;
 
-	TokenClass GetType() const { return m_type; }
-	const std::string& GetString() const { return m_string; }
+	int result = sigaction(sig, &act, &old);
+	if (result < 0)
+		return (sig_t)result;
+	return old.sa_handler;
+}
 
-	void Serialize(OutputBlock* output);
-	static Token* Deserialize(InputBlock* input);
-};
-
-
-#endif
+int sigaction(int sig, const struct sigaction* act, struct sigaction* old)
+{
+	return __syscall(SYS_rt_sigaction, sig, act, old, sizeof(sigset_t));
+}
 

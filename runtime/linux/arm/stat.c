@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,41 +18,18 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __TOKEN_H__
-#define __TOKEN_H__
-
-#include <string>
-#include "RefCountObject.h"
-#include "Output.h"
-
-
-enum TokenClass
+int fstat(int fd, struct stat* buf)
 {
-	TOKEN_BASIC,
-	TOKEN_ID,
-	TOKEN_LPAREN,
-	TOKEN_RPAREN,
-	TOKEN_COMMA,
-	TOKEN_PASTE
-};
+	return __syscall(SYS_fstat64, fd, buf);
+}
 
-class Token: public RefCountObject
+int stat(const char* path, struct stat* buf)
 {
-	TokenClass m_type;
-	std::string m_string;
+	return __syscall(SYS_stat64, path, buf);
+}
 
-public:
-	Token(TokenClass type);
-	Token(TokenClass type, const std::string& str);
-	virtual ~Token();
-
-	TokenClass GetType() const { return m_type; }
-	const std::string& GetString() const { return m_string; }
-
-	void Serialize(OutputBlock* output);
-	static Token* Deserialize(InputBlock* input);
-};
-
-
-#endif
+int lstat(const char* path, struct stat* buf)
+{
+	return __syscall(SYS_lstat64, path, buf);
+}
 

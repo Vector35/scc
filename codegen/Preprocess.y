@@ -151,6 +151,7 @@ token:	TOKEN  { $$ = new Token(TOKEN_BASIC, $1); $$->AddRef(); free($1); }
 |	LPAREN  { $$ = new Token(TOKEN_LPAREN); $$->AddRef(); }
 |	RPAREN  { $$ = new Token(TOKEN_RPAREN); $$->AddRef(); }
 |	COMMA  { $$ = new Token(TOKEN_COMMA); $$->AddRef(); }
+|	PASTE  { $$ = new Token(TOKEN_PASTE); $$->AddRef(); }
 ;
 
 param_list:	param_list COMMA ID  { $$ = $1; $$->push_back($3); free($3); }

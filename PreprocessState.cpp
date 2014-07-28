@@ -41,6 +41,7 @@ PreprocessState::PreprocessState(const string& name, void* scanner, const Settin
 	m_ifFailCount = 0;
 	m_startingIfStackSize = 0;
 	m_locationRequest = true;
+	m_paste = false;
 }
 
 
@@ -52,6 +53,7 @@ PreprocessState::PreprocessState(PreprocessState& parent, const string& name, vo
 	m_ifFailCount = 0;
 	m_startingIfStackSize = 0;
 	m_locationRequest = true;
+	m_paste = false;
 
 	m_macros = parent.m_macros;
 }
@@ -159,16 +161,24 @@ void PreprocessState::Append(Token* token)
 	{
 	case TOKEN_LPAREN:
 		m_output += "(";
+		m_paste = false;
 		break;
 	case TOKEN_RPAREN:
 		m_output += ")";
+		m_paste = false;
 		break;
 	case TOKEN_COMMA:
 		m_output += ",";
+		m_paste = false;
+		break;
+	case TOKEN_PASTE:
+		m_paste = true;
 		break;
 	default:
+		if (!m_paste)
+			m_output += " ";
 		m_output += token->GetString();
-		m_output += " ";
+		m_paste = false;
 		break;
 	}
 }

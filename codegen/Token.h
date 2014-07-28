@@ -31,7 +31,8 @@ enum TokenClass
 	TOKEN_ID,
 	TOKEN_LPAREN,
 	TOKEN_RPAREN,
-	TOKEN_COMMA
+	TOKEN_COMMA,
+	TOKEN_PASTE
 };
 
 class Token: public RefCountObject

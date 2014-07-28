@@ -70,6 +70,8 @@ class PreprocessState
 	std::string m_output;
 	bool m_locationRequest;
 
+	bool m_paste;
+
 	Settings m_settings;
 
 public:

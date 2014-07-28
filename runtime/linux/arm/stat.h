@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2012 Rusty Wagner
+// Copyright (c) 2014 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,41 +18,39 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __TOKEN_H__
-#define __TOKEN_H__
+#ifndef __LIBC__X86_STAT_H__
+#define __LIBC__X86_STAT_H__
 
-#include <string>
-#include "RefCountObject.h"
-#include "Output.h"
-
-
-enum TokenClass
+struct stat
 {
-	TOKEN_BASIC,
-	TOKEN_ID,
-	TOKEN_LPAREN,
-	TOKEN_RPAREN,
-	TOKEN_COMMA,
-	TOKEN_PASTE
+	uint64_t st_dev;
+	uint32_t __pad0;
+	uint32_t __st_ino;
+	uint32_t st_mode;
+	uint32_t st_nlink;
+	uint32_t st_uid;
+	uint32_t st_gid;
+	uint64_t st_rdev;
+	uint32_t __pad3;
+	// FIXME: Linux 32-bit has st_size unaligned here, but we don't support
+	// structure packing.  For now, we are forced to only support 32-bit
+	// file sizes.
+	uint32_t st_size;
+	uint32_t __st_size_high;
+	uint32_t st_blksize;
+	uint64_t st_blocks;
+	uint32_t st_atime;
+	uint32_t st_atime_nsec;
+	uint32_t st_mtime;
+	uint32_t st_mtime_nsec;
+	uint32_t st_ctime;
+	uint32_t st_ctime_nsec;
+	uint64_t st_ino;
 };
 
-class Token: public RefCountObject
-{
-	TokenClass m_type;
-	std::string m_string;
-
-public:
-	Token(TokenClass type);
-	Token(TokenClass type, const std::string& str);
-	virtual ~Token();
-
-	TokenClass GetType() const { return m_type; }
-	const std::string& GetString() const { return m_string; }
-
-	void Serialize(OutputBlock* output);
-	static Token* Deserialize(InputBlock* input);
-};
-
+int fstat(int fd, struct stat* buf);
+int stat(const char* path, struct stat* buf);
+int lstat(const char* path, struct stat* buf);
 
 #endif
 

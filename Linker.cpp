@@ -48,6 +48,10 @@ extern unsigned char Obj_mips_lib[];
 extern unsigned int Obj_mips_lib_len;
 extern unsigned char Obj_mipsel_lib[];
 extern unsigned int Obj_mipsel_lib_len;
+extern unsigned char Obj_arm_lib[];
+extern unsigned int Obj_arm_lib_len;
+extern unsigned char Obj_armeb_lib[];
+extern unsigned int Obj_armeb_lib_len;
 extern unsigned char Obj_linux_x86_lib[];
 extern unsigned int Obj_linux_x86_lib_len;
 extern unsigned char Obj_linux_x64_lib[];
@@ -58,6 +62,10 @@ extern unsigned char Obj_linux_mips_lib[];
 extern unsigned int Obj_linux_mips_lib_len;
 extern unsigned char Obj_linux_mipsel_lib[];
 extern unsigned int Obj_linux_mipsel_lib_len;
+extern unsigned char Obj_linux_arm_lib[];
+extern unsigned int Obj_linux_arm_lib_len;
+extern unsigned char Obj_linux_armeb_lib[];
+extern unsigned int Obj_linux_armeb_lib_len;
 extern unsigned char Obj_freebsd_x86_lib[];
 extern unsigned int Obj_freebsd_x86_lib_len;
 extern unsigned char Obj_freebsd_x64_lib[];
@@ -76,6 +84,8 @@ extern unsigned char Obj_windows_x64_lib[];
 extern unsigned int Obj_windows_x64_lib_len;
 extern unsigned char Obj_windows_quark_lib[];
 extern unsigned int Obj_windows_quark_lib_len;
+extern unsigned char Obj_windows_arm_lib[];
+extern unsigned int Obj_windows_arm_lib_len;
 
 
 extern int Code_parse(ParserState* state);
@@ -84,6 +94,7 @@ extern void Code_set_lineno(int line, void* yyscanner);
 
 extern Output* CreateQuarkCodeGen(const Settings& settings, Function* startFunc);
 extern Output* CreateMipsCodeGen(const Settings& settings, Function* startFunc);
+extern Output* CreateArmCodeGen(const Settings& settings, Function* startFunc);
 
 
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
@@ -483,6 +494,41 @@ bool Linker::ImportStandardLibrary()
 			default:
 				lib = Obj_mipsel_lib;
 				len = Obj_mipsel_lib_len;
+				break;
+			}
+		}
+	}
+	else if (m_settings.architecture == ARCH_ARM)
+	{
+		if (m_settings.bigEndian)
+		{
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_armeb_lib;
+				len = Obj_linux_armeb_lib_len;
+				break;
+			default:
+				lib = Obj_armeb_lib;
+				len = Obj_armeb_lib_len;
+				break;
+			}
+		}
+		else
+		{
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_arm_lib;
+				len = Obj_linux_arm_lib_len;
+				break;
+			case OS_WINDOWS:
+				lib = Obj_windows_arm_lib;
+				len = Obj_windows_arm_lib_len;
+				break;
+			default:
+				lib = Obj_arm_lib;
+				len = Obj_arm_lib_len;
 				break;
 			}
 		}
@@ -1115,6 +1161,10 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	else if (m_settings.architecture == ARCH_MIPS)
 	{
 		out[SUBARCH_DEFAULT] = CreateMipsCodeGen(m_settings, m_startFunction);
+	}
+	else if (m_settings.architecture == ARCH_ARM)
+	{
+		out[SUBARCH_DEFAULT] = CreateArmCodeGen(m_settings, m_startFunction);
 	}
 	else
 	{

@@ -1134,7 +1134,14 @@ bool Linker::LayoutCode(vector<ILBlock*>& codeBlocks)
 
 		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
 		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
+		{
+			if (!i->reloc->overflow)
+			{
+				fprintf(stderr, "error: relocation out of range\n");
+				return false;
+			}
 			i->reloc->overflow(i->block, *i->reloc);
+		}
 	}
 
 	return true;

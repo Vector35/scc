@@ -46,6 +46,15 @@ registerclass SYSCALL_PARAM_5(8,16,32) fixed { 5 } : IREG
 registerclass SYSCALL_PARAM_6(8,16,32) fixed { 6 } : IREG
 registerclass SYSCALL_NUM(32) fixed { 7 } : IREG
 
+immediateclass IMM16  { return (value >= 0) && (value < 0x10000); }
+immediateclass IMM8  { return (value >= 0) && (value < 0x100); }
+immediateclass IMM8NEG  { return (value > -0x100) && (value < 0); }
+immediateclass IMM8NOT  { return (value >= -0x100) && (value < 0); }
+immediateclass IMM12  { return (value >= 0) && (value < 0x1000); }
+immediateclass IMM12NEG  { return (value > -0x1000) && (value < 0); }
+immediateclass IMM12M4  { return (value >= 0) && (value < 0xffc); }
+immediateclass IMM12M4NEG  { return (value > -0x1000) && (value <= -4); }
+
 callersaved { 0, 1, 2, 3, 12 }
 calleesaved { 4, 5, 6, 7, 8, 9, 10, 11 }
 
@@ -68,6 +77,170 @@ encoding REV { cond=COND_AL:4, 0x6bf:12, rd:4, 0xf:4, op2:3, 1:1, rm:4 }
 encoding LOAD_MULTIPLE { cond=COND_AL:4, 2:2, op:6, rn:4, i:16 }
 encoding BRANCH { cond=COND_AL:4, 2:2, op:2, i:24 }
 encoding SVC { cond=COND_AL:4, 0xf:4, i:24 }
+encoding PACK { cond=COND_AL:4, op:8, 0xf:4, rd:4, rot:2, 0:2, 7:4, rm:4 }
+encoding DIV { 0x1f:5, op:6, 1:1, rn:4, 1:4, rd:4, 1:4, rm:4 }
+
+instr function int64_t RelativeAddRead32(OutputBlock* out, Relocation& reloc)
+{
+	size_t start = reloc.instruction;
+	uint32_t instrA = out->ReadOffsetUInt32(start);
+	uint32_t instrB = out->ReadOffsetUInt32(start + 4);
+	uint32_t instrC = out->ReadOffsetUInt32(start + 8);
+	uint32_t op = (instrC >> 21) & 0xf;
+	if (op == 4) // add
+		return ((instrA >> 4) & 0xf000) | (instrA & 0xfff) | ((instrB << 12) & 0xf0000000) | ((instrB << 16) & 0xfff0000);
+	else // sub
+		return -(((instrA >> 4) & 0xf000) | (instrA & 0xfff) | ((instrB << 12) & 0xf0000000) | ((instrB << 16) & 0xfff0000));
+}
+
+instr function void RelativeAddWrite32(OutputBlock* out, Relocation& reloc, int64_t diff)
+{
+	size_t start = reloc.instruction;
+	uint32_t instrA, instrB;
+	uint32_t instrC = out->ReadOffsetUInt32(start + 4);
+	uint32_t rd = (instrC >> 12) & 0xf;
+	if (diff < 0)
+	{
+		instrA = @@MOV16 op1=0x10, rd=reloc.extra, hi=(-diff)>>12, lo=-diff; // movw
+		instrB = @@MOV16 op1=0x14, rd=reloc.extra, hi=(-diff)>>28, lo=(-diff)>>16; // movt
+		instrC = @@DATA_REG op1=2, s=0, rd=rd, rn=REG_PC, rm=reloc.extra; // sub
+	}
+	else
+	{
+		instrA = @@MOV16 op1=0x10, rd=reloc.extra, hi=diff>>12, lo=diff; // movw
+		instrB = @@MOV16 op1=0x14, rd=reloc.extra, hi=diff>>28, lo=diff>>16; // movt
+		instrC = @@DATA_REG op1=4, s=0, rd=rd, rn=REG_PC, rm=reloc.extra; // add
+	}
+	out->WriteOffsetUInt32(start, instrA);
+	out->WriteOffsetUInt32(start + 4, instrB);
+	out->WriteOffsetUInt32(start + 8, instrC);
+}
+
+instr function bool RelativeAddValid32(OutputBlock* out, Relocation& reloc, int64_t diff)
+{
+	return true;
+}
+
+instr function int64_t RelativeAddRead16(OutputBlock* out, Relocation& reloc)
+{
+	size_t start = reloc.instruction;
+	uint32_t instrA = out->ReadOffsetUInt32(start);
+	uint32_t instrB = out->ReadOffsetUInt32(start + 4);
+	uint32_t op = (instrB >> 21) & 0xf;
+	int32_t diff;
+	if (op == 4) // add
+		diff = ((instrA >> 4) & 0xf000) | (instrA & 0xfff);
+	else // sub
+		diff = -(((instrA >> 4) & 0xf000) | (instrA & 0xfff));
+	return diff;
+}
+
+instr function void RelativeAddWrite16(OutputBlock* out, Relocation& reloc, int64_t diff)
+{
+	size_t start = reloc.instruction;
+	uint32_t instrA;
+	uint32_t instrB = out->ReadOffsetUInt32(start + 4);
+	uint32_t rd = (instrB >> 12) & 0xf;
+	if (diff < 0)
+	{
+		instrA = @@MOV16 op1=0x10, rd=reloc.extra, hi=(-diff)>>12, lo=-diff; // movw
+		instrB = @@DATA_REG op1=2, s=0, rd=rd, rn=REG_PC, rm=reloc.extra; // sub
+	}
+	else
+	{
+		instrA = @@MOV16 op1=0x10, rd=reloc.extra, hi=diff>>12, lo=diff; // movw
+		instrB = @@DATA_REG op1=4, s=0, rd=rd, rn=REG_PC, rm=reloc.extra; // add
+	}
+	out->WriteOffsetUInt32(start, instrA);
+	out->WriteOffsetUInt32(start + 4, instrB);
+}
+
+instr function bool RelativeAddValid16(OutputBlock* out, Relocation& reloc, int64_t diff)
+{
+	return (diff > -0x10000) && (diff < 0x10000);
+}
+
+instr function void RelativeAddOverflow16(OutputBlock* out, Relocation& reloc)
+{
+	size_t start = reloc.instruction;
+	uint32_t instrs[3];
+	instrs[0] = out->ReadOffsetUInt32(start);
+	instrs[1] = @@MOV16 op1=0x14, rd=reloc.extra, hi=0, lo=0; // movt
+	instrs[2] = out->ReadOffsetUInt32(start + 4);
+
+	if (out->bigEndian)
+	{
+		instrs[0] = BE32(instrs[0]);
+		instrs[1] = BE32(instrs[1]);
+		instrs[2] = BE32(instrs[2]);
+	}
+
+	out->ReplaceInstruction(start, 8, instrs, 12, 8);
+
+	reloc.bitSize = 32;
+	reloc.offset += 4;
+	reloc.overflow = NULL;
+	reloc.read = RelativeAddRead32;
+	reloc.write = RelativeAddWrite32;
+	reloc.valid = RelativeAddValid32;
+}
+
+instr function int64_t RelativeAddRead12(OutputBlock* out, Relocation& reloc)
+{
+	size_t start = reloc.instruction;
+	uint32_t instr = out->ReadOffsetUInt32(start);
+	uint32_t op = (instr >> 21) & 0xf;
+	int32_t diff;
+	if (op == 4) // add
+		diff = instr & 0xfff;
+	else // sub
+		diff = -(instr & 0xfff);
+	return diff;
+}
+
+instr function void RelativeAddWrite12(OutputBlock* out, Relocation& reloc, int64_t diff)
+{
+	size_t start = reloc.instruction;
+	uint32_t instr = out->ReadOffsetUInt32(start);
+	uint32_t rd = (instr >> 12) & 0xf;
+	if (diff < 0)
+		instr = @@DATA_IMM op1=2, s=0, rd=rd, rn=REG_PC, i=-diff; // sub
+	else
+		instr = @@DATA_IMM op1=4, s=0, rd=rd, rn=REG_PC, i=diff; // add
+	out->WriteOffsetUInt32(start, instr);
+}
+
+instr function bool RelativeAddValid12(OutputBlock* out, Relocation& reloc, int64_t diff)
+{
+	return (diff > -0x1000) && (diff < 0x1000);
+}
+
+instr function void RelativeAddOverflow12(OutputBlock* out, Relocation& reloc)
+{
+	size_t start = reloc.instruction;
+	uint32_t oldInstr = out->ReadOffsetUInt32(start);
+	uint32_t rd = (oldInstr >> 12) & 0xf;
+	uint32_t op = (oldInstr >> 21) & 0xf;
+	uint32_t diff = oldInstr & 0xfff;
+
+	uint32_t instrs[2];
+	instrs[0] = @@MOV16 op1=0x10, rd=reloc.extra, hi=diff>>12, lo=diff; // movw
+	instrs[1] = @@DATA_REG op1=op, s=0, rd=rd, rn=REG_PC, rm=reloc.extra; // add
+
+	if (out->bigEndian)
+	{
+		instrs[0] = BE32(instrs[0]);
+		instrs[1] = BE32(instrs[1]);
+	}
+
+	out->ReplaceInstruction(start, 4, instrs, 8, 4);
+
+	reloc.bitSize = 16;
+	reloc.overflow = RelativeAddOverflow16;
+	reloc.read = RelativeAddRead16;
+	reloc.write = RelativeAddWrite16;
+	reloc.valid = RelativeAddValid16;
+}
 
 #define DATA_INSTR(name, opcode) \
 instr name  name rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=0; } \
@@ -145,6 +318,42 @@ instr sub_stack  add rd:REG(w), var:STACKVAR
 	}
 }
 
+instr add_global  add rd:REG(w), var:GLOBALVAR
+{
+	@DATA_IMM op1=2, s=0, rn=REG_PC, i=8; // sub %rd, pc, 8
+
+	Relocation reloc;
+	reloc.type = DATA_RELOC_RELATIVE_CUSTOM_FIELD;
+	reloc.instruction = out->len - 4;
+	reloc.offset = out->len - 4;
+	reloc.extra = %var:temp;
+	reloc.dataOffset = %var:offset;
+	reloc.bitSize = 12;
+	reloc.overflow = RelativeAddOverflow12;
+	reloc.read = RelativeAddRead12;
+	reloc.write = RelativeAddWrite12;
+	reloc.valid = RelativeAddValid12;
+	out->relocs.push_back(reloc);
+}
+
+instr add_block add rd:REG(w), func:FUNCTION, temp:TEMP
+{
+	@DATA_IMM op1=2, s=0, rn=REG_PC, i=8; // sub %rd, pc, 8
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_CUSTOM_FIELD;
+	reloc.instruction = out->len - 4;
+	reloc.offset = out->len - 4;
+	reloc.extra = %temp;
+	reloc.target = %func:block;
+	reloc.bitSize = 12;
+	reloc.overflow = RelativeAddOverflow12;
+	reloc.read = RelativeAddRead12;
+	reloc.write = RelativeAddWrite12;
+	reloc.valid = RelativeAddValid12;
+	out->relocs.push_back(reloc);
+}
+
 #define DATA_INSTR_CARRY(name, opcode) \
 instr(readflags) name  name rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG op1=opcode, s=0; } \
 instr(readflags) name##_lsl_imm  name rd:REG(w), rn:REG(r), rm:REG(r) lsl i:IMM  { @DATA_REG op1=opcode, s=0, type=0; } \
@@ -186,7 +395,13 @@ COMPARE_INSTR(teq, 9)
 COMPARE_INSTR(cmp, 0xa)
 COMPARE_INSTR(cmn, 0xb)
 
-instr(copy) mov  mov rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=0; }
+instr(copy) mov  mov rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=0; } update
+{
+	if (%rd == %rm)
+		return true;
+	return false;
+}
+
 instr mov_imm  mov rd:REG(w), i:IMM  { @DATA_IMM op1=0xd, s=0; }
 instr lsl_imm  lsl rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=0; }
 instr lsr_imm  lsr rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=1; }
@@ -249,9 +464,17 @@ instr(writeflags) qsub  qsub rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=1; 
 instr(writeflags) qdadd  qdadd rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=2; }
 instr(writeflags) qdsub  qdsub rd:REG(w), rm:REG(r), rn:REG(r)  { @SATURATE op=3; }
 
-instr(memory) strh  strh rt:REG(r), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x18, op2=1; }
-instr(memory) strh_pre  strh rt:REG(r), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1a, op2=1; }
-instr(memory) strh_post  strh rt:REG(r), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=8, op2=1; }
+instr sxtb  sxtb rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6a; }
+instr sxth  sxth rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6b; }
+instr uxtb  uxtb rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6e; }
+instr uxth  uxth rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6f; }
+
+instr sdiv  sdiv rd:REG(w), rn:REG(r), rm:REG(r)  { @DIV op=0x1c; }
+instr udiv  udiv rd:REG(w), rn:REG(r), rm:REG(r)  { @DIV op=0x1d; }
+
+instr(memory) strh_reg  strh rt:REG(r), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x18, op2=1; }
+instr(memory) strh_reg_pre  strh rt:REG(r), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1a, op2=1; }
+instr(memory) strh_reg_post  strh rt:REG(r), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=8, op2=1; }
 instr(memory) strh_sub  strh rt:REG(r), [rn:REG(r) - rm:REG(r)]  { @EXTRA_LOAD op1=0x10, op2=1; }
 instr(memory) strh_sub_pre  strh rt:REG(r), [rn:REG(rw)], -rm:REG(r)  { @EXTRA_LOAD op1=0x12, op2=1; }
 instr(memory) strh_sub_post  strh rt:REG(r), [rn:REG(rw) - rm:REG(r)]!  { @EXTRA_LOAD op1=0, op2=1; }
@@ -286,18 +509,18 @@ instr(memory) strh_stack  strh rt:REG(r), [var:STACKVAR]
 }
 
 #define LOAD_EXTRA_INSTR(name, opcode) \
-instr(memory) name  name rt:REG(w), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x19, op2=opcode; } \
-instr(memory) name##_pre  name rt:REG(w), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1b, op2=opcode; } \
-instr(memory) name##_post  name rt:REG(w), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=9, op2=opcode; } \
-instr(memory) name##_sub  name rt:REG(w), [rn:REG(r) - rm:REG(r)]  { @EXTRA_LOAD op1=0x11, op2=opcode; } \
-instr(memory) name##_sub_pre  name rt:REG(w), [rn:REG(rw)], -rm:REG(r)  { @EXTRA_LOAD op1=0x13, op2=opcode; } \
-instr(memory) name##_sub_post  name rt:REG(w), [rn:REG(rw) - rm:REG(r)]!  { @EXTRA_LOAD op1=1, op2=opcode; } \
+instr(memory) name##_reg  name rt:REG(w), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x19, op2=opcode; } \
+instr(memory) name##_reg_pre  name rt:REG(w), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1b, op2=opcode; } \
+instr(memory) name##_reg_post  name rt:REG(w), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=9, op2=opcode; } \
+instr(memory) name##_sub_reg  name rt:REG(w), [rn:REG(r) - rm:REG(r)]  { @EXTRA_LOAD op1=0x11, op2=opcode; } \
+instr(memory) name##_sub_reg_pre  name rt:REG(w), [rn:REG(rw)], -rm:REG(r)  { @EXTRA_LOAD op1=0x13, op2=opcode; } \
+instr(memory) name##_sub_reg_post  name rt:REG(w), [rn:REG(rw) - rm:REG(r)]!  { @EXTRA_LOAD op1=1, op2=opcode; } \
 instr(memory) name##_imm  name rt:REG(w), [rn:REG(r) + i:IMM]  { @EXTRA_LOAD op1=0x1d, op2=opcode, hi=i>>4, rm=i; } \
-instr(memory) name##_pre_imm  name rt:REG(w), [rn:REG(rw) + i:IMM]!  { @EXTRA_LOAD op1=0x1f, op2=opcode, hi=i>>4, rm=i; } \
-instr(memory) name##_post_imm  name rt:REG(w), [rn:REG(rw)], i:IMM  { @EXTRA_LOAD op1=0xd, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_imm_pre  name rt:REG(w), [rn:REG(rw) + i:IMM]!  { @EXTRA_LOAD op1=0x1f, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_imm_post  name rt:REG(w), [rn:REG(rw)], i:IMM  { @EXTRA_LOAD op1=0xd, op2=opcode, hi=i>>4, rm=i; } \
 instr(memory) name##_sub_imm  name rt:REG(w), [rn:REG(r) - i:IMM]  { @EXTRA_LOAD op1=0x15, op2=opcode, hi=i>>4, rm=i; } \
-instr(memory) name##_sub_pre_imm  name rt:REG(w), [rn:REG(rw)], -i:IMM  { @EXTRA_LOAD op1=0x17, op2=opcode, hi=i>>4, rm=i; } \
-instr(memory) name##_sub_post_imm  name rt:REG(w), [rn:REG(rw) - i:IMM]!  { @EXTRA_LOAD op1=5, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_sub_imm_pre  name rt:REG(w), [rn:REG(rw)], -i:IMM  { @EXTRA_LOAD op1=0x17, op2=opcode, hi=i>>4, rm=i; } \
+instr(memory) name##_sub_imm_post  name rt:REG(w), [rn:REG(rw) - i:IMM]!  { @EXTRA_LOAD op1=5, op2=opcode, hi=i>>4, rm=i; } \
 instr(memory) name##_stack  name rt:REG(w), [var:STACKVAR] \
 { \
 	if ((%var:offset > -0x100) && (%var:offset < 0)) \
@@ -354,8 +577,8 @@ instr(memory) name##_imm  name rt:REG(v), [rn:REG(r) + i:IMM]  { @LOAD_IMM op1=o
 instr(memory) name##_pre_imm  name rt:REG(v), [rn:REG(rw) + i:IMM]!  { @LOAD_IMM op1=opcode+0x1a; } \
 instr(memory) name##_post_imm  name rt:REG(v), [rn:REG(rw)], i:IMM  { @LOAD_IMM op1=opcode+8; } \
 instr(memory) name##_sub_imm  name rt:REG(v), [rn:REG(r) - i:IMM]  { @LOAD_IMM op1=opcode+0x10; } \
-instr(memory) name##_sub_pre_imm  name rt:REG(v), [rn:REG(rw)], -i:IMM  { @LOAD_IMM op1=opcode+0x12; } \
-instr(memory) name##_sub_post_imm  name rt:REG(v), [rn:REG(rw) - i:IMM]!  { @LOAD_IMM op1=opcode; } \
+instr(memory) name##_sub_imm_pre  name rt:REG(v), [rn:REG(rw)], -i:IMM  { @LOAD_IMM op1=opcode+0x12; } \
+instr(memory) name##_sub_imm_post  name rt:REG(v), [rn:REG(rw) - i:IMM]!  { @LOAD_IMM op1=opcode; } \
 instr(memory) name##_stack  name rt:REG(v), [var:STACKVAR] \
 { \
 	if ((%var:offset > -0x1000) && (%var:offset < 0)) \
@@ -384,9 +607,13 @@ LOAD_INSTR(ldr, w, 1)
 LOAD_INSTR(strb, r, 4)
 LOAD_INSTR(ldrb, w, 5)
 
-
 instr(branch) bx  bx rm:REG(r)  { @MISC op=1, op1=0xf, op2=1, rd=0xf, rs=0xf; }
-instr(call) blx  blx rm:REG(r)  { @MISC op=1, op1=0xf, op2=3, rd=0xf, rs=0xf; }
+
+instr(call) blx  blx rm:REG(r), retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
+{
+	@MISC op=1, op1=0xf, op2=3, rd=0xf, rs=0xf;
+}
+
 instr clz  clz rd:REG(w), rm:REG(r)  { @MISC op=3, op1=0xf, op2=1; }
 instr bkpt  bkpt  { @MISC op=1, op2=7; }
 
@@ -422,29 +649,29 @@ instr(memory) ldmib_update  ldmda! rn:REG(rw), i:IMM, regs:REGLIST(w)  { @LOAD_M
 	reloc.bitShift = 2; \
 	out->relocs.push_back(reloc);
 
-instr(branch) b  b dest:FUNCTION  { @BRANCH op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) beq  beq dest:FUNCTION  { @BRANCH cond=COND_EQ, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bne  bne dest:FUNCTION  { @BRANCH cond=COND_NE, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bcs  bcs dest:FUNCTION  { @BRANCH cond=COND_CS, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bcc  bcc dest:FUNCTION  { @BRANCH cond=COND_CC, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bmi  bmi dest:FUNCTION  { @BRANCH cond=COND_MI, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bpl  bpl dest:FUNCTION  { @BRANCH cond=COND_PL, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bvs  bvs dest:FUNCTION  { @BRANCH cond=COND_VS, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bvc  bvc dest:FUNCTION  { @BRANCH cond=COND_VC, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bhi  bhi dest:FUNCTION  { @BRANCH cond=COND_HI, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bls  bls dest:FUNCTION  { @BRANCH cond=COND_LS, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bge  bge dest:FUNCTION  { @BRANCH cond=COND_GE, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) blt  blt dest:FUNCTION  { @BRANCH cond=COND_LT, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) bgt  bgt dest:FUNCTION  { @BRANCH cond=COND_GT, op=2, i=0; BRANCH_RELOC(%dest:block); }
-instr(branch) ble  ble dest:FUNCTION  { @BRANCH cond=COND_LE, op=2, i=0; BRANCH_RELOC(%dest:block); }
+instr(branch) b  b dest:FUNCTION  { @BRANCH op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) beq  beq dest:FUNCTION  { @BRANCH cond=COND_EQ, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bne  bne dest:FUNCTION  { @BRANCH cond=COND_NE, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bcs  bcs dest:FUNCTION  { @BRANCH cond=COND_CS, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bcc  bcc dest:FUNCTION  { @BRANCH cond=COND_CC, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bmi  bmi dest:FUNCTION  { @BRANCH cond=COND_MI, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bpl  bpl dest:FUNCTION  { @BRANCH cond=COND_PL, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bvs  bvs dest:FUNCTION  { @BRANCH cond=COND_VS, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bvc  bvc dest:FUNCTION  { @BRANCH cond=COND_VC, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bhi  bhi dest:FUNCTION  { @BRANCH cond=COND_HI, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bls  bls dest:FUNCTION  { @BRANCH cond=COND_LS, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bge  bge dest:FUNCTION  { @BRANCH cond=COND_GE, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) blt  blt dest:FUNCTION  { @BRANCH cond=COND_LT, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) bgt  bgt dest:FUNCTION  { @BRANCH cond=COND_GT, op=2, i=-1; BRANCH_RELOC(%dest:block); }
+instr(branch) ble  ble dest:FUNCTION  { @BRANCH cond=COND_LE, op=2, i=-1; BRANCH_RELOC(%dest:block); }
 
 instr(call) bl  bl dest:FUNCTION, retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
 {
-	@BRANCH op=3, i=0;
+	@BRANCH op=3, i=-1;
 	BRANCH_RELOC(%dest:block);
 }
 
-instr(call) svc  svc writes:REGLIST(w), reads:REGLIST(r)  { @SVC; }
+instr(call) svc  svc num:REG(r), writes:REGLIST(w), reads:REGLIST(r)  { @SVC; }
 
 instr saveregs  saveregs {} update
 {
@@ -462,7 +689,6 @@ instr restoreregs  restoreregs {} update
 {
 	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
 	clobbered.push_back(REG_FP);
-	clobbered.push_back(REG_LR);
 	clobbered.push_back(REG_PC);
 	uint32_t mask = 0;
 	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
@@ -474,6 +700,472 @@ instr restoreregs  restoreregs {} update
 // Data flow pseudo-instructions
 instr regparam  regparam regs:REGLIST(w)  {} update { return true; }
 instr symreturn  symreturn low:REG(r) high:REG(r)  {} update { return true; }
+
+src:IMM8 => dest:IREG { @mov_imm %dest, %src; }
+src:IMM8NOT => dest:IREG { @mvn_imm %dest, ~%src; }
+src:IMM16 => dest:IREG { @movw %dest, %src; }
+src:IMM => dest:IREG { @movw %dest, %src; @movt %dest, %src>>16; }
+src:IMM8 => dest:IREG64 { @mov_imm %dest:low, %src; @mov_imm %dest:high, 0; }
+src:IMM8NOT => dest:IREG64 { @mvn_imm %dest:low, ~%src; @mvn_imm %dest:high, 0; }
+src:IMM16 => dest:IREG64 { @movw %dest:low, %src; @mov_imm %dest:high, 0; }
+src:IMM => dest:IREG64
+{
+	@movw %dest:low, %src;
+	@movt %dest:low, %src>>16;
+	@movw %dest:high, %src>>32;
+	@movt %dest:high, %src>>48;
+}
+
+src:IRESULT => dest:IREG(S8) { @sxtb %dest, %src, 0; }
+src:IRESULT => dest:IREG(U8) { @uxtb %dest, %src, 0; }
+src:IRESULT => dest:IREG(S16) { @sxth %dest, %src, 0; }
+src:IRESULT => dest:IREG(U16) { @uxth %dest, %src, 0; }
+src:IRESULT => dest:IREG(32) {}
+
+func:FUNCTION => dest:IREG, temp:IREG { @add_block %dest, %func, %func->GetIL()[0], %temp; }
+
+assign dest:IREG src:IREG { @mov %dest, %src; }
+assign dest:IREG64 src:IREG64 { @mov %dest:low, %src:low; @mov %dest:high, %src:high; }
+
+load(S8) base:IREG => dest:IREG { @ldrsb_imm %dest, %base, 0; }
+load(S8) add base:IREG ofs:IMM8 => dest:IREG { @ldrsb_imm %dest, %base, %ofs; }
+load(S8) add base:IREG ofs:IMM8NEG => dest:IREG { @ldrsb_sub_imm %dest, %base, -%ofs; }
+load(S8) add base:IREG ofs:IREG => dest:IREG { @ldrsb_reg %dest, %base, %ofs; }
+load(U8) base:IREG => dest:IREG { @ldrb_imm %dest, %base, 0; }
+load(U8) add base:IREG ofs:IMM12 => dest:IREG { @ldrb_imm %dest, %base, %ofs; }
+load(U8) add base:IREG ofs:IMM12NEG => dest:IREG { @ldrb_sub_imm %dest, %base, -%ofs; }
+load(U8) add base:IREG ofs:IREG => dest:IREG { @ldrb_reg %dest, %base, %ofs; }
+load(S16) base:IREG => dest:IREG { @ldrsh_imm %dest, %base, 0; }
+load(S16) add base:IREG ofs:IMM8 => dest:IREG { @ldrsh_imm %dest, %base, %ofs; }
+load(S16) add base:IREG ofs:IMM8NEG => dest:IREG { @ldrsh_sub_imm %dest, %base, -%ofs; }
+load(S16) add base:IREG ofs:IREG => dest:IREG { @ldrsh_reg %dest, %base, %ofs; }
+load(U16) base:IREG => dest:IREG { @ldrh_imm %dest, %base, 0; }
+load(U16) add base:IREG ofs:IMM8 => dest:IREG { @ldrh_imm %dest, %base, %ofs; }
+load(U16) add base:IREG ofs:IMM8NEG => dest:IREG { @ldrh_sub_imm %dest, %base, -%ofs; }
+load(U16) add base:IREG ofs:IREG => dest:IREG { @ldrh_reg %dest, %base, %ofs; }
+load(32) base:IREG => dest:IREG { @ldr_imm %dest, %base, 0; }
+load(32) add base:IREG ofs:IMM12 => dest:IREG { @ldr_imm %dest, %base, %ofs; }
+load(32) add base:IREG ofs:IMM12NEG => dest:IREG { @ldr_sub_imm %dest, %base, -%ofs; }
+load(32) add base:IREG ofs:IREG => dest:IREG { @ldr_reg %dest, %base, %ofs; }
+load(64) base:IREG => dest:IREG64
+{
+	@ldr_imm %dest:low, %base, m_settings.bigEndian ? 4 : 0;
+	@ldr_imm %dest:high, %base, m_settings.bigEndian ? 0 : 4;
+}
+load(64) add base:IREG ofs:IMM12M4 => dest:IREG64
+{
+	@ldr_imm %dest:low, %base, %ofs + m_settings.bigEndian ? 4 : 0;
+	@ldr_imm %dest:high, %base, %ofs + m_settings.bigEndian ? 0 : 4;
+}
+load(64) add base:IREG ofs:IMM12M4NEG => dest:IREG64
+{
+	@ldr_sub_imm %dest:low, %base, -(%ofs + m_settings.bigEndian ? 4 : 0);
+	@ldr_sub_imm %dest:high, %base, -(%ofs + m_settings.bigEndian ? 0 : 4);
+}
+load(64) add base:IREG ofs:IREG => dest:IREG64, temp:IREG
+{
+	@add %temp, %base, %ofs;
+	@ldr_imm %dest:low, %temp, m_settings.bigEndian ? 4 : 0;
+	@ldr_imm %dest:high, %temp, m_settings.bigEndian ? 0 : 4;
+}
+
+load ref src:STACKVAR(S8) => dest:IREG { @ldrsb_stack %dest, %src; }
+load ref src:STACKVAR(U8) => dest:IREG { @ldrb_stack %dest, %src; }
+load ref src:STACKVAR(S16) => dest:IREG { @ldrsh_stack %dest, %src; }
+load ref src:STACKVAR(U16) => dest:IREG { @ldrh_stack %dest, %src; }
+load ref src:STACKVAR(32) => dest:IREG { @ldr_stack %dest, %src; }
+load ref src:STACKVAR(64) => dest:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@ldr_stack %dest:low, %src:4;
+		@ldr_stack %dest:high, %src:0;
+	}
+	else
+	{
+		@ldr_stack %dest:low, %src:0;
+		@ldr_stack %dest:high, %src:4;
+	}
+}
+
+store(8) base:IREG src:IREG { @strb_imm %src, %base, 0; }
+store(8) add base:IREG ofs:IMM12 src:IREG { @strb_imm %src, %base, %ofs; }
+store(8) add base:IREG ofs:IMM12NEG src:IREG { @strb_sub_imm %src, %base, -%ofs; }
+store(8) add base:IREG ofs:IREG src:IREG { @strb_reg %src, %base, %ofs; }
+store(16) base:IREG src:IREG { @strh_imm %src, %base, 0; }
+store(16) add base:IREG ofs:IMM8 src:IREG { @strh_imm %src, %base, %ofs; }
+store(16) add base:IREG ofs:IMM8NEG src:IREG { @strh_sub_imm %src, %base, -%ofs; }
+store(16) add base:IREG ofs:IREG src:IREG { @strh_reg %src, %base, %ofs; }
+store(32) base:IREG src:IREG { @str_imm %src, %base, 0; }
+store(32) add base:IREG ofs:IMM12 src:IREG { @str_imm %src, %base, %ofs; }
+store(32) add base:IREG ofs:IMM12NEG src:IREG { @str_sub_imm %src, %base, -%ofs; }
+store(32) add base:IREG ofs:IREG src:IREG { @str_reg %src, %base, %ofs; }
+store(64) base:IREG src:IREG64
+{
+	@str_imm %src:low, %base, m_settings.bigEndian ? 4 : 0;
+	@str_imm %src:high, %base, m_settings.bigEndian ? 0 : 4;
+}
+store(64) add base:IREG ofs:IMM12M4 src:IREG64
+{
+	@str_imm %src:low, %base, %ofs + m_settings.bigEndian ? 4 : 0;
+	@str_imm %src:high, %base, %ofs + m_settings.bigEndian ? 0 : 4;
+}
+store(64) add base:IREG ofs:IMM12M4NEG src:IREG64
+{
+	@str_sub_imm %src:low, %base, -(%ofs + m_settings.bigEndian ? 4 : 0);
+	@str_sub_imm %src:high, %base, -(%ofs + m_settings.bigEndian ? 0 : 4);
+}
+store(64) add base:IREG ofs:IREG src:IREG64, temp:IREG
+{
+	@add %temp, %base, %ofs;
+	@str_imm %src:low, %base, m_settings.bigEndian ? 4 : 0;
+	@str_imm %src:high, %base, m_settings.bigEndian ? 0 : 4;
+}
+
+store ref dest:STACKVAR(8) src:IREG { @strb_stack %src, %dest; }
+store ref dest:STACKVAR(16) src:IREG { @strh_stack %src, %dest; }
+store ref dest:STACKVAR(32) src:IREG { @str_stack %src, %dest; }
+store ref dest:STACKVAR(64) src:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@str_stack %src:low, %dest:4;
+		@str_stack %src:high, %dest:0;
+	}
+	else
+	{
+		@str_stack %src:low, %dest:0;
+		@str_stack %src:high, %dest:4;
+	}
+}
+
+ref base:GLOBALVAR => dest:IREG { @add_global %dest, %base; }
+ref base:STACKVAR => dest:IREG { @add_stack %dest, %base; }
+
+add a:IREG b:IREG => dest:IRESULT { @add %dest, %a, %b; }
+add a:IREG b:IMM8 => dest:IRESULT { @add_imm %dest, %a, %b; }
+add a:IREG b:IMM8NEG => dest:IRESULT { @sub_imm %dest, %a, %b; }
+add a:IREG shl b:IREG c:IMM => dest:IRESULT { @add_lsl_imm %dest, %a, %b, %c; }
+add a:IREG shr b:IREG c:IMM => dest:IRESULT { @add_lsr_imm %dest, %a, %b, %c; }
+add a:IREG sar b:IREG c:IMM => dest:IRESULT { @add_asr_imm %dest, %a, %b, %c; }
+add a:IREG shl b:IREG c:IREG => dest:IRESULT { @add_lsl_reg %dest, %a, %b, %c; }
+add a:IREG shr b:IREG c:IREG => dest:IRESULT { @add_lsr_reg %dest, %a, %b, %c; }
+add a:IREG sar b:IREG c:IREG => dest:IRESULT { @add_asr_reg %dest, %a, %b, %c; }
+
+sub a:IREG b:IREG => dest:IRESULT { @sub %dest, %a, %b; }
+sub a:IREG b:IMM8 => dest:IRESULT { @sub_imm %dest, %a, %b; }
+sub a:IREG b:IMM8NEG => dest:IRESULT { @add_imm %dest, %a, %b; }
+sub a:IREG shl b:IREG c:IMM => dest:IRESULT { @sub_lsl_imm %dest, %a, %b, %c; }
+sub a:IREG shr b:IREG c:IMM => dest:IRESULT { @sub_lsr_imm %dest, %a, %b, %c; }
+sub a:IREG sar b:IREG c:IMM => dest:IRESULT { @sub_asr_imm %dest, %a, %b, %c; }
+sub a:IREG shl b:IREG c:IREG => dest:IRESULT { @sub_lsl_reg %dest, %a, %b, %c; }
+sub a:IREG shr b:IREG c:IREG => dest:IRESULT { @sub_lsr_reg %dest, %a, %b, %c; }
+sub a:IREG sar b:IREG c:IREG => dest:IRESULT { @sub_asr_reg %dest, %a, %b, %c; }
+
+#define MUL_INSTR(op) \
+op a:IREG b:IREG => dest:IRESULT { @mul %dest, %a, %b; } \
+op a:IREG64 b:IREG64 => dest:IREG64, temp:IREG \
+{ \
+	@umull %dest:high, %dest:low, %a:low, %b:low; \
+	@mul %temp, %a:low, %b:high; \
+	@add %dest:high, %dest:high, %temp; \
+	@mul %temp, %a:high, %b:low; \
+	@add %dest:high, %dest:high, %temp; \
+}
+MUL_INSTR(smul)
+MUL_INSTR(umul)
+
+sdiv a:IREG b:IREG => dest:IRESULT  { @sdiv %dest, %a, %b; }
+udiv a:IREG b:IREG => dest:IRESULT  { @udiv %dest, %a, %b; }
+
+smod a:IREG b:IREG => dest:IRESULT, temp:IREG
+{
+	@sdiv %temp, %a, %b;
+	@mul %dest, %temp, %b;
+	@sub %dest, %a, %dest;
+}
+
+umod a:IREG b:IREG => dest:IRESULT, temp:IREG
+{
+	@udiv %temp, %a, %b;
+	@mul %dest, %temp, %b;
+	@sub %dest, %a, %dest;
+}
+
+#define BITWISE_OP(op, instr) \
+op a:IREG b:IREG => dest:IREG { instr %dest, %a, %b; } \
+op a:IREG b:IMM8 => dest:IREG { instr##_imm %dest, %a, %b; } \
+op a:IREG shl b:IREG c:IMM => dest:IREG { instr##_lsl_imm %dest, %a, %b, %c; } \
+op a:IREG shr b:IREG c:IMM => dest:IREG { instr##_lsr_imm %dest, %a, %b, %c; } \
+op a:IREG sar b:IREG c:IMM => dest:IREG { instr##_asr_imm %dest, %a, %b, %c; } \
+op a:IREG shl b:IREG c:IREG => dest:IREG { instr##_lsl_reg %dest, %a, %b, %c; } \
+op a:IREG shr b:IREG c:IREG => dest:IREG { instr##_lsr_reg %dest, %a, %b, %c; } \
+op a:IREG sar b:IREG c:IREG => dest:IREG { instr##_asr_reg %dest, %a, %b, %c; }
+BITWISE_OP(and, @and)
+BITWISE_OP(or, @orr)
+BITWISE_OP(xor, @eor)
+
+shl a:IREG b:IMM => dest:IRESULT { @lsl_imm %dest, %a, %b; }
+shl a:IREG b:IREG => dest:IRESULT { @lsl %dest, %a, %b; }
+shr a:IREG b:IMM => dest:IRESULT { @lsr_imm %dest, %a, %b; }
+shr a:IREG b:IREG => dest:IRESULT { @lsr %dest, %a, %b; }
+sar a:IREG b:IMM => dest:IRESULT { @asr_imm %dest, %a, %b; }
+sar a:IREG b:IREG => dest:IRESULT { @asr %dest, %a, %b; }
+
+neg a:IREG => dest:IRESULT { @rsb_imm %dest, %a, 0; }
+not a:IREG => dest:IRESULT { @mvn %dest, %a; }
+
+sconvert src:IREG(8) => dest:IREG(16,32) { @sxtb %dest, %src, 0; }
+sconvert src:IREG(8) => dest:IREG64 { @sxtb %dest:low, %src, 0; @asr_imm %dest:high, %dest:low, 31; }
+uconvert src:IREG(8) => dest:IREG(16,32) { @uxtb %dest, %src, 0; }
+uconvert src:IREG(8) => dest:IREG64 { @uxtb %dest:low, %src, 0; @mov_imm %dest:high, 0; }
+sconvert src:IREG(16) => dest:IREG(32) { @sxth %dest, %src, 0; }
+sconvert src:IREG(16) => dest:IREG64 { @sxth %dest:low, %src, 0; @asr_imm %dest:high, %dest:low, 31; }
+uconvert src:IREG(16) => dest:IREG(32) { @uxth %dest, %src, 0; }
+uconvert src:IREG(16) => dest:IREG64 { @uxth %dest:low, %src, 0; @mov_imm %dest:high, 0; }
+sconvert src:IREG(32) => dest:IREG64 { @mov %dest:low, %src; @asr_imm %dest:high, %dest:low, 31; }
+uconvert src:IREG(32) => dest:IREG64 { @mov %dest:low, %src; @mov_imm %dest:high, 0; }
+sconvert src:IREG(16,32) => dest:IREG(8) { @sxtb %dest, %src, 0; }
+sconvert src:IREG64 => dest:IREG(8) { @sxtb %dest, %src:low, 0; }
+uconvert src:IREG(16,32) => dest:IREG(8) { @uxtb %dest, %src, 0; }
+uconvert src:IREG64 => dest:IREG(8) { @uxtb %dest, %src:low, 0; }
+sconvert src:IREG(32) => dest:IREG(16) { @sxth %dest, %src, 0; }
+sconvert src:IREG64 => dest:IREG(16) { @sxth %dest, %src:low, 0; }
+uconvert src:IREG(32) => dest:IREG(16) { @uxth %dest, %src, 0; }
+uconvert src:IREG64 => dest:IREG(16) { @uxth %dest, %src:low, 0; }
+sconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
+uconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
+
+function void UnconditionalJump(SymInstrBlock* out, TreeBlock* block)
+{
+	if ((!m_settings.pad) && (block->GetSource()->GetGlobalIndex() == (m_currentBlock->GetSource()->GetGlobalIndex() + 1)))
+	{
+		// The destination block is the one just after the current one, just fall through
+		return;
+	}
+	@b m_func, block->GetSource();
+}
+
+iftrue src:IREG t:BLOCK f:BLOCK { @cmp_imm %src, 0; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+iftrue src:IREG64 t:BLOCK f:BLOCK
+{
+	@cmp_imm %src:low, 0;
+	@bne m_func, %t->GetSource();
+	@cmp_imm %src:high, 0;
+	@bne m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+ife a:IREG b:IREG t:BLOCK f:BLOCK { @cmp %a, %b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG b:IMM8 t:BLOCK f:BLOCK { @cmp_imm %a, %b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG b:IMM8NEG t:BLOCK f:BLOCK { @cmn_imm %a, %b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsl_imm %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG shr b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsr_imm %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG sar b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_asr_imm %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG shl b:IREG c:IREG t:BLOCK f:BLOCK { @cmp_lsl_reg %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG shr b:IREG c:IREG t:BLOCK f:BLOCK { @cmp_lsr_reg %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG sar b:IREG c:IREG t:BLOCK f:BLOCK { @cmp_asr_reg %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG64 b:IREG64 t:BLOCK f:BLOCK
+{
+	@cmp %a:low, %b:low;
+	@bne m_func, %f->GetSource();
+	@cmp %a:high, %b:high;
+	@beq m_func, %t->GetSource();
+	UnconditionalJump(out, %f);
+}
+
+#define COND_COMPARE(op, instr, lowInstr, highInstr) \
+op a:IREG b:IREG t:BLOCK f:BLOCK { @cmp %a, %b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG b:IMM8 t:BLOCK f:BLOCK { @cmp_imm %a, %b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG b:IMM8NEG t:BLOCK f:BLOCK { @cmn_imm %a, %b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsl_imm %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG shr b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsr_imm %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG sar b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_asr_imm %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG shl b:IREG c:IREG t:BLOCK f:BLOCK { @cmp_lsl_reg %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG shr b:IREG c:IREG t:BLOCK f:BLOCK { @cmp_lsr_reg %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG sar b:IREG c:IREG t:BLOCK f:BLOCK { @cmp_asr_reg %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG64 b:IREG64 t:BLOCK f:BLOCK \
+{ \
+	@cmp %a:high, %b:high; \
+	highInstr m_func, %t->GetSource(); \
+	@bne m_func, %f->GetSource(); \
+	@cmp %a:low, %b:low; \
+	lowInstr m_func, %t->GetSource(); \
+	UnconditionalJump(out, %f); \
+}
+COND_COMPARE(ifslt, @blt, @bcc, @blt)
+COND_COMPARE(ifult, @bcc, @bcc, @bcc)
+COND_COMPARE(ifsle, @ble, @bls, @blt)
+COND_COMPARE(ifule, @bls, @bls, @bcc)
+
+goto dest:BLOCK { UnconditionalJump(out, %dest); }
+goto dest:IREG { @bx %dest; }
+
+breakpoint { @bkpt; }
+
+function void AdjustStackAfterCall(SymInstrBlock* out, uint32_t stackAdjust)
+{
+	if (stackAdjust != 0)
+	{
+		if (m_settings.stackGrowsUp)
+			@sub_imm SYMREG_SP, SYMREG_SP, stackAdjust;
+		else
+			@add_imm SYMREG_SP, SYMREG_SP, stackAdjust;
+	}
+}
+
+call func:FUNCTION reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE
+{
+	@bl %func, %func->GetIL()[0], %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+call func:FUNCTION reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE_64
+{
+	@bl %func, %func->GetIL()[0], %dest:low, %dest:high, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+callvoid func:FUNCTION reads:INPUT stackAdjust:IMM16
+{
+	@bl %func, %func->GetIL()[0], SYMREG_NONE, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+call func:IREG reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE
+{
+	@blx %func, %dest, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+call func:IREG reads:INPUT stackAdjust:IMM16 => dest:INTEGER_RETURN_VALUE_64
+{
+	@blx %func, %dest:low, %dest:high, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+callvoid func:IREG reads:INPUT stackAdjust:IMM16
+{
+	@blx %func, SYMREG_NONE, SYMREG_NONE, %reads;
+	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
+}
+
+function bool GenerateReturnVoid(SymInstrBlock* out)
+{
+	// Restore frame pointer (if present) and adjust stack
+	if (m_framePointerEnabled)
+	{
+		@mov SYMREG_SP, SYMREG_BP;
+	}
+	else
+	{
+		// TODO: Support frames without a frame pointer
+		return false;
+	}
+
+	// The restore register function also pops PC off the stack
+	@restoreregs;
+	return true;
+}
+
+return src:IREG, retval:INTEGER_RETURN_VALUE { @mov %retval, %src; GenerateReturnVoid(out); @symreturn %retval, SYMREG_NONE; }
+return src:IREG64, retval:INTEGER_RETURN_VALUE_64
+{
+	@mov %retval:low, %src:low;
+	@mov %retval:high, %src:high;
+	GenerateReturnVoid(out);
+	@symreturn %retval:low, %retval:high;
+}
+returnvoid { GenerateReturnVoid(out); }
+
+alloca size:IREG => result:IREG, temp:IREG
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@add_imm SYMREG_SP, SYMREG_SP, 4;
+		@mov %result, SYMREG_SP;
+		@add SYMREG_SP, SYMREG_SP, %size;
+		@mvn_imm %temp, 3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+	}
+	else
+	{
+		@sub SYMREG_SP, SYMREG_SP, %size;
+		@mvn_imm %temp, 3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+		@mov %result, SYMREG_SP;
+	}
+}
+
+alloca size:IMM8 => result:IREG, temp:IREG
+{
+	if (m_settings.stackGrowsUp)
+	{
+		@add_imm SYMREG_SP, SYMREG_SP, 4;
+		@mov %result, SYMREG_SP;
+		@add_imm SYMREG_SP, SYMREG_SP, %size;
+		@mvn_imm %temp, 3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+	}
+	else
+	{
+		@sub_imm SYMREG_SP, SYMREG_SP, %size;
+		@mvn_imm %temp, 3;
+		@and SYMREG_SP, SYMREG_SP, %temp;
+		@mov %result, SYMREG_SP;
+	}
+}
+
+vararg => result:IREG, temp:IREG { @add_stack %result, SYMREG_BP, m_varargStart, 0, %temp; }
+
+push src:IREG { @str_sub_imm_pre %src, SYMREG_SP, 4; }
+push src:IREG64
+{
+	if (m_settings.bigEndian)
+	{
+		@str_sub_imm %src:low, SYMREG_SP, -4;
+		@str_sub_imm_pre %src:high, SYMREG_SP, -8;
+	}
+	else
+	{
+		@str_sub_imm %src:high, SYMREG_SP, -4;
+		@str_sub_imm_pre %src:low, SYMREG_SP, -8;
+	}
+}
+
+syscall num:IMM16 reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest);
+	@movw %numreg, %num;
+	@svc %numreg, writes, %reads;
+}
+
+syscall num:IREG reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN, numreg:SYSCALL_NUM
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest);
+	@mov %numreg, %num;
+	@svc %numreg, writes, %reads;
+}
+
+syscall num:IMM16 reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN_64, numreg:SYSCALL_NUM
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest:low);
+	writes.push_back(%dest:high);
+	@movw %numreg, %num;
+	@svc %numreg, writes, %reads;
+}
+
+syscall num:IREG reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN_64, numreg:SYSCALL_NUM
+{
+	vector<uint32_t> writes;
+	writes.push_back(%dest:low);
+	writes.push_back(%dest:high);
+	@mov %numreg, %num;
+	@svc %numreg, writes, %reads;
+}
 
 function void GenerateAntiDisassembly(SymInstrBlock* out)
 {

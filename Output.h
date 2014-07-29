@@ -34,6 +34,7 @@ enum RelocationType
 	CODE_RELOC_RELATIVE_32,
 	CODE_RELOC_RELATIVE_32_FIELD,
 	CODE_RELOC_RELATIVE_64_SPLIT_FIELD,
+	CODE_RELOC_RELATIVE_CUSTOM_FIELD,
 	CODE_RELOC_BASE_RELATIVE_8,
 	CODE_RELOC_BASE_RELATIVE_32,
 	CODE_RELOC_ABSOLUTE_32,
@@ -42,6 +43,7 @@ enum RelocationType
 	DATA_RELOC_RELATIVE_32,
 	DATA_RELOC_RELATIVE_32_FIELD,
 	DATA_RELOC_RELATIVE_64_SPLIT_FIELD,
+	DATA_RELOC_RELATIVE_CUSTOM_FIELD,
 	DATA_RELOC_BASE_RELATIVE_8,
 	DATA_RELOC_BASE_RELATIVE_32,
 	DATA_RELOC_ABSOLUTE_32,
@@ -56,6 +58,9 @@ struct Relocation
 	size_t secondBitOffset, secondBitSize, secondBitShift;
 	uint32_t extra;
 	void (*overflow)(OutputBlock* out, Relocation& reloc);
+	int64_t (*read)(OutputBlock* out, Relocation& reloc);
+	void (*write)(OutputBlock* out, Relocation& reloc, int64_t diff);
+	bool (*valid)(OutputBlock* out, Relocation& reloc, int64_t diff);
 	union
 	{
 		ILBlock* target;

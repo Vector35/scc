@@ -1051,6 +1051,19 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 				overflows.push_back(ref);
 			}
 			break;
+		case CODE_RELOC_RELATIVE_CUSTOM_FIELD:
+			if (!i->target)
+				break;
+			diff = i->target->m_addr - (m_addr + i->offset);
+			diff += i->read(m_output, *i);
+			if (!i->valid(m_output, *i, diff))
+			{
+				RelocationReference ref;
+				ref.block = m_output;
+				ref.reloc = &(*i);
+				overflows.push_back(ref);
+			}
+			break;
 		case CODE_RELOC_BASE_RELATIVE_8:
 			if (i->target)
 				diff = i->target->m_addr - codeSectionBase;
@@ -1081,6 +1094,17 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
+			{
+				RelocationReference ref;
+				ref.block = m_output;
+				ref.reloc = &(*i);
+				overflows.push_back(ref);
+			}
+			break;
+		case DATA_RELOC_RELATIVE_CUSTOM_FIELD:
+			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset);
+			diff += i->read(m_output, *i);
+			if (!i->valid(m_output, *i, diff))
 			{
 				RelocationReference ref;
 				ref.block = m_output;
@@ -1183,6 +1207,18 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 			}
 			SignedFieldInsert(m_output, i->offset, i->bitOffset, i->bitSize, (int32_t)diff);
 			break;
+		case CODE_RELOC_RELATIVE_CUSTOM_FIELD:
+			if (!i->target)
+				break;
+			diff = i->target->m_addr - (m_addr + i->offset);
+			diff += i->read(m_output, *i);
+			if (!i->valid(m_output, *i, diff))
+			{
+				fprintf(stderr, "error: %d-bit relative reference out of range\n", (int)i->bitSize);
+				return false;
+			}
+			i->write(m_output, *i, diff);
+			break;
 		case CODE_RELOC_BASE_RELATIVE_32:
 			if (i->target)
 				diff = i->target->m_addr - codeSectionBase;
@@ -1248,6 +1284,16 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 				return false;
 			}
 			SignedFieldInsert(m_output, i->offset, i->bitOffset, i->bitSize, (int32_t)diff);
+			break;
+		case DATA_RELOC_RELATIVE_CUSTOM_FIELD:
+			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset);
+			diff += i->read(m_output, *i);
+			if (!i->valid(m_output, *i, diff))
+			{
+				fprintf(stderr, "error: %d-bit relative reference out of range\n", (int)i->bitSize);
+				return false;
+			}
+			i->write(m_output, *i, diff);
 			break;
 		case DATA_RELOC_BASE_RELATIVE_32:
 			diff = (dataSectionBase + i->dataOffset) - codeSectionBase;

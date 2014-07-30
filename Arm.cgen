@@ -750,13 +750,13 @@ load(64) base:IREG => dest:IREG64
 }
 load(64) add base:IREG ofs:IMM12M4 => dest:IREG64
 {
-	@ldr_imm %dest:low, %base, %ofs + m_settings.bigEndian ? 4 : 0;
-	@ldr_imm %dest:high, %base, %ofs + m_settings.bigEndian ? 0 : 4;
+	@ldr_imm %dest:low, %base, %ofs + (m_settings.bigEndian ? 4 : 0);
+	@ldr_imm %dest:high, %base, %ofs + (m_settings.bigEndian ? 0 : 4);
 }
 load(64) add base:IREG ofs:IMM12M4NEG => dest:IREG64
 {
-	@ldr_sub_imm %dest:low, %base, -(%ofs + m_settings.bigEndian ? 4 : 0);
-	@ldr_sub_imm %dest:high, %base, -(%ofs + m_settings.bigEndian ? 0 : 4);
+	@ldr_sub_imm %dest:low, %base, -(%ofs + (m_settings.bigEndian ? 4 : 0));
+	@ldr_sub_imm %dest:high, %base, -(%ofs + (m_settings.bigEndian ? 0 : 4));
 }
 load(64) add base:IREG ofs:IREG => dest:IREG64, temp:IREG
 {
@@ -803,13 +803,13 @@ store(64) base:IREG src:IREG64
 }
 store(64) add base:IREG ofs:IMM12M4 src:IREG64
 {
-	@str_imm %src:low, %base, %ofs + m_settings.bigEndian ? 4 : 0;
-	@str_imm %src:high, %base, %ofs + m_settings.bigEndian ? 0 : 4;
+	@str_imm %src:low, %base, %ofs + (m_settings.bigEndian ? 4 : 0);
+	@str_imm %src:high, %base, %ofs + (m_settings.bigEndian ? 0 : 4);
 }
 store(64) add base:IREG ofs:IMM12M4NEG src:IREG64
 {
-	@str_sub_imm %src:low, %base, -(%ofs + m_settings.bigEndian ? 4 : 0);
-	@str_sub_imm %src:high, %base, -(%ofs + m_settings.bigEndian ? 0 : 4);
+	@str_sub_imm %src:low, %base, -(%ofs + (m_settings.bigEndian ? 4 : 0));
+	@str_sub_imm %src:high, %base, -(%ofs + (m_settings.bigEndian ? 0 : 4));
 }
 store(64) add base:IREG ofs:IREG src:IREG64, temp:IREG
 {

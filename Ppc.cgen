@@ -1,0 +1,568 @@
+arch Ppc 32
+
+#define REG_LR 32
+#define REG_CTR 33
+
+registerclass default IREG(8,16,32)
+registerclass INTEGER_RETURN_VALUE(8,16,32) fixed { 3 } : IREG
+registerclass INTEGER_RETURN_VALUE_HIGH(32) fixed { 4 } : IREG
+registerclass SYSCALL_RETURN(8,16,32) fixed { 3 } : IREG
+registerclass SYSCALL_RETURN_HIGH(32) fixed { 4 } : IREG
+registerclass SYSCALL_NUM(32) fixed { 0 } : IREG
+largeregisterclass IREG64(64) IREG IREG
+largeregisterclass INTEGER_RETURN_VALUE_64(64) INTEGER_RETURN_VALUE INTEGER_RETURN_VALUE_HIGH
+largeregisterclass SYSCALL_RETURN_64(64) SYSCALL_RETURN SYSCALL_RETURN_HIGH
+tempregisterclass IRESULT(8,16,32) IREG
+
+registerclass INTEGER_PARAM_0(8,16,32) fixed { 3 } : IREG
+registerclass INTEGER_PARAM_1(8,16,32) fixed { 4 } : IREG
+registerclass INTEGER_PARAM_2(8,16,32) fixed { 5 } : IREG
+registerclass INTEGER_PARAM_3(8,16,32) fixed { 6 } : IREG
+registerclass INTEGER_PARAM_4(8,16,32) fixed { 7 } : IREG
+registerclass INTEGER_PARAM_5(8,16,32) fixed { 8 } : IREG
+registerclass INTEGER_PARAM_6(8,16,32) fixed { 9 } : IREG
+registerclass INTEGER_PARAM_7(8,16,32) fixed { 10 } : IREG
+
+registerclass SYSCALL_PARAM_0(8,16,32) fixed { 3 } : IREG
+registerclass SYSCALL_PARAM_1(8,16,32) fixed { 4 } : IREG
+registerclass SYSCALL_PARAM_2(8,16,32) fixed { 5 } : IREG
+registerclass SYSCALL_PARAM_3(8,16,32) fixed { 6 } : IREG
+registerclass SYSCALL_PARAM_4(8,16,32) fixed { 7 } : IREG
+registerclass SYSCALL_PARAM_5(8,16,32) fixed { 8 } : IREG
+
+immediateclass IMM16 { return ((value >= -0x8000) && (value < 0x8000)); }
+
+callersaved { 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }
+calleesaved { 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 }
+
+special SYMREG_SP { 1 }
+special SYMREG_BP { 30 }
+special SYMREG_LR { REG_LR }
+
+encoding D { op:6, rt:5, ra:5, d:16 }
+encoding X { op:6, rt:5, ra:5, rb:5, op2:10, rc:1 }
+encoding XO { op:6, rt:5, ra:5, rb:5, oe=0:1, op2:9, rc:1 }
+encoding M { op:6, rs:5, ra:5, sh:5, mb:5, me:5, rc:1 }
+encoding XFX { op:6, rs:5, spr:10, op2:10, rc:1 }
+encoding I { op:6, i:24, aa:1, lk:1 }
+encoding B { op:6, bo:5, bi:5, i:14, aa:1, lk:1 }
+encoding XL { op:6, bo:5, bi:5, r:3, bh=0:2, op2:10, lk:1 }
+
+instr lbz  lbz rt:REG(w), [ra:REG(r) + d:IMM]  { @D op=34; }
+instr lbzu  lbzu rt:REG(w), [ra:REG(rw) + d:IMM]  { @D op=35; }
+instr lbzx  lbzx rt:REG(w), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=87; }
+instr lbzux  lbzux rt:REG(w), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=119; }
+instr lhz  lhz rt:REG(w), [ra:REG(r) + d:IMM]  { @D op=40; }
+instr lhzu  lhzu rt:REG(w), [ra:REG(rw) + d:IMM]  { @D op=41; }
+instr lhzx  lhzx rt:REG(w), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=279; }
+instr lhzux  lhzux rt:REG(w), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=311; }
+instr lha  lha rt:REG(w), [ra:REG(r) + d:IMM]  { @D op=42; }
+instr lhau  lhau rt:REG(w), [ra:REG(rw) + d:IMM]  { @D op=43; }
+instr lhax  lhax rt:REG(w), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=343; }
+instr lhaux  lhaux rt:REG(w), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=375; }
+instr lwz  lwz rt:REG(w), [ra:REG(r) + d:IMM]  { @D op=32; }
+instr lwzu  lwzu rt:REG(w), [ra:REG(rw) + d:IMM]  { @D op=33; }
+instr lwzx  lwzx rt:REG(w), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=23; }
+instr lwzux  lwzux rt:REG(w), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=55; }
+
+instr lbz_stack  lbz rt:REG(w), [var:STACKVAR]  { @D op=34, ra=%var:base, d=%var:offset; }
+instr lhz_stack  lhz rt:REG(w), [var:STACKVAR]  { @D op=40, ra=%var:base, d=%var:offset; }
+instr lha_stack  lha rt:REG(w), [var:STACKVAR]  { @D op=42, ra=%var:base, d=%var:offset; }
+instr lwz_stack  lha rt:REG(w), [var:STACKVAR]  { @D op=32, ra=%var:base, d=%var:offset; }
+
+instr stb  stb rt:REG(r), [ra:REG(r) + d:IMM]  { @D op=38; }
+instr stbu  stbu rt:REG(r), [ra:REG(rw) + d:IMM]  { @D op=39; }
+instr stbx  stbx rt:REG(r), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=215; }
+instr stbux  stbux rt:REG(r), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=247; }
+instr sth  sth rt:REG(r), [ra:REG(r) + d:IMM]  { @D op=44; }
+instr sthu  sthu rt:REG(r), [ra:REG(rw) + d:IMM]  { @D op=45; }
+instr sthx  sthx rt:REG(r), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=407; }
+instr sthux  sthux rt:REG(r), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=439; }
+instr stw  stw rt:REG(r), [ra:REG(r) + d:IMM]  { @D op=36; }
+instr stwu  stwu rt:REG(r), [ra:REG(rw) + d:IMM]  { @D op=37; }
+instr stwx  stwx rt:REG(r), [ra:REG(r) + rb:REG(r)]  { @X op=31, op2=151; }
+instr stwux  stwux rt:REG(r), [ra:REG(rw) + rb:REG(r)]  { @X op=31, op2=183; }
+
+instr stb_stack  stb rt:REG(r), [var:STACKVAR]  { @D op=38, ra=%var:base, d=%var:offset; }
+instr sth_stack  sth rt:REG(r), [var:STACKVAR]  { @D op=44, ra=%var:base, d=%var:offset; }
+instr stw_stack  stw rt:REG(r), [var:STACKVAR]  { @D op=36, ra=%var:base, d=%var:offset; }
+instr stwu_stack  stwu rt:REG(r), [var:STACKVAR]  { @D op=37, ra=%var:base, d=%var:offset; }
+
+instr lmw  lmw rt:REG(w), [ra:REG(r) + d:IMM], writes:REGLIST(w)  { @D op=46; }
+instr stmw  stmw rt:REG(r), [ra:REG(r) + d:IMM], reads:REGLIST(r)  { @D op=47; }
+
+instr addi  addi rt:REG(w), ra:REG(r), d:IMM  { @D op=14; }
+instr addis  addis rt:REG(w), ra:REG(r), d:IMM  { @D op=15; }
+instr(writeflags) addic  addic rt:REG(w), ra:REG(r), d:IMM  { @D op=12; }
+instr(writeflags) addic_cr  addic. rt:REG(w), ra:REG(r), d:IMM  { @D op=13; }
+instr(writeflags) subfic  subfic rt:REG(w), ra:REG(r), d:IMM  { @D op=8; }
+
+instr add_stack  addi rt:REG(w), [var:STACKVAR]  { @D op=14, ra=%var:base, d=%var:offset; }
+instr sub_stack  addi rt:REG(w), [var:STACKVAR]  { @D op=14, ra=%var:base, d=-%var:offset; }
+
+instr add  add rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=266, rc=0; }
+instr(writeflags) add_cr  add. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=266, rc=1; }
+instr addc  addc rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=10, rc=0; }
+instr(writeflags) addc_cr  addc. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=10, rc=1; }
+instr(readflags) adde  adde rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=138, rc=0; }
+instr(readflags,writeflags) adde_cr  adde. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=138, rc=1; }
+instr(readflags) addme  addme rt:REG(w), ra:REG(r)  { @XO op=31, op2=234, rc=0; }
+instr(readflags,writeflags) addme_cr  addme. rt:REG(w), ra:REG(r)  { @XO op=31, op2=234, rc=1; }
+instr(readflags) addze  addze rt:REG(w), ra:REG(r)  { @XO op=31, op2=202, rc=0; }
+instr(readflags,writeflags) addze_cr  addze. rt:REG(w), ra:REG(r)  { @XO op=31, op2=202, rc=1; }
+instr subf  subf rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=40, rc=0; }
+instr(writeflags) subf_cr  subf. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=40, rc=1; }
+instr subfc  subfc rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=8, rc=0; }
+instr(writeflags) subfc_cr  sufc. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=8, rc=1; }
+instr(readflags) subfe  subfe rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=136, rc=0; }
+instr(readflags,writeflags) subfe_cr  subfe. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=136, rc=1; }
+instr(readflags) subfme  subfme rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=232, rc=0; }
+instr(readflags,writeflags) subfme_cr  subfme. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=232, rc=1; }
+instr(readflags) subfze  subfze rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=200, rc=0; }
+instr(readflags,writeflags) subfze_cr  subfze. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=200, rc=1; }
+instr neg  neg rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=104, rc=0; }
+instr(writeflags) neg_cr  neg. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=104, rc=1; }
+
+instr mulli  mulli rt:REG(w), ra:REG(r), d:IMM  { @D op=7; }
+instr mullw  mulhw rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=235, rc=0; }
+instr(writeflags) mullw_cr  mulhw. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=235, rc=1; }
+instr mulhw  mulhw rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=75, rc=0; }
+instr(writeflags) mulhw_cr  mulhw. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=75, rc=1; }
+instr mulhwu  mulhwu rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=11, rc=0; }
+instr(writeflags) mulhwu_cr  mulhwu. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=11, rc=1; }
+instr divw  divw rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=491, rc=0; }
+instr(writeflags) divw_cr  divw. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=491, rc=1; }
+instr divwu  divwu rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=459, rc=0; }
+instr(writeflags) divwu_cr  divw. rt:REG(w), ra:REG(r), rb:REG(r)  { @XO op=31, op2=459, rc=1; }
+
+instr(writeflags) cmpi  cmpi bf:IMM, ra:REG(r), d:IMM  { @D op=11, rt=bf<<2; }
+instr(writeflags) cmp  cmp bf:IMM, ra:REG(r), rb:REG(r)  { @X op=31, op2=0, rt=bf<<2; }
+instr(writeflags) cmpli  cmpli bf:IMM, ra:REG(r), d:IMM  { @D op=10, rt=bf<<2; }
+instr(writeflags) cmpl  cmpl bf:IMM, ra:REG(r), rb:REG(r)  { @X op=31, op2=32, rt=bf<<2; }
+
+instr(writeflags) andi  andi. ra:REG(w), rt:REG(r), d:IMM  { @D op=28; }
+instr(writeflags) andis  andis. ra:REG(w), rt:REG(r), d:IMM  { @D op=29; }
+instr ori  ori ra:REG(w), rt:REG(r), d:IMM  { @D op=24; }
+instr oris  oris ra:REG(w), rt:REG(r), d:IMM  { @D op=25; }
+instr xori  xori ra:REG(w), rt:REG(r), d:IMM  { @D op=26; }
+instr xoris  xoris ra:REG(w), rt:REG(r), d:IMM  { @D op=27; }
+
+instr(copy) mov  mov ra:REG(w), rt:REG(r)  { @D op=24, d=0; }
+
+instr and  and ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=28, rc=0; }
+instr(writeflags) and_cr  and. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=28, rc=1; }
+instr or  and ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=444, rc=0; }
+instr(writeflags) or_cr  or. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=444, rc=1; }
+instr xor  xor ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=316, rc=0; }
+instr(writeflags) xor_cr  xor. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=316, rc=1; }
+instr nand  nand ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=476, rc=0; }
+instr(writeflags) nand_cr  nand. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=476, rc=1; }
+instr nor  nor ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=124, rc=0; }
+instr(writeflags) nor_cr  nor. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=124, rc=1; }
+instr eqv  eqv ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=284, rc=0; }
+instr(writeflags) eqv_cr  eqv. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=284, rc=1; }
+instr andc  andc ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=60, rc=0; }
+instr(writeflags) andc_cr  andc. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=60, rc=1; }
+instr orc  orc ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=412, rc=0; }
+instr(writeflags) orc_cr  orc. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=412, rc=1; }
+
+instr extsb  extsb ra:REG(w), rt:REG(r)  { @X op=31, op2=954, rc=0; }
+instr(writeflags) extsb_cr  extsb. ra:REG(w), rt:REG(r)  { @X op=31, op2=954, rc=1; }
+instr extsh  extsh ra:REG(w), rt:REG(r)  { @X op=31, op2=922, rc=0; }
+instr(writeflags) extsh_cr  extsh. ra:REG(w), rt:REG(r)  { @X op=31, op2=922, rc=1; }
+
+instr rlwinm  rlwinm ra:REG(w), rs:REG(r), sh:IMM, mb:IMM, me:IMM  { @M op=21, rc=0; }
+instr(writeflags) rlwinm_cr  rlwinm. ra:REG(w), rs:REG(r), sh:IMM, mb:IMM, me:IMM  { @M op=21, rc=1; }
+instr rlwnm  rlwnm ra:REG(w), rs:REG(r), sh:REG(r), mb:IMM, me:IMM  { @M op=23, rc=0; }
+instr(writeflags) rlwnm_cr  rlwnm. ra:REG(w), rs:REG(r), sh:REG(r), mb:IMM, me:IMM  { @M op=23, rc=1; }
+
+instr slw  slw ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=24, rc=0; }
+instr(writeflags) slw_cr  slw. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=24, rc=1; }
+instr srw  srw ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=536, rc=0; }
+instr(writeflags) srw_cr  srw. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=536, rc=1; }
+instr srawi  srawi ra:REG(w), rt:REG(r), rb:IMM  { @X op=31, op2=824, rc=0; }
+instr(writeflags) srawi_cr  srawi. ra:REG(w), rt:REG(r), rb:IMM  { @X op=31, op2=824, rc=1; }
+instr sraw  sraw ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=792, rc=0; }
+instr(writeflags) sraw_cr  sraw. ra:REG(w), rt:REG(r), rb:REG(r)  { @X op=31, op2=792, rc=1; }
+
+instr mtlr  mtlr lr:REG(w), rs:REG(r)  { @XFX op=31, op2=467, spr=8; }
+instr mtctr  mtctr ctr:REG(w), rs:REG(r)  { @XFX op=31, op2=467, spr=9; }
+instr mflr  mflr rs:REG(w), lr:REG(r)  { @XFX op=31, op2=339, spr=8; }
+instr mfctr  mfctr rs:REG(w), ctr:REG(r)  { @XFX op=31, op2=339, spr=9; }
+
+instr(branch) b  b dest:FUNCTION
+{
+	@I op=18, i=-1, aa=0, lk=0;
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+	reloc.overflow = NULL;
+	reloc.bitOffset = 2;
+	reloc.bitSize = 24;
+	reloc.bitShift = 2;
+	reloc.offset = out->len - 4;
+	reloc.instruction = reloc.offset;
+	reloc.target = %dest:block;
+	out->relocs.push_back(reloc);
+}
+
+instr(call) bl  bl dest:FUNCTION, retval:REG(w), retvalhigh:REG(w), reads:REGLIST(r)
+{
+	@I op=18, i=-1, aa=0, lk=1;
+
+	Relocation reloc;
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD;
+	reloc.overflow = NULL;
+	reloc.bitOffset = 2;
+	reloc.bitSize = 24;
+	reloc.bitShift = 2;
+	reloc.offset = out->len - 4;
+	reloc.instruction = reloc.offset;
+	reloc.target = %dest:block;
+	out->relocs.push_back(reloc);
+}
+
+#define COND_BRANCH_RELOC(block) \
+	Relocation reloc; \
+	reloc.type = CODE_RELOC_RELATIVE_32_FIELD; \
+	reloc.overflow = NULL; \
+	reloc.bitOffset = 2; \
+	reloc.bitSize = 14; \
+	reloc.bitShift = 2; \
+	reloc.offset = out->len - 4; \
+	reloc.instruction = reloc.offset; \
+	reloc.target = block; \
+	out->relocs.push_back(reloc);
+
+#define COND_BRANCH_INSTR(op, boval, bival) \
+instr(branch,readflags) op  op cr:IMM, dest:FUNCTION \
+{ \
+	@B op=16, bo=boval, bi=(cr<<2)|bival, bd=-1, aa=0, lk=0; \
+	COND_BRANCH_RELOC(%dest:block); \
+}
+COND_BRANCH_INSTR(bge, 4, 0)
+COND_BRANCH_INSTR(ble, 4, 1)
+COND_BRANCH_INSTR(bne, 4, 2)
+COND_BRANCH_INSTR(bns, 4, 3)
+COND_BRANCH_INSTR(blt, 12, 0)
+COND_BRANCH_INSTR(bgt, 12, 1)
+COND_BRANCH_INSTR(beq, 12, 2)
+COND_BRANCH_INSTR(bso, 12, 3)
+
+instr(branch) blr  blr lr:REG(r) { @XL op=19, op2=16, bo=0x14, lk=0; }
+instr(branch) bctr  bctr ctr:REG(r) { @XL op=19, op2=528, bo=0x14, lk=0; }
+
+instr saveregs  saveregs  {} update
+{
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	uint32_t min = 30;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+	{
+		uint32_t reg = (*i) & 31;
+		if (reg < min)
+			min = reg;
+	}
+
+	// TODO: Support non-default stack pointer
+	if (settings.stackGrowsUp)
+	{
+		for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+			@stwu SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(1), 4;
+	}
+	else
+	{
+		vector<uint32_t> writes;
+		for (uint32_t i = min + 1; i < 30; i++)
+			writes.push_back(i);
+		@stmw SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(1), ((int32_t)min - 32) * 4, writes;
+		@addi SYMREG_NATIVE_REG(1), SYMREG_NATIVE_REG(1), ((int32_t)min - 32) * 4;
+	}
+
+	return true;
+}
+
+instr restoreregs  restoreregs  {} update
+{
+	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
+	uint32_t min = 30;
+	uint32_t stackSize = 0;
+	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
+	{
+		uint32_t reg = (*i) & 31;
+		if (reg < min)
+		{
+			min = reg;
+			if (settings.stackGrowsUp)
+				stackSize += 4;
+		}
+	}
+
+	// TODO: Support non-default stack pointer
+	int32_t offset = 0;
+	if (settings.stackGrowsUp)
+	{
+		for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++, offset += 4)
+			@lwz SYMREG_NATIVE_REG(*i), SYMREG_NATIVE_REG(1), -stackSize + offset;
+		if (stackSize != 0)
+			@addi SYMREG_NATIVE_REG(1), SYMREG_NATIVE_REG(1), -stackSize;
+	}
+	else
+	{
+		vector<uint32_t> reads;
+		for (uint32_t i = min + 1; i < 30; i++)
+			reads.push_back(i);
+		@lmw SYMREG_NATIVE_REG(min), SYMREG_NATIVE_REG(1), 0, reads;
+		@addi SYMREG_NATIVE_REG(1), SYMREG_NATIVE_REG(1), (32 - min) * 4;
+	}
+
+	return true;
+}
+
+// Data flow pseudo-instructions
+instr regparam  regparam regs:REGLIST(w)  {} update { return true; }
+instr symreturn  symreturn low:REG(r) high:REG(r)  {} update { return true; }
+
+
+function void GenerateAntiDisassembly(SymInstrBlock* out)
+{
+}
+
+function bool GenerateFunctionStart(SymInstrBlock* out)
+{
+	if ((m_func->GetName() == "_start") && m_settings.unsafeStack)
+	{
+		// This is the start function, and we can't assume we have a safe stack (the code may be
+		// at or near the stack pointer), pivot the stack to make it safe
+		@addi SYMREG_SP, SYMREG_SP, -UNSAFE_STACK_PIVOT;
+	}
+
+	// Generate function prologue
+	if (m_framePointerEnabled)
+	{
+		@saveregs;
+		@mov SYMREG_BP, SYMREG_SP;
+	}
+	else
+	{
+		@saveregs;
+	}
+
+	// Generate a pseudo instruction to ensure the incoming parameters are defined
+	vector<uint32_t> incomingRegs;
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+			continue;
+
+		incomingRegs.push_back(j->incomingReg);
+		if (j->var->GetType()->GetWidth() == 8)
+			incomingRegs.push_back(j->incomingReg + 1);
+	}
+
+	if (incomingRegs.size() != 0)
+		@regparam incomingRegs;
+
+	// Copy parameters into variables so that they can be spilled if needed
+	for (vector<IncomingParameterCopy>::iterator j = m_paramCopy.begin(); j != m_paramCopy.end(); j++)
+	{
+		if (j->stackVar != SYMREG_NONE)
+		{
+			// Parameter was spilled onto stack
+			switch (j->var->GetType()->GetWidth())
+			{
+			case 1:
+				@stb_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 2:
+				@sth_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 4:
+				@stw_stack j->incomingReg, SYMREG_BP, j->stackVar, 0, TEMP_REGISTER(IREG);
+				break;
+			case 8:
+				@stw_stack j->incomingReg, SYMREG_BP, j->stackVar, m_settings.bigEndian ? 4 : 0, TEMP_REGISTER(IREG);
+				@stw_stack j->incomingHighReg, SYMREG_BP, j->stackVar, m_settings.bigEndian ? 0 : 4, TEMP_REGISTER(IREG);
+				break;
+			default:
+				fprintf(stderr, "error: spilling invalid parameter\n");
+				return false;
+			}
+		}
+		else
+		{
+			// Parameter is in an integer register
+			uint32_t newReg = TEMP_REGISTER(IREG);
+			uint32_t newHighReg = SYMREG_NONE;
+			if (j->var->GetType()->GetWidth() == 8)
+				newHighReg = TEMP_REGISTER(IREG);
+
+			@mov newReg, j->incomingReg;
+			if (newHighReg != SYMREG_NONE)
+				@mov newHighReg, j->incomingHighReg;
+			m_vars.registerVariables[j->var] = newReg;
+			if (newHighReg != SYMREG_NONE)
+				m_vars.highRegisterVariables[j->var] = newHighReg;
+		}
+	}
+
+	if (m_framePointerEnabled)
+	{
+		uint32_t temp = TEMP_REGISTER(IREG);
+		if (m_settings.stackGrowsUp)
+			@add_stack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+		else
+			@sub_stack SYMREG_SP, SYMREG_SP, SYMVAR_FRAME_SIZE, 0, temp;
+	}
+
+	return true;
+}
+
+arch function set<uint32_t> GetRegisterClassInterferences(uint32_t cls)
+{
+	set<uint32_t> result;
+	return result;
+}
+
+arch function bool DoesRegisterClassConflictWithSpecialRegisters(uint32_t cls)
+{
+	return false;
+}
+
+arch function void LayoutStackFrame()
+{
+	// Lay out stack variables
+	int64_t offset = 0;
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+
+		int64_t align = 1;
+		if (m_stackVarWidths[i] >= 4)
+			align = 4;
+		else if (m_stackVarWidths[i] >= 2)
+			align = 2;
+
+		if ((offset & (align - 1)) != 0)
+			offset += align - (offset & (align - 1));
+
+		m_stackVarOffsets[i] = offset;
+		offset += m_stackVarWidths[i];
+	}
+
+	// Ensure stack stays aligned on native boundary
+	if (offset & 3)
+		offset += 4 - (offset & 3);
+
+	m_stackFrameSize = offset;
+
+	// Adjust variable offsets to be relative to the frame pointer (negative offsets)
+	if (m_settings.stackGrowsUp)
+	{
+		for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+		{
+			if (!m_stackVarIsParam[i])
+				m_stackVarOffsets[i] -= offset;
+		}
+	}
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (m_stackVarIsParam[i])
+			continue;
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] += m_stackFrameSize;
+		else
+			m_stackVarOffsets[i] -= m_stackFrameSize;
+	}
+
+	// Analyze callee saved registers
+	uint32_t min = 30;
+	int64_t adjust = 0;
+	for (vector<uint32_t>::iterator i = m_clobberedCalleeSavedRegs.begin(); i != m_clobberedCalleeSavedRegs.end(); i++)
+	{
+		uint32_t reg = (*i) & 31;
+		if (reg < min)
+		{
+			min = reg;
+			if (m_settings.stackGrowsUp)
+				adjust += 4;
+		}
+	}
+
+	// Adjust parameter locations to account for callee saved registers
+	if (!m_settings.stackGrowsUp)
+		adjust += (32 - min) * 4;
+
+	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
+	{
+		if (!m_stackVarIsParam[i])
+			continue;
+
+		if (m_settings.stackGrowsUp)
+			m_stackVarOffsets[i] -= adjust;
+		else
+			m_stackVarOffsets[i] += adjust;
+	}
+}
+
+arch function bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(IREG);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@lbz_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@lhz_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@lwz_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
+	ILParameterType type, vector<SymInstr*>& code)
+{
+	uint32_t temp = AddRegister(IREG);
+	switch (type)
+	{
+	case ILTYPE_INT8:
+		@stb_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT16:
+		@sth_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	case ILTYPE_INT32:
+	case ILTYPE_INT64: // Uses two 32-bit regs
+		@stw_stack reg, SYMREG_BP, var, offset, temp;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+arch function void PrintRegister(uint32_t reg)
+{
+	if (reg == SYMREG_NATIVE_REG(1))
+		fprintf(stderr, "sp");
+	else if ((reg >= SYMREG_NATIVE_REG(0)) && (reg < SYMREG_NATIVE_REG(32)))
+		fprintf(stderr, "r%d", reg & 31);
+	else if (reg == SYMREG_NATIVE_REG(REG_LR))
+		fprintf(stderr, "lr");
+	else if (reg == SYMREG_NATIVE_REG(REG_CTR))
+		fprintf(stderr, "ctr");
+	else
+		SymInstrFunction::PrintRegister(reg);
+}
+

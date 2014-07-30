@@ -52,6 +52,10 @@ extern unsigned char Obj_arm_lib[];
 extern unsigned int Obj_arm_lib_len;
 extern unsigned char Obj_armeb_lib[];
 extern unsigned int Obj_armeb_lib_len;
+extern unsigned char Obj_ppc_lib[];
+extern unsigned int Obj_ppc_lib_len;
+extern unsigned char Obj_ppcel_lib[];
+extern unsigned int Obj_ppcel_lib_len;
 extern unsigned char Obj_linux_x86_lib[];
 extern unsigned int Obj_linux_x86_lib_len;
 extern unsigned char Obj_linux_x64_lib[];
@@ -66,6 +70,10 @@ extern unsigned char Obj_linux_arm_lib[];
 extern unsigned int Obj_linux_arm_lib_len;
 extern unsigned char Obj_linux_armeb_lib[];
 extern unsigned int Obj_linux_armeb_lib_len;
+extern unsigned char Obj_linux_ppc_lib[];
+extern unsigned int Obj_linux_ppc_lib_len;
+extern unsigned char Obj_linux_ppcel_lib[];
+extern unsigned int Obj_linux_ppcel_lib_len;
 extern unsigned char Obj_freebsd_x86_lib[];
 extern unsigned int Obj_freebsd_x86_lib_len;
 extern unsigned char Obj_freebsd_x64_lib[];
@@ -95,6 +103,7 @@ extern void Code_set_lineno(int line, void* yyscanner);
 extern Output* CreateQuarkCodeGen(const Settings& settings, Function* startFunc);
 extern Output* CreateMipsCodeGen(const Settings& settings, Function* startFunc);
 extern Output* CreateArmCodeGen(const Settings& settings, Function* startFunc);
+extern Output* CreatePpcCodeGen(const Settings& settings, Function* startFunc);
 
 
 Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
@@ -529,6 +538,37 @@ bool Linker::ImportStandardLibrary()
 			default:
 				lib = Obj_arm_lib;
 				len = Obj_arm_lib_len;
+				break;
+			}
+		}
+	}
+	else if (m_settings.architecture == ARCH_PPC)
+	{
+		if (m_settings.bigEndian)
+		{
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_ppc_lib;
+				len = Obj_linux_ppc_lib_len;
+				break;
+			default:
+				lib = Obj_ppc_lib;
+				len = Obj_ppc_lib_len;
+				break;
+			}
+		}
+		else
+		{
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_ppcel_lib;
+				len = Obj_linux_ppcel_lib_len;
+				break;
+			default:
+				lib = Obj_ppcel_lib;
+				len = Obj_ppcel_lib_len;
 				break;
 			}
 		}
@@ -1172,6 +1212,10 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	else if (m_settings.architecture == ARCH_ARM)
 	{
 		out[SUBARCH_DEFAULT] = CreateArmCodeGen(m_settings, m_startFunction);
+	}
+	else if (m_settings.architecture == ARCH_PPC)
+	{
+		out[SUBARCH_DEFAULT] = CreatePpcCodeGen(m_settings, m_startFunction);
 	}
 	else
 	{

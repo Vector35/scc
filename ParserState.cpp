@@ -588,7 +588,7 @@ bool ParserState::HasIntrinsicPow()
 
 bool ParserState::HasIntrinsicByteSwap()
 {
-	if (m_settings.architecture == ARCH_MIPS)
+	if ((m_settings.architecture == ARCH_MIPS) || (m_settings.architecture == ARCH_PPC))
 		return false;
 	return true;
 }

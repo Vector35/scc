@@ -78,7 +78,7 @@ SCC_CODEGEN_OBJS := $(patsubst %.cgen,Obj/%CodeGen.o,$(wildcard *.cgen))
 ASMX86_OBJS := Obj/asmx86/asmx86.o
 ASMX86_HEADERS := asmx86/asmx86.h asmx86/asmx86str.h
 
-RUNTIME_LIBS := linux_x86.lib linux_x64.lib linux_quark.lib linux_mips.lib linux_mipsel.lib linux_arm.lib linux_armeb.lib freebsd_x86.lib freebsd_x64.lib freebsd_quark.lib mac_x86.lib mac_x64.lib mac_quark.lib windows_x86.lib windows_x64.lib windows_quark.lib windows_arm.lib x86.lib x64.lib quark.lib mips.lib mipsel.lib arm.lib armeb.lib
+RUNTIME_LIBS := linux_x86.lib linux_x64.lib linux_quark.lib linux_mips.lib linux_mipsel.lib linux_arm.lib linux_armeb.lib linux_ppc.lib linux_ppcel.lib freebsd_x86.lib freebsd_x64.lib freebsd_quark.lib mac_x86.lib mac_x64.lib mac_quark.lib windows_x86.lib windows_x64.lib windows_quark.lib windows_arm.lib x86.lib x64.lib quark.lib mips.lib mipsel.lib arm.lib armeb.lib ppc.lib ppcel.lib
 RUNTIME_SOURCES := $(patsubst %.lib,Obj/%.cpp,$(RUNTIME_LIBS))
 RUNTIME_OBJS := $(patsubst %.lib,Obj/Obj/%.o,$(RUNTIME_LIBS))
 
@@ -138,6 +138,8 @@ MIPS_RUNTIME_C := $(wildcard runtime/mips/*.c)
 MIPS_RUNTIME_H := $(wildcard runtime/mips/*.h)
 ARM_RUNTIME_C := $(wildcard runtime/arm/*.c)
 ARM_RUNTIME_H := $(wildcard runtime/arm/*.h)
+PPC_RUNTIME_C := $(wildcard runtime/ppc/*.c)
+PPC_RUNTIME_H := $(wildcard runtime/ppc/*.h)
 POSIX_RUNTIME_C := $(wildcard runtime/posix/*.c)
 POSIX_RUNTIME_H := $(wildcard runtime/posix/*.h)
 LINUX_COMMON_RUNTIME_C := $(wildcard runtime/linux/*.c)
@@ -152,6 +154,8 @@ LINUX_MIPS_RUNTIME_C := $(wildcard runtime/linux/mips/*.c)
 LINUX_MIPS_RUNTIME_H := $(wildcard runtime/linux/mips/*.h)
 LINUX_ARM_RUNTIME_C := $(wildcard runtime/linux/arm/*.c)
 LINUX_ARM_RUNTIME_H := $(wildcard runtime/linux/arm/*.h)
+LINUX_PPC_RUNTIME_C := $(wildcard runtime/linux/ppc/*.c)
+LINUX_PPC_RUNTIME_H := $(wildcard runtime/linux/ppc/*.h)
 FREEBSD_COMMON_RUNTIME_C := $(wildcard runtime/freebsd/*.c)
 FREEBSD_COMMON_RUNTIME_H := $(wildcard runtime/freebsd/*.h)
 FREEBSD_X86_RUNTIME_C := $(wildcard runtime/freebsd/x86/*.c)
@@ -185,6 +189,7 @@ X64_RUNTIME_SRC := $(X64_RUNTIME_H) $(X64_RUNTIME_C)
 QUARK_RUNTIME_SRC := $(QUARK_RUNTIME_H) $(QUARK_RUNTIME_C)
 MIPS_RUNTIME_SRC := $(MIPS_RUNTIME_H) $(MIPS_RUNTIME_C)
 ARM_RUNTIME_SRC := $(ARM_RUNTIME_H) $(ARM_RUNTIME_C)
+PPC_RUNTIME_SRC := $(PPC_RUNTIME_H) $(PPC_RUNTIME_C)
 POSIX_RUNTIME_SRC := $(COMMON_RUNTIME_SRC) $(POSIX_RUNTIME_H) $(POSIX_RUNTIME_C)
 LINUX_COMMON_RUNTIME_SRC := $(POSIX_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_H) $(LINUX_COMMON_RUNTIME_C)
 LINUX_X86_RUNTIME_SRC := $(X86_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_X86_RUNTIME_H) $(LINUX_X86_RUNTIME_C)
@@ -192,6 +197,7 @@ LINUX_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_
 LINUX_QUARK_RUNTIME_SRC := $(QUARK_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_QUARK_RUNTIME_H) $(LINUX_QUARK_RUNTIME_C)
 LINUX_MIPS_RUNTIME_SRC := $(MIPS_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_MIPS_RUNTIME_H) $(LINUX_MIPS_RUNTIME_C)
 LINUX_ARM_RUNTIME_SRC := $(ARM_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_ARM_RUNTIME_H) $(LINUX_ARM_RUNTIME_C)
+LINUX_PPC_RUNTIME_SRC := $(PPC_RUNTIME_SRC) $(LINUX_COMMON_RUNTIME_SRC) $(LINUX_PPC_RUNTIME_H) $(LINUX_PPC_RUNTIME_C)
 FREEBSD_COMMON_RUNTIME_SRC := $(POSIX_RUNTIME_SRC) $(FREEBSD_COMMON_RUNTIME_H) $(FREEBSD_COMMON_RUNTIME_C)
 FREEBSD_X86_RUNTIME_SRC := $(X86_RUNTIME_SRC) $(FREEBSD_COMMON_RUNTIME_SRC) $(FREEBSD_X86_RUNTIME_H) $(FREEBSD_X86_RUNTIME_C)
 FREEBSD_X64_RUNTIME_SRC := $(X64_RUNTIME_SRC) $(FREEBSD_COMMON_RUNTIME_SRC) $(FREEBSD_X64_RUNTIME_H) $(FREEBSD_X64_RUNTIME_C)
@@ -212,6 +218,7 @@ X64_RUNTIME := $(foreach header,$(X64_RUNTIME_H),--header $(header)) $(X64_RUNTI
 QUARK_RUNTIME := $(foreach header,$(QUARK_RUNTIME_H),--header $(header)) $(QUARK_RUNTIME_C)
 MIPS_RUNTIME := $(foreach header,$(MIPS_RUNTIME_H),--header $(header)) $(MIPS_RUNTIME_C)
 ARM_RUNTIME := $(foreach header,$(ARM_RUNTIME_H),--header $(header)) $(ARM_RUNTIME_C)
+PPC_RUNTIME := $(foreach header,$(PPC_RUNTIME_H),--header $(header)) $(PPC_RUNTIME_C)
 POSIX_RUNTIME := $(COMMON_RUNTIME) $(foreach header,$(POSIX_RUNTIME_H),--header $(header)) $(POSIX_RUNTIME_C)
 LINUX_COMMON_RUNTIME := $(POSIX_RUNTIME) $(foreach header,$(LINUX_COMMON_RUNTIME_H),--header $(header)) $(LINUX_COMMON_RUNTIME_C)
 LINUX_X86_RUNTIME := $(X86_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(LINUX_X86_RUNTIME_H),--header $(header)) $(LINUX_X86_RUNTIME_C)
@@ -219,6 +226,7 @@ LINUX_X64_RUNTIME := $(X64_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(L
 LINUX_QUARK_RUNTIME := $(QUARK_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(LINUX_QUARK_RUNTIME_H),--header $(header)) $(LINUX_QUARK_RUNTIME_C)
 LINUX_MIPS_RUNTIME := $(MIPS_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(LINUX_MIPS_RUNTIME_H),--header $(header)) $(LINUX_MIPS_RUNTIME_C)
 LINUX_ARM_RUNTIME := $(ARM_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(LINUX_ARM_RUNTIME_H),--header $(header)) $(LINUX_ARM_RUNTIME_C)
+LINUX_PPC_RUNTIME := $(PPC_RUNTIME) $(LINUX_COMMON_RUNTIME) $(foreach header,$(LINUX_PPC_RUNTIME_H),--header $(header)) $(LINUX_PPC_RUNTIME_C)
 FREEBSD_COMMON_RUNTIME := $(POSIX_RUNTIME) $(foreach header,$(FREEBSD_COMMON_RUNTIME_H),--header $(header)) $(FREEBSD_COMMON_RUNTIME_C)
 FREEBSD_X86_RUNTIME := $(X86_RUNTIME) $(FREEBSD_COMMON_RUNTIME) $(foreach header,$(FREEBSD_X86_RUNTIME_H),--header $(header)) $(FREEBSD_X86_RUNTIME_C)
 FREEBSD_X64_RUNTIME := $(X64_RUNTIME) $(FREEBSD_COMMON_RUNTIME) $(foreach header,$(FREEBSD_X64_RUNTIME_H),--header $(header)) $(FREEBSD_X64_RUNTIME_C)
@@ -275,6 +283,10 @@ Obj/arm.lib: $(BOOTSTRAP) $(ARM_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Ob
 	$(BOOTSTRAP) $(ARM_RUNTIME) $(COMMON_RUNTIME) --arch arm --platform none -f lib -o $@
 Obj/armeb.lib: $(BOOTSTRAP) $(ARM_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(ARM_RUNTIME) $(COMMON_RUNTIME) --arch armeb --platform none -f lib -o $@
+Obj/ppc.lib: $(BOOTSTRAP) $(PPC_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(PPC_RUNTIME) $(COMMON_RUNTIME) --arch ppc --platform none -f lib -o $@
+Obj/ppcel.lib: $(BOOTSTRAP) $(PPC_RUNTIME_SRC) $(COMMON_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(PPC_RUNTIME) $(COMMON_RUNTIME) --arch ppcel --platform none -f lib -o $@
 Obj/linux_x86.lib: $(BOOTSTRAP) $(LINUX_X86_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(LINUX_X86_RUNTIME) --arch x86 --platform linux -f lib -o $@
 Obj/linux_x64.lib: $(BOOTSTRAP) $(LINUX_X64_RUNTIME_SRC) Makefile | Obj/
@@ -289,6 +301,10 @@ Obj/linux_arm.lib: $(BOOTSTRAP) $(LINUX_ARM_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(LINUX_ARM_RUNTIME) --arch arm --platform linux -f lib -o $@
 Obj/linux_armeb.lib: $(BOOTSTRAP) $(LINUX_ARM_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(LINUX_ARM_RUNTIME) --arch armeb --platform linux -f lib -o $@
+Obj/linux_ppc.lib: $(BOOTSTRAP) $(LINUX_PPC_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(LINUX_PPC_RUNTIME) --arch ppc --platform linux -f lib -o $@
+Obj/linux_ppcel.lib: $(BOOTSTRAP) $(LINUX_PPC_RUNTIME_SRC) Makefile | Obj/
+	$(BOOTSTRAP) $(LINUX_PPC_RUNTIME) --arch ppcel --platform linux -f lib -o $@
 Obj/freebsd_x86.lib: $(BOOTSTRAP) $(FREEBSD_X86_RUNTIME_SRC) Makefile | Obj/
 	$(BOOTSTRAP) $(FREEBSD_X86_RUNTIME) --arch x86 --platform freebsd -f lib -o $@
 Obj/freebsd_x64.lib: $(BOOTSTRAP) $(FREEBSD_X64_RUNTIME_SRC) Makefile | Obj/

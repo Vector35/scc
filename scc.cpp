@@ -210,6 +210,18 @@ int main(int argc, char* argv[])
 				settings.preferredBits = 32;
 				settings.bigEndian = true;
 			}
+			else if ((!strcmp(argv[i], "ppc")) || (!strcmp(argv[i], "ppceb")))
+			{
+				settings.architecture = ARCH_PPC;
+				settings.preferredBits = 32;
+				settings.bigEndian = true;
+			}
+			else if (!strcmp(argv[i], "ppcel"))
+			{
+				settings.architecture = ARCH_PPC;
+				settings.preferredBits = 32;
+				settings.bigEndian = false;
+			}
 			else
 			{
 				fprintf(stderr, "error: unsupported architecture '%s'\n", argv[i]);
@@ -739,6 +751,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	if ((settings.architecture == ARCH_PPC) && (settings.preferredBits != 32))
+	{
+		fprintf(stderr, "error: invalid architecture settings\n");
+		return 1;
+	}
+
 	// Adjust base address for executables
 	if (settings.format == FORMAT_ELF)
 	{
@@ -770,6 +788,8 @@ int main(int argc, char* argv[])
 	if ((settings.architecture == ARCH_MIPS) && (!alignmentExplicit))
 		settings.alignment = 4;
 	if ((settings.architecture == ARCH_ARM) && (!alignmentExplicit))
+		settings.alignment = 4;
+	if ((settings.architecture == ARCH_PPC) && (!alignmentExplicit))
 		settings.alignment = 4;
 
 	// Set pointer size

@@ -287,6 +287,9 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 	case ARCH_MIPS:
 		commonHeader.arch = 8;
 		break;
+	case ARCH_PPC:
+		commonHeader.arch = 20;
+		break;
 	case ARCH_ARM:
 		commonHeader.arch = 40;
 		break;

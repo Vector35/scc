@@ -32,7 +32,8 @@ enum Architecture
 	ARCH_X86,
 	ARCH_QUARK,
 	ARCH_MIPS,
-	ARCH_ARM
+	ARCH_ARM,
+	ARCH_PPC
 };
 
 enum OperatingSystem

@@ -684,7 +684,11 @@ int main(int argc, char* argv[])
 		if (!useSpecificSeed)
 		{
 			FILE* fp = fopen("/dev/urandom", "rb");
-			fread(&settings.seed, sizeof(settings.seed), 1, fp);
+			if (fread(&settings.seed, sizeof(settings.seed), 1, fp) != 1)
+			{
+				fprintf(stderr, "error: unable to generate random seed\n");
+				return 1;
+			}
 			fclose(fp);
 			fprintf(stderr, "Seed is %u\n", settings.seed);
 		}
@@ -792,7 +796,11 @@ int main(int argc, char* argv[])
 		fseek(fp, 0, SEEK_SET);
 
 		uint8_t* data = new uint8_t[size];
-		fread(data, 1, size, fp);
+		if (fread(data, 1, size, fp) != (size_t)size)
+		{
+			fprintf(stderr, "%s: error: unable to read file\n", library.c_str());
+			return 1;
+		}
 		fclose(fp);
 
 		InputBlock input;
@@ -927,7 +935,11 @@ int main(int argc, char* argv[])
 			fseek(fp, 0, SEEK_SET);
 
 			data = new char[size + 2];
-			fread(data, 1, size, fp);
+			if (fread(data, 1, size, fp) != (size_t)size)
+			{
+				fprintf(stderr, "%s: error: unable to read file\n", i->c_str());
+				return 1;
+			}
 			data[size++] = '\n';
 			data[size] = 0;
 			fclose(fp);

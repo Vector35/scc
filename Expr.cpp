@@ -2411,7 +2411,23 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide()))
+		{
+			// No intrinsic divide instructions, emit call to divide routine
+			char name[32];
+			if (m_children[0]->GetType()->IsSigned())
+				sprintf(name, "__sdiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+			else
+				sprintf(name, "__udiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+		}
+		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2440,7 +2456,23 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		a = m_children[0]->GenerateIL(state, func, block);
 		b = m_children[1]->GenerateIL(state, func, block);
-		if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide()))
+		{
+			// No intrinsic divide instructions, emit call to divide routine
+			char name[32];
+			if (m_children[0]->GetType()->IsSigned())
+				sprintf(name, "__smod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+			else
+				sprintf(name, "__umod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			if (i == state->GetFunctions().end())
+			{
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
+				break;
+			}
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+		}
+		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;

@@ -1,4 +1,4 @@
-// Copyright (c) 2014 Rusty Wagner
+// Copyright (c) 2011-2012 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,35 +18,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef __LIBC__ARM_STAT_H__
-#define __LIBC__ARM_STAT_H__
+#ifndef __LIBC__LINUX_ARCH_FILE_H__
+#define __LIBC__LINUX_ARCH_FILE_H__
 
-struct stat
-{
-	uint64_t st_dev;
-	uint32_t __pad0;
-	uint32_t __st_ino;
-	uint32_t st_mode;
-	uint32_t st_nlink;
-	uint32_t st_uid;
-	uint32_t st_gid;
-	uint64_t st_rdev;
-	uint32_t __pad3;
-	uint64_t st_size;
-	uint32_t st_blksize;
-	uint64_t st_blocks;
-	uint32_t st_atime;
-	uint32_t st_atime_nsec;
-	uint32_t st_mtime;
-	uint32_t st_mtime_nsec;
-	uint32_t st_ctime;
-	uint32_t st_ctime_nsec;
-	uint64_t st_ino;
-};
-
-int fstat(int fd, struct stat* buf);
-int stat(const char* path, struct stat* buf);
-int lstat(const char* path, struct stat* buf);
+#define O_DIRECT    0x4000
+#define O_LARGEFILE 0x8000
+#define O_DIRECTORY 0x10000
+#define O_NOFOLLOW  0x20000
 
 #endif
 

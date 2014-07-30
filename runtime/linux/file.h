@@ -33,10 +33,6 @@
 #define O_NONBLOCK  0x800
 #define O_DSYNC     0x1000
 #define FASYNC      0x2000
-#define O_DIRECT    0x4000
-#define O_LARGEFILE 0x8000
-#define O_DIRECTORY 0x10000
-#define O_NOFOLLOW  0x20000
 #define O_NOATIME   0x40000
 #define O_CLOEXEC   0x80000
 

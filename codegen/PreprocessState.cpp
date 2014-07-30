@@ -259,7 +259,14 @@ void PreprocessState::IncludeFile(const string& name)
 	fseek(fp, 0, SEEK_SET);
 
 	char* data = new char[size + 2];
-	fread(data, 1, size, fp);
+	if (fread(data, 1, size, fp) != (size_t)size)
+	{
+		fprintf(stderr, "%s: error: include file '%s' could not be read\n", GetFileName().c_str(), name.c_str());
+		m_errors++;
+		delete[] data;
+		fclose(fp);
+		return;
+	}
 	data[size++] = '\n';
 	data[size] = 0;
 	fclose(fp);

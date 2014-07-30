@@ -86,8 +86,6 @@
 #define SYS_getrusage			 77
 #define SYS_gettimeofday		 78
 #define SYS_settimeofday		 79
-#define SYS_getgroups			 80
-#define SYS_setgroups			 81
 #define SYS_select			 82
 #define SYS_symlink			 83
 #define SYS_readlink			 85
@@ -197,8 +195,8 @@
 #define SYS_getegid32			202
 #define SYS_setreuid32			203
 #define SYS_setregid32			204
-#define SYS_getgroups32		205
-#define SYS_setgroups32		206
+#define SYS_getgroups		205
+#define SYS_setgroups		206
 #define SYS_fchown32			207
 #define SYS_setresuid32		208
 #define SYS_getresuid32		209

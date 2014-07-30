@@ -26,89 +26,92 @@
 #define HIGH_PART 1
 #endif
 
-static uint64_t __udivmod64(uint64_t a, uint64_t b, uint64_t* remainder)
-{
-	uint64_t quotient = 0;
-	uint64_t bit = 1;
-
-	if (b == 0)
-	{
-		// Force divide by zero
-		return (uint32_t)a / (uint32_t)b;
-	}
-
-	while ((int64_t)b >= 0)
-	{
-		b <<= 1;
-		bit <<= 1;
-	}
-
-	while (bit)
-	{
-		if (b <= a)
-		{
-			a -= b;
-			quotient += bit;
-		}
-		b >>= 1;
-		bit >>= 1;
-	}
-
-	*remainder = a;
-	return quotient;
+#define DIV_MOD_IMPL(size) \
+static uint##size##_t __udivmod##size(uint##size##_t a, uint##size##_t b, uint##size##_t* remainder) \
+{ \
+	uint##size##_t quotient = 0; \
+	uint##size##_t bit = 1; \
+\
+	if (b == 0) \
+		__breakpoint(); \
+\
+	while ((int##size##_t)b >= 0) \
+	{ \
+		b <<= 1; \
+		bit <<= 1; \
+	} \
+\
+	while (bit) \
+	{ \
+		if (b <= a) \
+		{ \
+			a -= b; \
+			quotient += bit; \
+		} \
+		b >>= 1; \
+		bit >>= 1; \
+	} \
+\
+	*remainder = a; \
+	return quotient; \
+} \
+\
+uint##size##_t __udiv##size(uint##size##_t a, uint##size##_t b) \
+{ \
+	uint##size##_t remainder; \
+	return __udivmod##size(a, b, &remainder); \
+} \
+\
+uint##size##_t __umod##size(uint##size##_t a, uint##size##_t b) \
+{ \
+	uint##size##_t remainder; \
+	__udivmod##size(a, b, &remainder); \
+	return remainder; \
+} \
+\
+int##size##_t __sdiv##size(int##size##_t a, int##size##_t b) \
+{ \
+	bool negative = false; \
+	if (a < 0) \
+	{ \
+		a = -a; \
+		negative = true; \
+	} \
+	if (b < 0) \
+	{ \
+		b = -b; \
+		negative = !negative; \
+	} \
+\
+	int##size##_t result = __udiv##size(a, b); \
+	if (negative) \
+		result = -result; \
+	return result; \
+} \
+\
+int##size##_t __smod##size(int##size##_t a, int##size##_t b) \
+{ \
+	bool negative = false; \
+	if (a < 0) \
+	{ \
+		a = -a; \
+		negative = true; \
+	} \
+	if (b < 0) \
+	{ \
+		b = -b; \
+	} \
+\
+	int##size##_t result = __umod##size(a, b); \
+	if (negative) \
+		result = -result; \
+	return result; \
 }
 
-uint64_t __udiv64(uint64_t a, uint64_t b)
-{
-	uint64_t remainder;
-	return __udivmod64(a, b, &remainder);
-}
-
-uint64_t __umod64(uint64_t a, uint64_t b)
-{
-	uint64_t remainder;
-	__udivmod64(a, b, &remainder);
-	return remainder;
-}
-
-int64_t __sdiv64(int64_t a, int64_t b)
-{
-	bool negative = false;
-	if (a < 0)
-	{
-		a = -a;
-		negative = true;
-	}
-	if (b < 0)
-	{
-		b = -b;
-		negative = !negative;
-	}
-
-	int64_t result = __udiv64(a, b);
-	if (negative)
-		result = -result;
-	return result;
-}
-
-int64_t __smod64(int64_t a, int64_t b)
-{
-	bool negative = false;
-	if (a < 0)
-	{
-		a = -a;
-		negative = true;
-	}
-	if (b < 0)
-	{
-		b = -b;
-	}
-
-	int64_t result = __umod64(a, b);
-	if (negative)
-		result = -result;
-	return result;
-}
+DIV_MOD_IMPL(8)
+DIV_MOD_IMPL(16)
+DIV_MOD_IMPL(32)
+DIV_MOD_IMPL(64)
 
 uint64_t __shl64(uint64_t a, uint8_t count)
 {

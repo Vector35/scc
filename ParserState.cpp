@@ -594,6 +594,14 @@ bool ParserState::HasIntrinsicByteSwap()
 }
 
 
+bool ParserState::HasIntrinsicDivide()
+{
+	if (m_settings.architecture == ARCH_ARM)
+		return false;
+	return true;
+}
+
+
 bool ParserState::IsValidFloatImmediate(double value)
 {
 	if (m_settings.architecture == ARCH_QUARK)

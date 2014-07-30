@@ -21,10 +21,17 @@
 #ifndef __LIBC__MATH_H__
 #define __LIBC__MATH_H__
 
-uint64_t __udiv64(uint64_t a, uint64_t b);
-uint64_t __umod64(uint64_t a, uint64_t b);
-int64_t __sdiv64(int64_t a, int64_t b);
-int64_t __smod64(int64_t a, int64_t b);
+#define DIV_MOD_DECL(size) \
+uint##size##_t __udiv##size(uint##size##_t a, uint##size##_t b); \
+uint##size##_t __umod##size(uint##size##_t a, uint##size##_t b); \
+int##size##_t __sdiv##size(int##size##_t a, int##size##_t b); \
+int##size##_t __smod##size(int##size##_t a, int##size##_t b);
+
+DIV_MOD_DECL(8)
+DIV_MOD_DECL(16)
+DIV_MOD_DECL(32)
+DIV_MOD_DECL(64)
+
 uint64_t __shl64(uint64_t a, uint8_t count);
 uint64_t __shr64(uint64_t a, uint8_t count);
 int64_t __sar64(int64_t a, uint8_t count);

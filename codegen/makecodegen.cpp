@@ -79,7 +79,11 @@ int main(int argc, char* argv[])
 	fseek(fp, 0, SEEK_SET);
 
 	char* data = new char[size + 2];
-	fread(data, 1, size, fp);
+	if (fread(data, 1, size, fp) != (size_t)size)
+	{
+		fprintf(stderr, "%s: error: unable to read file\n", inFile.c_str());
+		return 1;
+	}
 	data[size++] = '\n';
 	data[size] = 0;
 	fclose(fp);

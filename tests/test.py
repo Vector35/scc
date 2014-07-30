@@ -242,8 +242,10 @@ elif os.name != "nt":
 		failed += test_all("FreeBSD Quark", ["--platform", "freebsd", "--arch", "quark"], "quark", False)
 	else:
 		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64", True)
-		failed += test_all("Linux MIPS big-endian", ["--platform", "linux", "--arch", "mips"], "mips", False)
 		failed += test_all("Linux MIPS little-endian", ["--platform", "linux", "--arch", "mipsel"], "mipsel", False)
+		failed += test_all("Linux MIPS big-endian", ["--platform", "linux", "--arch", "mips"], "mips", False)
+		failed += test_all("Linux ARM little-endian", ["--platform", "linux", "--arch", "arm"], "arm", False)
+		failed += test_all("Linux ARM big-endian", ["--platform", "linux", "--arch", "armeb"], "armeb", False)
 
 if failed != 0:
 	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)

@@ -56,7 +56,7 @@ immediateclass IMM12M4  { return (value >= 0) && (value < 0xffc); }
 immediateclass IMM12M4NEG  { return (value > -0x1000) && (value <= -4); }
 
 callersaved { 0, 1, 2, 3, 12 }
-calleesaved { 4, 5, 6, 7, 8, 9, 10, 11 }
+calleesaved { 4, 5, 6, 7, 8, 9, 10 }
 
 special SYMREG_SP { SYMREG_NATIVE_REG(REG_SP) }
 special SYMREG_BP { SYMREG_NATIVE_REG(REG_FP) }
@@ -78,7 +78,6 @@ encoding LOAD_MULTIPLE { cond=COND_AL:4, 2:2, op:6, rn:4, i:16 }
 encoding BRANCH { cond=COND_AL:4, 2:2, op:2, i:24 }
 encoding SVC { cond=COND_AL:4, 0xf:4, i:24 }
 encoding PACK { cond=COND_AL:4, op:8, 0xf:4, rd:4, rot:2, 0:2, 7:4, rm:4 }
-encoding DIV { 0x1f:5, op:6, 1:1, rn:4, 1:4, rd:4, 1:4, rm:4 }
 
 instr function int64_t RelativeAddRead32(OutputBlock* out, Relocation& reloc)
 {
@@ -185,20 +184,20 @@ instr function void RelativeAddOverflow16(OutputBlock* out, Relocation& reloc)
 	reloc.valid = RelativeAddValid32;
 }
 
-instr function int64_t RelativeAddRead12(OutputBlock* out, Relocation& reloc)
+instr function int64_t RelativeAddRead8(OutputBlock* out, Relocation& reloc)
 {
 	size_t start = reloc.instruction;
 	uint32_t instr = out->ReadOffsetUInt32(start);
 	uint32_t op = (instr >> 21) & 0xf;
 	int32_t diff;
 	if (op == 4) // add
-		diff = instr & 0xfff;
+		diff = instr & 0xff;
 	else // sub
-		diff = -(instr & 0xfff);
+		diff = -(instr & 0xff);
 	return diff;
 }
 
-instr function void RelativeAddWrite12(OutputBlock* out, Relocation& reloc, int64_t diff)
+instr function void RelativeAddWrite8(OutputBlock* out, Relocation& reloc, int64_t diff)
 {
 	size_t start = reloc.instruction;
 	uint32_t instr = out->ReadOffsetUInt32(start);
@@ -210,12 +209,12 @@ instr function void RelativeAddWrite12(OutputBlock* out, Relocation& reloc, int6
 	out->WriteOffsetUInt32(start, instr);
 }
 
-instr function bool RelativeAddValid12(OutputBlock* out, Relocation& reloc, int64_t diff)
+instr function bool RelativeAddValid8(OutputBlock* out, Relocation& reloc, int64_t diff)
 {
-	return (diff > -0x1000) && (diff < 0x1000);
+	return (diff > -0x100) && (diff < 0x100);
 }
 
-instr function void RelativeAddOverflow12(OutputBlock* out, Relocation& reloc)
+instr function void RelativeAddOverflow8(OutputBlock* out, Relocation& reloc)
 {
 	size_t start = reloc.instruction;
 	uint32_t oldInstr = out->ReadOffsetUInt32(start);
@@ -275,10 +274,10 @@ instr add_stack  add rd:REG(w), var:STACKVAR
 	if ((%var:offset > -0x100) && (%var:offset < 0))
 		@DATA_IMM op1=2, s=0, rn=%var:base, i=-%var:offset; // sub
 	else if ((%var:offset < 0x100) && (%var:offset >= 0))
-		@DATA_IMM op1=4, s=0, rn=%var:base, i=-%var:offset; // add
+		@DATA_IMM op1=4, s=0, rn=%var:base, i=%var:offset; // add
 	else if ((%var:offset > -0x10000) && (%var:offset < 0))
 	{
-		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@MOV16 op1=0x10, rd=%var:temp, hi=(-%var:offset)>>12, lo=-%var:offset; // movw
 		@DATA_REG op1=2, s=0, rn=%var:base, rm=%var:temp; // sub
 	}
 	else if ((%var:offset < 0x10000) && (%var:offset >= 0))
@@ -299,10 +298,10 @@ instr sub_stack  add rd:REG(w), var:STACKVAR
 	if ((%var:offset > -0x100) && (%var:offset < 0))
 		@DATA_IMM op1=4, s=0, rn=%var:base, i=-%var:offset; // add
 	else if ((%var:offset < 0x100) && (%var:offset >= 0))
-		@DATA_IMM op1=2, s=0, rn=%var:base, i=-%var:offset; // sub
+		@DATA_IMM op1=2, s=0, rn=%var:base, i=%var:offset; // sub
 	else if ((%var:offset > -0x10000) && (%var:offset < 0))
 	{
-		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@MOV16 op1=0x10, rd=%var:temp, hi=(-%var:offset)>>12, lo=-%var:offset; // movw
 		@DATA_REG op1=4, s=0, rn=%var:base, rm=%var:temp; // add
 	}
 	else if ((%var:offset < 0x10000) && (%var:offset >= 0))
@@ -328,11 +327,11 @@ instr add_global  add rd:REG(w), var:GLOBALVAR
 	reloc.offset = out->len - 4;
 	reloc.extra = %var:temp;
 	reloc.dataOffset = %var:offset;
-	reloc.bitSize = 12;
-	reloc.overflow = RelativeAddOverflow12;
-	reloc.read = RelativeAddRead12;
-	reloc.write = RelativeAddWrite12;
-	reloc.valid = RelativeAddValid12;
+	reloc.bitSize = 8;
+	reloc.overflow = RelativeAddOverflow8;
+	reloc.read = RelativeAddRead8;
+	reloc.write = RelativeAddWrite8;
+	reloc.valid = RelativeAddValid8;
 	out->relocs.push_back(reloc);
 }
 
@@ -346,11 +345,11 @@ instr add_block add rd:REG(w), func:FUNCTION, temp:TEMP
 	reloc.offset = out->len - 4;
 	reloc.extra = %temp;
 	reloc.target = %func:block;
-	reloc.bitSize = 12;
-	reloc.overflow = RelativeAddOverflow12;
-	reloc.read = RelativeAddRead12;
-	reloc.write = RelativeAddWrite12;
-	reloc.valid = RelativeAddValid12;
+	reloc.bitSize = 8;
+	reloc.overflow = RelativeAddOverflow8;
+	reloc.read = RelativeAddRead8;
+	reloc.write = RelativeAddWrite8;
+	reloc.valid = RelativeAddValid8;
 	out->relocs.push_back(reloc);
 }
 
@@ -408,10 +407,10 @@ instr lsr_imm  lsr rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=1
 instr asr_imm  asr rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=2; }
 instr(readflags) rrx  lsl rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=0, type=3, i=0; }
 instr ror_imm  ror rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=0, type=3; }
-instr lsl  lsl rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=0; }
-instr lsr  lsr rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=1; }
-instr asr  asr rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=2; }
-instr ror  ror rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=0, type=3; }
+instr lsl  lsl rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=0, type=0; }
+instr lsr  lsr rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=0, type=1; }
+instr asr  asr rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=0, type=2; }
+instr ror  ror rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=0, type=3; }
 instr(copy, writeflags) movs  movs rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=1; }
 instr(writeflags) movs_imm  movs rd:REG(w), i:IMM  { @DATA_IMM op1=0xd, s=1; }
 instr(writeflags) lsls_imm  lsls rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=0; }
@@ -419,10 +418,10 @@ instr(writeflags) lsrs_imm  lsrs rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0x
 instr(writeflags) asrs_imm  asrs rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=2; }
 instr(readflags, writeflags) rrxs  rrxs rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xd, s=1, type=3, i=0; }
 instr(writeflags) rors_imm  rors rd:REG(w), rm:REG(r), i:IMM  { @DATA_REG op1=0xd, s=1, type=3; }
-instr(writeflags) lsls  lsls rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=0; }
-instr(writeflags) lsrs  lsrs rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=1; }
-instr(writeflags) asrs  asrs rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=2; }
-instr(writeflags) rors  rors rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_REG op1=0xd, s=1, type=3; }
+instr(writeflags) lsls  lsls rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=1, type=0; }
+instr(writeflags) lsrs  lsrs rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=1, type=1; }
+instr(writeflags) asrs  asrs rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=1, type=2; }
+instr(writeflags) rors  rors rd:REG(w), rm:REG(r), rs:REG(r)  { @DATA_SHIFT_REG op1=0xd, s=1, type=3; }
 
 instr mvn  mvn rd:REG(w), rm:REG(r)  { @DATA_REG op1=0xf, s=0; }
 instr mvn_imm  mvn rd:REG(w), i:IMM  { @DATA_IMM op1=0xf, s=0; }
@@ -469,9 +468,6 @@ instr sxth  sxth rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6b; }
 instr uxtb  uxtb rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6e; }
 instr uxth  uxth rd:REG(w), rm:REG(r), rot:IMM  { @PACK op=0x6f; }
 
-instr sdiv  sdiv rd:REG(w), rn:REG(r), rm:REG(r)  { @DIV op=0x1c; }
-instr udiv  udiv rd:REG(w), rn:REG(r), rm:REG(r)  { @DIV op=0x1d; }
-
 instr(memory) strh_reg  strh rt:REG(r), [rn:REG(r) + rm:REG(r)]  { @EXTRA_LOAD op1=0x18, op2=1; }
 instr(memory) strh_reg_pre  strh rt:REG(r), [rn:REG(rw) + rm:REG(r)]!  { @EXTRA_LOAD op1=0x1a, op2=1; }
 instr(memory) strh_reg_post  strh rt:REG(r), [rn:REG(rw)], rm:REG(r)  { @EXTRA_LOAD op1=8, op2=1; }
@@ -489,10 +485,10 @@ instr(memory) strh_stack  strh rt:REG(r), [var:STACKVAR]
 	if ((%var:offset > -0x100) && (%var:offset < 0))
 		@EXTRA_LOAD op1=0x14, op2=1, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; // strh
 	else if ((%var:offset < 0x100) && (%var:offset >= 0))
-		@EXTRA_LOAD op1=0x1c, op2=1, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; // strh
+		@EXTRA_LOAD op1=0x1c, op2=1, rn=%var:base, hi=%var:offset>>4, rm=%var:offset; // strh
 	else if ((%var:offset > -0x10000) && (%var:offset < 0))
 	{
-		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; // movw
+		@MOV16 op1=0x10, rd=%var:temp, hi=(-%var:offset)>>12, lo=-%var:offset; // movw
 		@EXTRA_LOAD op1=0x10, op2=1, rn=%var:base, rm=%var:temp; // strh
 	}
 	else if ((%var:offset < 0x10000) && (%var:offset >= 0))
@@ -526,10 +522,10 @@ instr(memory) name##_stack  name rt:REG(w), [var:STACKVAR] \
 	if ((%var:offset > -0x100) && (%var:offset < 0)) \
 		@EXTRA_LOAD op1=0x15, op2=opcode, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; \
 	else if ((%var:offset < 0x100) && (%var:offset >= 0)) \
-		@EXTRA_LOAD op1=0x1d, op2=opcode, rn=%var:base, hi=(-%var:offset)>>4, rm=-%var:offset; \
+		@EXTRA_LOAD op1=0x1d, op2=opcode, rn=%var:base, hi=%var:offset>>4, rm=%var:offset; \
 	else if ((%var:offset > -0x10000) && (%var:offset < 0)) \
 	{ \
-		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@MOV16 op1=0x10, rd=%var:temp, hi=(-%var:offset)>>12, lo=-%var:offset; \
 		@EXTRA_LOAD op1=0x11, op2=opcode, rn=%var:base, rm=%var:temp; \
 	} \
 	else if ((%var:offset < 0x10000) && (%var:offset >= 0)) \
@@ -587,7 +583,7 @@ instr(memory) name##_stack  name rt:REG(v), [var:STACKVAR] \
 		@LOAD_IMM op1=opcode+0x18, rn=%var:base, i=%var:offset; \
 	else if ((%var:offset > -0x10000) && (%var:offset < 0)) \
 	{ \
-		@MOV16 op1=0x10, rd=%var:temp, hi=%var:offset>>12, lo=%var:offset; \
+		@MOV16 op1=0x10, rd=%var:temp, hi=(-%var:offset)>>12, lo=-%var:offset; \
 		@LOAD_REG op1=opcode+0x10, rn=%var:base, rm=%var:temp; \
 	} \
 	else if ((%var:offset < 0x10000) && (%var:offset >= 0)) \
@@ -851,6 +847,7 @@ add a:IREG sar b:IREG c:IMM => dest:IRESULT { @add_asr_imm %dest, %a, %b, %c; }
 add a:IREG shl b:IREG c:IREG => dest:IRESULT { @add_lsl_reg %dest, %a, %b, %c; }
 add a:IREG shr b:IREG c:IREG => dest:IRESULT { @add_lsr_reg %dest, %a, %b, %c; }
 add a:IREG sar b:IREG c:IREG => dest:IRESULT { @add_asr_reg %dest, %a, %b, %c; }
+add a:IREG64 b:IREG64 => dest:IREG64 { @adds %dest:low, %a:low, %b:low; @adc %dest:high, %a:high, %b:high; }
 
 sub a:IREG b:IREG => dest:IRESULT { @sub %dest, %a, %b; }
 sub a:IREG b:IMM8 => dest:IRESULT { @sub_imm %dest, %a, %b; }
@@ -861,12 +858,13 @@ sub a:IREG sar b:IREG c:IMM => dest:IRESULT { @sub_asr_imm %dest, %a, %b, %c; }
 sub a:IREG shl b:IREG c:IREG => dest:IRESULT { @sub_lsl_reg %dest, %a, %b, %c; }
 sub a:IREG shr b:IREG c:IREG => dest:IRESULT { @sub_lsr_reg %dest, %a, %b, %c; }
 sub a:IREG sar b:IREG c:IREG => dest:IRESULT { @sub_asr_reg %dest, %a, %b, %c; }
+sub a:IREG64 b:IREG64 => dest:IREG64 { @subs %dest:low, %a:low, %b:low; @sbc %dest:high, %a:high, %b:high; }
 
 #define MUL_INSTR(op) \
 op a:IREG b:IREG => dest:IRESULT { @mul %dest, %a, %b; } \
 op a:IREG64 b:IREG64 => dest:IREG64, temp:IREG \
 { \
-	@umull %dest:high, %dest:low, %a:low, %b:low; \
+	@umull %dest:low, %dest:high, %a:low, %b:low; \
 	@mul %temp, %a:low, %b:high; \
 	@add %dest:high, %dest:high, %temp; \
 	@mul %temp, %a:high, %b:low; \
@@ -874,23 +872,6 @@ op a:IREG64 b:IREG64 => dest:IREG64, temp:IREG \
 }
 MUL_INSTR(smul)
 MUL_INSTR(umul)
-
-sdiv a:IREG b:IREG => dest:IRESULT  { @sdiv %dest, %a, %b; }
-udiv a:IREG b:IREG => dest:IRESULT  { @udiv %dest, %a, %b; }
-
-smod a:IREG b:IREG => dest:IRESULT, temp:IREG
-{
-	@sdiv %temp, %a, %b;
-	@mul %dest, %temp, %b;
-	@sub %dest, %a, %dest;
-}
-
-umod a:IREG b:IREG => dest:IRESULT, temp:IREG
-{
-	@udiv %temp, %a, %b;
-	@mul %dest, %temp, %b;
-	@sub %dest, %a, %dest;
-}
 
 #define BITWISE_OP(op, instr) \
 op a:IREG b:IREG => dest:IREG { instr %dest, %a, %b; } \
@@ -913,7 +894,9 @@ sar a:IREG b:IMM => dest:IRESULT { @asr_imm %dest, %a, %b; }
 sar a:IREG b:IREG => dest:IRESULT { @asr %dest, %a, %b; }
 
 neg a:IREG => dest:IRESULT { @rsb_imm %dest, %a, 0; }
+neg a:IREG64 => dest:IREG64 { @rsbs_imm %dest:low, %a:low, 0; @rsc_imm %dest:high, %a:high, 0; }
 not a:IREG => dest:IRESULT { @mvn %dest, %a; }
+not a:IREG64 => dest:IREG64 { @mvn %dest:low, %a:low; @mvn %dest:high, %a:high; }
 
 sconvert src:IREG(8) => dest:IREG(16,32) { @sxtb %dest, %src, 0; }
 sconvert src:IREG(8) => dest:IREG64 { @sxtb %dest:low, %src, 0; @asr_imm %dest:high, %dest:low, 31; }
@@ -936,6 +919,10 @@ uconvert src:IREG64 => dest:IREG(16) { @uxth %dest, %src:low, 0; }
 sconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
 uconvert src:IREG64 => dest:IREG(32) { @mov %dest, %src:low; }
 
+byteswap src:IREG(16) => dest:IREG { @rev16 %dest, %src; }
+byteswap src:IREG(32) => dest:IREG { @rev %dest, %src; }
+byteswap src:IREG64 => dest:IREG64 { @rev %dest:high, %src:low; @rev %dest:low, %src:high; }
+
 function void UnconditionalJump(SymInstrBlock* out, TreeBlock* block)
 {
 	if ((!m_settings.pad) && (block->GetSource()->GetGlobalIndex() == (m_currentBlock->GetSource()->GetGlobalIndex() + 1)))
@@ -946,7 +933,7 @@ function void UnconditionalJump(SymInstrBlock* out, TreeBlock* block)
 	@b m_func, block->GetSource();
 }
 
-iftrue src:IREG t:BLOCK f:BLOCK { @cmp_imm %src, 0; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+iftrue src:IREG t:BLOCK f:BLOCK { @cmp_imm %src, 0; @bne m_func, %t->GetSource(); UnconditionalJump(out, %f); }
 iftrue src:IREG64 t:BLOCK f:BLOCK
 {
 	@cmp_imm %src:low, 0;
@@ -958,7 +945,7 @@ iftrue src:IREG64 t:BLOCK f:BLOCK
 
 ife a:IREG b:IREG t:BLOCK f:BLOCK { @cmp %a, %b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
 ife a:IREG b:IMM8 t:BLOCK f:BLOCK { @cmp_imm %a, %b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
-ife a:IREG b:IMM8NEG t:BLOCK f:BLOCK { @cmn_imm %a, %b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
+ife a:IREG b:IMM8NEG t:BLOCK f:BLOCK { @cmn_imm %a, -%b; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
 ife a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsl_imm %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
 ife a:IREG shr b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsr_imm %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
 ife a:IREG sar b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_asr_imm %a, %b, %c; @beq m_func, %t->GetSource(); UnconditionalJump(out, %f); }
@@ -977,7 +964,7 @@ ife a:IREG64 b:IREG64 t:BLOCK f:BLOCK
 #define COND_COMPARE(op, instr, lowInstr, highInstr) \
 op a:IREG b:IREG t:BLOCK f:BLOCK { @cmp %a, %b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
 op a:IREG b:IMM8 t:BLOCK f:BLOCK { @cmp_imm %a, %b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
-op a:IREG b:IMM8NEG t:BLOCK f:BLOCK { @cmn_imm %a, %b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
+op a:IREG b:IMM8NEG t:BLOCK f:BLOCK { @cmn_imm %a, -%b; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
 op a:IREG shl b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsl_imm %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
 op a:IREG shr b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_lsr_imm %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
 op a:IREG sar b:IREG c:IMM t:BLOCK f:BLOCK { @cmp_asr_imm %a, %b, %c; instr m_func, %t->GetSource(); UnconditionalJump(out, %f); } \
@@ -1123,13 +1110,13 @@ push src:IREG64
 {
 	if (m_settings.bigEndian)
 	{
-		@str_sub_imm %src:low, SYMREG_SP, -4;
-		@str_sub_imm_pre %src:high, SYMREG_SP, -8;
+		@str_sub_imm %src:low, SYMREG_SP, 4;
+		@str_sub_imm_pre %src:high, SYMREG_SP, 8;
 	}
 	else
 	{
-		@str_sub_imm %src:high, SYMREG_SP, -4;
-		@str_sub_imm_pre %src:low, SYMREG_SP, -8;
+		@str_sub_imm %src:high, SYMREG_SP, 4;
+		@str_sub_imm_pre %src:low, SYMREG_SP, 8;
 	}
 }
 
@@ -1177,7 +1164,9 @@ function bool GenerateFunctionStart(SymInstrBlock* out)
 	{
 		// This is the start function, and we can't assume we have a safe stack (the code may be
 		// at or near the stack pointer), pivot the stack to make it safe
-		@sub_imm SYMREG_SP, SYMREG_SP, UNSAFE_STACK_PIVOT;
+		uint32_t reg = TEMP_REGISTER(IREG);
+		@movw reg, UNSAFE_STACK_PIVOT;
+		@sub SYMREG_SP, SYMREG_SP, reg;
 	}
 
 	// Generate function prologue

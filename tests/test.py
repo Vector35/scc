@@ -246,6 +246,7 @@ elif os.name != "nt":
 		failed += test_all("Linux MIPS big-endian", ["--platform", "linux", "--arch", "mips"], "mips", False)
 		failed += test_all("Linux ARM little-endian", ["--platform", "linux", "--arch", "arm"], "arm", False)
 		failed += test_all("Linux ARM big-endian", ["--platform", "linux", "--arch", "armeb"], "armeb", False)
+		failed += test_all("Linux PowerPC", ["--platform", "linux", "--arch", "ppc"], "ppc", False)
 
 if failed != 0:
 	sys.stdout.write("\033[01;31m%d test(s) failed\033[00m\n" % failed)

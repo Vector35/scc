@@ -261,10 +261,13 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 	ident.version = 1;
 
 	ident.os = 0;
-	if (settings.os == OS_LINUX)
-		ident.os = 3;
-	if (settings.os == OS_FREEBSD)
-		ident.os = 9;
+	if (settings.architecture != ARCH_PPC)
+	{
+		if (settings.os == OS_LINUX)
+			ident.os = 3;
+		if (settings.os == OS_FREEBSD)
+			ident.os = 9;
+	}
 
 	ident.abiVersion = 0;
 	memset(ident.pad, 0, sizeof(ident.pad));

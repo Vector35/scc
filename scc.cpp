@@ -30,6 +30,7 @@
 #include "Linker.h"
 #include "ElfOutput.h"
 #include "MachOOutput.h"
+#include "PeOutput.h"
 
 using namespace std;
 
@@ -778,9 +779,8 @@ int main(int argc, char* argv[])
 	{
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
-		if (!settings.positionIndependent)
-			settings.base = 0x1000000;
-		settings.base += 0x1000;
+		settings.base = 0x1000000;
+		settings.base = AdjustBaseForPeFile(settings.base, settings);
 	}
 
 	// Adjust alignment for architectures that require it

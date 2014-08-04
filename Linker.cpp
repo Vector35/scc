@@ -32,6 +32,7 @@
 #include "OutputX64.h"
 #include "ElfOutput.h"
 #include "MachOOutput.h"
+#include "PeOutput.h"
 
 using namespace std;
 using namespace asmx86;
@@ -1157,6 +1158,8 @@ bool Linker::LayoutCode(vector<ILBlock*>& codeBlocks)
 			m_settings.dataSectionBase = AdjustDataSectionBaseForElfFile(m_settings.dataSectionBase);
 		else if (m_settings.format == FORMAT_MACHO)
 			m_settings.dataSectionBase = AdjustDataSectionBaseForMachOFile(m_settings.dataSectionBase);
+		else if (m_settings.format == FORMAT_PE)
+			m_settings.dataSectionBase = AdjustDataSectionBaseForPeFile(m_settings.dataSectionBase);
 
 		// Check relocations and gather the overflow list
 		vector<RelocationReference> overflows;
@@ -1562,6 +1565,13 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		if (!GenerateMachOFile(finalBinary, m_settings, &codeSection, &dataSection))
 		{
 			fprintf(stderr, "error: failed to output Mach-O format\n");
+			return false;
+		}
+		break;
+	case FORMAT_PE:
+		if (!GeneratePeFile(finalBinary, m_settings, &codeSection, &dataSection))
+		{
+			fprintf(stderr, "error: failed to output PE format\n");
 			return false;
 		}
 		break;

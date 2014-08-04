@@ -35,7 +35,7 @@ enum RegisterClassType
 
 class CodeBlock;
 
-class RegisterClass: public RefCountObject
+class RegisterClassDef: public RefCountObject
 {
 	RegisterClassType m_classType;
 	uint32_t m_sizeFlags;
@@ -43,9 +43,9 @@ class RegisterClass: public RefCountObject
 	Ref<CodeBlock> m_fixed;
 
 public:
-	RegisterClass(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName, const std::string& regClass,
+	RegisterClassDef(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName, const std::string& regClass,
 		CodeBlock* fixed);
-	RegisterClass(uint32_t sizeFlags, const std::string& matchName, const std::string& lowClass, const std::string& highClass);
+	RegisterClassDef(uint32_t sizeFlags, const std::string& matchName, const std::string& lowClass, const std::string& highClass);
 
 	RegisterClassType GetClassType() const { return m_classType; }
 	uint32_t GetSizeFlags() const { return m_sizeFlags; }

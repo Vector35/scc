@@ -237,6 +237,7 @@ bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignment
 			break;
 	}
 
+#ifndef WIN32
 	if (settings.internalDebug)
 	{
 		PrintPrototype();
@@ -249,6 +250,7 @@ bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignment
 
 		fprintf(stderr, "\n\n");
 	}
+#endif
 
 	return ok;
 }

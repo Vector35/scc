@@ -534,7 +534,7 @@ temp_list: temp_list COMMA match  { $$ = $1; $$->AddChildNode($3); $3->Release()
 match: match_name COLON ID
 	 	{
 			uint32_t sizeFlags = REG_MATCH_ALL;
-			RegisterClass* cls = state->GetRegisterClass($3);
+			RegisterClassDef* cls = state->GetRegisterClass($3);
 			if (cls)
 				sizeFlags &= cls->GetSizeFlags();
 			$$ = TreeNode::CreateRegNode($1, $3, sizeFlags);
@@ -545,7 +545,7 @@ match: match_name COLON ID
 	 | match_name COLON ID LPAREN match_type_list RPAREN
 	 	{
 			uint32_t sizeFlags = $5;
-			RegisterClass* cls = state->GetRegisterClass($3);
+			RegisterClassDef* cls = state->GetRegisterClass($3);
 			if (cls)
 				sizeFlags &= cls->GetSizeFlags();
 			$$ = TreeNode::CreateRegNode($1, $3, sizeFlags);

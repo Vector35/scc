@@ -18,6 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#ifdef WIN32
+#define YY_NO_UNISTD_H
+#endif
 #include <string>
 #include <stdio.h>
 #include <string.h>
@@ -67,7 +70,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	FILE* fp = fopen(inFile.c_str(), "r");
+	FILE* fp = fopen(inFile.c_str(), "rb");
 	if (!fp)
 	{
 		fprintf(stderr, "%s: error: file not found\n", inFile.c_str());

@@ -42,10 +42,10 @@ class ParserState
 	void* m_scanner;
 	void* m_lvalue;
 	int m_errors;
-	Ref<RegisterClass> m_defaultRegClass;
+	Ref<RegisterClassDef> m_defaultRegClass;
 	uint32_t m_archBits;
 
-	std::map< std::string, Ref<RegisterClass> > m_regClasses;
+	std::map< std::string, Ref<RegisterClassDef> > m_regClasses;
 	std::map< std::string, std::vector<std::string> > m_regSubclasses;
 	std::map< std::string, Ref<CodeBlock> > m_immClasses;
 	std::map< std::string, Ref<Encoding> > m_encodings;
@@ -111,13 +111,13 @@ public:
 
 	void ExpandTempRegisterClasses();
 
-	RegisterClass* GetRegisterClass(const std::string& name) const;
-	RegisterClass* GetDefaultRegisterClass() const { return m_defaultRegClass; }
+	RegisterClassDef* GetRegisterClass(const std::string& name) const;
+	RegisterClassDef* GetDefaultRegisterClass() const { return m_defaultRegClass; }
 	bool IsRegisterClass(const std::string& name) const { return GetRegisterClass(name) != NULL; }
 	CodeBlock* GetImmediateClass(const std::string& name) const;
 	bool IsImmediateClass(const std::string& name) const { return GetImmediateClass(name) != NULL; }
 	Encoding* GetEncoding(const std::string& name) const;
-	const std::map< std::string, Ref<RegisterClass> >& GetRegisterClasses() const { return m_regClasses; }
+	const std::map< std::string, Ref<RegisterClassDef> >& GetRegisterClasses() const { return m_regClasses; }
 	const std::map< std::string, std::vector<std::string> >& GetRegisterSubclasses() const { return m_regSubclasses; }
 	const std::map< std::string, Ref<CodeBlock> >& GetImmediateClasses() const { return m_immClasses; }
 	const std::map< std::string, Ref<Encoding> >& GetEncodings() const { return m_encodings; }

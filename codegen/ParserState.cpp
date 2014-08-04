@@ -57,7 +57,7 @@ void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, Co
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(REGCLASS_NORMAL, sizeFlags, name, name, fixed);
+	m_regClasses[name] = new RegisterClassDef(REGCLASS_NORMAL, sizeFlags, name, name, fixed);
 
 	if (isDefault)
 	{
@@ -103,7 +103,7 @@ void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& nam
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(sizeFlags, name, lowRegClass, highRegClass);
+	m_regClasses[name] = new RegisterClassDef(sizeFlags, name, lowRegClass, highRegClass);
 }
 
 
@@ -125,7 +125,7 @@ void ParserState::DefineTempRegisterClass(uint32_t sizeFlags, const string& name
 		return;
 	}
 
-	m_regClasses[name] = new RegisterClass(REGCLASS_TEMP, sizeFlags, name, symRegClass, NULL);
+	m_regClasses[name] = new RegisterClassDef(REGCLASS_TEMP, sizeFlags, name, symRegClass, NULL);
 }
 
 
@@ -192,7 +192,7 @@ void ParserState::DefineMatch(const string& file, int line, TreeNode* match, Tre
 			return;
 		}
 
-		RegisterClass* regClass = GetRegisterClass(match->GetTypeName());
+		RegisterClassDef* regClass = GetRegisterClass(match->GetTypeName());
 		if (regClass && (regClass->GetClassType() == REGCLASS_TEMP))
 		{
 			if (temp)
@@ -281,7 +281,7 @@ void ParserState::ExpandTempRegisterClasses()
 			continue;
 		}
 
-		RegisterClass* regClass = GetRegisterClass((*i)->GetResult()->GetTypeName());
+		RegisterClassDef* regClass = GetRegisterClass((*i)->GetResult()->GetTypeName());
 		if (regClass->GetClassType() != REGCLASS_TEMP)
 		{
 			expanded.push_back(*i);
@@ -339,9 +339,9 @@ void ParserState::ExpandTempRegisterClasses()
 }
 
 
-RegisterClass* ParserState::GetRegisterClass(const string& name) const
+RegisterClassDef* ParserState::GetRegisterClass(const string& name) const
 {
-	map< string, Ref<RegisterClass> >::const_iterator i = m_regClasses.find(name);
+	map< string, Ref<RegisterClassDef> >::const_iterator i = m_regClasses.find(name);
 	if (i == m_regClasses.end())
 		return NULL;
 	return i->second;

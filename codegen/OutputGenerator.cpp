@@ -28,6 +28,30 @@
 using namespace std;
 
 
+#ifdef WIN32
+int vasprintf(char** buf, const char* fmt, va_list ap)
+{
+	int len;
+
+	*buf = NULL;
+	len = vsnprintf(NULL, 0, fmt, ap);
+	if (len < 0)
+		return len;
+
+	*buf = (char*)malloc(len + 1);
+	if (!*buf)
+		return -1;
+
+	if (vsnprintf(*buf, len + 1, fmt, ap) == len)
+		return len;
+
+	free(buf);
+	*buf = NULL;
+	return -1;
+}
+#endif
+
+
 OutputGenerator::OutputGenerator(ParserState* parser): m_parser(parser), m_errors(0), m_indentLevel(0)
 {
 	m_className = m_parser->GetArchName() + "CodeGen";
@@ -195,7 +219,9 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 	{
 		if (first)
 		{
+#ifndef WIN32
 			WriteLine("#line %d \"%s\"", i->line, i->fileName.c_str());
+#endif
 			first = false;
 		}
 
@@ -609,7 +635,7 @@ string OutputGenerator::GenerateMatchForNode(Match* match, const string& prefix,
 		}
 		else if (m_parser->IsRegisterClass(node->GetTypeName()))
 		{
-			RegisterClass* reg = m_parser->GetRegisterClass(node->GetTypeName());
+			RegisterClassDef* reg = m_parser->GetRegisterClass(node->GetTypeName());
 			if (!reg)
 			{
 				fprintf(stderr, "%s:%d: error: invalid register class '%s'\n", match->GetFileName().c_str(),
@@ -818,7 +844,7 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 		WriteLine("vector<uint32_t> temps;");
 		for (vector< Ref<TreeNode> >::const_iterator i = match->GetTemps().begin(); i != match->GetTemps().end(); ++i)
 		{
-			RegisterClass* reg = m_parser->GetRegisterClass((*i)->GetTypeName());
+			RegisterClassDef* reg = m_parser->GetRegisterClass((*i)->GetTypeName());
 			if (!reg)
 			{
 				fprintf(stderr, "%s:%d: error: invalid register class '%s' for '%s'\n", match->GetFileName().c_str(),
@@ -846,7 +872,7 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 			WriteLine("AddMatchNoResult(state, nextState, node, matches, %d, temps);", (int)match->GetIndex());
 		else
 		{
-			RegisterClass* reg = m_parser->GetRegisterClass(match->GetResult()->GetTypeName());
+			RegisterClassDef* reg = m_parser->GetRegisterClass(match->GetResult()->GetTypeName());
 			if (!reg)
 			{
 				fprintf(stderr, "%s:%d: error: invalid register class '%s' in result\n", match->GetFileName().c_str(),
@@ -947,7 +973,7 @@ void OutputGenerator::GenerateOutputCode(Match* match)
 			}
 			else
 			{
-				RegisterClass* reg = m_parser->GetRegisterClass(info.node->GetTypeName());
+				RegisterClassDef* reg = m_parser->GetRegisterClass(info.node->GetTypeName());
 				if (!reg)
 				{
 					fprintf(stderr, "%s:%d: error: invalid register class '%s' for '%s'\n", match->GetFileName().c_str(),
@@ -990,7 +1016,7 @@ void OutputGenerator::GenerateOutputCode(Match* match)
 	size_t tempIndex = 0;
 	for (vector< Ref<TreeNode> >::const_iterator i = match->GetTemps().begin(); i != match->GetTemps().end(); ++i)
 	{
-		RegisterClass* reg = m_parser->GetRegisterClass((*i)->GetTypeName());
+		RegisterClassDef* reg = m_parser->GetRegisterClass((*i)->GetTypeName());
 		if (!reg)
 		{
 			fprintf(stderr, "%s:%d: error: invalid register class '%s' for temporary '%s'\n", match->GetFileName().c_str(),
@@ -1020,7 +1046,7 @@ void OutputGenerator::GenerateOutputCode(Match* match)
 
 	if (match->GetResult())
 	{
-		RegisterClass* reg = m_parser->GetRegisterClass(match->GetResult()->GetTypeName());
+		RegisterClassDef* reg = m_parser->GetRegisterClass(match->GetResult()->GetTypeName());
 		if (!reg)
 		{
 			fprintf(stderr, "%s:%d: error: invalid register class '%s' for result\n", match->GetFileName().c_str(),
@@ -1637,7 +1663,7 @@ bool OutputGenerator::Generate(string& output)
 		BeginBlock();
 			WriteLine("switch (cls)");
 			BeginBlock();
-				for (std::map< std::string, Ref<RegisterClass> >::const_iterator i = m_parser->GetRegisterClasses().begin();
+				for (std::map< std::string, Ref<RegisterClassDef> >::const_iterator i = m_parser->GetRegisterClasses().begin();
 					i != m_parser->GetRegisterClasses().end(); ++i)
 				{
 					if (i->second->GetClassType() != REGCLASS_NORMAL)
@@ -1656,7 +1682,7 @@ bool OutputGenerator::Generate(string& output)
 		BeginBlock();
 			WriteLine("switch (cls)");
 			BeginBlock();
-				for (std::map< std::string, Ref<RegisterClass> >::const_iterator i = m_parser->GetRegisterClasses().begin();
+				for (std::map< std::string, Ref<RegisterClassDef> >::const_iterator i = m_parser->GetRegisterClasses().begin();
 					i != m_parser->GetRegisterClasses().end(); ++i)
 				{
 					if (i->second->GetClassType() != REGCLASS_NORMAL)

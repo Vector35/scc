@@ -120,6 +120,25 @@ public: \
 SymInstr* X86_SYMINSTR_NAME(name)();
 
 
+#define X86_DECLARE_NO_OPERANDS_OR_IMM(name) \
+class X86_SYMINSTR_CLASS(name): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS(name)(); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+}; \
+class X86_SYMINSTR_CLASS_OP(name, I): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_OP(name, I)(int64_t a); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+}; \
+SymInstr* X86_SYMINSTR_NAME(name)(); \
+SymInstr* X86_SYMINSTR_NAME_OP(name, I)(int64_t a);
+
+
 #define X86_DECLARE_1OP_MODRM_NATIVE(name) \
 class X86_SYMINSTR_CLASS_OP(name, R): public X86_SYMINSTR_NAME(Instr) \
 { \
@@ -530,7 +549,7 @@ X86_DECLARE_NO_OPERANDS(cld)
 X86_DECLARE_NO_OPERANDS(std)
 X86_DECLARE_NO_OPERANDS(nop)
 X86_DECLARE_NO_OPERANDS(int3)
-X86_DECLARE_NO_OPERANDS(retn)
+X86_DECLARE_NO_OPERANDS_OR_IMM(retn)
 X86_DECLARE_NO_OPERANDS(leave)
 
 X86_DECLARE_1OP_MODRM(dec)

@@ -153,8 +153,8 @@ public:
 
 	virtual bool GenerateCode(Function* func) = 0;
 
-	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const std::vector< Ref<TreeNode> >& params,
-		TreeNodeType resultType) = 0;
+	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,
+		const std::vector< Ref<TreeNode> >& params, TreeNodeType resultType) = 0;
 	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const std::vector< Ref<TreeNode> >& params,
 		TreeNodeType resultType) = 0;
 };

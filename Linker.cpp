@@ -732,6 +732,18 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 								prev->GetLocation().lineNumber,
 								prev->GetName().c_str());
 						}
+						if (prev->IsImportedFunction())
+						{
+							parser.Error();
+							fprintf(stderr, "%s:%d: error: imported function '%s' cannot have implementation\n",
+								i->second->GetLocation().fileName.c_str(),
+								i->second->GetLocation().lineNumber,
+								i->second->GetName().c_str());
+							fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
+								prev->GetLocation().fileName.c_str(),
+								prev->GetLocation().lineNumber,
+								prev->GetName().c_str());
+						}
 
 						// Replace old references with the fully defined one
 						for (vector< Ref<Function> >::iterator j = m_functions.begin();
@@ -762,6 +774,19 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 						params.push_back(pair< Ref<Type>, string>(j->type, j->name));
 					if (!i->second->IsCompatible(prev->GetReturnValue(),
 						prev->GetCallingConvention(), params, prev->HasVariableArguments()))
+					{
+						parser.Error();
+						fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
+							prev->GetLocation().fileName.c_str(),
+							prev->GetLocation().lineNumber,
+							prev->GetName().c_str());
+						fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
+							i->second->GetLocation().fileName.c_str(),
+							i->second->GetLocation().lineNumber,
+							i->second->GetName().c_str());
+					}
+
+					if (i->second->IsImportedFunction() != prev->IsImportedFunction())
 					{
 						parser.Error();
 						fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
@@ -936,6 +961,68 @@ bool Linker::OutputLibrary(OutputBlock* output)
 
 bool Linker::FinalizeLink()
 {
+	// Find all imported functions and sort them by module
+	map< string, vector< Ref<Function> > > funcsByModule;
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	{
+		if (!(*i)->IsImportedFunction())
+			continue;
+		funcsByModule[(*i)->GetImportModule()].push_back(*i);
+	}
+
+#ifndef WIN32
+	if (m_settings.internalDebug)
+	{
+		for (map< string, vector< Ref<Function> > >::iterator i = funcsByModule.begin(); i != funcsByModule.end(); ++i)
+		{
+			fprintf(stderr, "Imported from %s:\n", i->first.c_str());
+			for (vector< Ref<Function> >::iterator j = i->second.begin(); j != i->second.end(); ++j)
+			{
+				fprintf(stderr, "\t");
+				(*j)->PrintPrototype();
+			}
+		}
+	}
+#endif
+
+	// Generate import table structures for each module
+	for (map< string, vector< Ref<Function> > >::iterator i = funcsByModule.begin(); i != funcsByModule.end(); ++i)
+	{
+		Ref<Struct> s = new Struct(false);
+		s->SetName(string("@import_") + i->first);
+
+		for (vector< Ref<Function> >::iterator j = i->second.begin(); j != i->second.end(); ++j)
+		{
+			vector< pair< Ref<Type>, string > > params;
+			for (vector<FunctionParameter>::const_iterator k = (*j)->GetParameters().begin(); k != (*j)->GetParameters().end(); ++k)
+				params.push_back(pair<Ref<Type>, string>(k->type, k->name));
+			if ((*j)->HasVariableArguments())
+				params.push_back(pair<Ref<Type>, string>(NULL, "..."));
+
+			s->AddMember(NULL, Type::FunctionType((*j)->GetReturnValue(), (*j)->GetCallingConvention(), params), (*j)->GetName());
+		}
+
+		s->Complete();
+
+		Ref<Variable> importTable = new Variable(VAR_GLOBAL, Type::StructType(s), s->GetName());
+		m_variables.push_back(importTable);
+		m_variablesByName[importTable->GetName()] = importTable;
+
+		// Ensure all references to this module will use the import table
+		for (vector< Ref<Function> >::iterator j = i->second.begin(); j != i->second.end(); ++j)
+		{
+			(*j)->SetImportReferenceExpr(Expr::DotExpr((*j)->GetLocation(), Expr::VariableExpr((*j)->GetLocation(), importTable),
+				(*j)->GetName()));
+
+			// Ensure that all IL blocks use the import table
+			for (vector< Ref<Function> >::iterator k = m_functions.begin(); k != m_functions.end(); ++k)
+			{
+				for (vector<ILBlock*>::const_iterator block = (*k)->GetIL().begin(); block != (*k)->GetIL().end(); ++block)
+					(*block)->ResolveImportedFunction(*j, importTable);
+			}
+		}
+	}
+
 	// Link complete, remove prototype functions from linked set
 	for (size_t i = 0; i < m_functions.size(); i++)
 	{
@@ -945,6 +1032,12 @@ bool Linker::FinalizeLink()
 			i--;
 		}
 	}
+
+	// Ensure that imported functions are referenced properly by running the simplifier (this will replace imported functions
+	// with a reference to the import table)
+	ParserState startState(m_settings, "_start", NULL);
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); ++i)
+		(*i)->SetBody((*i)->GetBody()->Simplify(&startState));
 
 	// Remove extern variables from linked set
 	for (size_t i = 0; i < m_variables.size(); i++)
@@ -994,6 +1087,7 @@ bool Linker::FinalizeLink()
 	startInfo.name = "_start";
 	startInfo.subarch = SUBARCH_DEFAULT;
 	startInfo.noReturn = !m_settings.allowReturn;
+	startInfo.imported = false;
 	startInfo.location = mainFunc->GetLocation();
 
 	// Set up _start parameters to mirror main
@@ -1073,7 +1167,6 @@ bool Linker::FinalizeLink()
 	m_startFunction->SetBody(startBody);
 
 	// First, propogate type information
-	ParserState startState(m_settings, "_start", NULL);
 	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
 	m_startFunction->GetBody()->ComputeType(&startState, m_startFunction);
 	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));

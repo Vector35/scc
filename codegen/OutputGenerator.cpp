@@ -2102,7 +2102,7 @@ bool OutputGenerator::Generate(string& output)
 			WriteLine("return false;");
 		EndBlock();
 
-		WriteLine("TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams,");
+		WriteLine("TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,");
 		WriteLine("\tconst vector< Ref<TreeNode> >& params, TreeNodeType resultType)");
 		BeginBlock();
 			WriteLine("if (m_settings.encodePointers)");

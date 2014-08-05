@@ -40,6 +40,11 @@ void FunctionInfo::CombineFunctionAttributes(const FunctionInfo& other)
 		subarch = other.subarch;
 	if (other.noReturn)
 		noReturn = other.noReturn;
+	if (other.imported)
+	{
+		imported = other.imported;
+		module = other.module;
+	}
 }
 
 
@@ -55,6 +60,7 @@ Function::Function()
 	m_localScope = false;
 	m_variableSizedStackFrame = false;
 	m_serializationIndexValid = false;
+	m_imported = false;
 }
 
 
@@ -72,6 +78,8 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 	m_localScope = isLocalScope;
 	m_variableSizedStackFrame = false;
 	m_serializationIndexValid = false;
+	m_imported = info.imported;
+	m_importModule = info.module;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
@@ -104,6 +112,8 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 	m_localScope = isLocalScope;
 	m_variableSizedStackFrame = false;
 	m_serializationIndexValid = false;
+	m_imported = info.imported;
+	m_importModule = info.module;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
@@ -146,6 +156,8 @@ Function* Function::Duplicate(DuplicateContext& dup)
 	func->m_body = (m_body != NULL) ? m_body->Duplicate(dup) : NULL;
 	func->m_localScope = m_localScope;
 	func->m_variableSizedStackFrame = m_variableSizedStackFrame;
+	func->m_imported = m_imported;
+	func->m_importModule = m_importModule;
 
 	for (vector<FunctionParameter>::iterator i = m_params.begin(); i != m_params.end(); i++)
 	{
@@ -526,6 +538,8 @@ void Function::Serialize(OutputBlock* output)
 	output->WriteInteger(m_nextTempId);
 	output->WriteInteger(m_localScope ? 1 : 0);
 	output->WriteInteger(m_variableSizedStackFrame ? 1 : 0);
+	output->WriteInteger(m_imported ? 1 : 0);
+	output->WriteString(m_importModule);
 }
 
 
@@ -642,6 +656,10 @@ bool Function::DeserializeInternal(InputBlock* input)
 		return false;
 	if (!input->ReadBool(m_variableSizedStackFrame))
 		return false;
+	if (!input->ReadBool(m_imported))
+		return false;
+	if (!input->ReadString(m_importModule))
+		return false;
 
 	return true;
 }
@@ -733,6 +751,9 @@ void Function::PrintPrototype()
 	default:
 		break;
 	}
+
+	if (m_imported)
+		fprintf(stderr, " __import(\"%s\")", m_importModule.c_str());
 
 	fprintf(stderr, "\n");
 }

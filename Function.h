@@ -40,10 +40,10 @@ struct FunctionInfo
 {
 	Ref<Type> returnValue;
 	CallingConvention callingConvention;
-	std::string name;
+	std::string name, module;
 	std::vector< std::pair< Ref<Type>, std::string > > params;
 	SubarchitectureType subarch;
-	bool noReturn;
+	bool noReturn, imported;
 	Location location;
 
 	void CombineFunctionAttributes(const FunctionInfo& other);
@@ -112,6 +112,9 @@ class Function: public RefCountObject
 	uint32_t m_nextTempId;
 	bool m_localScope;
 	bool m_variableSizedStackFrame;
+	bool m_imported;
+	std::string m_importModule;
+	Ref<Expr> m_importExpr;
 
 	std::set<ILBlock*> m_exitBlocks;
 	BitVector m_exitReachingDefs;
@@ -126,8 +129,6 @@ class Function: public RefCountObject
 	static std::map< size_t, Ref<Function> > m_serializationMap;
 
 	bool DeserializeInternal(InputBlock* input);
-
-	void PrintPrototype();
 
 public:
 	Function();
@@ -220,11 +221,17 @@ public:
 	size_t GetTagCount() const { return m_tagCount; }
 	void TagReferences();
 
+	bool IsImportedFunction() const { return m_imported; }
+	const std::string& GetImportModule() const { return m_importModule; }
+	Expr* GetImportReferenceExpr() const { return m_importExpr; }
+	void SetImportReferenceExpr(Expr* expr) { m_importExpr = expr; }
+
 	void Serialize(OutputBlock* output);
 	static Function* Deserialize(InputBlock* input);
 
 #ifndef WIN32
 	void Print();
+	void PrintPrototype();
 #endif
 };
 

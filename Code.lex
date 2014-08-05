@@ -213,6 +213,7 @@ __fastcall	TOK(FASTCALL_TOK)
 __subarch	TOK(SUBARCH_TOK)
 __noreturn	TOK(NORETURN_TOK)
 __packed	TOK(PACKED_TOK)
+__import	TOK(IMPORT_TOK)
 
 __syscall	TOK(SYSCALL_TOK)
 __syscall2	TOK(SYSCALL2_TOK)

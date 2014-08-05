@@ -1840,6 +1840,10 @@ Expr* Expr::Simplify(ParserState* state)
 			return result;
 		}
 		return this;
+	case EXPR_FUNCTION:
+		if (m_function->IsImportedFunction() && m_function->GetImportReferenceExpr())
+			return m_function->GetImportReferenceExpr()->Simplify(state);
+		return this;
 	default:
 		return this;
 	}
@@ -2425,7 +2429,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
@@ -2442,7 +2447,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2470,7 +2476,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
 		{
@@ -2487,7 +2494,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2530,7 +2538,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2556,7 +2565,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2918,6 +2928,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			result = func->CreateTempVariable(m_type);
 		params.push_back(result);
 		params.push_back(m_children[0]->GenerateIL(state, func, block));
+		params.push_back(ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetCallingConvention()));
 		params.push_back(ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetParams().size()));
 		for (size_t i = 1; i < m_children.size(); i++)
 			params.push_back(m_children[i]->GenerateIL(state, func, block));
@@ -3002,7 +3013,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -3077,7 +3089,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
 		}
 		result = a;
 		break;
@@ -3098,7 +3111,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
 		}
 		result = a;
 		break;
@@ -3118,7 +3132,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 					m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)1), a);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)1), a);
 		}
 		break;
 	case EXPR_CAST:
@@ -3358,7 +3373,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID, (int64_t)1), a);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
+				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)1), a);
 		}
 		else
 		{

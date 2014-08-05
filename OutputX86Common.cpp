@@ -2836,21 +2836,36 @@ bool OUTPUT_CLASS_NAME::GenerateGoto(SymInstrBlock* out, const ILInstruction& in
 bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& instr)
 {
 	size_t pushSize = 0;
+	CallingConvention conv = (CallingConvention)instr.params[2].integerValue;
 
 	// First try to place parameters in registers
 #ifdef OUTPUT32
 	uint32_t intParamRegs[4] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2, SYMREG_NONE};
+	size_t maxRegVar = 3;
 #else
 	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2,
 		X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4, X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
+	size_t maxRegVar = 6;
 #endif
 	uint32_t curIntParamReg = 0;
 	vector<bool> paramOnStack;
 	vector<uint32_t> reads;
 
-	for (size_t i = 3; i < instr.params.size(); i++)
+	if (conv == CALLING_CONVENTION_STDCALL)
 	{
-		if ((i - 3) >= (size_t)instr.params[2].integerValue)
+#ifdef OUTPUT32
+		maxRegVar = 0;
+#else
+		maxRegVar = 4;
+#endif
+	}
+
+	if (maxRegVar > (size_t)instr.params[3].integerValue)
+		maxRegVar = (size_t)instr.params[3].integerValue;
+
+	for (size_t i = 4; i < instr.params.size(); i++)
+	{
+		if ((i - 4) >= maxRegVar)
 		{
 			// Additional parameters to variable argument functions must be on stack
 			paramOnStack.push_back(true);
@@ -2914,9 +2929,9 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	}
 
 	// Push parameters from right to left
-	for (size_t i = instr.params.size() - 1; i >= 3; i--)
+	for (size_t i = instr.params.size() - 1; i >= 4; i--)
 	{
-		if (!paramOnStack[i - 3])
+		if (!paramOnStack[i - 4])
 			continue;
 
 		OperandReference param;
@@ -2965,7 +2980,8 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			if (!Move(out, dest, param))
 				return false;
 
-			pushSize += paramSize;
+			if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
+				pushSize += paramSize;
 			continue;
 		}
 
@@ -2988,7 +3004,8 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 				return false;
 			}
 
-			pushSize += 4;
+			if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
+				pushSize += 4;
 			continue;
 		}
 		else if (param.width == 8)
@@ -3011,7 +3028,8 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 				return false;
 			}
 
-			pushSize += 8;
+			if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
+				pushSize += 8;
 			continue;
 		}
 #else
@@ -3042,7 +3060,8 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 				return false;
 			}
 
-			pushSize += 8;
+			if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
+				pushSize += 8;
 			continue;
 		}
 #endif
@@ -3065,11 +3084,14 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			EMIT_R(push, temp.reg);
 		}
 
+		if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
+		{
 #ifdef OUTPUT32
-		pushSize += 4;
+			pushSize += 4;
 #else
-		pushSize += 8;
+			pushSize += 8;
 #endif
+		}
 	}
 
 	uint32_t keyReg = SYMREG_NONE;
@@ -3819,10 +3841,19 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 #endif
 		}
 
-		EMIT(retn);
+		if ((m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL) && (m_stackParamSize != 0))
+			EMIT_I(retn, m_stackParamSize);
+		else
+			EMIT(retn);
 	}
 	else
 	{
+		if (m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL)
+		{
+			fprintf(stderr, "error: __stdcall only supported on normal stack\n");
+			return false;
+		}
+
 		if (m_settings.encodePointers)
 		{
 			// Using encoded pointers, decode return address before returning
@@ -5038,12 +5069,23 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 #ifdef OUTPUT32
 	uint32_t intParamRegs[4] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2, SYMREG_NONE};
+	size_t maxRegVar = 3;
 #else
 	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2,
 		X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4, X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
+	size_t maxRegVar = 6;
 #endif
 	uint32_t curIntParamReg = 0;
 	vector<IncomingParameterCopy> paramCopy;
+
+	if (m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL)
+	{
+#ifdef OUTPUT32
+		maxRegVar = 0;
+#else
+		maxRegVar = 4;
+#endif
+	}
 
 	for (size_t i = 0; i < func->GetParameters().size(); i++)
 	{
@@ -5061,38 +5103,41 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		// See if a register is used for this parameter
 		// TODO: Floating point registers
 		uint32_t reg = SYMREG_NONE;
-#ifdef OUTPUT32
-		size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
-		if (paramSize <= 4)
+		if (i < maxRegVar)
 		{
+#ifdef OUTPUT32
+			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
+			if (paramSize <= 4)
+			{
+				if (intParamRegs[curIntParamReg] != SYMREG_NONE)
+				{
+					uint32_t regClass = intParamRegs[curIntParamReg++];
+					if (var != func->GetVariables().end())
+						reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+				}
+			}
+			else
+			{
+				if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
+				{
+					uint32_t regClass = intParamRegs[curIntParamReg++];
+					uint32_t highRegClass = intParamRegs[curIntParamReg++];
+					if (var != func->GetVariables().end())
+					{
+						reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
+						m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
+					}
+				}
+			}
+#else
 			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
 			{
 				uint32_t regClass = intParamRegs[curIntParamReg++];
 				if (var != func->GetVariables().end())
 					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
 			}
-		}
-		else
-		{
-			if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
-			{
-				uint32_t regClass = intParamRegs[curIntParamReg++];
-				uint32_t highRegClass = intParamRegs[curIntParamReg++];
-				if (var != func->GetVariables().end())
-				{
-					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
-					m_symFunc->AddRegister(highRegClass, ILParameter::ReduceType((*var)->GetType()), 4);
-				}
-			}
-		}
-#else
-		if (intParamRegs[curIntParamReg] != SYMREG_NONE)
-		{
-			uint32_t regClass = intParamRegs[curIntParamReg++];
-			if (var != func->GetVariables().end())
-				reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
-		}
 #endif
+		}
 
 		if (var == func->GetVariables().end())
 		{
@@ -5185,6 +5230,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	if (m_settings.stackGrowsUp)
 		paramOffset = -paramOffset;
 	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
+	m_stackParamSize = offset;
 
 	// Generate code
 	bool first = true;
@@ -5419,8 +5465,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 }
 
 
-TreeNode* OUTPUT_CLASS_NAME::GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const vector< Ref<TreeNode> >& params,
-	TreeNodeType resultType)
+TreeNode* OUTPUT_CLASS_NAME::GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,
+	const vector< Ref<TreeNode> >& params, TreeNodeType resultType)
 {
 	return NULL;
 }

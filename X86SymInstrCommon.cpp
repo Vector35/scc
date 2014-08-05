@@ -145,6 +145,39 @@ void X86_SYMINSTR_CLASS(name)::Print(SymInstrFunction* func) \
 SymInstr* X86_SYMINSTR_NAME(name)() { return new X86_SYMINSTR_CLASS(name)(); }
 
 
+#define X86_IMPLEMENT_NO_OPERANDS_OR_IMM(name, flags) \
+X86_SYMINSTR_CLASS(name)::X86_SYMINSTR_CLASS(name)() \
+{ \
+	EnableFlag(flags); \
+} \
+bool X86_SYMINSTR_CLASS(name)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT(name); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS(name)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name); \
+} \
+X86_SYMINSTR_CLASS_OP(name, I)::X86_SYMINSTR_CLASS_OP(name, I)(int64_t a) \
+{ \
+	EnableFlag(flags); \
+	AddImmediateOperand(a); \
+} \
+bool X86_SYMINSTR_CLASS_OP(name, I)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	EMIT_I(name, m_operands[0].immed); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_OP(name, I)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name); \
+	fprintf(stderr, " %lld", (long long)m_operands[0].immed); \
+} \
+SymInstr* X86_SYMINSTR_NAME(name)() { return new X86_SYMINSTR_CLASS(name)(); } \
+SymInstr* X86_SYMINSTR_NAME_OP(name, I)(int64_t a) { return new X86_SYMINSTR_CLASS_OP(name, I)(a); }
+
+
 #define X86_IMPLEMENT_1OP_MODRM_NATIVE(name, access, flags) \
 X86_SYMINSTR_CLASS_OP(name, R)::X86_SYMINSTR_CLASS_OP(name, R)(uint32_t a) \
 { \
@@ -1066,7 +1099,7 @@ X86_IMPLEMENT_NO_OPERANDS(cld, 0)
 X86_IMPLEMENT_NO_OPERANDS(std, 0)
 X86_IMPLEMENT_NO_OPERANDS(nop, 0)
 X86_IMPLEMENT_NO_OPERANDS(int3, SYMFLAG_CONTROL_FLOW)
-X86_IMPLEMENT_NO_OPERANDS(retn, SYMFLAG_CONTROL_FLOW)
+X86_IMPLEMENT_NO_OPERANDS_OR_IMM(retn, SYMFLAG_CONTROL_FLOW)
 X86_IMPLEMENT_NO_OPERANDS(leave, SYMFLAG_MEMORY_BARRIER | SYMFLAG_STACK)
 
 X86_IMPLEMENT_1OP_MODRM(dec, ReadWrite, SYMFLAG_WRITES_FLAGS)
@@ -3052,6 +3085,30 @@ bool X86_SYMINSTR_NAME(Function)::IsRegisterClassFixed(uint32_t cls)
 
 uint32_t X86_SYMINSTR_NAME(Function)::GetFixedRegisterForClass(uint32_t cls)
 {
+#ifdef OUTPUT64
+	if (m_settings.os == OS_WINDOWS)
+	{
+		// 64-bit Windows wants rcx, rdx, r8, r9 for parameter passing
+		switch (cls)
+		{
+		case X86REGCLASS_INTEGER_PARAM_0:
+			return SYMREG_NATIVE_REG(REG_ECX);
+		case X86REGCLASS_INTEGER_PARAM_1:
+			return SYMREG_NATIVE_REG(REG_EDX);
+		case X86REGCLASS_INTEGER_PARAM_2:
+			return SYMREG_NATIVE_REG(REG_R8D);
+		case X86REGCLASS_INTEGER_PARAM_3:
+			return SYMREG_NATIVE_REG(REG_R9D);
+		case X86REGCLASS_INTEGER_PARAM_4:
+			return SYMREG_NATIVE_REG(REG_R10D);
+		case X86REGCLASS_INTEGER_PARAM_5:
+			return SYMREG_NATIVE_REG(REG_RAX);
+		default:
+			break;
+		}
+	}
+#endif
+
 	// TODO: Floating point
 	// TODO: Handle alternate special registers
 	switch (cls)
@@ -3213,6 +3270,23 @@ void X86_SYMINSTR_NAME(Function)::LayoutStackFrame()
 		}
 	}
 
+	// Adjust parameter locations to account for callee saved registers
+	int64_t adjust;
+	if (m_function->DoesReturn())
+		adjust = (m_clobberedCalleeSavedRegs.size() + 1) * (X86_NATIVE_SIZE / 8);
+	else
+		adjust = 0;
+
+#ifdef OUTPUT64
+	if (m_settings.os == OS_WINDOWS)
+	{
+		// 64-bit Windows requires 16 byte stack alignment at all times
+		int64_t totalSize = m_stackFrameSize + adjust + 8;
+		if (totalSize & 15)
+			m_stackFrameSize += 16 - (totalSize & 15);
+	}
+#endif
+
 	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
 	{
 		if (m_stackVarIsParam[i])
@@ -3222,13 +3296,6 @@ void X86_SYMINSTR_NAME(Function)::LayoutStackFrame()
 		else
 			m_stackVarOffsets[i] -= m_stackFrameSize;
 	}
-
-	// Adjust parameter locations to account for callee saved registers
-	int64_t adjust;
-	if (m_function->DoesReturn())
-		adjust = (m_clobberedCalleeSavedRegs.size() + 1) * (X86_NATIVE_SIZE / 8);
-	else
-		adjust = 0;
 
 	for (size_t i = 0; i < m_stackVarOffsets.size(); i++)
 	{

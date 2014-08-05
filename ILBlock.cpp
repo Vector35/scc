@@ -300,6 +300,21 @@ void ILParameter::ConvertStringsToVariables(map< string, Ref<Variable> >& string
 }
 
 
+void ILParameter::ResolveImportedFunction(Function* from, Variable* importTable)
+{
+	if (cls != ILPARAM_FUNC)
+		return;
+	if (function != from)
+		return;
+
+	cls = ILPARAM_MEMBER;
+	function = NULL;
+	parent = new ILParameter(importTable);
+	structure = importTable->GetType()->GetStruct();
+	stringValue = from->GetName();
+}
+
+
 bool ILParameter::IsConstant() const
 {
 	switch (cls)
@@ -324,6 +339,9 @@ void ILParameter::TagReferences()
 		break;
 	case ILPARAM_VAR:
 		variable->TagReference();
+		break;
+	case ILPARAM_MEMBER:
+		parent->TagReferences();
 		break;
 	default:
 		break;
@@ -542,6 +560,20 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+	const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g)
+{
+	operation = op;
+	params.push_back(a);
+	params.push_back(b);
+	params.push_back(c);
+	params.push_back(d);
+	params.push_back(e);
+	params.push_back(f);
+	params.push_back(g);
+}
+
+
 ILInstruction::ILInstruction(ILOperation op, const vector<ILParameter>& list)
 {
 	operation = op;
@@ -589,6 +621,13 @@ void ILInstruction::ConvertStringsToVariables(map< string, Ref<Variable> >& stri
 {
 	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
 		i->ConvertStringsToVariables(stringMap);
+}
+
+
+void ILInstruction::ResolveImportedFunction(Function* from, Variable* importTable)
+{
+	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
+		i->ResolveImportedFunction(from, importTable);
 }
 
 
@@ -805,10 +844,25 @@ void ILInstruction::Print() const
 		params[0].Print();
 		fprintf(stderr, " = ");
 		params[1].Print();
-		fprintf(stderr, "<%d>(", (int)params[2].integerValue);
-		for (size_t i = 2; i < params.size(); i++)
+		fprintf(stderr, "<");
+		switch (params[2].integerValue)
 		{
-			if (i > 2)
+		case CALLING_CONVENTION_CDECL:
+			fprintf(stderr, "cdecl");
+			break;
+		case CALLING_CONVENTION_STDCALL:
+			fprintf(stderr, "stdcall");
+			break;
+		case CALLING_CONVENTION_FASTCALL:
+			fprintf(stderr, "fastcall");
+			break;
+		default:
+			break;
+		}
+		fprintf(stderr, ",%d>(", (int)params[3].integerValue);
+		for (size_t i = 3; i < params.size(); i++)
+		{
+			if (i > 3)
 				fprintf(stderr, ", ");
 			params[i].Print();
 		}
@@ -980,6 +1034,13 @@ void ILBlock::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
 {
 	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
 		i->ConvertStringsToVariables(stringMap);
+}
+
+
+void ILBlock::ResolveImportedFunction(Function* from, Variable* importTable)
+{
+	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
+		i->ResolveImportedFunction(from, importTable);
 }
 
 

@@ -118,6 +118,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool m_normalStack;
 	ILBlock* m_currentBlock;
 	uint32_t m_varargStart;
+	int64_t m_stackParamSize;
 
 	uint32_t GetRegisterByName(const std::string& name);
 
@@ -207,8 +208,8 @@ public:
 	OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc);
 
 	virtual bool GenerateCode(Function* func);
-	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, size_t fixedParams, const std::vector< Ref<TreeNode> >& params,
-		TreeNodeType resultType);
+	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,
+		const std::vector< Ref<TreeNode> >& params, TreeNodeType resultType);
 	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const std::vector< Ref<TreeNode> >& params,
 		TreeNodeType resultType);
 };

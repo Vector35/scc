@@ -170,6 +170,7 @@ struct ILParameter
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void ResolveImportedFunction(Function* from, Variable* importTable);
 	bool IsConstant() const;
 	void TagReferences();
 	void Serialize(OutputBlock* output);
@@ -194,6 +195,8 @@ struct ILInstruction
 		const ILParameter& d, const ILParameter& e);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
 		const ILParameter& d, const ILParameter& e, const ILParameter& f);
+	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+		const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g);
 	ILInstruction(ILOperation op, const std::vector<ILParameter>& list);
 	ILInstruction(const ILInstruction& instr);
 	ILInstruction& operator=(const ILInstruction& instr);
@@ -202,6 +205,7 @@ struct ILInstruction
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void ResolveImportedFunction(Function* from, Variable* importTable);
 	void TagReferences();
 	bool WritesToFirstParameter() const;
 	void MarkWrittenVariables();
@@ -255,6 +259,9 @@ public:
 		const ILParameter& d, const ILParameter& e) { AddInstruction(ILInstruction(op, a, b, c, d, e)); }
 	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
 		const ILParameter& d, const ILParameter& e, const ILParameter& f) { AddInstruction(ILInstruction(op, a, b, c, d, e, f)); }
+	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+		const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g)
+		{ AddInstruction(ILInstruction(op, a, b, c, d, e, f, g)); }
 	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list) { AddInstruction(ILInstruction(op, list)); }
 	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value) { m_instrs[i].params[param] = value; }
 	void SetInstructionDataFlowBit(size_t i, size_t bit) { m_instrs[i].dataFlowBit = bit; }
@@ -266,6 +273,7 @@ public:
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
 	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void ResolveImportedFunction(Function* from, Variable* importTable);
 
 	OutputBlock* GetOutputBlock() const { return m_output; }
 	void SetOutputBlock(OutputBlock* output);

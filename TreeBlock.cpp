@@ -751,11 +751,11 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 
 		case ILOP_CALL:
 			params.clear();
-			for (size_t param = 3; param < instr.params.size(); param++)
+			for (size_t param = 4; param < instr.params.size(); param++)
 				params.push_back(OperandToNode(vars, instr.params[param]));
 
-			src = output->GenerateCall(this, OperandToNode(vars, instr.params[1]), (size_t)instr.params[2].integerValue,
-				params, OperandToNodeType(instr.params[0]));
+			src = output->GenerateCall(this, OperandToNode(vars, instr.params[1]), (CallingConvention)instr.params[2].integerValue,
+				(size_t)instr.params[3].integerValue, params, OperandToNodeType(instr.params[0]));
 
 			if (instr.params[0].cls == ILPARAM_VOID)
 				AddNode(src);

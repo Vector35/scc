@@ -129,7 +129,7 @@ void Code_error(ParserState* state, const char* msg)
 %token STATIC_TOK EXTERN_TOK
 %token UNDEFINED
 
-%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK
+%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK IMPORT_TOK
 %token SYSCALL_TOK SYSCALL2_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
 %token INITIAL_VARARG NEXT_ARG PREV_ARG
@@ -707,6 +707,7 @@ func_attr:	SUBARCH_TOK LPAREN ID RPAREN
 			$$ = new FunctionInfo;
 			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			if (!strcmp($3, "x86"))
 				$$->subarch = SUBARCH_X86;
 			else if (!strcmp($3, "i386"))
@@ -727,6 +728,17 @@ func_attr:	SUBARCH_TOK LPAREN ID RPAREN
 			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = true;
+			$$->imported = false;
+		}
+	|	IMPORT_TOK LPAREN STRING_VAL RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
+			$$->imported = true;
+			$$->module = $3;
+			free($3);
 		}
 	;
 
@@ -737,6 +749,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $2;
 			$$->params = *$4;
 			$$->location = state->GetLocation();
@@ -751,6 +764,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_CDECL;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -765,6 +779,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_STDCALL;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -779,6 +794,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_FASTCALL;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -793,6 +809,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_DEFAULT;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $2;
 			$$->params = *$4;
 			$$->location = state->GetLocation();
@@ -806,6 +823,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_CDECL;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -819,6 +837,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_STDCALL;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();
@@ -832,6 +851,7 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$->callingConvention = CALLING_CONVENTION_FASTCALL;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
+			$$->imported = false;
 			$$->name = $3;
 			$$->params = *$5;
 			$$->location = state->GetLocation();

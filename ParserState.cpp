@@ -450,6 +450,14 @@ Expr* ParserState::DeclareVariable(Type* type, const VarInitInfo& info, bool isS
 
 void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalScope)
 {
+	if (func.imported)
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: imported function '%s' cannot have implementation\n",
+			func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+		return;
+	}
+
 	map< string, Ref<Function> >::iterator i = m_functions.find(func.name);
 	if (i != m_functions.end())
 	{
@@ -476,6 +484,14 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 			return;
 		}
 
+		if (i->second->IsImportedFunction())
+		{
+			Error();
+			fprintf(stderr, "%s:%d: error: imported function '%s' cannot have implementation\n",
+				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			return;
+		}
+
 		i->second->SetVariables(m_currentScope->GetRoot()->GetVariables());
 		i->second->SetBody(body);
 		i->second->SetLocation(func.location);
@@ -495,6 +511,14 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 
 void ParserState::DefineFunctionPrototype(FunctionInfo& func, bool isLocalScope)
 {
+	if (func.imported && isLocalScope)
+	{
+		Error();
+		fprintf(stderr, "%s:%d: error: imported function '%s' must have global scope\n",
+			func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+		return;
+	}
+
 	map< string, Ref<Function> >::iterator i = m_functions.find(func.name);
 	if (i != m_functions.end())
 	{

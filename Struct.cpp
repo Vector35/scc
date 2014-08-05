@@ -149,7 +149,7 @@ void Struct::AddMember(ParserState* state, Type* type, const string& name)
 	member.type = type;
 	member.name = name;
 
-	if (m_membersByName.find(name) != m_membersByName.end())
+	if (state && (m_membersByName.find(name) != m_membersByName.end()))
 	{
 		state->Error();
 		fprintf(stderr, "%s:%d: error: member '%s' is already defined\n", state->GetFileName().c_str(),

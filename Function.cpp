@@ -423,6 +423,9 @@ void Function::ReplaceVariable(Variable* from, Variable* to)
 
 void Function::CheckForUndefinedReferences(size_t& errors)
 {
+	if (!IsFullyDefined())
+		return;
+
 	m_body->CheckForUndefinedReferences(errors);
 
 	if (!errors)

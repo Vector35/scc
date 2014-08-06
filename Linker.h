@@ -28,6 +28,14 @@
 #include "ParserState.h"
 
 
+struct ImportTable
+{
+	std::string module;
+	Ref<Variable> table;
+	std::vector< Ref<Function> > functions;
+	std::vector<size_t> nameOffsets;
+};
+
 class Linker
 {
 	Settings m_settings;
@@ -39,6 +47,7 @@ class Linker
 	std::map< std::string, Ref<Variable> > m_variablesByName;
 	Ref<Expr> m_initExpression;
 	Ref<Function> m_startFunction;
+	std::map<std::string, ImportTable> m_importTables;
 
 	bool m_markovReady;
 	std::map< uint16_t, std::map< std::string, size_t> > m_markovChain;

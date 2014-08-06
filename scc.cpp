@@ -76,6 +76,7 @@ void Usage()
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe, macho\n");
 	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
+	fprintf(stderr, "    --gui                             For PE output, use GUI subsystem\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
 	fprintf(stderr, "    -I <path>                         Add additional directory for include files\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
@@ -139,6 +140,7 @@ int main(int argc, char* argv[])
 	settings.optimization = OPTIMIZE_NORMAL;
 	settings.preferredBits = 32;
 	settings.bigEndian = false;
+	settings.gui = false;
 	settings.allowReturn = false;
 	settings.unsafeStack = false;
 	settings.execStack = false;
@@ -412,6 +414,11 @@ int main(int argc, char* argv[])
 				fprintf(stderr, "error: unsupported format '%s'\n", argv[i]);
 			}
 
+			continue;
+		}
+		else if (!strcmp(argv[i], "--gui"))
+		{
+			settings.gui = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--header"))

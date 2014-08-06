@@ -145,6 +145,7 @@ int connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
 int getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
 int getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
 int shutdown(int sockfd, int how);
+int closesocket(int sockfd);
 
 ssize_t send(int fd, const void* buf, size_t n, int flags);
 ssize_t recv(int fd, void* buf, size_t n, int flags);

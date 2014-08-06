@@ -23,6 +23,8 @@
 #include "PeOutput.h"
 #include "Struct.h"
 
+using namespace std;
+
 
 struct MzHeader
 {
@@ -159,8 +161,81 @@ struct PeExportDirectoryEntry
 };
 
 
-bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection, OutputBlock* dataSection)
+bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection, OutputBlock* dataSection,
+	map<string, ImportTable>& imports)
 {
+	uint8_t padding[0x200];
+	memset(padding, 0, sizeof(padding));
+
+	size_t sizeOfCode = (codeSection->len + 0xfff) & (~0xfff);
+
+	// Prepare import table name strings
+	map<string, size_t> moduleNameOffsets;
+	for (map<string, ImportTable>::iterator i = imports.begin(); i != imports.end(); ++i)
+	{
+		moduleNameOffsets[i->first] = dataSection->len;
+		string name = i->first + ".dll";
+		dataSection->Write(name.c_str(), strlen(name.c_str()) + 1);
+
+		for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+		{
+			if (dataSection->len & 1)
+				dataSection->Write(padding, 1);
+
+			i->second.nameOffsets.push_back(dataSection->len);
+			dataSection->WriteUInt16(0);
+			dataSection->Write((*j)->GetName().c_str(), strlen((*j)->GetName().c_str()) + 1);
+		}
+	}
+
+	size_t nativeAlign = (settings.preferredBits == 64) ? 8 : 4;
+	if (dataSection->len & (nativeAlign - 1))
+		dataSection->Write(padding, nativeAlign - (dataSection->len & (nativeAlign - 1)));
+
+	// Prepare import lookup table
+	map<string, size_t> moduleLookupOffsets;
+	for (map<string, ImportTable>::iterator i = imports.begin(); i != imports.end(); ++i)
+	{
+		moduleLookupOffsets[i->first] = dataSection->len;
+
+		for (size_t j = 0; j < i->second.nameOffsets.size(); j++)
+		{
+			size_t nameOffset = 0x1000 + sizeOfCode + i->second.nameOffsets[j];
+			if (settings.preferredBits == 64)
+			{
+				dataSection->WriteUInt64((uint64_t)nameOffset);
+				dataSection->WriteOffsetUInt64(i->second.table->GetDataSectionOffset() + (j * 8), (uint64_t)nameOffset);
+			}
+			else
+			{
+				dataSection->WriteUInt32((uint32_t)nameOffset);
+				dataSection->WriteOffsetUInt32(i->second.table->GetDataSectionOffset() + (j * 4), (uint32_t)nameOffset);
+			}
+		}
+
+		if (settings.preferredBits == 64)
+			dataSection->WriteUInt64(0);
+		else
+			dataSection->WriteUInt32(0);
+	}
+
+	// Prepare import directory
+	size_t importDirStart = dataSection->len;
+	for (map<string, ImportTable>::iterator i = imports.begin(); i != imports.end(); ++i)
+	{
+		PeImportDirectoryEntry import;
+		memset(&import, 0, sizeof(import));
+
+		import.lookup = 0x1000 + sizeOfCode + moduleLookupOffsets[i->first];
+		import.name = 0x1000 + sizeOfCode + moduleNameOffsets[i->first];
+		import.iat = 0x1000 + sizeOfCode + i->second.table->GetDataSectionOffset();
+
+		dataSection->Write(&import, sizeof(import));
+	}
+
+	dataSection->Write(padding, sizeof(PeImportDirectoryEntry));
+	size_t importDirSize = dataSection->len - importDirStart;
+
 	// Output MZ header
 	MzHeader mz;
 	memset(&mz, 0, sizeof(mz));
@@ -218,7 +293,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		memset(&opt, 0, sizeof(opt));
 
 		opt.magic = 0x20b;
-		opt.sizeOfCode = (codeSection->len + 0xfff) & (~0xfff);
+		opt.sizeOfCode = sizeOfCode;
 		opt.sizeOfInitData = (dataSection->len + 0xfff) & (~0xfff);
 		opt.addressOfEntryPoint = 0x1000;
 		opt.baseOfCode = 0x1000;
@@ -227,9 +302,9 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		opt.fileAlignment = 0x200;
 		opt.majorOsVersion = 6;
 		opt.majorSubsystemVersion = 6;
-		opt.sizeOfImage = opt.sizeOfCode + opt.sizeOfInitData + 0x1000;
+		opt.sizeOfImage = sizeOfCode + opt.sizeOfInitData + 0x1000;
 		opt.sizeOfHeaders = 0x200;
-		opt.subsystem = 3;
+		opt.subsystem = settings.gui ? 2 : 3;
 		opt.sizeOfStackReserve = 1 << 20;
 		opt.sizeOfStackCommit = 1 << 12;
 		opt.sizeOfHeapReserve = 1 << 20;
@@ -245,12 +320,16 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 
 		PeDataDirectoryEntry dataDir[16];
 		memset(dataDir, 0, sizeof(dataDir));
+
+		dataDir[1].virtualAddress = 0x1000 + sizeOfCode + importDirStart;
+		dataDir[1].size = importDirSize;
+
 		output->Write(dataDir, sizeof(dataDir));
 
 		PeSection code;
 		memset(&code, 0, sizeof(code));
 		strcpy(code.name, ".text");
-		code.virtualSize = opt.sizeOfCode;
+		code.virtualSize = sizeOfCode;
 		code.virtualAddress = 0x1000;
 		code.sizeOfRawData = (codeSection->len + 0x1ff) & (~0x1ff);
 		code.pointerToRawData = 0x200;
@@ -261,7 +340,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		memset(&data, 0, sizeof(data));
 		strcpy(data.name, ".data");
 		data.virtualSize = opt.sizeOfInitData;
-		data.virtualAddress = opt.sizeOfCode + 0x1000;
+		data.virtualAddress = sizeOfCode + 0x1000;
 		data.sizeOfRawData = (dataSection->len + 0x1ff) & (~0x1ff);
 		data.pointerToRawData = code.sizeOfRawData + 0x200;
 		data.characteristics = 0xc0000040; // Initialized data, read/write
@@ -273,19 +352,19 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		memset(&opt, 0, sizeof(opt));
 
 		opt.magic = 0x10b;
-		opt.sizeOfCode = (codeSection->len + 0xfff) & (~0xfff);
+		opt.sizeOfCode = sizeOfCode;
 		opt.sizeOfInitData = (dataSection->len + 0xfff) & (~0xfff);
 		opt.addressOfEntryPoint = 0x1000;
 		opt.baseOfCode = 0x1000;
-		opt.baseOfData = opt.sizeOfCode + 0x1000;
+		opt.baseOfData = sizeOfCode + 0x1000;
 		opt.imageBase = settings.base - 0x1000;
 		opt.sectionAlignment = 0x1000;
 		opt.fileAlignment = 0x200;
 		opt.majorOsVersion = 6;
 		opt.majorSubsystemVersion = 6;
-		opt.sizeOfImage = opt.sizeOfCode + opt.sizeOfInitData + 0x1000;
+		opt.sizeOfImage = sizeOfCode + opt.sizeOfInitData + 0x1000;
 		opt.sizeOfHeaders = 0x200;
-		opt.subsystem = 3;
+		opt.subsystem = settings.gui ? 2 : 3;
 		opt.sizeOfStackReserve = 1 << 20;
 		opt.sizeOfStackCommit = 1 << 12;
 		opt.sizeOfHeapReserve = 1 << 20;
@@ -301,12 +380,16 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 
 		PeDataDirectoryEntry dataDir[16];
 		memset(dataDir, 0, sizeof(dataDir));
+
+		dataDir[1].virtualAddress = 0x1000 + sizeOfCode + importDirStart;
+		dataDir[1].size = importDirSize;
+
 		output->Write(dataDir, sizeof(dataDir));
 
 		PeSection code;
 		memset(&code, 0, sizeof(code));
 		strcpy(code.name, ".text");
-		code.virtualSize = opt.sizeOfCode;
+		code.virtualSize = sizeOfCode;
 		code.virtualAddress = 0x1000;
 		code.sizeOfRawData = (codeSection->len + 0x1ff) & (~0x1ff);
 		code.pointerToRawData = 0x200;
@@ -317,15 +400,12 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		memset(&data, 0, sizeof(data));
 		strcpy(data.name, ".data");
 		data.virtualSize = opt.sizeOfInitData;
-		data.virtualAddress = opt.sizeOfCode + 0x1000;
+		data.virtualAddress = sizeOfCode + 0x1000;
 		data.sizeOfRawData = (dataSection->len + 0x1ff) & (~0x1ff);
 		data.pointerToRawData = code.sizeOfRawData + 0x200;
 		data.characteristics = 0xc0000040; // Initialized data, read/write
 		output->Write(&data, sizeof(data));
 	}
-
-	uint8_t padding[0x200];
-	memset(padding, 0, sizeof(padding));
 
 	output->Write(padding, 0x200 - output->len);
 

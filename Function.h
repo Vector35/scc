@@ -114,7 +114,6 @@ class Function: public RefCountObject
 	bool m_variableSizedStackFrame;
 	bool m_imported;
 	std::string m_importModule;
-	Ref<Expr> m_importExpr;
 
 	std::set<ILBlock*> m_exitBlocks;
 	BitVector m_exitReachingDefs;
@@ -223,8 +222,6 @@ public:
 
 	bool IsImportedFunction() const { return m_imported; }
 	const std::string& GetImportModule() const { return m_importModule; }
-	Expr* GetImportReferenceExpr() const { return m_importExpr; }
-	void SetImportReferenceExpr(Expr* expr) { m_importExpr = expr; }
 
 	void Serialize(OutputBlock* output);
 	static Function* Deserialize(InputBlock* input);

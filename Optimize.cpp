@@ -1168,6 +1168,9 @@ void Optimize::PerformGlobalOptimizations()
 
 bool Optimize::OptimizeFunction(Function* func)
 {
+	if (func->IsImportedFunction())
+		return true;
+
 	// Run optimization until nothing more can be done
 	bool result = false;
 	bool changed = true;

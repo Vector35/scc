@@ -1840,10 +1840,6 @@ Expr* Expr::Simplify(ParserState* state)
 			return result;
 		}
 		return this;
-	case EXPR_FUNCTION:
-		if (m_function->IsImportedFunction() && m_function->GetImportReferenceExpr())
-			return m_function->GetImportReferenceExpr()->Simplify(state);
-		return this;
 	default:
 		return this;
 	}
@@ -1986,6 +1982,10 @@ void Expr::CheckForUndefinedReferences(size_t& errors)
 {
 	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
 		(*i)->CheckForUndefinedReferences(errors);
+
+	// Imported functions are not undefined
+	if (m_function && (m_function->IsImportedFunction()))
+		return;
 
 	// All prototypes should have been resolved by the linker
 	if (m_function && (!m_function->IsFullyDefined()))

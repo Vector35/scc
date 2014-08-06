@@ -1,4 +1,4 @@
-// Copyright (c) 2012 Rusty Wagner
+// Copyright (c) 2014 Rusty Wagner
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,9 +18,10 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-int closesocket(int sockfd)
+bool init_sockets()
 {
-	return close(sockfd);
+	WSADATA data;
+	return WSAStartup(0x202, &data) == 0;
 }
 
 int create_tcp4_connection(uint32_t ip, uint16_t port)
@@ -121,8 +122,6 @@ ssize_t send_all(int fd, const void* buf, size_t n, int flags)
 	while (offset < n)
 	{
 		ssize_t result = send(fd, (const void*)((size_t)buf + offset), n - offset, flags);
-		if (result == -EINTR)
-			continue;
 		if (result < 0)
 			return result;
 		offset += result;
@@ -136,8 +135,6 @@ ssize_t recv_all(int fd, void* buf, size_t n, int flags)
 	while (offset < n)
 	{
 		ssize_t result = recv(fd, (void*)((size_t)buf + offset), n - offset, flags);
-		if (result == -EINTR)
-			continue;
 		if (result < 0)
 			return result;
 		offset += result;

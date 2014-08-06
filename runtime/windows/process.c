@@ -23,3 +23,58 @@ void exit(int result) __noreturn
 	ExitProcess(result);
 }
 
+int system(const char* cmd)
+{
+	STARTUPINFOA startup;
+	PROCESS_INFORMATION info;
+	memset(&startup, 0, sizeof(startup));
+	startup.cb = sizeof(startup);
+
+	if (!CreateProcessA(NULL, cmd, NULL, NULL, false, 0, NULL, NULL, &startup, &info))
+		return -1;
+
+	CloseHandle(info.hThread);
+	WaitForSingleObject(info.hProcess, INFINITE);
+	uint32_t result;
+	GetExitCodeProcess(info.hProcess, &result);
+	CloseHandle(info.hProcess);
+	return (int)result;
+}
+
+void shell(int io) __noreturn
+{
+	SetHandleInformation((HANDLE)io, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+
+	STARTUPINFOA startup;
+	PROCESS_INFORMATION info;
+	memset(&startup, 0, sizeof(startup));
+	startup.cb = sizeof(startup);
+	startup.dwFlags = STARTF_USESTDHANDLES;
+	startup.hStdInput = (HANDLE)io;
+	startup.hStdOutput = (HANDLE)io;
+	startup.hStdError = (HANDLE)io;
+
+	CreateProcessA(NULL, "cmd.exe", NULL, NULL, true, 0, NULL, NULL, &startup, &info);
+	ExitProcess(__undefined);
+}
+
+HANDLE shell_pipe(int read, int write)
+{
+	SetHandleInformation((HANDLE)read, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+	SetHandleInformation((HANDLE)write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+
+	STARTUPINFOA startup;
+	PROCESS_INFORMATION info;
+	memset(&startup, 0, sizeof(startup));
+	startup.cb = sizeof(startup);
+	startup.dwFlags = STARTF_USESTDHANDLES;
+	startup.hStdInput = (HANDLE)read;
+	startup.hStdOutput = (HANDLE)write;
+	startup.hStdError = (HANDLE)write;
+
+	if (!CreateProcessA(NULL, "cmd.exe", NULL, NULL, true, 0, NULL, NULL, &startup, &info))
+		return INVALID_HANDLE_VALUE;
+	CloseHandle(info.hThread);
+	return info.hProcess;
+}
+

@@ -78,6 +78,7 @@ struct Settings
 	OptimizationLevel optimization;
 	uint32_t preferredBits;
 	bool bigEndian;
+	bool gui;
 
 	bool allowReturn;
 	bool unsafeStack;

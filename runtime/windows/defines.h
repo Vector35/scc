@@ -22,6 +22,7 @@
 #define __LIBC__WINDOWS_DEFINES_H__
 
 #define WIN32
+#define WINDOWS
 
 #endif
 

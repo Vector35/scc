@@ -961,83 +961,15 @@ bool Linker::OutputLibrary(OutputBlock* output)
 
 bool Linker::FinalizeLink()
 {
-	// Find all imported functions and sort them by module
-	map< string, vector< Ref<Function> > > funcsByModule;
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
-	{
-		if (!(*i)->IsImportedFunction())
-			continue;
-		funcsByModule[(*i)->GetImportModule()].push_back(*i);
-	}
-
-#ifndef WIN32
-	if (m_settings.internalDebug)
-	{
-		for (map< string, vector< Ref<Function> > >::iterator i = funcsByModule.begin(); i != funcsByModule.end(); ++i)
-		{
-			fprintf(stderr, "Imported from %s:\n", i->first.c_str());
-			for (vector< Ref<Function> >::iterator j = i->second.begin(); j != i->second.end(); ++j)
-			{
-				fprintf(stderr, "\t");
-				(*j)->PrintPrototype();
-			}
-		}
-	}
-#endif
-
-	// Generate import table structures for each module
-	for (map< string, vector< Ref<Function> > >::iterator i = funcsByModule.begin(); i != funcsByModule.end(); ++i)
-	{
-		Ref<Struct> s = new Struct(false);
-		s->SetName(string("@import_") + i->first);
-
-		for (vector< Ref<Function> >::iterator j = i->second.begin(); j != i->second.end(); ++j)
-		{
-			vector< pair< Ref<Type>, string > > params;
-			for (vector<FunctionParameter>::const_iterator k = (*j)->GetParameters().begin(); k != (*j)->GetParameters().end(); ++k)
-				params.push_back(pair<Ref<Type>, string>(k->type, k->name));
-			if ((*j)->HasVariableArguments())
-				params.push_back(pair<Ref<Type>, string>(NULL, "..."));
-
-			s->AddMember(NULL, Type::FunctionType((*j)->GetReturnValue(), (*j)->GetCallingConvention(), params), (*j)->GetName());
-		}
-
-		s->Complete();
-
-		Ref<Variable> importTable = new Variable(VAR_GLOBAL, Type::StructType(s), s->GetName());
-		m_variables.push_back(importTable);
-		m_variablesByName[importTable->GetName()] = importTable;
-
-		// Ensure all references to this module will use the import table
-		for (vector< Ref<Function> >::iterator j = i->second.begin(); j != i->second.end(); ++j)
-		{
-			(*j)->SetImportReferenceExpr(Expr::DotExpr((*j)->GetLocation(), Expr::VariableExpr((*j)->GetLocation(), importTable),
-				(*j)->GetName()));
-
-			// Ensure that all IL blocks use the import table
-			for (vector< Ref<Function> >::iterator k = m_functions.begin(); k != m_functions.end(); ++k)
-			{
-				for (vector<ILBlock*>::const_iterator block = (*k)->GetIL().begin(); block != (*k)->GetIL().end(); ++block)
-					(*block)->ResolveImportedFunction(*j, importTable);
-			}
-		}
-	}
-
 	// Link complete, remove prototype functions from linked set
 	for (size_t i = 0; i < m_functions.size(); i++)
 	{
-		if (!m_functions[i]->IsFullyDefined())
+		if ((!m_functions[i]->IsFullyDefined()) && (!m_functions[i]->IsImportedFunction()))
 		{
 			m_functions.erase(m_functions.begin() + i);
 			i--;
 		}
 	}
-
-	// Ensure that imported functions are referenced properly by running the simplifier (this will replace imported functions
-	// with a reference to the import table)
-	ParserState startState(m_settings, "_start", NULL);
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); ++i)
-		(*i)->SetBody((*i)->GetBody()->Simplify(&startState));
 
 	// Remove extern variables from linked set
 	for (size_t i = 0; i < m_variables.size(); i++)
@@ -1167,6 +1099,7 @@ bool Linker::FinalizeLink()
 	m_startFunction->SetBody(startBody);
 
 	// First, propogate type information
+	ParserState startState(m_settings, "_start", NULL);
 	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
 	m_startFunction->GetBody()->ComputeType(&startState, m_startFunction);
 	m_startFunction->SetBody(m_startFunction->GetBody()->Simplify(&startState));
@@ -1183,12 +1116,90 @@ bool Linker::FinalizeLink()
 	Optimize optimize(this);
 	optimize.RemoveUnreferencedSymbols();
 
+	// Find all imported functions and sort them by module
+	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	{
+		if (!(*i)->IsImportedFunction())
+			continue;
+		m_importTables[(*i)->GetImportModule()].module = (*i)->GetImportModule();
+		m_importTables[(*i)->GetImportModule()].functions.push_back(*i);
+	}
+
+#ifndef WIN32
+	if (m_settings.internalDebug)
+	{
+		for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+		{
+			fprintf(stderr, "Imported from %s:\n", i->first.c_str());
+			for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+			{
+				fprintf(stderr, "\t");
+				(*j)->PrintPrototype();
+			}
+		}
+	}
+#endif
+
+	if ((m_settings.os != OS_WINDOWS) && (m_importTables.size() != 0))
+	{
+		fprintf(stderr, "error: imported functions not implemented on target platform\n");
+		return false;
+	}
+
+	// Generate import table structures for each module
+	for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+	{
+		Ref<Struct> s = new Struct(false);
+		s->SetName(string("@import_") + i->first);
+
+		for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+		{
+			vector< pair< Ref<Type>, string > > params;
+			for (vector<FunctionParameter>::const_iterator k = (*j)->GetParameters().begin(); k != (*j)->GetParameters().end(); ++k)
+				params.push_back(pair<Ref<Type>, string>(k->type, k->name));
+			if ((*j)->HasVariableArguments())
+				params.push_back(pair<Ref<Type>, string>(NULL, "..."));
+
+			s->AddMember(NULL, Type::FunctionType((*j)->GetReturnValue(), (*j)->GetCallingConvention(), params), (*j)->GetName());
+		}
+
+		if (m_settings.format == FORMAT_PE)
+			s->AddMember(NULL, Type::PointerType(Type::VoidType(), 1), "__list_terminator");
+
+		s->Complete();
+
+		Ref<Variable> importTable = new Variable(VAR_GLOBAL, Type::StructType(s), s->GetName());
+		m_variables.push_back(importTable);
+		m_variablesByName[importTable->GetName()] = importTable;
+		i->second.table = importTable;
+
+		// Ensure all references to this module will use the import table
+		for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+		{
+			for (vector< Ref<Function> >::iterator k = m_functions.begin(); k != m_functions.end(); ++k)
+			{
+				for (vector<ILBlock*>::const_iterator block = (*k)->GetIL().begin(); block != (*k)->GetIL().end(); ++block)
+					(*block)->ResolveImportedFunction(*j, importTable);
+			}
+		}
+	}
+
 	// Generate errors for undefined references
 	size_t errors = 0;
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		(*i)->CheckForUndefinedReferences(errors);
 	if (errors > 0)
 		return false;
+
+	// Remove imported functions from linked set
+	for (size_t i = 0; i < m_functions.size(); i++)
+	{
+		if (!m_functions[i]->IsFullyDefined())
+		{
+			m_functions.erase(m_functions.begin() + i);
+			i--;
+		}
+	}
 
 	// Perform analysis on the code and optimize using settings.  Be sure to reevaluate global
 	// optimiziations if functions have changed.
@@ -1662,7 +1673,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		}
 		break;
 	case FORMAT_PE:
-		if (!GeneratePeFile(finalBinary, m_settings, &codeSection, &dataSection))
+		if (!GeneratePeFile(finalBinary, m_settings, &codeSection, &dataSection, m_importTables))
 		{
 			fprintf(stderr, "error: failed to output PE format\n");
 			return false;

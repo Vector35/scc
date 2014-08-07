@@ -2877,6 +2877,9 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	uint32_t curIntParamReg = 0;
 	vector<bool> paramOnStack;
 	vector<uint32_t> reads;
+#ifdef OUTPUT64
+	size_t stackParamCount = 0;
+#endif
 
 	if ((conv == CALLING_CONVENTION_STDCALL) || (conv == CALLING_CONVENTION_CDECL))
 	{
@@ -2895,6 +2898,9 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		if ((i - 4) >= maxRegVar)
 		{
 			// Additional parameters to variable argument functions must be on stack
+#ifdef OUTPUT64
+			stackParamCount++;
+#endif
 			paramOnStack.push_back(true);
 			continue;
 		}
@@ -2952,8 +2958,22 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			}
 		}
 
+#ifdef OUTPUT64
+		if (stackParam)
+			stackParamCount++;
+#endif
 		paramOnStack.push_back(stackParam);
 	}
+
+#ifdef OUTPUT64
+	// Windows requires a 16 byte aligned stack
+	if ((m_settings.os == OS_WINDOWS) && (stackParamCount & 1))
+	{
+		uint32_t reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+		EMIT_R(push, reg);
+		pushSize += 8;
+	}
+#endif
 
 	// Push parameters from right to left
 	for (size_t i = instr.params.size() - 1; i >= 4; i--)
@@ -3087,8 +3107,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 				return false;
 			}
 
-			if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
-				pushSize += 8;
+			pushSize += 8;
 			continue;
 		}
 #endif
@@ -3111,7 +3130,9 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			EMIT_R(push, temp.reg);
 		}
 
+#ifdef OUTPUT32
 		if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
+#endif
 		{
 #ifdef OUTPUT32
 			pushSize += 4;
@@ -3120,6 +3141,15 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 #endif
 		}
 	}
+
+#ifdef OUTPUT64
+	if ((m_settings.os == OS_WINDOWS) && ((conv == CALLING_CONVENTION_STDCALL) || (conv == CALLING_CONVENTION_CDECL)))
+	{
+		// 64-bit Windows has a 32 byte reserved area for spilling parameters
+		EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, -32));
+		pushSize += 32;
+	}
+#endif
 
 	uint32_t keyReg = SYMREG_NONE;
 	if (m_settings.encodePointers)
@@ -3878,9 +3908,11 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 #endif
 		}
 
+#ifdef OUTPUT32
 		if ((m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL) && (m_stackParamSize != 0))
 			EMIT_I(retn, m_stackParamSize);
 		else
+#endif
 			EMIT(retn);
 	}
 	else
@@ -4610,9 +4642,12 @@ bool OUTPUT_CLASS_NAME::GeneratePeb(SymInstrBlock* out, const ILInstruction& ins
 	if (!Move(out, dest, src))
 		return false;
 #else
+	uint32_t ofs = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	EMIT_I(push, 0x60);
+	EMIT_R(pop, ofs);
 	src.width = 8;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-	EMIT_RM(mov_fs_64, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x60));
+	EMIT_RM(mov_gs_64, src.reg, X86_SYM_MEM_INDEX(ofs, SYMREG_NONE, 1, SYMREG_NONE, 0));
 	if (!Move(out, dest, src))
 		return false;
 #endif
@@ -4636,9 +4671,12 @@ bool OUTPUT_CLASS_NAME::GenerateTeb(SymInstrBlock* out, const ILInstruction& ins
 	if (!Move(out, dest, src))
 		return false;
 #else
+	uint32_t ofs = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	EMIT_I(push, 0x30);
+	EMIT_R(pop, ofs);
 	src.width = 8;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-	EMIT_RM(mov_fs_64, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x30));
+	EMIT_RM(mov_gs_64, src.reg, X86_SYM_MEM_INDEX(ofs, SYMREG_NONE, 1, SYMREG_NONE, 0));
 	if (!Move(out, dest, src))
 		return false;
 #endif
@@ -5182,6 +5220,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		maxRegVar = 0;
 #else
 		maxRegVar = 4;
+
+		// Windows 64-bit has 32 bytes of reserved space for parameter spilling
+		if (m_settings.os == OS_WINDOWS)
+			offset += 32;
 #endif
 	}
 
@@ -5338,6 +5380,15 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 		if (first)
 		{
+#ifdef OUTPUT64
+			if ((func->GetName() == "_start") && (m_settings.os == OS_WINDOWS) && (m_settings.format != FORMAT_PE))
+			{
+				// Windows 64-bit requires a 16 byte aligned stack, force alignment at the start of the program
+				EMIT_RI(and_64, SYMREG_SP, ~15);
+				EMIT_RI(sub_64, SYMREG_SP, 8);
+			}
+#endif
+
 			if ((func->GetName() == "_start") && m_settings.unsafeStack)
 			{
 				// This is the start function, and we can't assume we have a safe stack (the code may be

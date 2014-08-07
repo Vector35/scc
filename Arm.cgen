@@ -78,6 +78,7 @@ encoding LOAD_MULTIPLE { cond=COND_AL:4, 2:2, op:6, rn:4, i:16 }
 encoding BRANCH { cond=COND_AL:4, 2:2, op:2, i:24 }
 encoding SVC { cond=COND_AL:4, 0xf:4, i:24 }
 encoding PACK { cond=COND_AL:4, op:8, 0xf:4, rd:4, rot:2, 0:2, 7:4, rm:4 }
+encoding COPROC { cond=COND_AL:4, 0xe:4, opc1:3, dir:1, crn:4, rt:4, coproc:4, opc2:3, 1:1, crm:4 }
 
 instr function int64_t RelativeAddRead32(OutputBlock* out, Relocation& reloc)
 {
@@ -633,6 +634,9 @@ instr(memory) stmib_update  stmda! rn:REG(rw), i:IMM, regs:REGLIST(r)  { @LOAD_M
 instr(memory) ldmib  ldmda rn:REG(r), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0x19; }
 instr(memory) ldmib_update  ldmda! rn:REG(rw), i:IMM, regs:REGLIST(w)  { @LOAD_MULTIPLE op=0x1b; }
 
+instr mcr  mrc coproc:IMM, opc1:IMM, rt:REG(w), crn:IMM, crm:IMM, opc2:IMM  { @COPROC dir=0; }
+instr mrc  mrc coproc:IMM, opc1:IMM, rt:REG(w), crn:IMM, crm:IMM, opc2:IMM  { @COPROC dir=1; }
+
 #define BRANCH_RELOC(dest) \
 	Relocation reloc; \
 	reloc.type = CODE_RELOC_RELATIVE_32_FIELD; \
@@ -1153,6 +1157,8 @@ syscall num:IREG reads:INPUT stackAdjust:IMM => dest:SYSCALL_RETURN_64, numreg:S
 	@mov %numreg, %num;
 	@svc %numreg, writes, %reads;
 }
+
+peb => dest:IREG  { @mrc 15, 0, %dest, 13, 0, 2; }
 
 function void GenerateAntiDisassembly(SymInstrBlock* out)
 {

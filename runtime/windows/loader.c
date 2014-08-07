@@ -85,7 +85,7 @@ void* __find_function_by_pebscan(uint32_t moduleHash, uint32_t funcHash)
 			if (funcHash != hash)
 				continue;
 
-			return (void*)(base + ((size_t*)(base + exportTable->AddressOfFunctions))
+			return (void*)(base + ((uint32_t*)(base + exportTable->AddressOfFunctions))
 				[((uint16_t*)(base + exportTable->AddressOfNameOrdinals))[i]]);
 		}
 	}

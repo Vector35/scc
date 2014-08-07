@@ -204,7 +204,7 @@ typedef struct
 	LIST_ENTRY InInitializationOrderLinks;
 	void* DllBase;
 	void* EntryPoint;
-	uint32_t SizeOfImage;
+	size_t SizeOfImage;
 	uint16_t FullDllNameLength;
 	uint16_t FullDllNameMaximumLength;
 	uint16_t* FullDllNameBuffer;

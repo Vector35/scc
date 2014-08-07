@@ -95,7 +95,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
 %token IFSLE_TOK IFULE_TOK IFE_TOK GOTO_TOK CALL_TOK CALLVOID_TOK SYSCALL_TOK SYSCALLVOID_TOK
 %token SCONVERT_TOK UCONVERT_TOK RETURN_TOK RETURNVOID_TOK ALLOCA_TOK
-%token MEMCPY_TOK MEMSET_TOK STRLEN_TOK RDTSC_TOK RDTSC_LOW_TOK RDTSC_HIGH_TOK
+%token MEMCPY_TOK MEMSET_TOK STRLEN_TOK RDTSC_TOK RDTSC_LOW_TOK RDTSC_HIGH_TOK PEB_TOK TEB_TOK
 %token VARARG_TOK BYTESWAP_TOK BREAKPOINT_TOK POW_TOK FLOOR_TOK CEIL_TOK SQRT_TOK SIN_TOK COS_TOK TAN_TOK
 %token ASIN_TOK ACOS_TOK ATAN_TOK PUSH_TOK
 %token <intval> INT_VAL
@@ -374,6 +374,8 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | RDTSC_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "rdtsc"); }
 			 | RDTSC_LOW_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "rdtsc_low"); }
 			 | RDTSC_HIGH_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "rdtsc_high"); }
+			 | PEB_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "peb"); }
+			 | TEB_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "teb"); }
 			 | VARARG_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "vararg"); }
 			 | BYTESWAP_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "byteswap"); }
 			 | BREAKPOINT_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "breakpoint"); }
@@ -746,9 +748,11 @@ tree: match  { $$ = $1; }
 			$4->Release();
 		}
 	| STRLEN_TOK tree  { $$ = TreeNode::CreateNode(NODE_STRLEN, $2); $$->AddRef(); $2->Release(); }
-	| RDTSC_TOK tree  { $$ = TreeNode::CreateNode(NODE_RDTSC, $2); $$->AddRef(); $2->Release(); }
-	| RDTSC_LOW_TOK tree  { $$ = TreeNode::CreateNode(NODE_RDTSC_LOW, $2); $$->AddRef(); $2->Release(); }
-	| RDTSC_HIGH_TOK tree  { $$ = TreeNode::CreateNode(NODE_RDTSC_HIGH, $2); $$->AddRef(); $2->Release(); }
+	| RDTSC_TOK  { $$ = TreeNode::CreateNode(NODE_RDTSC); $$->AddRef(); }
+	| RDTSC_LOW_TOK  { $$ = TreeNode::CreateNode(NODE_RDTSC_LOW); $$->AddRef(); }
+	| RDTSC_HIGH_TOK  { $$ = TreeNode::CreateNode(NODE_RDTSC_HIGH); $$->AddRef(); }
+	| PEB_TOK  { $$ = TreeNode::CreateNode(NODE_PEB); $$->AddRef(); }
+	| TEB_TOK  { $$ = TreeNode::CreateNode(NODE_TEB); $$->AddRef(); }
 	| VARARG_TOK  { $$ = TreeNode::CreateNode(NODE_VARARG); $$->AddRef(); }
 	| BYTESWAP_TOK tree  { $$ = TreeNode::CreateNode(NODE_BYTESWAP, $2); $$->AddRef(); $2->Release(); }
 	| BREAKPOINT_TOK  { $$ = TreeNode::CreateNode(NODE_BREAKPOINT); $$->AddRef(); }
@@ -949,6 +953,8 @@ instr_name: match_name  { $$ = $1; }
 		  | RDTSC_TOK  { $$ = strdup("rdtsc"); }
 		  | RDTSC_LOW_TOK  { $$ = strdup("rdtsc_low"); }
 		  | RDTSC_HIGH_TOK  { $$ = strdup("rdtsc_high"); }
+		  | PEB_TOK  { $$ = strdup("peb"); }
+		  | TEB_TOK  { $$ = strdup("teb"); }
 		  | VARARG_TOK  { $$ = strdup("vararg"); }
 		  | BYTESWAP_TOK  { $$ = strdup("byteswap"); }
 		  | BREAKPOINT_TOK  { $$ = strdup("breakpoint"); }

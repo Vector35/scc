@@ -229,6 +229,15 @@ TreeNode* TreeBlock::OperandToNode(const VariableAssignments& vars, ILParameter&
 	case ILPARAM_UNDEFINED:
 		return TreeNode::CreateNode(NODE_UNDEFINED, NODETYPE_UNDEFINED);
 	case ILPARAM_FUNC:
+		if (operand.function->IsFixedAddress())
+		{
+			if (operand.function->IsFixedAddressDeref())
+			{
+				return TreeNode::CreateNode(NODE_LOAD, GetPtrType(), TreeNode::CreateImmediateNode(
+					operand.function->GetFixedAddress(), GetPtrType()));
+			}
+			return TreeNode::CreateImmediateNode(operand.function->GetFixedAddress(), GetPtrType());
+		}
 		return TreeNode::CreateFunctionNode(operand.function, GetPtrType());
 
 	default:
@@ -862,6 +871,14 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 
 		case ILOP_RDTSC_HIGH:
 			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_RDTSC_HIGH, OperandToNodeType(instr.params[0])));
+			break;
+
+		case ILOP_PEB:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_PEB, OperandToNodeType(instr.params[0])));
+			break;
+
+		case ILOP_TEB:
+			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_TEB, OperandToNodeType(instr.params[0])));
 			break;
 
 		case ILOP_INITIAL_VARARG:

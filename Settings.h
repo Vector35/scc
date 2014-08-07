@@ -72,13 +72,16 @@ struct Settings
 
 	std::vector<std::string> includeDirs;
 
+	std::map<std::string, uint64_t> funcAddrs;
+	std::map<std::string, uint64_t> funcPtrAddrs;
+
 	Architecture architecture;
 	OperatingSystem os;
 	OutputFormat format;
 	OptimizationLevel optimization;
 	uint32_t preferredBits;
 	bool bigEndian;
-	bool gui;
+	bool gui, forcePebScan, usesUnloadedModule;
 
 	bool allowReturn;
 	bool unsafeStack;

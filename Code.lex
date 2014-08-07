@@ -222,6 +222,9 @@ __rdtsc		TOK(RDTSC_TOK)
 __rdtsc_low	TOK(RDTSC_LOW)
 __rdtsc_high	TOK(RDTSC_HIGH)
 
+__peb		TOK(PEB_TOK)
+__teb		TOK(TEB_TOK)
+
 __initial_vararg	TOK(INITIAL_VARARG)
 __next_arg	TOK(NEXT_ARG)
 __prev_arg	TOK(PREV_ARG)

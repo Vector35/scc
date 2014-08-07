@@ -59,6 +59,9 @@ class Linker
 
 	bool LayoutCode(std::vector<ILBlock*>& codeBlocks);
 
+	uint32_t GetCaseInsensitiveNameHash(const std::string& name);
+	uint32_t GetNameHash(const std::string& name);
+
 public:
 	Linker(const Settings& settings);
 	~Linker();

@@ -76,6 +76,8 @@ void Usage()
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
 	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe, macho\n");
 	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
+	fprintf(stderr, "    --func <name> <address>           Assume function is at a specific address\n");
+	fprintf(stderr, "    --funcptr <name> <address>        Assume function is pointed to by a specific address\n");
 	fprintf(stderr, "    --gui                             For PE output, use GUI subsystem\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
 	fprintf(stderr, "    -I <path>                         Add additional directory for include files\n");
@@ -95,6 +97,7 @@ void Usage()
 	fprintf(stderr, "                                      Can be: linux (default), freebsd, mac, windows, none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
+	fprintf(stderr, "    --unloaded-modules                Uses modules that have not been loaded yet\n");
 	fprintf(stderr, "    --unsafe-stack                    Stack pointer may be near the code\n");
 	fprintf(stderr, "    --return-reg <reg>                Use alternate register as the return value\n");
 	fprintf(stderr, "    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return\n");
@@ -141,6 +144,8 @@ int main(int argc, char* argv[])
 	settings.preferredBits = 32;
 	settings.bigEndian = false;
 	settings.gui = false;
+	settings.forcePebScan = false;
+	settings.usesUnloadedModule = false;
 	settings.allowReturn = false;
 	settings.unsafeStack = false;
 	settings.execStack = false;
@@ -390,6 +395,37 @@ int main(int argc, char* argv[])
 			settings.frameRegName = argv[i];
 			continue;
 		}
+		else if (!strcmp(argv[i], "--func"))
+		{
+			if ((i + 2) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.funcAddrs[argv[i]] = strtoull(argv[i + 1], NULL, 0);
+			i++;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--funcptr"))
+		{
+			if ((i + 2) >= argc)
+			{
+				fprintf(stderr, "error: missing value after '%s'\n", argv[i]);
+				return 1;
+			}
+
+			i++;
+			settings.funcPtrAddrs[argv[i]] = strtoull(argv[i + 1], NULL, 0);
+			i++;
+			continue;
+		}
+		else if (!strcmp(argv[i], "--force-pebscan"))
+		{
+			settings.forcePebScan = true;
+			continue;
+		}
 		else if ((!strcmp(argv[i], "--format")) || (!strcmp(argv[i], "-f")))
 		{
 			if ((i + 1) >= argc)
@@ -597,6 +633,11 @@ int main(int argc, char* argv[])
 
 			i++;
 			settings.preservedRegs.push_back(argv[i]);
+			continue;
+		}
+		else if (!strcmp(argv[i], "--unloaded-modules"))
+		{
+			settings.usesUnloadedModule = true;
 			continue;
 		}
 		else if (!strcmp(argv[i], "--unsafe-stack"))

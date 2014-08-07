@@ -71,6 +71,7 @@ class ParserState
 
 	Ref<Expr> m_initExpression;
 	std::map< std::string, Ref<Function> > m_functions;
+	std::map<std::string, uint64_t> m_funcAddrs, m_funcPtrs;
 
 	std::map<float, Variable*> m_floatImmed;
 	std::map<double, Variable*> m_doubleImmed;
@@ -129,6 +130,8 @@ public:
 
 	void DefineFunction(FunctionInfo& func, Expr* body, bool isLocalScope);
 	void DefineFunctionPrototype(FunctionInfo& func, bool isLocalScope);
+	void SetFunctionFixedAddress(const std::string& name, uint64_t addr);
+	void SetFunctionFixedPointer(const std::string& name, uint64_t addr);
 
 	Expr* ResolveIdentifierExpr(const std::string& name);
 
@@ -145,6 +148,9 @@ public:
 
 	bool IsValidFloatImmediate(double value);
 	Variable* GetFloatImmediateVariable(Type* type, double value);
+
+	const std::map<std::string, uint64_t>& GetFixedFunctionAddresses() const { return m_funcAddrs; }
+	const std::map<std::string, uint64_t>& GetFixedFunctionPointers() const { return m_funcPtrs; }
 
 	Expr* BasicExpr(ExprClass cls) { return new Expr(GetLocation(), cls); }
 	Expr* BoolExpr(bool value) { return Expr::BoolExpr(GetLocation(), value); }

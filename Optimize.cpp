@@ -1012,7 +1012,7 @@ void Optimize::InlineFunction(Function* func, Function* target)
 }
 
 
-void Optimize::RemoveUnreferencedSymbols()
+void Optimize::RemoveUnreferencedSymbols(Function* protectedFunction)
 {
 	// Tag everything referenced from the main function
 	for (vector< Ref<Function> >::iterator i = m_linker->GetFunctions().begin(); i != m_linker->GetFunctions().end(); i++)
@@ -1020,6 +1020,8 @@ void Optimize::RemoveUnreferencedSymbols()
 	for (vector< Ref<Variable> >::iterator i = m_linker->GetVariables().begin(); i != m_linker->GetVariables().end(); i++)
 		(*i)->ResetTagCount();
 	m_linker->GetFunctions()[0]->TagReferences();
+	if (protectedFunction)
+		protectedFunction->TagReferences();
 
 	// Remove anything not referenced
 	for (size_t i = 0; i < m_linker->GetFunctions().size(); i++)
@@ -1064,6 +1066,10 @@ void Optimize::PerformGlobalOptimizations()
 
 		// Don't inline functions with a variable sized stack frame (i.e. functions that call alloca)
 		if ((*i)->IsVariableSizedStackFrame())
+			continue;
+
+		// Don't inline imported or fixed address functions, they are inlined implicitly
+		if ((*i)->IsImportedFunction() || (*i)->IsFixedAddress())
 			continue;
 
 		functionCaller[*i] = NULL;
@@ -1168,8 +1174,8 @@ void Optimize::PerformGlobalOptimizations()
 
 bool Optimize::OptimizeFunction(Function* func)
 {
-	if (func->IsImportedFunction())
-		return true;
+	if (func->IsImportedFunction() || func->IsFixedAddress())
+		return false;
 
 	// Run optimization until nothing more can be done
 	bool result = false;

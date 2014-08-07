@@ -196,6 +196,8 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateRdtsc(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscLow(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateRdtscHigh(SymInstrBlock* out, const ILInstruction& instr);
+	bool GeneratePeb(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateTeb(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateInitialVararg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateNextArg(SymInstrBlock* out, const ILInstruction& instr);
 	bool GeneratePrevArg(SymInstrBlock* out, const ILInstruction& instr);

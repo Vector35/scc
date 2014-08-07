@@ -461,6 +461,12 @@ void TreeNode::Print() const
 		fprintf(stderr, "rdtsc_high");
 		PrintType();
 		break;
+	case NODE_PEB:
+		fprintf(stderr, "peb");
+		break;
+	case NODE_TEB:
+		fprintf(stderr, "teb");
+		break;
 	case NODE_VARARG:
 		fprintf(stderr, "vararg");
 		PrintType();

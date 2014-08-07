@@ -52,9 +52,12 @@
 #define FILE_MAP_EXECUTE    0x20
 #define FILE_MAP_ALL_ACCESS 0xf001f
 
+#define HeapAlloc RtlAllocateHeap
+#define HeapFree RtlFreeHeap
+
 void* __stdcall GetProcessHeap() __import("kernel32");
-void* __stdcall HeapAlloc(void* heap, uint32_t flags, size_t bytes) __import("kernel32");
-void __stdcall HeapFree(void* heap, uint32_t flags, void* ptr) __import("kernel32");
+void* __stdcall RtlAllocateHeap(void* heap, uint32_t flags, size_t bytes) __import("ntdll");
+void __stdcall RtlFreeHeap(void* heap, uint32_t flags, void* ptr) __import("ntdll");
 void* __stdcall VirtualAlloc(void* addr, size_t size, uint32_t alloc, uint32_t protect) __import("kernel32");
 bool __stdcall VirtualFree(void* addr, size_t size, uint32_t type) __import("kernel32");
 bool __stdcall VirtualProtect(void* addr, size_t size, uint32_t prot, uint32_t* oldProt) __import("kernel32");

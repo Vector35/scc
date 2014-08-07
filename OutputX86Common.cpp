@@ -445,6 +445,33 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(SymInstrBlock* out, const ILParameter& param
 		ref.immed = param.boolValue ? 1 : 0;
 		return true;
 	case ILPARAM_FUNC:
+		if (param.function->IsFixedAddress())
+		{
+			if (param.function->IsFixedAddressDeref())
+			{
+#ifdef OUTPUT32
+				ref.type = OPERANDREF_MEM;
+				ref.mem.base = SYMREG_NONE;
+				ref.mem.index = SYMREG_NONE;
+				ref.mem.scale = 1;
+				ref.mem.var = SYMREG_NONE;
+				ref.mem.offset = param.function->GetFixedAddress();
+#else
+				uint32_t ptr = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+				EMIT_RI(mov_64, ptr, param.function->GetFixedAddress());
+				ref.type = OPERANDREF_MEM;
+				ref.mem.base = ptr;
+				ref.mem.index = SYMREG_NONE;
+				ref.mem.scale = 1;
+				ref.mem.var = SYMREG_NONE;
+				ref.mem.offset = 0;
+#endif
+				return true;
+			}
+			ref.type = OPERANDREF_IMMED;
+			ref.immed = param.function->GetFixedAddress();
+			return true;
+		}
 		return LoadCodePointer(out, param.function, param.function->GetIL()[0], ref);
 	case ILPARAM_UNDEFINED:
 		ref.type = OPERANDREF_REG;
@@ -2851,7 +2878,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	vector<bool> paramOnStack;
 	vector<uint32_t> reads;
 
-	if (conv == CALLING_CONVENTION_STDCALL)
+	if ((conv == CALLING_CONVENTION_STDCALL) || (conv == CALLING_CONVENTION_CDECL))
 	{
 #ifdef OUTPUT32
 		maxRegVar = 0;
@@ -3126,7 +3153,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 
 	// Perform function call
 	uint32_t scratch = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-	if (instr.params[1].cls == ILPARAM_FUNC)
+	if ((instr.params[1].cls == ILPARAM_FUNC) && (!instr.params[1].function->IsFixedAddress()))
 	{
 		out->AddInstruction(X86_SYMINSTR_NAME(CallDirect)(instr.params[1].function, instr.params[1].function->GetIL()[0],
 			retValReg, retValHighReg, keyReg, scratch, reads));
@@ -3137,8 +3164,18 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		if (!PrepareLoad(out, instr.params[1], func))
 			return false;
 
+		uint32_t ptr;
 		switch (func.type)
 		{
+		case OPERANDREF_IMMED:
+			ptr = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+#ifdef OUTPUT32
+			EMIT_RI(mov_32, ptr, (uint32_t)func.immed);
+#else
+			EMIT_RI(mov_64, ptr, func.immed);
+#endif
+			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(ptr, retValReg, retValHighReg, keyReg, scratch, reads));
+			break;
 		case OPERANDREF_REG:
 			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(func.reg, retValReg, retValHighReg, keyReg, scratch, reads));
 			break;
@@ -4558,6 +4595,58 @@ bool OUTPUT_CLASS_NAME::GenerateRdtscHigh(SymInstrBlock* out, const ILInstructio
 }
 
 
+bool OUTPUT_CLASS_NAME::GeneratePeb(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	OperandReference src;
+	src.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+	src.width = 4;
+	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	EMIT_RM(mov_fs_32, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x30));
+	if (!Move(out, dest, src))
+		return false;
+#else
+	src.width = 8;
+	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	EMIT_RM(mov_fs_64, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x60));
+	if (!Move(out, dest, src))
+		return false;
+#endif
+
+	return true;
+}
+
+
+bool OUTPUT_CLASS_NAME::GenerateTeb(SymInstrBlock* out, const ILInstruction& instr)
+{
+	OperandReference dest;
+	if (!PrepareStore(out, instr.params[0], dest))
+		return false;
+
+	OperandReference src;
+	src.type = OPERANDREF_REG;
+#ifdef OUTPUT32
+	src.width = 4;
+	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	EMIT_RM(mov_fs_32, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x18));
+	if (!Move(out, dest, src))
+		return false;
+#else
+	src.width = 8;
+	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	EMIT_RM(mov_fs_64, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x30));
+	if (!Move(out, dest, src))
+		return false;
+#endif
+
+	return true;
+}
+
+
 bool OUTPUT_CLASS_NAME::GenerateInitialVararg(SymInstrBlock* out, const ILInstruction& instr)
 {
 	OperandReference dest, src;
@@ -4910,6 +4999,14 @@ bool OUTPUT_CLASS_NAME::GenerateCodeBlock(SymInstrBlock* out, ILBlock* block)
 			if (!GenerateRdtscHigh(out, *i))
 				goto fail;
 			break;
+		case ILOP_PEB:
+			if (!GeneratePeb(out, *i))
+				goto fail;
+			break;
+		case ILOP_TEB:
+			if (!GenerateTeb(out, *i))
+				goto fail;
+			break;
 		case ILOP_INITIAL_VARARG:
 			if (!GenerateInitialVararg(out, *i))
 				goto fail;
@@ -5078,7 +5175,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	uint32_t curIntParamReg = 0;
 	vector<IncomingParameterCopy> paramCopy;
 
-	if (m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL)
+	if ((m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL) ||
+		(m_func->GetCallingConvention() == CALLING_CONVENTION_CDECL))
 	{
 #ifdef OUTPUT32
 		maxRegVar = 0;

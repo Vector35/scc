@@ -1348,6 +1348,10 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_RDTSC_HIGH:
 		m_type = Type::IntType(4, false);
 		break;
+	case EXPR_PEB:
+	case EXPR_TEB:
+		m_type = Type::PointerType(Type::VoidType(), 1);
+		break;
 	case EXPR_INITIAL_VARARG:
 		m_type = Type::PointerType(Type::VoidType(), 1);
 		break;
@@ -1984,7 +1988,7 @@ void Expr::CheckForUndefinedReferences(size_t& errors)
 		(*i)->CheckForUndefinedReferences(errors);
 
 	// Imported functions are not undefined
-	if (m_function && (m_function->IsImportedFunction()))
+	if (m_function && m_function->IsImportedFunction())
 		return;
 
 	// All prototypes should have been resolved by the linker
@@ -3343,6 +3347,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = func->CreateTempVariable(m_type);
 		block->AddInstruction(ILOP_RDTSC_HIGH, result);
 		break;
+	case EXPR_PEB:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_PEB, result);
+		break;
+	case EXPR_TEB:
+		result = func->CreateTempVariable(m_type);
+		block->AddInstruction(ILOP_TEB, result);
+		break;
 	case EXPR_INITIAL_VARARG:
 		result = func->CreateTempVariable(m_type);
 		block->AddInstruction(ILOP_INITIAL_VARARG, result);
@@ -4055,6 +4067,8 @@ void Expr::Print(size_t indent)
 	case EXPR_RDTSC:  fprintf(stderr, "__rdtsc()"); break;
 	case EXPR_RDTSC_LOW:  fprintf(stderr, "__rdtsc_low()"); break;
 	case EXPR_RDTSC_HIGH:  fprintf(stderr, "__rdtsc_high()"); break;
+	case EXPR_PEB:  fprintf(stderr, "__peb"); break;
+	case EXPR_TEB:  fprintf(stderr, "__teb"); break;
 	case EXPR_INITIAL_VARARG:  fprintf(stderr, "__initial_vararg()"); break;
 	case EXPR_NEXT_ARG:
 		fprintf(stderr, "__next_arg(");

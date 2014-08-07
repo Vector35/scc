@@ -61,6 +61,7 @@ Function::Function()
 	m_variableSizedStackFrame = false;
 	m_serializationIndexValid = false;
 	m_imported = false;
+	m_isFixedAddress = false;
 }
 
 
@@ -80,6 +81,7 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 	m_serializationIndexValid = false;
 	m_imported = info.imported;
 	m_importModule = info.module;
+	m_isFixedAddress = false;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
@@ -114,6 +116,7 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 	m_serializationIndexValid = false;
 	m_imported = info.imported;
 	m_importModule = info.module;
+	m_isFixedAddress = false;
 
 	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
 	{
@@ -158,6 +161,9 @@ Function* Function::Duplicate(DuplicateContext& dup)
 	func->m_variableSizedStackFrame = m_variableSizedStackFrame;
 	func->m_imported = m_imported;
 	func->m_importModule = m_importModule;
+	func->m_isFixedAddress = m_isFixedAddress;
+	func->m_isFixedAddressDeref = m_isFixedAddressDeref;
+	func->m_fixedAddress = m_fixedAddress;
 
 	for (vector<FunctionParameter>::iterator i = m_params.begin(); i != m_params.end(); i++)
 	{
@@ -425,6 +431,8 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 {
 	if (!IsFullyDefined())
 		return;
+	if (m_isFixedAddress)
+		return;
 
 	m_body->CheckForUndefinedReferences(errors);
 
@@ -484,6 +492,34 @@ void Function::TagReferences()
 		for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
 			(*i)->TagReferences();
 	}
+}
+
+
+void Function::ReplaceWithFixedAddress(uint64_t addr)
+{
+	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
+		delete *i;
+	m_ilBlocks.clear();
+	m_body = NULL;
+	m_imported = false;
+
+	m_isFixedAddress = true;
+	m_isFixedAddressDeref = false;
+	m_fixedAddress = addr;
+}
+
+
+void Function::ReplaceWithFixedPointer(uint64_t addr)
+{
+	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
+		delete *i;
+	m_ilBlocks.clear();
+	m_body = NULL;
+	m_imported = false;
+
+	m_isFixedAddress = true;
+	m_isFixedAddressDeref = true;
+	m_fixedAddress = addr;
 }
 
 

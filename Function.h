@@ -122,6 +122,9 @@ class Function: public RefCountObject
 
 	size_t m_tagCount;
 
+	bool m_isFixedAddress, m_isFixedAddressDeref;
+	uint64_t m_fixedAddress;
+
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
@@ -157,7 +160,7 @@ public:
 	const std::vector< Ref<Variable> >& GetVariables() { return m_vars; }
 	Expr* GetBody() const { return m_body; }
 
-	bool IsFullyDefined() const { return m_body != NULL; }
+	bool IsFullyDefined() const { return (m_body != NULL) || m_isFixedAddress; }
 	bool IsLocalScope() const { return m_localScope; }
 	bool IsCompatible(const FunctionInfo& info);
 	bool IsCompatible(Type* returnValue, CallingConvention callingConvention,
@@ -222,6 +225,12 @@ public:
 
 	bool IsImportedFunction() const { return m_imported; }
 	const std::string& GetImportModule() const { return m_importModule; }
+
+	void ReplaceWithFixedAddress(uint64_t addr);
+	void ReplaceWithFixedPointer(uint64_t addr);
+	bool IsFixedAddress() const { return m_isFixedAddress; }
+	bool IsFixedAddressDeref() const { return m_isFixedAddressDeref; }
+	uint64_t GetFixedAddress() const { return m_fixedAddress; }
 
 	void Serialize(OutputBlock* output);
 	static Function* Deserialize(InputBlock* input);

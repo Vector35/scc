@@ -132,6 +132,7 @@ void Code_error(ParserState* state, const char* msg)
 %token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK IMPORT_TOK
 %token SYSCALL_TOK SYSCALL2_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
+%token PEB_TOK TEB_TOK
 %token INITIAL_VARARG NEXT_ARG PREV_ARG
 %token BYTESWAP BREAKPOINT
 
@@ -165,6 +166,7 @@ void Code_error(ParserState* state, const char* msg)
 %type <varInit> var_init
 %type <varInitList> var_init_list
 %type <function> func_type func_attr_list func_attr_list_nonempty func_attr
+%type <intval> fixed_addr
 
 %nonassoc IF_WITHOUT_ELSE
 %nonassoc ELSE
@@ -661,7 +663,33 @@ func_prototype:	func_type func_attr_list SEMICOLON
 			state->DefineFunctionPrototype(*$2, false);
 			delete $2;
 		}
+	|	func_type func_attr_list ASSIGN fixed_addr SEMICOLON
+		{
+			if ($2)
+			{
+				$1->CombineFunctionAttributes(*$2);
+				delete $2;
+			}
+			state->DefineFunctionPrototype(*$1, false);
+			state->SetFunctionFixedAddress($1->name, $4);
+			delete $1;
+		}
+	|	func_type func_attr_list ASSIGN STAR fixed_addr SEMICOLON
+		{
+			if ($2)
+			{
+				$1->CombineFunctionAttributes(*$2);
+				delete $2;
+			}
+			state->DefineFunctionPrototype(*$1, false);
+			state->SetFunctionFixedPointer($1->name, $5);
+			delete $1;
+		}
 	;
+
+fixed_addr:	INT_VAL  { $$ = $1; }
+		  |	INT64_VAL  { $$ = $1; }
+		  ;
 
 func_declaration:	func_type func_attr_list LBRACE { state->BeginFunctionScope(*$1); } stmt_list RBRACE
 			{
@@ -1582,6 +1610,8 @@ expression:	INT_VAL  { $$ = state->IntExpr($1); $$->AddRef(); }
 	|	RDTSC_TOK LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC); $$->AddRef(); }
 	|	RDTSC_LOW LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_LOW); $$->AddRef(); }
 	|	RDTSC_HIGH LPAREN RPAREN  { $$ = new Expr(EXPR_RDTSC_HIGH); $$->AddRef(); }
+	|	PEB_TOK  { $$ = new Expr(EXPR_PEB); $$->AddRef(); }
+	|	TEB_TOK  { $$ = new Expr(EXPR_TEB); $$->AddRef(); }
 	|	INITIAL_VARARG LPAREN RPAREN  { $$ = new Expr(EXPR_INITIAL_VARARG); $$->AddRef(); }
 	|	NEXT_ARG LPAREN expression COMMA expression RPAREN
 		{

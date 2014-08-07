@@ -563,9 +563,51 @@ void X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)::Print(SymInstrFunction* func) \
 	X86_PRINT_MEM_OP(0, size); \
 	fprintf(stderr, ", %lld", (long long)m_operands[4].immed); \
 } \
+X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM)::X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM)(uint32_t a, X86_MEM_OP_PARAM) \
+{ \
+	AddWriteRegisterOperand(a); \
+	X86_ADD_MEM_OP; \
+	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
+	EnableFlag(SYMFLAG_COPY); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	out->WriteUInt8(0x64); \
+	EMIT_RM(name ## _ ## size, X86_REG_OF_SIZE(m_operands[0].reg, size), X86_MEM_OP(1)); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " "); \
+	X86_PRINT_REG_OP(0, size); \
+	fprintf(stderr, ", fs:"); \
+	X86_PRINT_MEM_OP(1, size); \
+} \
+X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR)::X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR)(X86_MEM_OP_PARAM, uint32_t b) \
+{ \
+	X86_ADD_MEM_OP; \
+	AddReadRegisterOperand(b); \
+	EnableFlag(SYMFLAG_MEMORY_BARRIER); \
+	EnableFlag(SYMFLAG_COPY); \
+} \
+bool X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR)::EmitInstruction(SymInstrFunction* func, OutputBlock* out) \
+{ \
+	out->WriteUInt8(0x64); \
+	EMIT_MR(name ## _ ## size, X86_MEM_OP(0), X86_REG_OF_SIZE(m_operands[4].reg, size)); \
+	return true; \
+} \
+void X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR)::Print(SymInstrFunction* func) \
+{ \
+	fprintf(stderr, #name " fs:"); \
+	X86_PRINT_MEM_OP(0, size); \
+	fprintf(stderr, ", "); \
+	X86_PRINT_REG_OP(4, size); \
+} \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RR)(a, b); } \
 SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RI)(uint32_t a, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, RI)(a, b); } \
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PASS, b); }
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, MI)(X86_MEM_OP_PARAM, int64_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name, size, MI)(X86_MEM_OP_PASS, b); } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name##_fs, size, RM)(uint32_t a, X86_MEM_OP_PARAM) { return new X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM)(a, X86_MEM_OP_PASS); } \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name##_fs, size, MR)(X86_MEM_OP_PARAM, uint32_t b) { return new X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR)(X86_MEM_OP_PASS, b); }
 
 
 #define X86_IMPLEMENT_3OP_RRI_SIZE(name, size, firstAccess, secondAccess, flags) \

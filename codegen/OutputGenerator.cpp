@@ -755,6 +755,10 @@ string OutputGenerator::GenerateMatchForNode(Match* match, const string& prefix,
 		return prefix + "->GetClass() == NODE_RDTSC_LOW";
 	case NODE_RDTSC_HIGH:
 		return prefix + "->GetClass() == NODE_RDTSC_HIGH";
+	case NODE_PEB:
+		return prefix + "->GetClass() == NODE_PEB";
+	case NODE_TEB:
+		return prefix + "->GetClass() == NODE_TEB";
 	case NODE_VARARG:
 		return prefix + "->GetClass() == NODE_VARARG";
 	case NODE_BYTESWAP:

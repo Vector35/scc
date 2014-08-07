@@ -550,6 +550,18 @@ void ParserState::DefineFunctionPrototype(FunctionInfo& func, bool isLocalScope)
 }
 
 
+void ParserState::SetFunctionFixedAddress(const std::string& name, uint64_t addr)
+{
+	m_funcAddrs[name] = addr;
+}
+
+
+void ParserState::SetFunctionFixedPointer(const std::string& name, uint64_t addr)
+{
+	m_funcPtrs[name] = addr;
+}
+
+
 Expr* ParserState::ResolveIdentifierExpr(const string& name)
 {
 	if (m_currentScope->IsVariableDefined(name))

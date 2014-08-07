@@ -305,7 +305,23 @@ public: \
 	virtual void Print(SymInstrFunction* func); \
 	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement); \
 }; \
-SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b);
+class X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, RM)(uint32_t a, X86_MEM_OP_PARAM); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+}; \
+class X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR): public X86_SYMINSTR_NAME(Instr) \
+{ \
+public: \
+	X86_SYMINSTR_CLASS_SIZE_OP(name##_fs, size, MR)(X86_MEM_OP_PARAM, uint32_t b); \
+	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out); \
+	virtual void Print(SymInstrFunction* func); \
+}; \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name, size, RR)(uint32_t a, uint32_t b); \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name##_fs, size, RM)(uint32_t a, X86_MEM_OP_PARAM); \
+SymInstr* X86_SYMINSTR_NAME_SIZE_OP(name##_fs, size, MR)(X86_MEM_OP_PARAM, uint32_t b);
 
 
 #define X86_DECLARE_3OP_RRI_SIZE(name, size) \

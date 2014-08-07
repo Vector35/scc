@@ -654,6 +654,22 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 	if (!ok)
 		return false;
 
+	// Apply fixed function addresses, but ensure that user specified address takes priority
+	for (map<string, uint64_t>::const_iterator i = parser.GetFixedFunctionAddresses().begin();
+		i != parser.GetFixedFunctionAddresses().end(); ++i)
+	{
+		if ((m_settings.funcAddrs.find(i->first) == m_settings.funcAddrs.end()) &&
+			(m_settings.funcPtrAddrs.find(i->first) == m_settings.funcPtrAddrs.end()))
+			m_settings.funcAddrs[i->first] = i->second;
+	}
+	for (map<string, uint64_t>::const_iterator i = parser.GetFixedFunctionPointers().begin();
+		i != parser.GetFixedFunctionPointers().end(); ++i)
+	{
+		if ((m_settings.funcAddrs.find(i->first) == m_settings.funcAddrs.end()) &&
+			(m_settings.funcPtrAddrs.find(i->first) == m_settings.funcPtrAddrs.end()))
+			m_settings.funcPtrAddrs[i->first] = i->second;
+	}
+
 	// First, propogate type information
 	parser.SetInitExpression(parser.GetInitExpression()->Simplify(&parser));
 	parser.GetInitExpression()->ComputeType(&parser, NULL);
@@ -959,6 +975,33 @@ bool Linker::OutputLibrary(OutputBlock* output)
 }
 
 
+uint32_t Linker::GetCaseInsensitiveNameHash(const std::string& name)
+{
+	uint32_t hash = 0;
+	for (size_t i = 0; i < name.size(); i++)
+	{
+		hash = (hash >> 13) | (hash << 19);
+		if (name[i] >= 'a')
+			hash += name[i] - 0x20;
+		else
+			hash += name[i];
+	}
+	return hash;
+}
+
+
+uint32_t Linker::GetNameHash(const std::string& name)
+{
+	uint32_t hash = 0;
+	for (size_t i = 0; i < name.size(); i++)
+	{
+		hash = (hash >> 13) | (hash << 19);
+		hash += name[i];
+	}
+	return hash;
+}
+
+
 bool Linker::FinalizeLink()
 {
 	// Link complete, remove prototype functions from linked set
@@ -1004,6 +1047,20 @@ bool Linker::FinalizeLink()
 		return false;
 	}
 	Ref<Function> exitFunc = exitFuncRef->second;
+
+	// Create a function to resolve imports.  This will be filled in later.
+	FunctionInfo importFuncInfo;
+	importFuncInfo.returnValue = Type::VoidType();
+	importFuncInfo.callingConvention = CALLING_CONVENTION_DEFAULT;
+	importFuncInfo.name = "__resolve_imports";
+	importFuncInfo.subarch = SUBARCH_DEFAULT;
+	importFuncInfo.noReturn = false;
+	importFuncInfo.imported = false;
+	importFuncInfo.location = mainFunc->GetLocation();
+
+	Function* importFunc = new Function(importFuncInfo, false);
+	m_functions.push_back(importFunc);
+	m_functionsByName["__resolve_imports"] = importFunc;
 
 	// Generate _start function
 	map< string, Ref<Function> >::iterator entryFuncRef = m_functionsByName.find("_start");
@@ -1060,6 +1117,11 @@ bool Linker::FinalizeLink()
 		startBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN, keyExpr, valueExpr));
 	}
 
+	// Call the import resolution function
+	vector< Ref<Expr> > importResolveParams;
+	startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), Expr::FunctionExpr(mainFunc->GetLocation(), importFunc),
+		importResolveParams));
+
 	// Add global variable initialization expression
 	startBody->AddChild(m_initExpression);
 
@@ -1112,9 +1174,72 @@ bool Linker::FinalizeLink()
 	if (startState.HasErrors())
 		return false;
 
+	// Replace functions with known addresses so that they are called directly
+	for (map<string, uint64_t>::iterator i = m_settings.funcAddrs.begin(); i != m_settings.funcAddrs.end(); ++i)
+	{
+		map< string, Ref<Function> >::iterator funcIter = m_functionsByName.find(i->first);
+		if (funcIter != m_functionsByName.end())
+			funcIter->second->ReplaceWithFixedAddress(i->second);
+	}
+	for (map<string, uint64_t>::iterator i = m_settings.funcPtrAddrs.begin(); i != m_settings.funcPtrAddrs.end(); ++i)
+	{
+		map< string, Ref<Function> >::iterator funcIter = m_functionsByName.find(i->first);
+		if (funcIter != m_functionsByName.end())
+			funcIter->second->ReplaceWithFixedPointer(i->second);
+	}
+
+	// Ensure functions that will be needed for import resolution aren't deleted yet
+	Ref<Function> importResolveFunction;
+	bool hashImport = false;
+	if ((m_settings.os == OS_WINDOWS) && (m_settings.forcePebScan || (m_settings.format != FORMAT_PE)))
+	{
+		// Windows non-PE, need to import using GetProcAddress or a PEB scan
+		map< string, Ref<Function> >::iterator getModuleHandle = m_functionsByName.find("GetModuleHandleA");
+		map< string, Ref<Function> >::iterator loadLibrary = m_functionsByName.find("LoadLibraryA");
+		map< string, Ref<Function> >::iterator loadLibraryEx = m_functionsByName.find("LoadLibraryExA");
+		map< string, Ref<Function> >::iterator getProcAddress = m_functionsByName.find("GetProcAddress");
+
+		if ((getModuleHandle != m_functionsByName.end()) && (getModuleHandle->second->IsFullyDefined()) &&
+			(getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()) &&
+			(!m_settings.usesUnloadedModule))
+		{
+			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_GetModuleHandle");
+			if (i != m_functionsByName.end())
+				importResolveFunction = i->second;
+		}
+		else if ((loadLibrary != m_functionsByName.end()) && (loadLibrary->second->IsFullyDefined()) &&
+			(getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()))
+		{
+			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_LoadLibrary");
+			if (i != m_functionsByName.end())
+				importResolveFunction = i->second;
+		}
+		else if ((loadLibraryEx != m_functionsByName.end()) && (loadLibraryEx->second->IsFullyDefined()) &&
+			(getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()))
+		{
+			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_LoadLibraryEx");
+			if (i != m_functionsByName.end())
+				importResolveFunction = i->second;
+		}
+		else if (m_settings.usesUnloadedModule)
+		{
+			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_pebscan_loadlibrary");
+			if (i != m_functionsByName.end())
+				importResolveFunction = i->second;
+			hashImport = false;
+		}
+		else
+		{
+			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_pebscan");
+			if (i != m_functionsByName.end())
+				importResolveFunction = i->second;
+			hashImport = true;
+		}
+	}
+
 	// Remove all functions that aren't referenced
 	Optimize optimize(this);
-	optimize.RemoveUnreferencedSymbols();
+	optimize.RemoveUnreferencedSymbols(importResolveFunction);
 
 	// Find all imported functions and sort them by module
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
@@ -1184,6 +1309,113 @@ bool Linker::FinalizeLink()
 		}
 	}
 
+	// Generate code to resolve imports
+	Ref<Expr> importBody = new Expr(EXPR_SEQUENCE);
+	importFunc->SetBody(importBody);
+
+	if ((m_settings.os == OS_WINDOWS) && (m_importTables.size() != 0) &&
+		(m_settings.forcePebScan || (m_settings.format != FORMAT_PE)))
+	{
+		// Import function needed
+		if (!importResolveFunction)
+		{
+			fprintf(stderr, "error: import resolution function not found\n");
+			return false;
+		}
+
+		// Generate import descriptors
+		OutputBlock importDesc;
+		importDesc.code = NULL;
+		importDesc.len = 0;
+		importDesc.maxLen = 0;
+		importDesc.bigEndian = m_settings.bigEndian;
+
+		Ref<Variable> importDescVar;
+		if (hashImport)
+		{
+			for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+			{
+				importDesc.WriteUInt32(GetCaseInsensitiveNameHash(i->first + ".dll"));
+				for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+					importDesc.WriteUInt32(GetNameHash((*j)->GetName()));
+			}
+			importDesc.WriteUInt32(0);
+
+			importDescVar = new Variable(VAR_GLOBAL, Type::ArrayType(Type::IntType(4, false), importDesc.len / 4),
+				"__import_descriptor");
+		}
+		else
+		{
+			for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+			{
+				string name = i->first;
+				importDesc.WriteUInt8((uint8_t)strlen(name.c_str()));
+				importDesc.Write(name.c_str(), strlen(name.c_str()) + 1);
+
+				for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+				{
+					name = (*j)->GetName();
+					importDesc.WriteUInt8((uint8_t)strlen(name.c_str()));
+					importDesc.Write(name.c_str(), strlen(name.c_str()) + 1);
+				}
+
+				importDesc.WriteUInt8(0);
+			}
+
+			importDescVar = new Variable(VAR_GLOBAL, Type::ArrayType(Type::IntType(1, false), importDesc.len),
+				"__import_descriptor");
+		}
+
+		importDescVar->GetData().Write(importDesc.code, importDesc.len);
+		m_variables.push_back(importDescVar);
+		m_variablesByName[importDescVar->GetName()] = importDescVar;
+
+		// Generate code to set up IAT array
+		Ref<Variable> iatArray = new Variable(VAR_LOCAL, Type::ArrayType(Type::PointerType(Type::VoidType(), 2),
+			m_importTables.size()), "iat");
+		importFunc->AddVariable(iatArray);
+
+		size_t iatIndex = 0;
+		for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i, ++iatIndex)
+		{
+			importBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN,
+				Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ARRAY_INDEX, Expr::VariableExpr(mainFunc->GetLocation(), iatArray),
+				Expr::IntExpr(mainFunc->GetLocation(), iatIndex)), Expr::CastExpr(mainFunc->GetLocation(),
+				Type::PointerType(Type::VoidType(), 2), Expr::UnaryExpr(mainFunc->GetLocation(),
+				EXPR_ADDRESS_OF, Expr::VariableExpr(mainFunc->GetLocation(), i->second.table)))));
+		}
+		importBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN,
+			Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ARRAY_INDEX, Expr::VariableExpr(mainFunc->GetLocation(), iatArray),
+			Expr::IntExpr(mainFunc->GetLocation(), iatIndex)), Expr::IntExpr(mainFunc->GetLocation(), 0)));
+
+		// Generate code to call import resolution function
+		vector< Ref<Expr> > importParams;
+		importParams.push_back(Expr::VariableExpr(mainFunc->GetLocation(), importDescVar));
+		importParams.push_back(Expr::VariableExpr(mainFunc->GetLocation(), iatArray));
+		importBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), Expr::FunctionExpr(mainFunc->GetLocation(),
+			importResolveFunction), importParams));
+
+		// All imports are resolved by the above code
+		m_importTables.clear();
+	}
+
+	// Propogate type information for import code
+	ParserState importState(m_settings, "__resolve_imports", NULL);
+	importFunc->SetBody(importFunc->GetBody()->Simplify(&importState));
+	importFunc->GetBody()->ComputeType(&importState, importFunc);
+	importFunc->SetBody(importFunc->GetBody()->Simplify(&importState));
+	if (importState.HasErrors())
+		return false;
+
+	// Generate IL for import code
+	importFunc->GenerateIL(&importState);
+	importFunc->ReportUndefinedLabels(&importState);
+	if (importState.HasErrors())
+		return false;
+
+	// Remove any unreferenced symbols (import resolution functions may have been left over)
+	optimize.RemoveUnreferencedSymbols();
+
 	// Generate errors for undefined references
 	size_t errors = 0;
 	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
@@ -1191,10 +1423,10 @@ bool Linker::FinalizeLink()
 	if (errors > 0)
 		return false;
 
-	// Remove imported functions from linked set
+	// Remove imported and fixed functions from linked set
 	for (size_t i = 0; i < m_functions.size(); i++)
 	{
-		if (!m_functions[i]->IsFullyDefined())
+		if ((!m_functions[i]->IsFullyDefined()) || (m_functions[i]->IsFixedAddress()))
 		{
 			m_functions.erase(m_functions.begin() + i);
 			i--;

@@ -20,7 +20,7 @@ public:
 
 	void InlineFunction(Function* func, Function* target);
 
-	void RemoveUnreferencedSymbols();
+	void RemoveUnreferencedSymbols(Function* protectedFunction = NULL);
 	void PerformGlobalOptimizations();
 	bool OptimizeFunction(Function* func);
 };

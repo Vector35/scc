@@ -1,3 +1,3 @@
 [submodule "asmx86"]
 	path = asmx86
-	url = ssh://git@git.binaryninja.com:42/home/git/asmx86.git
+	url = git@github.com:Vector35/asmx86.git

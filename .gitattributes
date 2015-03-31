@@ -4,3 +4,4 @@
 *.la -crlf -diff -merge
 *.o -crlf -diff -merge
 *.ico -crlf -diff -merge
+yacc.c -crlf

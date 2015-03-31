@@ -1,0 +1,80 @@
+msys w32api
+========================================================================
+The w32api package provides headers and import libraries that allow
+compiling and linking applications that use the Win32 API provided
+by the Microsoft Windows system DLLs. This package, while functionally
+identical to the similarly named -mingw32- version, has been packaged
+to install into the [/usr]/lib/w32api and [/usr]/include/w32api
+directories -- that is, the C:\msys\1.0\lib\w32api and
+C:\msys\1.0\include\w32api directories. It is suitable for use when
+building MSYS applications using the MSYS Developer toolchain.
+
+If you are compiling regular Windows applications using the MinGW
+toolchain, then you don't want this package. You want the
+w32api-*-mingw32-* package, which installs into the /mingw/lib and
+/mingw/include (that is, into the C:\MinGW\lib and C:\MinGW\include
+directories).
+
+Runtime requirements:
+  None.
+
+Build requirements:
+  MinGW compiler (NOT the MSYS compiler!)
+    binutils-2.20-1-mingw32-bin
+    gcc-core-4.4.0-mingw32-bin.tar.gz
+    gcc-core-4.4.0-mingw32-dll.tar.gz
+    gmp-4.2.4-mingw32-dll.tar.gz
+    mpfr-2.4.1-mingw32-dll.tar.gz
+    mingwrt-3.16-mingw32-dev.tar.gz
+    w32api-3.14-mingw32-dev.tar.gz
+
+  MSYS Environment
+    msysCORE-1.0.12-msys-1.0.12-dev
+    coreutils-5.97-2-msys-1.0.11-bin
+    bash-3.1.17-2-msys-1.0.11-bin
+    make-3.81-2-msys-1.0.11-bin
+    tar-1.22-1-msys-1.0.11-bin
+    xz-4.999.9beta_20091209-1-msys-1.0.12-bin
+    gzip-1.3.12-1-msys-1.0.11-bin
+    liblzma-4.999.9beta_20091209-1-msys-1.0.12-dll-1
+    gawk-3.1.7-1-msys-1.0.11-bin
+    grep-2.5.4-1-msys-1.0.11-bin
+    sed-4.2.1-1-msys-1.0.11-bin
+
+Canonical homepage:
+  http://www.mingw.org/
+
+Canonical download:
+  http://sourceforge.net/projects/mingw/files/
+
+License:
+  MinGW w32api license:
+    Individual files are public domain, unless otherwise noted.
+    Compilation licensed under custom permissive license (MIT/X-like).
+
+Language:
+  C
+  
+===========================================================
+
+Build instructions:
+  unpack w32api-3.14-X-msys-1.0.12-src.tar.bz2
+  ./msys-build-w32api w32api-3.14-mingw32-src.tar.gz
+
+This will create:
+  w32api-3.14-X-msys-1.0.12.tar.bz2
+  w32api-3.14-X-msys-1.0.12-src.tar.bz2
+
+===========================================================
+
+Port Notes:
+---------- w32api-3.14-3 -- 2010 Jan 14 -----------
+* Update build requirements.
+* Ensure release notes are installed with .txt extension.
+
+---------- w32api-3.14-2 -- 2010 Jan 13 -----------
+* Update build procedure; correct packaging bugs
+
+---------- w32api-3.14-1 -- 2010 Jan 11 -----------
+* Initial release for msys
+

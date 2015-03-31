@@ -1,0 +1,88 @@
+msys gcc version 3
+========================================================================
+GCC is the GNU Compiler Collection, a fairly portable optimizing
+compiler. This package brings you the C and C++ front-ends of GCC 3
+for MSYS development.
+
+This port contains all Cygwin patches, plus a Cygwin->MSYS string
+conversion patch.
+
+Runtime requirements:
+  MSYS Environment
+    msysCORE-1.0.13-1-msys-1.0.13-bin
+  MSYS toolchain
+    binutils-2.19.51-3-msys-1.0.13-bin
+    w32api-3.14-2-msys-1.0.12-dev
+    msysCORE-1.0.13-1-msys-1.0.13-dev.tar.bz2
+    
+Build requirements:
+  MSYS Environment
+    msysCORE-1.0.13-1-msys-1.0.13-bin
+    bash-3.1.17-2-msys-1.0.11-bin
+    bison-2.4.1-1-msys-1.0.11-bin.tar.lzma
+    bzip2-1.0.5-1-msys-1.0.11-bin.tar.gz
+    libbz2-1.0.5-1-msys-1.0.11-dll-1.tar.gz
+    coreutils-5.97-2-msys-1.0.11-bin
+    diffutils-2.8.7.20071206cvs-2-msys-1.0.11-bin
+    findutils-4.4.2-1-msys-1.0.11-bin
+    flex-2.5.35-1-msys-1.0.11-bin.tar.lzma
+    gawk-3.1.7-1-msys-1.0.11-bin
+    grep-2.5.4-1-msys-1.0.11-bin
+    libcrypt-1.1_1-2-msys-1.0.11-dll-0
+    libregex-1.20090805-1-msys-1.0.11-dll-1
+    m4-1.4.13-1-msys-1.0.11-bin.tar.lzma
+    make-3.81-2-msys-1.0.11-bin
+    patch-2.5.9-1-msys-1.0.11-bin
+    perl-5.6.1_2-1-msys-1.0.11-bin
+    sed-4.2.1-1-msys-1.0.11-bin
+    tar-1.22-1-msys-1.0.11-bin
+    texinfo-4.13a-1-msys-1.0.11-bin
+    xz-4.999.9beta-1-msys-1.0.12-bin.tar.gz
+    liblzma-4.999.9beta-1-msys-1.0.12-dll-1.tar.gz
+  MSYS toolchain
+    binutils-2.19.51-3-msys-1.0.13-bin
+    gcc-3.4.4-3-msys-1.0.13-bin
+    w32api-3.14-2-msys-1.0.12-dev
+    msysCORE-1.0.13-1-msys-1.0.13-dev.tar.bz2
+
+Canonical homepage:
+  http://gcc.gnu.org
+
+Canonical download:
+  http://ftp.gnu.org/gnu/gcc/gcc-3.4.4/
+
+License:
+  GPLv2+
+
+Language:
+  C,C++
+
+========================================================================
+
+Build instructions:
+  unpack gcc-3.4.4-X-msys-1.0.13-src.tar.lzma
+  <path-to-source>/msysrlsbld
+See <path-to-source>/msysrlsbld -h for further options.
+
+This will create:
+  gcc-3.4.4-X-msys-1.0.13-bin.tar.lzma
+    Compiler executables and development files.
+  gcc-3.4.4-X-msys-1.0.13-doc.tar.lzma
+    Manual pages and developer information.
+  gcc-3.4.4-X-msys-1.0.13-lic.tar.lzma
+    Software licenses.
+
+========================================================================
+
+----------  gcc-3.4.4-3 -- 2010 Jan 16 -----------
+* Place documentation in correct directory.
+* Move contents of /usr/libexec to /usr/lib.
+
+----------  gcc-3.4.4-2 -- 2010 Jan 9 -----------
+* Use a MSYS-specific version string.
+* Use msys- as the DLL search prefix.
+* Fix empty documentation.
+* Define __CYGWIN__ by default.
+
+----------  gcc-3.4.4-1 -- 2010 Jan 5 -----------
+* First release.

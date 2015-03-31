@@ -1,0 +1,137 @@
+msys bison
+========================================================================
+This is bison, the GNU parser generator compiled for the MSYS platform.
+
+Bison is a general-purpose parser generator that converts an annotated
+context-free grammar into an LALR(1) or GLR parser for that grammar.
+Once you are proficient with Bison, you can use it to develop a wide
+range of language parsers, from those used in simple desk calculators
+to complex programming languages.
+
+Bison is upward compatible with Yacc: all properly-written Yacc grammars
+ought to work with Bison with no change. Anyone familiar with Yacc
+should be able to use Bison with little trouble. You need to be fluent
+in C or C++ programming in order to use Bison. 
+
+
+Runtime requirements:
+  msysCORE-1.0.13-2-msys-1.0.13-bin
+  libintl-0.17-2-msys-1.0.13-dll-8
+  libiconv-1.13.1-2-msys-dll-2
+
+Build requirements (these, or newer)
+  MSYS toolchain
+    binutils-2.19.51-3-msys-1.0.13-bin
+    gcc-3.4.4-3-msys-1.0.13-bin
+    w32api-3.14-3-msys-1.0.12-dev
+    msysCORE-1.0.13-2-msys-1.0.13-dev
+
+  Devel Tools and Dependent Libraries 
+    autoconf-2.65-1-msys-1.0.13-bin
+    automake-1.11.1-1-msys-1.0.13-bin
+    libiconv-1.13.1-2-msys-1.0.13-bin
+    libiconv-1.13.1-2-msys-1.0.13-dev
+    gettext-0.17-2-msys-1.0.13-bin
+    gettext-0.17-2-msys-1.0.13-dev
+    libgettextpo-0.17-2-msys-1.0.13-dll-0
+    flex-2.5.35-2-msys-1.0.13-bin
+    libregex-1.20090805-2-msys-1.0.13-dll-1
+
+  MSYS Environment
+    perl-5.6.1_2-2-msys-1.0.13-bin
+    libcrypt-1.1_1-3-msys-1.0.13-dll-0
+    libgdbm-1.8.3-3-msys-1.0.13-dll-3
+    zlib-1.2.3-2-msys-1.0.13-dll
+    coreutils-5.97-2-msys-1.0.11-bin
+    make-3.81-2-msys-1.0.11-bin
+    bash-3.1.17-2-msys-1.0.11-bin
+    tar-1.22-1-msys-1.0.11-bin
+    xz-4.999.9beta_20100401-1-msys-1.0.13-bin
+    bzip2-1.0.5-2-msys-1.0.13-bin
+    gzip-1.3.12-1-msys-1.0.11-bin
+    liblzma-4.999.9beta_20100401-1-msys-1.0.13-dll-1
+    libbz2-1.0.5-2-msys-1.0.13-dll-1
+    file-5.03-1-msys-1.0.11-bin
+    grep-2.5.4-1-msys-1.0.11-bin
+    sed-4.2.1-1-msys-1.0.11-bin
+    gawk-3.1.7-1-msys-1.0.11-bin
+    cvs-1.12.13-1-msys-1.0.11-bin
+
+Canonical homepage:
+  http://www.gnu.org/software/bison/
+
+Canonical download:
+  http://ftp.gnu.org/gnu/bison/bison-2.4.1.tar.bz2
+
+License:
+  GPL
+
+Language:
+  C
+
+========================================================================
+
+Build instructions:
+  unpack bison-2.4.2-X-msys-1.0.13-src.tar.lzma
+  ./msys-build-bison bison-2.4.2.tar.bz2
+
+This will create:
+  bison-2.4.2-X-msys-1.0.13-src.tar.lzma
+  bison-2.4.2-X-msys-1.0.13-rtm.tar.lzma
+  bison-2.4.2-X-msys-1.0.13-bin.tar.lzma
+  bison-2.4.2-X-msys-1.0.13-lang.tar.lzma
+  bison-2.4.2-X-msys-1.0.13-doc.tar.lzma
+  bison-2.4.2-X-msys-1.0.13-lic.tar.lzma
+
+The -rtm package is the "bison-runtime" which is required by any
+applications that use bison's liby.a. However, these apps don't
+necessarily need all of -bin installed; so the very small -rtm
+package is split out.
+
+========================================================================
+
+Test suite results
+This section of this document is updated with each new release.
+No history is maintained here.
+
+make[5]: Entering directory `/usr/src/bison/_build/examples/calc++'
+PASS: test
+=============
+1 test passed
+=============
+
+
+## --------------------------- ##
+## GNU Bison 2.4.2 test suite. ##
+## --------------------------- ##
+226 tests were successful.
+17 tests were skipped.
+
+
+SKIPS:
+   53: Output file name: `~!@#$%^&*()-=_+{}[]|\:;<>, .' skipped (output.at:209)
+  ---- filenames with ':' not supported by MSYS
+
+  195: Doxygen Public Documentation                    skipped (c++.at:101)
+  196: Doxygen Private Documentation                   skipped (c++.at:102)
+  ---- doxygen not installed (or available on msys, for that matter)
+
+  Java Calculator (200--207)
+  Java Parameters (208--213)
+  ---- all skipped: no msys java installed (nor available)
+
+========================================================================
+
+Port Notes:
+
+----------  bison-2.4.2-1 -- 2010 Apr 14 -----------
+* Update to latest upstream release.
+* Rebuild against msys-1.0.13, using (msys)gcc-3.4.4
+  and (msys)binutils-2.19.51.
+* Rebuild against shared versions of libintl and libiconv.
+* Use -O3 -fno-unit-at-a-time to avoid optimization bug
+  in latest msys-gcc. Also, don't use -mms-bitfields
+  when compiling msys binaries.
+
+----------  bison-2.4.1-1 -- 2009 Aug 05 -----------
+* First release of bison for msys using new packaging standard. 

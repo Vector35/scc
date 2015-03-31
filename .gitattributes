@@ -1,0 +1,6 @@
+*.exe -crlf -diff -merge
+*.dll -crlf -diff -merge
+*.a -crlf -diff -merge
+*.la -crlf -diff -merge
+*.o -crlf -diff -merge
+*.ico -crlf -diff -merge

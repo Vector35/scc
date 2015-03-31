@@ -1,0 +1,125 @@
+msys flex
+========================================================================
+This is flex, the fast lexical analyzer generator, compiled for the
+MSYS platform.
+
+flex is a tool for generating scanners. A scanner, sometimes called a
+tokenizer, is a program which recognizes lexical patterns in text. The
+flex program reads user-specified input files, or its standard input
+if no file names are given [*], for a description of a scanner to
+generate. The description is in the form of pairs of regular
+expressions and C code, called rules. Flex generates a C source file
+named, "lex.yy.c", which defines the function yylex(). The file
+"lex.yy.c" can be compiled and linked to produce an executable. When
+the executable is run, it analyzes its input for occurrences of text
+matching the regular expressions for each rule. Whenever it finds a
+match, it executes the corresponding C code.
+
+[*] I've noticed that MSYS flex fails when input is presented
+on stdin.  That is:
+	$ echo %% | flex.exe 
+fails, but
+	$ echo %% > tmpfile
+	$ flex.exe tmpfile
+works fine. I don't think this is a very common usage pattern, so
+I haven't bothered to track it down.
+
+
+Runtime requirements:
+  msysCORE-1.0.13-2-msys-1.0.13-bin
+  libintl-0.17-2-msys-1.0.13-dll-8
+  libiconv-1.13.1-2-msys-dll-2
+  libregex-1.20090805-2-msys-1.0.13-dll-1
+
+Build requirements (these, or newer)
+  MSYS toolchain
+    binutils-2.19.51-3-msys-1.0.13-bin
+    gcc-3.4.4-3-msys-1.0.13-bin
+    w32api-3.14-3-msys-1.0.12-dev
+    msysCORE-1.0.13-2-msys-1.0.13-dev
+ 
+  Devel Tools and Dependent Libraries 
+    autoconf-2.65-1-msys-1.0.13-bin
+    automake-1.11.1-1-msys-1.0.13-bin
+    libiconv-1.13.1-2-msys-bin
+    libiconv-1.13.1-2-msys-dev
+    gettext-0.17-2-msys-1.0.13-bin
+    gettext-0.17-2-msys-1.0.13-dev
+    libgettextpo-0.17-2-msys-1.0.13-dll-0
+    libregex-1.20090805-2-msys-1.0.13-dev
+    bison-2.4.1-2-msys-1.0.13-bin
+
+  MSYS Environment
+    perl-5.6.1_2-2-msys-1.0.13-bin
+    libcrypt-1.1_1-3-msys-1.0.13-dll-0
+    libgdbm-1.8.3-3-msys-1.0.13-dll-3
+    zlib-1.2.3-2-msys-1.0.13-dll
+    coreutils-5.97-2-msys-1.0.11-bin
+    make-3.81-2-msys-1.0.11-bin
+    bash-3.1.17-2-msys-1.0.11-bin
+    tar-1.22-1-msys-1.0.11-bin
+    xz-4.999.9beta_20100131-1-msys-1.0.13-bin
+    bzip2-1.0.5-2-msys-1.0.13-bin
+    gzip-1.3.12-1-msys-1.0.11-bin
+    liblzma-4.999.9beta_20100131-1-msys-1.0.13-dll-1
+    libbz2-1.0.5-2-msys-1.0.13-dll-1
+    file-5.03-1-msys-1.0.11-bin
+    grep-2.5.4-1-msys-1.0.11-bin
+    sed-4.2.1-1-msys-1.0.11-bin
+    gawk-3.1.7-1-msys-1.0.11-bin
+    cvs-1.12.13-1-msys-1.0.11-bin
+
+Canonical homepage:
+  http://flex.sourceforge.net/
+
+Canonical download:
+  http://prdownloads.sourceforge.net/flex/flex-2.5.35.tar.bz2?download
+
+License:
+  BSD (2-clause)
+
+Language:
+  C
+
+========================================================================
+
+Build instructions:
+  unpack flex-2.5.35-X-msys-1.0.13-src.tar.lzma
+  ./msys-build-flex flex-2.5.35.tar.bz2
+
+This will create:
+  flex-2.5.35-X-msys-1.0.13-src.tar.lzma
+  flex-2.5.35-X-msys-1.0.13-bin.tar.lzma
+  flex-2.5.35-X-msys-1.0.13-lang.tar.lzma
+  flex-2.5.35-X-msys-1.0.13-doc.tar.lzma
+  flex-2.5.35-X-msys-1.0.13-lic.tar.lzma
+
+========================================================================
+
+Test suite results
+This section of this document is updated with each new release.
+No history is maintained here.
+
+Tests succeeded: 46
+Tests FAILED: 0
+
+Note: the following three tests may fail if you don't yet
+      have bison installed:
+      * test-bison-yylloc
+      * test-bison-yylval
+      * test-bison-nr
+
+========================================================================
+
+Port Notes:
+
+----------  flex-2.5.35-2 -- 2010 Feb 05 -----------
+* Rebuild against msys-1.0.13, using (msys)gcc-3.4.4
+  and (msys)binutils-2.19.51.
+* Rebuild against shared versions of libintl and libiconv.
+* Use -O3 -fno-unit-at-a-time to avoid optimization bug
+  in latest msys-gcc. Also, don't use -mms-bitfields
+  when compiling msys binaries.
+
+----------  flex-2.5.35-1 -- 2009 Aug 05 -----------
+* First release of flex for msys using new packaging standard. 

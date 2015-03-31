@@ -1,0 +1,16 @@
+.TH make 1 MSYS "29 Sep 2007" "make man page"
+
+.SH NAME
+make
+.SH DESCRIPTION
+This is a case-preserving version of GNU make. While the
+win32 file systems encountered when using MSYS software
+are invariably case-INsensitive, some users prefer a
+GNU `make' that itself is case-sensitive -- this
+version of make is a compromise which exploits the
+case-preserving aspect of win32 file systems. It considers
+.B all
+.R targets as fundamentally case-insensitive, but first
+attempts to resolve them as case-sensitive and falls back
+to the case-insensitive behaviour only if the case-sensitive
+match remains unresolved.

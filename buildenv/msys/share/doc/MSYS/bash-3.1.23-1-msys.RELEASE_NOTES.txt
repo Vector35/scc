@@ -1,0 +1,145 @@
+msys bash
+========================================================================
+Bash is an sh-compatible shell that incorporates useful features from
+the Korn shell (ksh) and C shell (csh).  It is intended to conform to
+the IEEE POSIX P1003.2/ISO 9945.2 Shell and Tools standard.  It offers
+functional improvements over sh for both programming and interactive
+use. In addition, most sh scripts can be run by Bash without
+modification.  bash is used as the MSYS /bin/sh.
+
+This package includes all official upstream patches, as well as additional
+modifications for MSYS. Note that bash is compiled without NLS support,
+as the 3.1 distribution does not include any translation files.
+
+Runtime requirements:
+  libregex-1.20090805-2-msys-1.0.13-dll-1
+  libtermcap-0.20050421_1-2-msys-1.0.13-dll-0
+  msysCORE-1.0.18-1-msys-1.0.18-bin
+  termcap-0.20050421_1-2-msys-1.0.13-bin
+
+Build requirements (these, or newer)
+  MSYS toolchain
+    binutils-2.19.51-3-msys-1.0.13-bin
+    gcc-3.4.4-3-msys-1.0.13-bin
+    msysCORE-1.0.18-1-msys-1.0.18-dev
+    w32api-3.14-3-msys-1.0.12-dev
+
+  Devel Tools and Dependent Libraries
+    autoconf-2.68-1-msys-1.0.17-bin
+    bison-2.4.2-1-msys-1.0.13-bin
+    bison-2.4.2-1-msys-1.0.13-rtm
+    libregex-1.20090805-2-msys-1.0.13-dev
+    libtermcap-0.20050421_1-2-msys-1.0.13-dev
+    texinfo-4.13a-2-msys-1.0.13-bin
+
+  MSYS Environment
+    bash-3.1.17-4-msys-1.0.16-bin
+    bzip2-1.0.6-1-msys-1.0.17-bin.tar.lzma
+    coreutils-5.97-3-msys-1.0.13-bin
+    diffutils-2.8.7.20071206cvs-2-msys-1.0.11-bin
+    file-5.04-1-msys-1.0.13-bin
+    gawk-3.1.7-2-msys-1.0.13-bin
+    grep-2.5.4-2-msys-1.0.13-bin
+    gzip-1.3.12-2-msys-1.0.13-bin
+    less-436-2-msys-1.0.13-bin
+    libbz2-1.0.6-1-msys-1.0.17-dll-1.tar.lzma
+    libcrypt-1.1_1-3-msys-1.0.13-dll-0
+    libexpat-2.0.1-1-msys-1.0.13-dll-1.tar.lzma
+    libgdbm-1.8.3-3-msys-1.0.13-dll-3
+    libiconv-1.14-1-msys-1.0.17-dll-2.tar.lzma
+    libintl-0.18.1.1-1-msys-1.0.17-dll-8.tar.lzma
+    liblzma-5.0.3-1-msys-1.0.17-dll-5
+    libmagic-5.04-1-msys-1.0.13-dll-1
+    libxml2-2.7.6-1-msys-1.0.13-dll-2.tar.lzma
+    m4-1.4.16-2-msys-1.0.17-bin.tar.lzma
+    make-3.81-3-msys-1.0.13-bin
+    msysCORE-1.0.18-1-msys-1.0.18-doc
+    msysCORE-1.0.18-1-msys-1.0.18-ext
+    msysCORE-1.0.18-1-msys-1.0.18-lic
+    patch-2.6.1-1-msys-1.0.13-bin
+    perl-5.8.8-1-msys-1.0.17-bin
+    sed-4.2.1-2-msys-1.0.13-bin
+    tar-1.23-1-msys-1.0.13-bin
+    xz-5.0.3-1-msys-1.0.17-bin
+    zlib-1.2.7-1-msys-1.0.17-dll
+
+Canonical homepage:
+  http://www.gnu.org/software/bash/
+
+Canonical download:
+  http://ftp.gnu.org/gnu/bash/
+  http://ftp.gnu.org/gnu/bash/bash-3.1-patches/
+
+License:
+  GPLv2+
+
+Language:
+  C
+
+========================================================================
+
+Build instructions:
+  unpack bash-3.1.23-4-msys-1.0.18-src.tar.lzma
+  ./msys-build-bash bash-3.1.tar.gz
+
+This will create:
+  bash-3.1.23-1-msys-1.0.18-src.tar.xz
+  bash-3.1.23-1-msys-1.0.18-bin.tar.xz
+  bash-3.1.23-1-msys-1.0.18-doc.tar.xz
+  bash-3.1.23-1-msys-1.0.18-lic.tar.xz
+
+========================================================================
+
+Test suite results
+
+This section of this document is updated with each new release.
+No history is maintained here.
+
+========================================================================
+
+Port Notes:
+
+Note that y.tab.c must be compiled at -O0, else backticks do not
+work properly (among other issues: TAB-completion of executable scripts
+causes a segfault, etc).  I used to think this was a compiler bug, but
+since it occurs with both the old msys-gcc-2.95.3 and the new
+msys-gcc-3.4.5, it now appears to be an msys bug that is tickled by the
+(presumably valid?) optimizations when msys-gcc-{any} compiles y.tab.c
+at high optimization levels.
+
+Now, the following may in fact BE a compiler bug: there are additional
+problems if ANY portion of bash is compiled at -O3 (even with
+-fno-unit-at-a-time).  So, bash is compiled at -O2, except for y.tab.c
+which is compiled at -O0.
+
+----------  bash-3.1.23-1 -- 2014 Oct 19 -----------
+* Includes Shelshock fix.
+* Don't load user32.dll for every shell process (issue #1824)
+  Thanks to Kirill Smelkov.
+* New component: msys-bash-lnk (issue #2001).
+  Thanks to Keith Marshall.
+  
+  It can create a shortcut to msys.bat on the desktop and start menu.
+  
+  From the command line, run:
+    mingw-get install --start-menu --desktop msys-bash-lnk
+  See also: mingw-get --help
+  You can also edit <mingw-root>/var/lib/mingw-get/data/preferences.xml
+  and change the shortcut creation defaults.
+  
+  From the mingw-get GUI, just select the msys-bash-lnk component. If
+  it doesn't work, check preferences.xml.
+  Eventually, this will be done automatically when installing MSYS.
+
+----------  bash-3.1.17-4 -- 2010 Oct 24 -----------
+* Fix a regression with tab completion (bug #3063919).
+* Symplify the MSYS patch and build script by taking into account that
+  the msys-gcc-3.x compiler defines __CYGWIN__ by default.
+
+----------  bash-3.1.17-3 -- 2010 Apr 28 -----------
+* Rebuild with latest msys-gcc-3.x compiler, against msys 1.0.13
+* Link against DLL version of libtermcap and libregex
+
+----------  bash-3.1.17-2 -- 2009 Nov 07 -----------
+* First release of bash for msys using new packaging standard.
+

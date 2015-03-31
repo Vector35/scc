@@ -1,0 +1,107 @@
+msys make
+========================================================================
+The `make' utility automatically determines which pieces of a large
+program need to be recompiled, and issues commands to recompile them.
+This manual describes GNU `make', which was implemented by Richard
+Stallman and Roland McGrath.  Development since Version 3.76 has been
+handled by Paul D. Smith.
+
+This is a case-preserving version of GNU make. While the win32 file
+systems encountered when using MSYS software are invariably
+case-INsensitive, some users prefer a GNU `make' that itself is
+case-sensitive -- this version of make is a compromise which exploits
+the case-preserving aspect of win32 file systems. It considers *all*
+targets as fundamentally case-insensitive, but first attempts to resolve
+them as case-sensitive, falling back to the case-insensitive behaviour
+only if the case-sensitive match remains unresolved.
+
+Runtime requirements:
+  msysCORE-1.0.13-2-msys-1.0.13-bin
+  libintl-0.17-2-msys-1.0.13-dll-8
+  libiconv-1.13.1-2-msys-dll-2
+
+Build requirements (these, or newer)
+  MSYS toolchain
+    binutils-2.19.51-3-msys-1.0.13-bin
+    gcc-3.4.4-3-msys-1.0.13-bin
+    w32api-3.14-3-msys-1.0.12-dev
+    msysCORE-1.0.13-2-msys-1.0.13-dev
+ 
+  Devel Tools and Dependent Libraries
+    autoconf-2.65-1-msys-1.0.13-bin
+    automake-1.11.1-1-msys-1.0.13-bin
+    libiconv-1.13.1-2-msys-1.0.13-bin
+    libiconv-1.13.1-2-msys-1.0.13-dev
+    gettext-0.17-2-msys-1.0.13-bin
+    gettext-0.17-2-msys-1.0.13-dev
+    libgettextpo-0.17-2-msys-1.0.13-dll-0
+    texinfo-4.13a-2-msys-1.0.13-bin
+
+  MSYS Environment
+    perl-5.6.1_2-2-msys-1.0.13-bin
+    libcrypt-1.1_1-3-msys-1.0.13-dll-0
+    libgdbm-1.8.3-3-msys-1.0.13-dll-3
+    zlib-1.2.3-2-msys-1.0.13-dll
+    coreutils-5.97-3-msys-1.0.13-bin
+    patch-2.6.1-1-msys-1.0.13-bin
+    make-3.81-2-msys-1.0.11-bin
+    bash-3.1.17-3-msys-1.0.13-bin
+    tar-1.23-2-msys-1.0.13-bin
+    bzip2-1.0.5-2-msys-1.0.13-bin
+    libbz2-1.0.5-2-msys-1.0.13-dll-1
+    xz-4.999.9beta_20100401-1-msys-1.0.13-bin
+    liblzma-4.999.9beta_20100401-1-msys-1.0.13-dll-1
+    file-5.04-2-msys-1.0.13-bin
+    grep-2.5.4-2-msys-1.0.13-bin
+    sed-4.2.1-2-msys-1.0.13-bin
+    gawk-3.1.7-2-msys-1.0.13-bin
+    cvs-1.12.13-2-msys-1.0.13-bin
+
+Canonical homepage:
+  http://www.gnu.org/software/make/
+
+Canonical download:
+  http://ftp.gnu.org/gnu/make/
+
+License:
+  GPLv2+
+
+Language:
+  C
+
+========================================================================
+
+Build instructions:
+  unpack make-3.81-3-msys-1.0.13-src.tar.lzma
+  ./msys-build-make make-3.81.tar.bz2
+
+This will create:
+  make-3.81-3-msys-1.0.13-src.tar.lzma
+  make-3.81-3-msys-1.0.13-bin.tar.lzma
+  make-3.81-3-msys-1.0.13-lang.tar.lzma
+  make-3.81-3-msys-1.0.13-doc.tar.lzma
+  make-3.81-3-msys-1.0.13-lic.tar.lzma
+
+========================================================================
+
+Test suite results
+
+This section of this document is updated with each new release.
+No history is maintained here.
+
+8 Tests in 3 Categories Failed
+  These are unavoidable, and have to do with the /usr == / issue,
+  the lack of symlink support under MSYS, and the case-insensitive
+  behavior of the win32 filesystem with regards to Makefile vs makefile.
+
+========================================================================
+
+Port Notes:
+
+----------  make-3.81-3 -- 2010 Apr 29 -----------
+* Rebuild with latest msys-gcc-3.x compiler, against msys 1.0.13
+* Link against DLL version of libintl and libiconv
+
+----------  make-3.81-2 -- 2009 Nov 07 -----------
+* First release of make for msys using new packaging standard.
+

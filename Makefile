@@ -20,6 +20,12 @@ define OUTPUT_OBJ
 -o $1
 endef
 
+ifeq ($(CONFIG),release)
+STRIP := yes
+else
+STRIP := no
+endif
+
 ifeq ($(HOST),Linux)
 	TARGET := scc
 	CODEGEN := Obj/makecodegen
@@ -60,6 +66,7 @@ endif
 	BOOTSTRAP := Obj/scc-bootstrap.exe
 	MAKEOPSTR := Obj/makeopstr.exe
 	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	STRIP := no
 define OUTPUT_OBJ
 -Fo$1
 endef
@@ -371,7 +378,7 @@ $(BOOTSTRAP): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) 
 
 $(TARGET): $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ) Makefile
 	$(LINK) $(LDFLAGS) $(call OUTPUT_EXE,$(TARGET)) $(SCC_OBJS) $(SCC_LEX_OBJS) $(SCC_PARSE_OBJS) $(SCC_CODEGEN_OBJS) $(ASMX86_OBJS) $(RUNTIME_OBJS) $(VERSION_OBJ)
-ifeq ($(CONFIG),release)
+ifeq ($(STRIP),yes)
 	strip $(TARGET)
 endif
 
@@ -383,4 +390,3 @@ clean :
 
 test: scc
 	$(PYTHON) tests/test.py
-

@@ -1,23 +1,3 @@
-// Copyright (c) 2011-2012 Rusty Wagner
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to
-// deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
-
 #include <string>
 #include <vector>
 #include <stdio.h>
@@ -47,9 +27,8 @@ void Usage()
 {
 	fprintf(stderr, "scc [options] <input files> [...]\n\n");
 	fprintf(stderr, "Shellcode Compiler version %s\n", g_versionString);
-	fprintf(stderr, "Copyright (C) 2011-2012 Rusty Wagner\n");
-	fprintf(stderr, "EARLY PREVIEW RELEASE - NOT ALL OPTIONS ARE IMPLEMENTED\n\n");
-	fprintf(stderr, "This software is released under the terms of the MIT open source license.\n\n");
+	fprintf(stderr, "Copyright (C) 2015 Vector 35 LLC\n");
+	fprintf(stderr, "BETA RELEASE - NOT ALL OPTIONS ARE IMPLEMENTED\n\n");
 	fprintf(stderr, "This compiler accepts a subset of C99 syntax, with extensions for creating a standalone\n");
 	fprintf(stderr, "environment for writing shellcode.  Many standard system calls and C library functions\n");
 	fprintf(stderr, "are automatically available without the need for include files.\n\n");

@@ -22,7 +22,8 @@ enum OperatingSystem
 	OS_LINUX,
 	OS_FREEBSD,
 	OS_MAC,
-	OS_WINDOWS
+	OS_WINDOWS,
+	OS_DECREE
 };
 
 enum OutputFormat

@@ -73,7 +73,7 @@ void Usage()
 	fprintf(stderr, "    --pad                             Pad output to be exactly the maximum length\n");
 	fprintf(stderr, "    --pie                             Always generate position independent code\n");
 	fprintf(stderr, "    --platform <value>                Specify operating system\n");
-	fprintf(stderr, "                                      Can be: linux (default), freebsd, mac, windows, none\n");
+	fprintf(stderr, "                                      Can be: linux (default), freebsd, mac, windows, decree, none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
 	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
 	fprintf(stderr, "    --unloaded-modules                Uses modules that have not been loaded yet\n");
@@ -587,6 +587,8 @@ int main(int argc, char* argv[])
 				settings.os = OS_MAC;
 			else if ((!strcmp(argv[i], "win32")) || (!strcmp(argv[i], "windows")))
 				settings.os = OS_WINDOWS;
+			else if ((!strcmp(argv[i], "decree")) || (!strcmp(argv[i], "cgc")))
+				settings.os = OS_DECREE;
 			else if (!strcmp(argv[i], "none"))
 				settings.os = OS_NONE;
 			else
@@ -789,6 +791,8 @@ int main(int argc, char* argv[])
 	// Adjust base address for executables
 	if (settings.format == FORMAT_ELF)
 	{
+		if (settings.os == OS_DECREE)
+			settings.positionIndependent = false;
 		if (!positionIndependentExplicit)
 			settings.positionIndependent = false;
 		if (!settings.positionIndependent)

@@ -75,6 +75,24 @@ extern unsigned char Obj_windows_quark_lib[];
 extern unsigned int Obj_windows_quark_lib_len;
 extern unsigned char Obj_windows_arm_lib[];
 extern unsigned int Obj_windows_arm_lib_len;
+extern unsigned char Obj_decree_x86_lib[];
+extern unsigned int Obj_decree_x86_lib_len;
+extern unsigned char Obj_decree_x64_lib[];
+extern unsigned int Obj_decree_x64_lib_len;
+extern unsigned char Obj_decree_quark_lib[];
+extern unsigned int Obj_decree_quark_lib_len;
+extern unsigned char Obj_decree_mips_lib[];
+extern unsigned int Obj_decree_mips_lib_len;
+extern unsigned char Obj_decree_mipsel_lib[];
+extern unsigned int Obj_decree_mipsel_lib_len;
+extern unsigned char Obj_decree_arm_lib[];
+extern unsigned int Obj_decree_arm_lib_len;
+extern unsigned char Obj_decree_armeb_lib[];
+extern unsigned int Obj_decree_armeb_lib_len;
+extern unsigned char Obj_decree_ppc_lib[];
+extern unsigned int Obj_decree_ppc_lib_len;
+extern unsigned char Obj_decree_ppcel_lib[];
+extern unsigned int Obj_decree_ppcel_lib_len;
 
 
 extern int Code_parse(ParserState* state);
@@ -417,6 +435,18 @@ bool Linker::ImportStandardLibrary()
 				len = Obj_windows_x64_lib_len;
 			}
 			break;
+		case OS_DECREE:
+			if (m_settings.preferredBits == 32)
+			{
+				lib = Obj_decree_x86_lib;
+				len = Obj_decree_x86_lib_len;
+			}
+			else
+			{
+				lib = Obj_decree_x64_lib;
+				len = Obj_decree_x64_lib_len;
+			}
+			break;
 		default:
 			if (m_settings.preferredBits == 32)
 			{
@@ -451,6 +481,10 @@ bool Linker::ImportStandardLibrary()
 			lib = Obj_windows_quark_lib;
 			len = Obj_windows_quark_lib_len;
 			break;
+		case OS_DECREE:
+			lib = Obj_decree_quark_lib;
+			len = Obj_decree_quark_lib_len;
+			break;
 		default:
 			lib = Obj_quark_lib;
 			len = Obj_quark_lib_len;
@@ -467,6 +501,10 @@ bool Linker::ImportStandardLibrary()
 				lib = Obj_linux_mips_lib;
 				len = Obj_linux_mips_lib_len;
 				break;
+			case OS_DECREE:
+				lib = Obj_decree_mips_lib;
+				len = Obj_decree_mips_lib_len;
+				break;
 			default:
 				lib = Obj_mips_lib;
 				len = Obj_mips_lib_len;
@@ -480,6 +518,10 @@ bool Linker::ImportStandardLibrary()
 			case OS_LINUX:
 				lib = Obj_linux_mipsel_lib;
 				len = Obj_linux_mipsel_lib_len;
+				break;
+			case OS_DECREE:
+				lib = Obj_decree_mipsel_lib;
+				len = Obj_decree_mipsel_lib_len;
 				break;
 			default:
 				lib = Obj_mipsel_lib;
@@ -497,6 +539,10 @@ bool Linker::ImportStandardLibrary()
 			case OS_LINUX:
 				lib = Obj_linux_armeb_lib;
 				len = Obj_linux_armeb_lib_len;
+				break;
+			case OS_DECREE:
+				lib = Obj_decree_armeb_lib;
+				len = Obj_decree_armeb_lib_len;
 				break;
 			default:
 				lib = Obj_armeb_lib;
@@ -516,6 +562,10 @@ bool Linker::ImportStandardLibrary()
 				lib = Obj_windows_arm_lib;
 				len = Obj_windows_arm_lib_len;
 				break;
+			case OS_DECREE:
+				lib = Obj_decree_arm_lib;
+				len = Obj_decree_arm_lib_len;
+				break;
 			default:
 				lib = Obj_arm_lib;
 				len = Obj_arm_lib_len;
@@ -533,6 +583,10 @@ bool Linker::ImportStandardLibrary()
 				lib = Obj_linux_ppc_lib;
 				len = Obj_linux_ppc_lib_len;
 				break;
+			case OS_DECREE:
+				lib = Obj_decree_ppc_lib;
+				len = Obj_decree_ppc_lib_len;
+				break;
 			default:
 				lib = Obj_ppc_lib;
 				len = Obj_ppc_lib_len;
@@ -546,6 +600,10 @@ bool Linker::ImportStandardLibrary()
 			case OS_LINUX:
 				lib = Obj_linux_ppcel_lib;
 				len = Obj_linux_ppcel_lib_len;
+				break;
+			case OS_DECREE:
+				lib = Obj_decree_ppcel_lib;
+				len = Obj_decree_ppcel_lib_len;
 				break;
 			default:
 				lib = Obj_ppcel_lib;

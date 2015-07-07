@@ -4408,7 +4408,7 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 	}
 #endif
 
-	if ((m_settings.os != OS_LINUX) && (m_settings.os != OS_FREEBSD) && (m_settings.os != OS_MAC))
+	if ((m_settings.os != OS_LINUX) && (m_settings.os != OS_FREEBSD) && (m_settings.os != OS_MAC) && (m_settings.os != OS_DECREE))
 		return false;
 
 	static const X86RegisterClass regs[] = {X86REGCLASS_SYSCALL_PARAM_0, X86REGCLASS_SYSCALL_PARAM_1, X86REGCLASS_SYSCALL_PARAM_2,

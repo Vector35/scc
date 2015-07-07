@@ -19,7 +19,6 @@
 // IN THE SOFTWARE.
 
 #include "runtime/string.h"
-#include "runtime/posix/process.h"
 
 #ifdef __32BIT
 

@@ -231,7 +231,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 {
 	// Output file identification header
 	ElfIdent ident;
-	memcpy(ident.signature, "\x7f""ELF", 4);
+	if (settings.os == OS_DECREE)
+		memcpy(ident.signature, "\x7f""CGC", 4);
+	else
+		memcpy(ident.signature, "\x7f""ELF", 4);
 
 	ident.fileClass = 1; // 32-bit
 	if (settings.preferredBits == 64)
@@ -251,6 +254,12 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 	ident.abiVersion = 0;
 	memset(ident.pad, 0, sizeof(ident.pad));
+
+	if (settings.os == OS_DECREE)
+	{
+		ident.os = 67;
+		ident.abiVersion = 1;
+	}
 
 	output->Write(&ident, sizeof(ident));
 
@@ -300,7 +309,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.stringTable = 0;
 		header.programHeaderOffset = header.headerSize;
 		header.programHeaderSize = sizeof(Elf64ProgramHeader);
-		header.programHeaderCount = settings.positionIndependent ? 6 : 3;
+		if (settings.os == OS_DECREE)
+			header.programHeaderCount = 2;
+		else
+			header.programHeaderCount = settings.positionIndependent ? 6 : 3;
 		header.flags = 0;
 		header.entry = settings.base;
 		if (settings.bigEndian)
@@ -399,19 +411,22 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		else
 			output->Write(&data, sizeof(data));
 
-		Elf64ProgramHeader stack;
-		stack.type = 0x6474e551; // GNU_STACK
-		stack.flags = settings.execStack ? 7 : 6;
-		stack.offset = 0;
-		stack.virtualAddress = 0;
-		stack.physicalAddress = 0;
-		stack.fileSize = 0;
-		stack.memorySize = 0;
-		stack.align = 8;
-		if (settings.bigEndian)
-			stack.WriteByteSwap(output);
-		else
-			output->Write(&stack, sizeof(stack));
+		if (settings.os != OS_DECREE)
+		{
+			Elf64ProgramHeader stack;
+			stack.type = 0x6474e551; // GNU_STACK
+			stack.flags = settings.execStack ? 7 : 6;
+			stack.offset = 0;
+			stack.virtualAddress = 0;
+			stack.physicalAddress = 0;
+			stack.fileSize = 0;
+			stack.memorySize = 0;
+			stack.align = 8;
+			if (settings.bigEndian)
+				stack.WriteByteSwap(output);
+			else
+				output->Write(&stack, sizeof(stack));
+		}
 
 		if (settings.positionIndependent)
 		{
@@ -443,7 +458,10 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		header.stringTable = 0;
 		header.programHeaderOffset = header.headerSize;
 		header.programHeaderSize = sizeof(Elf32ProgramHeader);
-		header.programHeaderCount = settings.positionIndependent ? 6 : 3;
+		if (settings.os == OS_DECREE)
+			header.programHeaderCount = 2;
+		else
+			header.programHeaderCount = settings.positionIndependent ? 6 : 3;
 		header.flags = 0;
 		header.entry = (uint32_t)settings.base;
 		if (settings.bigEndian)
@@ -541,19 +559,22 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		else
 			output->Write(&data, sizeof(data));
 
-		Elf32ProgramHeader stack;
-		stack.type = 0x6474e551; // GNU_STACK
-		stack.flags = settings.execStack ? 7 : 6;
-		stack.offset = 0;
-		stack.virtualAddress = 0;
-		stack.physicalAddress = 0;
-		stack.fileSize = 0;
-		stack.memorySize = 0;
-		stack.align = 4;
-		if (settings.bigEndian)
-			stack.WriteByteSwap(output);
-		else
-			output->Write(&stack, sizeof(stack));
+		if (settings.os != OS_DECREE)
+		{
+			Elf32ProgramHeader stack;
+			stack.type = 0x6474e551; // GNU_STACK
+			stack.flags = settings.execStack ? 7 : 6;
+			stack.offset = 0;
+			stack.virtualAddress = 0;
+			stack.physicalAddress = 0;
+			stack.fileSize = 0;
+			stack.memorySize = 0;
+			stack.align = 4;
+			if (settings.bigEndian)
+				stack.WriteByteSwap(output);
+			else
+				output->Write(&stack, sizeof(stack));
+		}
 
 		if (settings.positionIndependent)
 		{
@@ -588,21 +609,31 @@ uint64_t AdjustBaseForElfFile(uint64_t fileBase, const Settings& settings)
 	if (settings.preferredBits == 64)
 	{
 		base += sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf64Header);
-		base += sizeof(Elf64ProgramHeader) * 3;
-		if (settings.positionIndependent)
+		if (settings.os == OS_DECREE)
+			base += sizeof(Elf64ProgramHeader) * 2;
+		else
 		{
 			base += sizeof(Elf64ProgramHeader) * 3;
-			base += strlen(GetInterpreterName(settings)) + 1;
+			if (settings.positionIndependent)
+			{
+				base += sizeof(Elf64ProgramHeader) * 3;
+				base += strlen(GetInterpreterName(settings)) + 1;
+			}
 		}
 	}
 	else
 	{
 		base += sizeof(ElfIdent) + sizeof(ElfCommonHeader) + sizeof(Elf32Header);
-		base += sizeof(Elf32ProgramHeader) * 3;
-		if (settings.positionIndependent)
+		if (settings.os == OS_DECREE)
+			base += sizeof(Elf32ProgramHeader) * 2;
+		else
 		{
 			base += sizeof(Elf32ProgramHeader) * 3;
-			base += strlen(GetInterpreterName(settings)) + 1;
+			if (settings.positionIndependent)
+			{
+				base += sizeof(Elf32ProgramHeader) * 3;
+				base += strlen(GetInterpreterName(settings)) + 1;
+			}
 		}
 	}
 	return base;

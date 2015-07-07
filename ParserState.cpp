@@ -131,6 +131,9 @@ string ParserState::ProcessEscapedString(const string& str)
 
 		switch (str[i])
 		{
+		case '0':
+			result += string(1, '\0');
+			break;
 		case 'r':
 			result += string(1, '\r');
 			break;

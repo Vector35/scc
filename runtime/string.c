@@ -61,6 +61,32 @@ int strcmp(const char* a, const char* b)
 	}
 }
 
+int strncmp(const char* a, const char* b, size_t len)
+{
+	for (size_t i = 0; ; i++)
+	{
+		if (len-- == 0)
+			return 0;
+		int diff = a[i] - b[i];
+		if (diff != 0)
+			return diff;
+		if (a[i] == 0)
+			return 0;
+	}
+}
+
+char* strstr(const char* s1, const char* s2)
+{
+	char* t1 = s1;
+	size_t len = strlen(s2);
+	while(*t1)
+	{
+		if (strncmp(t1++, s2, len) == 0)
+			return t1;
+	}
+	return NULL;
+}
+
 char* strcat(char* dest, const char* src)
 {
 	strcpy(dest + strlen(dest), src);

@@ -2947,7 +2947,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 
 #ifdef OUTPUT64
 	// Windows requires a 16 byte aligned stack
-	if ((m_settings.os == OS_WINDOWS) && (stackParamCount & 1))
+	if ((m_settings.os == OS_WINDOWS) && (!m_settings.allowReturn) && (stackParamCount & 1))
 	{
 		uint32_t reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		EMIT_R(push, reg);
@@ -5361,7 +5361,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		if (first)
 		{
 #ifdef OUTPUT64
-			if ((func->GetName() == "_start") && (m_settings.os == OS_WINDOWS) && (m_settings.format != FORMAT_PE))
+			if ((func->GetName() == "_start") && (m_settings.os == OS_WINDOWS) && (!m_settings.allowReturn) && (m_settings.format != FORMAT_PE))
 			{
 				// Windows 64-bit requires a 16 byte aligned stack, force alignment at the start of the program
 				EMIT_RI(and_64, SYMREG_SP, ~15);

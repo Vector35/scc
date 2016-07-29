@@ -6,6 +6,7 @@
 #ifndef WIN32
 #include <sys/mman.h>
 #endif
+#include <time.h>
 #include "asmx86.h"
 #include "Linker.h"
 #include "ElfOutput.h"
@@ -724,6 +725,11 @@ int main(int argc, char* argv[])
 	{
 		if (!useSpecificSeed)
 		{
+#ifdef WIN32
+			LARGE_INTEGER pc;
+			QueryPerformanceCounter(&pc);
+			settings.seed = pc.LowPart ^ pc.HighPart ^ (uint32_t)time(NULL);
+#else
 			FILE* fp = fopen("/dev/urandom", "rb");
 			if (fread(&settings.seed, sizeof(settings.seed), 1, fp) != 1)
 			{
@@ -731,6 +737,7 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 			fclose(fp);
+#endif
 			fprintf(stderr, "Seed is %u\n", settings.seed);
 		}
 
@@ -1160,4 +1167,3 @@ int main(int argc, char* argv[])
 		fclose(outFP);
 	return 0;
 }
-

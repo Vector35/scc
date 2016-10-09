@@ -3,3 +3,4 @@ scc.exe
 Obj
 *.pyc
 .gdb_history
+.DS_Store

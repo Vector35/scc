@@ -13,8 +13,8 @@ customizing the code generation to satisfy constraints and make code that is har
 * Able to output ELF, Mach-O, and PE binaries in addition to flat position-independent binary blobs.
 * Targets Linux, FreeBSD, Mac OS X, and Windows.
 * Supports both 32-bit and 64-bit x86 architectures on all supported platforms.
-* Blacklist any byte value, and the compiler will generate code that does not use it.  For example, it
+* (Planned feature, only applies to padding currently) Blacklist any byte value, and the compiler will generate code that does not use it.  For example, it
 can generate code that does not have null bytes.
-* Polymorphic code generation can generate different code each time it is compiled.
+* (Partially implemented, register and basic block ordering) Polymorphic code generation can generate different code each time it is compiled.
 * Calling conventions (including the choice of stack pointer register) are highly customizable.
 * Python bindings for dynamic generation of code from scripts.

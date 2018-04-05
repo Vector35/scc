@@ -5,6 +5,22 @@ Shellcode Compiler Examples
 The following are short examples of how to use the Shellcode Compiler to solve
 common shellcoding tasks.
 
+Resolve and call Windows functions
+----------------------------------
+SCC supports the ability to dynamically resolve and call windows functions for
+you with the right syntax. The following simple example is a popup displaying
+hello world using MessageBoxA.
+
+---------------------------------------
+int __stdcall MessageBoxA(HANDLE hwnd, const char* msg, const char* title, uint32_t flags) __import("user32");
+
+int main()
+{
+    MessageBoxA(NULL, "Hello", "Hello World.", 0);
+    return 0;
+}
+---------------------------------------
+
 Connect-back Shell
 ------------------
 The following code will connect to 10.2.3.4 on port 1337 with an interactive
@@ -64,4 +80,3 @@ void main()
 	write(4, data, len);
 }
 ---------------------------------------
-

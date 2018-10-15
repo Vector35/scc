@@ -1352,7 +1352,7 @@ bool Linker::FinalizeLink()
 
 		// Generate code to set up IAT array
 		Ref<Variable> iatArray = new Variable(VAR_LOCAL, Type::ArrayType(Type::PointerType(Type::VoidType(), 2),
-			m_importTables.size()), "iat");
+			m_importTables.size()+1), "iat");
 		importFunc->AddVariable(iatArray);
 
 		size_t iatIndex = 0;

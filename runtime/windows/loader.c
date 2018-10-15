@@ -98,7 +98,7 @@ void __resolve_imports_pebscan(const uint32_t* importDesc, void*** iats)
 	{
 		uint32_t moduleHash = *(importDesc++);
 
-		size_t i;
+		size_t i = 0;
 		while (true)
 		{
 			uint32_t nameHash = *importDesc;

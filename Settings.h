@@ -13,7 +13,8 @@ enum Architecture
 	ARCH_QUARK,
 	ARCH_MIPS,
 	ARCH_ARM,
-	ARCH_PPC
+	ARCH_AARCH64,
+	ARCH_PPC,
 };
 
 enum OperatingSystem
@@ -88,6 +89,7 @@ struct Settings
 	uint64_t base;
 	uint64_t dataSectionBase;
 	uint32_t alignment;
+	uint32_t stackAlignment;
 
 	bool internalDebug;
 	bool sizeInfo;

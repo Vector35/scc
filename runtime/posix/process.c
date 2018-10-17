@@ -125,7 +125,11 @@ pid_t getpgid(pid_t pid)
 
 pid_t getpgrp(void)
 {
+#ifdef SYS_getpgrp
 	return __syscall(SYS_getpgrp);
+#else
+	return getpgid(0);
+#endif
 }
 
 int kill(pid_t pid, int sig)

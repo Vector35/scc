@@ -20,7 +20,13 @@
 
 time_t time(time_t* t)
 {
+#ifdef SYS_time
 	return __syscall(SYS_time, t);
+#else
+	struct timespec time;
+	__syscall(SYS_clock_gettime, 0, &time);
+	return time.tv_sec;
+#endif
 }
 
 int gettimeofday(struct timeval* t, struct timezone* tz)

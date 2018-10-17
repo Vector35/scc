@@ -20,7 +20,15 @@
 
 int open(const char* file, int flags, int mode)
 {
+#ifdef SYS_open
 	return __syscall(SYS_open, file, flags, mode);
+#else
+#ifdef SYS_openat
+#ifdef AT_FDCWD
+	return __syscall(SYS_openat, AT_FDCWD, file, flags, mode);
+#endif
+#endif
+#endif
 }
 
 int close(int fd)
@@ -35,7 +43,11 @@ int dup(int fd)
 
 int dup2(int oldFd, int newFd)
 {
+#ifdef SYS_dup2
 	return __syscall(SYS_dup2, oldFd, newFd);
+#else
+	return __syscall(SYS_dup3, oldFd, newFd, 0);
+#endif
 }
 
 void redirect_io(int fd)
@@ -143,27 +155,69 @@ int fchdir(int fd)
 
 int rmdir(const char* path)
 {
+#ifdef SYS_rmdir
 	return __syscall(SYS_rmdir, path);
+#else
+#ifdef SYS_unlinkat
+#ifdef AT_FDCWD
+#ifdef AT_REMOVEDIR
+	return __syscall(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+#endif
+#endif
+#endif
+#endif
 }
 
 int mkdir(const char* path, mode_t mode)
 {
+#ifdef SYS_mkdir
 	return __syscall(SYS_mkdir, path, mode);
+#else
+#ifdef SYS_mkdirat
+#ifdef AT_FDCWD
+	return __syscall(SYS_mkdirat, AT_FDCWD, path, mode);
+#endif
+#endif
+#endif
 }
 
 int unlink(const char* path)
 {
+#ifdef SYS_unlink
 	return __syscall(SYS_unlink, path);
+#else
+#ifdef SYS_unlinkat
+#ifdef AT_FDCWD
+	return __syscall(SYS_unlinkat, AT_FDCWD, path, 0);
+#endif
+#endif
+#endif
 }
 
 int rename(const char* oldpath, const char* newpath)
 {
+#ifdef SYS_rename
 	return __syscall(SYS_rename, oldpath, newpath);
+#else
+#ifdef SYS_renameat
+#ifdef AT_FDCWD
+	return __syscall(SYS_renameat, AT_FDCWD, oldpath, newpath);
+#endif
+#endif
+#endif
 }
 
 int chown(const char* path, uid_t owner, gid_t group)
 {
+#ifdef SYS_chown
 	return __syscall(SYS_chown, path, owner, group);
+#else
+#ifdef SYS_fchownat
+#ifdef AT_FDCWD
+	return __syscall(SYS_fchownat, AT_FDCWD, path, owner, group, 0);
+#endif
+#endif
+#endif
 }
 
 int fchown(int fd, uid_t owner, gid_t group)
@@ -173,12 +227,30 @@ int fchown(int fd, uid_t owner, gid_t group)
 
 int lchown(const char* path, uid_t owner, gid_t group)
 {
+#ifdef SYS_lchown
 	return __syscall(SYS_lchown, path, owner, group);
+#else
+#ifdef SYS_fchownat
+#ifdef AT_FDCWD
+#ifdef AT_SYMLINK_NOFOLLOW
+	return __syscall(SYS_fchownat, AT_FDCWD, path, owner, group, AT_SYMLINK_NOFOLLOW);
+#endif
+#endif
+#endif
+#endif
 }
 
 int chmod(const char* path, mode_t mode)
 {
+#ifdef SYS_chmod
 	return __syscall(SYS_chmod, path, mode);
+#else
+#ifdef SYS_fchmodat
+#ifdef AT_FDCWD
+	return __syscall(SYS_fchmodat, AT_FDCWD, path, mode, 0);
+#endif
+#endif
+#endif
 }
 
 int fchmod(int fd, mode_t mode)
@@ -188,17 +260,41 @@ int fchmod(int fd, mode_t mode)
 
 ssize_t readlink(const char* path, char* buf, size_t size)
 {
+#ifdef SYS_readlink
 	return __syscall(SYS_readlink, path, buf, size);
+#else
+#ifdef SYS_readlinkat
+#ifdef AT_FDCWD
+	return __syscall(SYS_readlinkat, AT_FDCWD, path, buf, size);
+#endif
+#endif
+#endif
 }
 
 int link(const char* target, const char* path)
 {
+#ifdef SYS_link
 	return __syscall(SYS_link, target, path);
+#else
+#ifdef SYS_linkat
+#ifdef AT_FDCWD
+	return __syscall(SYS_linkat, AT_FDCWD, target, AT_FDCWD, path, 0);
+#endif
+#endif
+#endif
 }
 
 int symlink(const char* target, const char* path)
 {
+#ifdef SYS_symlink
 	return __syscall(SYS_symlink, target, path);
+#else
+#ifdef SYS_symlinkat
+#ifdef AT_FDCWD
+	return __syscall(SYS_symlinkat, target, AT_FDCWD, path);
+#endif
+#endif
+#endif
 }
 
 int fcntl(int fd, int cmd, size_t arg)

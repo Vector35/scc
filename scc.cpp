@@ -199,6 +199,12 @@ int main(int argc, char* argv[])
 				settings.preferredBits = 32;
 				settings.bigEndian = true;
 			}
+			else if (!strcmp(argv[i], "aarch64"))
+			{
+				settings.architecture = ARCH_AARCH64;
+				settings.preferredBits = 64;
+				settings.bigEndian = false;
+			}
 			else if ((!strcmp(argv[i], "ppc")) || (!strcmp(argv[i], "ppceb")))
 			{
 				settings.architecture = ARCH_PPC;
@@ -787,6 +793,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	if ((settings.architecture == ARCH_AARCH64) && (settings.preferredBits != 64))
+	{
+		fprintf(stderr, "error: invalid architecture settings\n");
+		return 1;
+	}
+
 	if ((settings.architecture == ARCH_PPC) && (settings.preferredBits != 32))
 	{
 		fprintf(stderr, "error: invalid architecture settings\n");
@@ -826,6 +838,9 @@ int main(int argc, char* argv[])
 		settings.alignment = 4;
 	if ((settings.architecture == ARCH_PPC) && (!alignmentExplicit))
 		settings.alignment = 4;
+
+	if (settings.architecture == ARCH_AARCH64)
+		settings.stackAlignment = 16;
 
 	// Set pointer size
 	if (settings.preferredBits == 32)

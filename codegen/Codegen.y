@@ -767,6 +767,7 @@ tree: match  { $$ = $1; }
 	| ACOS_TOK tree  { $$ = TreeNode::CreateNode(NODE_ACOS, $2); $$->AddRef(); $2->Release(); }
 	| ATAN_TOK tree  { $$ = TreeNode::CreateNode(NODE_ATAN, $2); $$->AddRef(); $2->Release(); }
 	| PUSH_TOK tree  { $$ = TreeNode::CreateNode(NODE_PUSH, $2); $$->AddRef(); $2->Release(); }
+	| PUSH_TOK OFFSET_TOK tree tree tree  { $$ = TreeNode::CreateNode(NODE_PUSH, $3, $4, $5); $$->AddRef(); $3->Release(); $4->Release(); $5->Release(); }
 	;
 
 encoding_stmt: ENCODING_TOK ID LBRACE encoding_field_list RBRACE  { state->DefineEncoding($2, $4); free($2); $4->Release(); }

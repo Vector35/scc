@@ -18,35 +18,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-unsigned int alarm(unsigned int seconds)
+void* mmap(void* addr, size_t len, int prot, int flags, int fd, uint64_t offset)
 {
-#ifdef SYS_alarm
-	return __syscall(SYS_alarm, seconds);
-#else
-	struct itimerval it;
-	it.it_value.tv_sec = seconds;
-	it.it_value.tv_usec = 0;
-	it.it_interval.tv_sec = 0;
-	it.it_interval.tv_usec = 0;
-	__syscall(SYS_setitimer, ITIMER_REAL, &it, &it);
-	uint32_t result = it.it_value.tv_sec;
-	if (it.it_value.tv_usec > 500000 || (!result && it.it_value.tv_usec))
-		result++;
-	return result;
-#endif
+	return (void*)__syscall(SYS_mmap, addr, len, prot, flags, fd, offset);
 }
 
-int tgkill(int tgid, int tid, int sig)
+void* munmap(void* addr, size_t len)
 {
-	return __syscall(SYS_tgkill, tgid, tid, sig);
-}
-
-pid_t fork(void)
-{
-#ifdef SYS_fork
-	return __syscall(SYS_fork);
-#else
-	return __syscall(SYS_clone, SIGCHLD, 0);
-#endif
+	return (void*)__syscall(SYS_munmap, addr, len);
 }
 

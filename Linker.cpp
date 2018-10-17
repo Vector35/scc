@@ -33,6 +33,8 @@ extern unsigned char Obj_arm_lib[];
 extern unsigned int Obj_arm_lib_len;
 extern unsigned char Obj_armeb_lib[];
 extern unsigned int Obj_armeb_lib_len;
+extern unsigned char Obj_aarch64_lib[];
+extern unsigned int Obj_aarch64_lib_len;
 extern unsigned char Obj_ppc_lib[];
 extern unsigned int Obj_ppc_lib_len;
 extern unsigned char Obj_ppcel_lib[];
@@ -51,6 +53,8 @@ extern unsigned char Obj_linux_arm_lib[];
 extern unsigned int Obj_linux_arm_lib_len;
 extern unsigned char Obj_linux_armeb_lib[];
 extern unsigned int Obj_linux_armeb_lib_len;
+extern unsigned char Obj_linux_aarch64_lib[];
+extern unsigned int Obj_linux_aarch64_lib_len;
 extern unsigned char Obj_linux_ppc_lib[];
 extern unsigned int Obj_linux_ppc_lib_len;
 extern unsigned char Obj_linux_ppcel_lib[];
@@ -84,6 +88,7 @@ extern void Code_set_lineno(int line, void* yyscanner);
 extern Output* CreateQuarkCodeGen(const Settings& settings, Function* startFunc);
 extern Output* CreateMipsCodeGen(const Settings& settings, Function* startFunc);
 extern Output* CreateArmCodeGen(const Settings& settings, Function* startFunc);
+extern Output* CreateAArch64CodeGen(const Settings& settings, Function* startFunc);
 extern Output* CreatePpcCodeGen(const Settings& settings, Function* startFunc);
 
 
@@ -519,6 +524,23 @@ bool Linker::ImportStandardLibrary()
 			default:
 				lib = Obj_arm_lib;
 				len = Obj_arm_lib_len;
+				break;
+			}
+		}
+	}
+	else if (m_settings.architecture == ARCH_AARCH64)
+	{
+		if (!m_settings.bigEndian)
+		{
+			switch (m_settings.os)
+			{
+			case OS_LINUX:
+				lib = Obj_linux_aarch64_lib;
+				len = Obj_linux_aarch64_lib_len;
+				break;
+			default:
+				lib = Obj_aarch64_lib;
+				len = Obj_aarch64_lib_len;
 				break;
 			}
 		}
@@ -1531,6 +1553,10 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	else if (m_settings.architecture == ARCH_ARM)
 	{
 		out[SUBARCH_DEFAULT] = CreateArmCodeGen(m_settings, m_startFunction);
+	}
+	else if (m_settings.architecture == ARCH_AARCH64)
+	{
+		out[SUBARCH_DEFAULT] = CreateAArch64CodeGen(m_settings, m_startFunction);
 	}
 	else if (m_settings.architecture == ARCH_PPC)
 	{

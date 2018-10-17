@@ -2254,14 +2254,34 @@ bool OutputGenerator::Generate(string& output)
 				WriteLine("paramOnStack.push_back(stackParam);");
 			EndBlock();
 
-			// Push parameters from right to left
 			WriteLine("size_t pushSize = 0;");
+			WriteLine("bool pushOffsetForm = (m_settings.stackAlignment && !(m_settings.stackAlignment %% (m_settings.preferredBits / 8)));");
+
+			WriteLine("size_t stackParamCount = 0;");
+			WriteLine("for (int i = (int)params.size() - 1; i >= 0; i--)");
+			BeginBlock();
+				WriteLine("if (!paramOnStack[i])");
+				WriteLine("\tcontinue;");
+				WriteLine("stackParamCount++;");
+			EndBlock();
+			WriteLine("size_t stackParamsRemaining = stackParamCount;");
+
+			// Push parameters from right to left
 			WriteLine("for (int i = (int)params.size() - 1; i >= 0; i--)");
 			BeginBlock();
 				WriteLine("if (!paramOnStack[i])");
 				WriteLine("\tcontinue;");
 
-				WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));");
+				WriteLine("if (!pushOffsetForm)");
+				BeginBlock();
+					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));");
+				EndBlock();
+				WriteLine("else");
+				BeginBlock();
+					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i],");
+					WriteLine("\tTreeNode::CreateImmediateNode(--stackParamsRemaining, NODETYPE_U64),");
+					WriteLine("\tTreeNode::CreateImmediateNode(stackParamCount, NODETYPE_U64)));");
+				EndBlock();
 
 				WriteLine("if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||");
 				WriteLine("\t(params[i]->GetType() == NODETYPE_F64) || (m_settings.preferredBits == 64))");
@@ -2269,6 +2289,9 @@ bool OutputGenerator::Generate(string& output)
 				WriteLine("else");
 				WriteLine("\tpushSize += 4;");
 			EndBlock();
+
+			WriteLine("if (pushOffsetForm && ((pushSize & (m_settings.stackAlignment - 1)) != 0))");
+			WriteLine("\tpushSize += m_settings.stackAlignment - (pushSize & (m_settings.stackAlignment - 1));");
 
 			WriteLine("return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_CALLVOID : NODE_CALL, resultType,");
 			WriteLine("\tfunc, input, TreeNode::CreateImmediateNode(pushSize, (m_settings.preferredBits == 64) ?");
@@ -2367,14 +2390,34 @@ bool OutputGenerator::Generate(string& output)
 				WriteLine("paramOnStack.push_back(stackParam);");
 			EndBlock();
 
-			// Push parameters from right to left
 			WriteLine("size_t pushSize = 0;");
+			WriteLine("bool pushOffsetForm = (m_settings.stackAlignment && !(m_settings.stackAlignment %% (m_settings.preferredBits / 8)));");
+
+			WriteLine("size_t stackParamCount = 0;");
+			WriteLine("for (int i = (int)params.size() - 1; i >= 0; i--)");
+			BeginBlock();
+				WriteLine("if (!paramOnStack[i])");
+				WriteLine("\tcontinue;");
+				WriteLine("stackParamCount++;");
+			EndBlock();
+			WriteLine("size_t stackParamsRemaining = stackParamCount;");
+
+			// Push parameters from right to left
 			WriteLine("for (int i = (int)params.size() - 1; i >= 0; i--)");
 			BeginBlock();
 				WriteLine("if (!paramOnStack[i])");
 				WriteLine("\tcontinue;");
 
-				WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));");
+				WriteLine("if (!pushOffsetForm)");
+				BeginBlock();
+					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i]));");
+				EndBlock();
+				WriteLine("else");
+				BeginBlock();
+					WriteLine("block->AddNode(TreeNode::CreateNode(NODE_PUSH, params[i]->GetType(), params[i],");
+					WriteLine("\tTreeNode::CreateImmediateNode(--stackParamsRemaining, NODETYPE_U64),");
+					WriteLine("\tTreeNode::CreateImmediateNode(stackParamCount, NODETYPE_U64)));");
+				EndBlock();
 
 				WriteLine("if ((params[i]->GetType() == NODETYPE_U64) || (params[i]->GetType() == NODETYPE_S64) ||");
 				WriteLine("\t(m_settings.preferredBits == 64))");
@@ -2382,6 +2425,9 @@ bool OutputGenerator::Generate(string& output)
 				WriteLine("else");
 				WriteLine("\tpushSize += 4;");
 			EndBlock();
+
+			WriteLine("if (pushOffsetForm && ((pushSize & (m_settings.stackAlignment - 1)) != 0))");
+			WriteLine("\tpushSize += m_settings.stackAlignment - (pushSize & (m_settings.stackAlignment - 1));");
 
 			WriteLine("return TreeNode::CreateNode((resultType == NODETYPE_UNDEFINED) ? NODE_SYSCALLVOID : NODE_SYSCALL,");
 			WriteLine("\tresultType, num, input, TreeNode::CreateImmediateNode(pushSize, (m_settings.preferredBits == 64) ?");

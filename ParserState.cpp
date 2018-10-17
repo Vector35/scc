@@ -595,7 +595,7 @@ bool ParserState::HasIntrinsicDivide64()
 
 bool ParserState::HasIntrinsicShift64()
 {
-	return m_settings.architecture == ARCH_X86;
+	return m_settings.preferredBits == 64;
 }
 
 

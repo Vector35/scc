@@ -35,8 +35,8 @@ void Usage()
 	fprintf(stderr, "are automatically available without the need for include files.\n\n");
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    --arch <value>                    Specify processor architecture\n");
-	fprintf(stderr, "                                      Can be: x86 (default), x64, arm, armeb, mips, mipsel,\n");
-	fprintf(stderr, "                                              ppc, ppcel\n");
+	fprintf(stderr, "                                      Can be: x86 (default), x64, arm, armeb, aarch64,\n");
+	fprintf(stderr, "                                              mips, mipsel, ppc, ppcel\n");
 	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
 	fprintf(stderr, "    --anti-disasm                     Generate anti-disassembly blocks\n");

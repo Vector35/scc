@@ -244,6 +244,7 @@ elif os.name != "nt":
 		failed += test_all("Linux x64", ["--platform", "linux", "--arch", "x64"], "x64", True)
 		failed += test_all("Linux MIPS little-endian", ["--platform", "linux", "--arch", "mipsel"], "mipsel", False)
 		failed += test_all("Linux MIPS big-endian", ["--platform", "linux", "--arch", "mips"], "mips", False)
+		failed += test_all("Linux AArch64", ["--platform", "linux", "--arch", "aarch64"], "aarch64", False)
 		failed += test_all("Linux ARM little-endian", ["--platform", "linux", "--arch", "arm"], "arm", False)
 		failed += test_all("Linux ARM big-endian", ["--platform", "linux", "--arch", "armeb"], "armeb", False)
 		failed += test_all("Linux PowerPC", ["--platform", "linux", "--arch", "ppc"], "ppc", False)

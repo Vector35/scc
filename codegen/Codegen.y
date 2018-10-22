@@ -89,7 +89,7 @@ void Codegen_error(ParserState* state, const char* msg)
 %token LOW_TOK HIGH_TOK BASE_TOK OFFSET_TOK TEMP_TOK BLOCK_TOK
 %token MEMORY_TOK BRANCH_TOK READFLAGS_TOK WRITEFLAGS_TOK COPY_TOK STACK_TOK
 %token SIGNED8 UNSIGNED8 SIGNED16 UNSIGNED16 SIGNED32 UNSIGNED32 SIGNED64 UNSIGNED64 SIGNED128 UNSIGNED128 FLOAT32 FLOAT64
-%token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK INSTR_TOK ENCODING_TOK EQUAL_TOK UPDATE_TOK
+%token FUNCTION VAR_TOK DEFAULT_TOK INCLUDE_TOK INSTR_TOK ENCODING_TOK EQUAL_TOK UPDATE_TOK STATIC_TOK
 %token FIXED_TOK CALLERSAVED_TOK CALLEESAVED_TOK SPECIAL_TOK
 %token ASSIGN_TOK LOAD_TOK STORE_TOK REF_TOK ADD_TOK SUB_TOK SMUL_TOK UMUL_TOK SDIV_TOK UDIV_TOK SMOD_TOK UMOD_TOK
 %token AND_TOK OR_TOK XOR_TOK SHL_TOK SHR_TOK SAR_TOK NEG_TOK NOT_TOK IFTRUE_TOK IFSLT_TOK IFULT_TOK
@@ -331,6 +331,7 @@ keyword_token: SIGNED8  { $$ = CodeToken::CreateTextToken(YYLOC, "S8"); }
 			 | DEFAULT_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "default"); }
 			 | INCLUDE_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "include"); }
 			 | INSTR_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "instr"); }
+			 | STATIC_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "static"); }
 			 | ENCODING_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "encoding"); }
 			 | ASSIGN_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "assign"); }
 			 | LOAD_TOK  { $$ = CodeToken::CreateTextToken(YYLOC, "load"); }
@@ -484,6 +485,32 @@ function_stmt: FUNCTION function_type_list LPAREN function_arg_list RPAREN code
 					func->AddTokens($6->GetTokens());
 					func->AddTextToken(YYLOC, "}");
 					state->DefineArchFunction(func);
+					$3->Release();
+					$6->Release();
+				}
+			| STATIC_TOK FUNCTION function_type_list LPAREN function_arg_list RPAREN code
+			 	{
+					CodeBlock* func = $3;
+					func->AddTextToken(YYLOC, "(");
+					func->AddTokens($5->GetTokens());
+					func->AddTextToken(YYLOC, ")");
+					func->AddTextToken(YYLOC, "{");
+					func->AddTokens($7->GetTokens());
+					func->AddTextToken(YYLOC, "}");
+					state->DefineStaticFunction(func);
+					$3->Release();
+					$5->Release();
+					$7->Release();
+				}
+			 | STATIC_TOK FUNCTION function_type_list LPAREN RPAREN code
+			 	{
+					CodeBlock* func = $3;
+					func->AddTextToken(YYLOC, "(");
+					func->AddTextToken(YYLOC, ")");
+					func->AddTextToken(YYLOC, "{");
+					func->AddTokens($6->GetTokens());
+					func->AddTextToken(YYLOC, "}");
+					state->DefineStaticFunction(func);
 					$3->Release();
 					$6->Release();
 				}

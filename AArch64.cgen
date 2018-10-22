@@ -1,5 +1,9 @@
 arch AArch64 64
 
+#ifdef _MSC_VER
+	include "<intrin.h>"
+#endif /* _MSC_VER */
+
 #define COND_EQ 0
 #define COND_NE 1
 #define COND_CS 2
@@ -21,6 +25,7 @@ arch AArch64 64
 #define REG_LR 30
 
 #define REG_SP 31
+
 
 registerclass default IREG(8,16,32,64)
 registerclass INTEGER_RETURN_VALUE(8,16,32,64) fixed { 0 } : IREG
@@ -46,22 +51,46 @@ registerclass SYSCALL_PARAM_6(8,16,32,64) fixed { 6 } : IREG
 registerclass SYSCALL_PARAM_7(8,16,32,64) fixed { 7 } : IREG
 registerclass SYSCALL_NUM(64) fixed { 8 } : IREG
 
+static function uint32_t CountTrailingZeroes(uint64_t value)
+{
+#ifdef _MSC_VER
+	unsigned long index = 0;
+	if (_BitScanForward64(&index, value))
+		return index;
+	else
+		return 0;
+#else
+	return __builtin_ctzll(value);
+#endif
+}
 
-function bool logical_imm_mask_test(uint64_t imm)
+static function uint32_t CountLeadingZeroes(uint64_t value)
+{
+#ifdef _MSC_VER
+	unsigned long index = 0;
+	if (_BitScanReverse64(&index, value))
+		return 63 - index;
+	else
+		return 0;
+#else
+	return __builtin_clzll(value);
+#endif
+}
+
+static function bool LogicalImmMaskTest(uint64_t imm)
 {
 	imm = (imm - 1) | imm;
 	return !((imm + 1) & imm);
 }
 
-// FIXME TODO 64-bit only right now
-immediateclass LOGICALIMM
+static function bool LogicalImmEncode(uint64_t imm, uint32_t regSize,
+		uint32_t* n, uint32_t* immr, uint32_t* imms)
 {
-	uint64_t imm = value;
-	uint64_t regMask = ((uint64_t) -1);
+	uint64_t regMask = ((uint64_t) -1) >> (64 - regSize);
 	if (imm & ~regMask) return false;
 	if ((imm == 0) || (imm == regMask)) return false;
 
-	uint32_t elementSize = 64;
+	uint32_t elementSize = regSize;
 	uint64_t elementMask;
 	while (elementSize > 2)
 	{
@@ -76,12 +105,34 @@ immediateclass LOGICALIMM
 	}
 
 	uint64_t elementValue = imm & elementMask;
-	if (logical_imm_mask_test(elementValue))
-		return true;
-	if (logical_imm_mask_test(~(elementValue | ~elementMask)))
-		return true;
-	return false;
+	uint32_t rot, run;
+	if (LogicalImmMaskTest(elementValue))
+	{
+		rot = CountTrailingZeroes(elementValue);
+		run = CountTrailingZeroes(~(elementValue >> rot));
+	}
+	else
+	{
+		elementValue |= ~elementMask;
+		if (!LogicalImmMaskTest(~elementValue))
+			return false;
+		rot = 64 - CountLeadingZeroes(~elementValue);
+		run = (64 - rot) + CountTrailingZeroes(~elementValue) - (64 - elementSize);
+	}
+
+	if (n && immr && imms)
+	{
+		*immr = (elementSize - rot) & (elementSize - 1);
+		*imms = (~(elementSize - 1) << 1) | (run - 1);
+		*n = ((*imms >> 6) & 1) ^ 1;
+		*imms &= 0x3f;
+	}
+
+	return true;
 }
+
+immediateclass LOGICALIMM32 {	return LogicalImmEncode(value, 32, NULL, NULL, NULL); }
+immediateclass LOGICALIMM64 {	return LogicalImmEncode(value, 64, NULL, NULL, NULL); }
 
 immediateclass IMM16  { return (value >= 0) && (value < 0x10000); }
 immediateclass IMM16NOT  { return (value >= -0x10000) && (value < 0); }
@@ -266,61 +317,6 @@ instr sub_stack  sub rd:REG(w), var:STACKVAR
 }
 
 
-instr function bool logical_imm_mask_test(uint64_t imm)
-{
-	imm = (imm - 1) | imm;
-	return !((imm + 1) & imm);
-}
-
-
-instr function bool logical_imm_encode(uint64_t imm, uint32_t regSize,
-		uint32_t* n, uint32_t* immr, uint32_t* imms)
-{
-	uint64_t regMask = ((uint64_t) -1) >> (64 - regSize);
-	if (imm & ~regMask) return false;
-	if ((imm == 0) || (imm == regMask)) return false;
-
-	uint32_t elementSize = regSize;
-	uint64_t elementMask;
-	while (elementSize > 2)
-	{
-		elementSize /= 2;
-		elementMask = ((uint64_t) -1) >> (64 - elementSize);
-		if (((imm >> elementSize) & elementMask) != (imm & elementMask))
-		{
-			elementSize *= 2;
-			elementMask = ((uint64_t) -1) >> (64 - elementSize);
-			break;
-		}
-	}
-
-	uint64_t elementValue = imm & elementMask;
-	uint32_t rot, run;
-	if (logical_imm_mask_test(elementValue))
-	{
-		rot = __builtin_ctzl(elementValue);
-		run = __builtin_ctzl(~(elementValue >> rot));
-	}
-	else
-	{
-		elementValue |= ~elementMask;
-		if (!logical_imm_mask_test(~elementValue))
-			return false;
-		rot = 64 - __builtin_clzl(~elementValue);
-		run = (64 - rot) + __builtin_ctzl(~elementValue) - (64 - elementSize);
-	}
-
-	if (n && immr && imms)
-	{
-		*immr = (elementSize - rot) & (elementSize - 1);
-		*imms = (~(elementSize - 1) << 1) | (run - 1);
-		*n = ((*imms >> 6) & 1) ^ 1;
-		*imms &= 0x3f;
-	}
-
-	return true;
-}
-
 #define DATA_LOGICAL(name, inverse, opcode, is64) \
 instr name            name rd:REG(w), rn:REG(r), rm:REG(r)  { @DATA_REG_LOGICAL_SHIFTED sf=is64, opc=opcode, n=0, shift=0; } \
 instr name##_lsl_imm  name rd:REG(w), rn:REG(r), rm:REG(r) lsl imm6:IMM  { @DATA_REG_LOGICAL_SHIFTED sf=is64, opc=opcode, n=0, shift=0; } \
@@ -332,7 +328,7 @@ instr inverse##_lsr_imm  inverse rd:REG(w), rn:REG(r), rm:REG(r) lsr imm6:IMM  {
 instr inverse##_asr_imm  inverse rd:REG(w), rn:REG(r), rm:REG(r) asr imm6:IMM  { @DATA_REG_LOGICAL_SHIFTED sf=is64, opc=opcode, n=1, shift=2; } \
 instr name##_imm      name rd:REG(w), rn:REG(r), i:IMM  { \
 	uint32_t n, immr, imms; \
-	if (!logical_imm_encode(i, (is64) ? 64 : 32, &n, &immr, &imms)) \
+	if (!LogicalImmEncode(i, (is64) ? 64 : 32, &n, &immr, &imms)) \
 		return false; \
 	@DATA_IMM_LOGICAL sf=is64, opc=opcode, n=n, immr=immr, imms=imms; \
 }
@@ -735,12 +731,12 @@ MOD_INSTR(smod, @sdiv)
 
 #define BITWISE_OP(op, instr) \
 op a:IREG(8,16,32) b:IREG(8,16,32) => dest:IREG { instr##w %dest, %a, %b; } \
-op a:IREG(8,16,32) b:LOGICALIMM => dest:IREG { instr##w_imm %dest, %a, %b; } \
+op a:IREG(8,16,32) b:LOGICALIMM32 => dest:IREG { instr##w_imm %dest, %a, %b; } \
 op a:IREG(8,16,32) shl b:IREG(8,16,32) c:IMM => dest:IREG { instr##w_lsl_imm %dest, %a, %b, %c; } \
 op a:IREG(8,16,32) shr b:IREG(8,16,32) c:IMM => dest:IREG { instr##w_lsr_imm %dest, %a, %b, %c; } \
 op a:IREG(8,16,32) sar b:IREG(8,16,32) c:IMM => dest:IREG { instr##w_asr_imm %dest, %a, %b, %c; } \
 op a:IREG(64) b:IREG => dest:IREG(64) { instr %dest, %a, %b; } \
-op a:IREG(64) b:LOGICALIMM => dest:IREG { instr##_imm %dest, %a, %b; } \
+op a:IREG(64) b:LOGICALIMM64 => dest:IREG { instr##_imm %dest, %a, %b; } \
 op a:IREG(64)shl b:IREG(64) c:IMM => dest:IREG { instr##_lsl_imm %dest, %a, %b, %c; } \
 op a:IREG(64)shr b:IREG(64) c:IMM => dest:IREG { instr##_lsr_imm %dest, %a, %b, %c; } \
 op a:IREG(64)sar b:IREG(64) c:IMM => dest:IREG { instr##_asr_imm %dest, %a, %b, %c; }

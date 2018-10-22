@@ -1575,7 +1575,7 @@ bool OutputGenerator::Generate(string& output)
 	WriteLine("#include <queue>");
 
 	for (vector<string>::const_iterator i = m_parser->GetIncludes().begin(); i != m_parser->GetIncludes().end(); ++i)
-		WriteLine("#include \"%s\"", i->c_str());
+		WriteLine("#include %s", i->c_str());
 
 	WriteLine("#define TEMP_REGISTER(cls) m_symFunc->AddRegister(cls)");
 	WriteLine("#define UNSAFE_STACK_PIVOT 0x1000");
@@ -1603,6 +1603,13 @@ bool OutputGenerator::Generate(string& output)
 	// Write out prototypes for instruction generator functions
 	for (size_t i = 0; i < m_parser->GetInstructions().size(); i++)
 		GenerateInstructionFunction(i, m_parser->GetInstructions()[i], true);
+
+	// Write out any supporting static functions that need to be available in multiple contexts
+	for (vector< Ref<CodeBlock> >::const_iterator i = m_parser->GetStaticFunctions().begin(); i != m_parser->GetStaticFunctions().end(); ++i)
+	{
+		WriteLine("static");
+		WriteCodeBlock(*i);
+	}
 
 	// Write out base class for instructions
 	WriteLine("class %s_SymInstr: public SymInstr", m_parser->GetArchName().c_str());

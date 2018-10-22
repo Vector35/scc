@@ -511,6 +511,11 @@ bool PreprocessState::PreprocessSource(const string& source, const string& fileN
 	else
 		parser = new PreprocessState(fileName.c_str(), scanner);
 
+#ifdef _MSC_VER
+	// yes, this is probably evil, but I need bit intrinsics in AArch64.cgen, so here we are
+	parser->Define("_MSC_VER", std::vector<std::string>(), std::vector< Ref<Token> >(), false);
+#endif
+
 	YY_BUFFER_STATE buf = Preprocess__scan_string(source.c_str(), scanner);
 	Preprocess__switch_to_buffer(buf, scanner);
 	Preprocess_set_lineno(1, scanner);

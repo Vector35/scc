@@ -52,6 +52,7 @@ class ParserState
 	std::vector< Ref<CodeBlock> > m_funcs;
 	std::vector< Ref<CodeBlock> > m_instrFuncs;
 	std::vector< Ref<CodeBlock> > m_archFuncs;
+	std::vector< Ref<CodeBlock> > m_staticFuncs;
 	std::vector< Ref<CodeBlock> > m_vars;
 	std::vector< Ref<Match> > m_matches;
 	std::vector< Ref<Match> > m_tempRegMatches;
@@ -96,6 +97,7 @@ public:
 	void DefineFunction(CodeBlock* func);
 	void DefineInstrFunction(CodeBlock* func);
 	void DefineArchFunction(CodeBlock* func);
+	void DefineStaticFunction(CodeBlock* func);
 	void DefineVariable(CodeBlock* var);
 
 	void DefineMatch(const std::string& file, int line, TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code);
@@ -124,6 +126,7 @@ public:
 	const std::vector< Ref<CodeBlock> >& GetFunctions() const { return m_funcs; }
 	const std::vector< Ref<CodeBlock> >& GetInstrFunctions() const { return m_instrFuncs; }
 	const std::vector< Ref<CodeBlock> >& GetArchFunctions() const { return m_archFuncs; }
+	const std::vector< Ref<CodeBlock> >& GetStaticFunctions() const { return m_staticFuncs; }
 	const std::vector< Ref<CodeBlock> >& GetVariables() const { return m_vars; }
 	const std::vector< Ref<Match> >& GetMatches() const { return m_matches; }
 	const std::vector< Ref<Instruction> >& GetInstructions() const { return m_instrs; }

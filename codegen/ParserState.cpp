@@ -175,6 +175,12 @@ void ParserState::DefineArchFunction(CodeBlock* func)
 }
 
 
+void ParserState::DefineStaticFunction(CodeBlock* func)
+{
+	m_staticFuncs.push_back(func);
+}
+
+
 void ParserState::DefineVariable(CodeBlock* var)
 {
 	m_vars.push_back(var);

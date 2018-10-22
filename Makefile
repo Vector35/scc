@@ -132,6 +132,10 @@ define COMPILE
 	@rm -f Obj/$5.d.tmp
 endef
 
+define COMPILE_ONLY
+	$1 -c $2 $3 $4 $(call OUTPUT_OBJ,$@)
+endef
+
 # Runtime files
 COMMON_RUNTIME_C := $(wildcard runtime/*.c)
 COMMON_RUNTIME_H := $(wildcard runtime/*.h)
@@ -366,7 +370,7 @@ $(CODEGEN_PARSE_OBJS): Obj/%Parser.o: %.y Makefile | Obj/codegen/
 
 $(SCC_CODEGEN_OBJS): Obj/%CodeGen.o: %.cgen $(CODEGEN) Makefile | Obj/
 	$(CODEGEN) -o Obj/$*CodeGen.cpp $<
-	$(call COMPILE,$(CXX),$(CPPFLAGS),-I. -IObj -Iasmx86,Obj/$*CodeGen.cpp,$*CodeGen)
+	$(call COMPILE_ONLY,$(CXX),$(CPPFLAGS),-I. -IObj -Iasmx86,Obj/$*CodeGen.cpp,$*CodeGen)
 
 Obj/Bootstrap.cpp: Bootstrap.inc Makefile | Obj/
 	cp Bootstrap.inc Obj/Bootstrap.cpp

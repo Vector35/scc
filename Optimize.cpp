@@ -298,6 +298,8 @@ bool Optimize::ConsolidateBasicBlocks(Function* func)
 				continue;
 			if ((*i)->GetInstructions()[0].params[0].cls != ILPARAM_BLOCK)
 				continue;
+			if ((*i)->GetInstructions()[0].params[0].block == *i) // don't remove infinite loops
+				continue;
 
 			// This block has one instruction, which is a goto to another block, replace all references to this
 			// block with the target block

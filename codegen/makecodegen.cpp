@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
 
 	string preprocessed;
 	if (!PreprocessState::PreprocessSource(source, inFile, preprocessed, NULL))
-		return false;
+		return 1;
 
 	string out;
 	yyscan_t scanner;

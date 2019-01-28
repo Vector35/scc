@@ -5363,9 +5363,13 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 #ifdef OUTPUT64
 			if ((func->GetName() == "_start") && (m_settings.os == OS_WINDOWS) && (m_settings.format != FORMAT_PE))
 			{
-				// Windows 64-bit requires a 16 byte aligned stack, force alignment at the start of the program
+				// Windows 64-bit requires a 16 byte aligned stack, force alignment at the start of the program,
+				// but try to have no effect if we were called by something complying with the ABI -- we want
+				// `rsp % 16 == 8` on entry, and want to be equivalent to a nop if that holds. otherwise, we need
+				// to carve out some space and hope really hard that they don't expect to access arguments or return.
+				EMIT_RI(add_64, SYMREG_SP,   8);
 				EMIT_RI(and_64, SYMREG_SP, ~15);
-				EMIT_RI(sub_64, SYMREG_SP, 8);
+				EMIT_RI(sub_64, SYMREG_SP,   8);
 			}
 #endif
 

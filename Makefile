@@ -3,7 +3,7 @@ HOST := $(shell uname)
 CC := gcc
 CXX := g++
 LINK := g++
-PYTHON := python
+PYTHON := python2
 ifeq ($(CONFIG),release)
 	COMMON_CPPFLAGS := -O3 -fno-strict-aliasing -march=nocona -DRELEASE
 else
@@ -31,7 +31,7 @@ ifeq ($(HOST),Linux)
 	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
-	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
 else
 ifeq ($(HOST),FreeBSD)
 	TARGET := scc

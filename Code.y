@@ -109,7 +109,7 @@ void Code_error(ParserState* state, const char* msg)
 %token STATIC_TOK EXTERN_TOK
 %token UNDEFINED
 
-%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK IMPORT_TOK
+%token CDECL_TOK STDCALL_TOK FASTCALL_TOK SYSV_TOK SUBARCH_TOK NORETURN_TOK PACKED_TOK IMPORT_TOK
 %token SYSCALL_TOK SYSCALL2_TOK
 %token RDTSC_TOK RDTSC_LOW RDTSC_HIGH
 %token PEB_TOK TEB_TOK
@@ -810,6 +810,21 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			free($3);
 			delete $5;
 		}
+	|	var_type SYSV_TOK ID LPAREN param_list RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->returnValue = $1;
+			$$->callingConvention = CALLING_CONVENTION_SYSV;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
+			$$->imported = false;
+			$$->name = $3;
+			$$->params = *$5;
+			$$->location = state->GetLocation();
+			$1->Release();
+			free($3);
+			delete $5;
+		}
 	|	VOID_TOK ID LPAREN param_list RPAREN
 		{
 			$$ = new FunctionInfo;
@@ -857,6 +872,20 @@ func_type:	var_type ID LPAREN param_list RPAREN
 			$$ = new FunctionInfo;
 			$$->returnValue = Type::VoidType();
 			$$->callingConvention = CALLING_CONVENTION_FASTCALL;
+			$$->subarch = SUBARCH_DEFAULT;
+			$$->noReturn = false;
+			$$->imported = false;
+			$$->name = $3;
+			$$->params = *$5;
+			$$->location = state->GetLocation();
+			free($3);
+			delete $5;
+		}
+	|	VOID_TOK SYSV_TOK ID LPAREN param_list RPAREN
+		{
+			$$ = new FunctionInfo;
+			$$->returnValue = Type::VoidType();
+			$$->callingConvention = CALLING_CONVENTION_SYSV;
 			$$->subarch = SUBARCH_DEFAULT;
 			$$->noReturn = false;
 			$$->imported = false;
@@ -1024,6 +1053,7 @@ sign_type:	SIGNED_TOK  { $$ = true; }
 calling_convention:	CDECL_TOK  { $$ = CALLING_CONVENTION_CDECL; }
 		|	STDCALL_TOK  { $$ = CALLING_CONVENTION_STDCALL; }
 		|	FASTCALL_TOK  { $$ = CALLING_CONVENTION_FASTCALL; }
+		|   SYSV_TOK { $$ = CALLING_CONVENTION_SYSV; }
 		|	{ $$ = CALLING_CONVENTION_DEFAULT; }
 		;
 

@@ -3,7 +3,7 @@ HOST := $(shell uname)
 CC := gcc
 CXX := g++
 LINK := g++
-PYTHON := python
+PYTHON := python3
 ifeq ($(CONFIG),release)
 	COMMON_CPPFLAGS := -O3 -fno-strict-aliasing -march=nocona -DRELEASE
 else
@@ -31,21 +31,21 @@ ifeq ($(HOST),Linux)
 	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
-	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";" > Obj/Version.cpp
 else
 ifeq ($(HOST),FreeBSD)
 	TARGET := scc
 	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
-	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	MAKE_VERSION = echo -e "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";" > Obj/Version.cpp
 else
 ifeq ($(HOST),Darwin)
 	TARGET := scc
 	CODEGEN := Obj/makecodegen
 	BOOTSTRAP := Obj/scc-bootstrap
 	MAKEOPSTR := Obj/makeopstr
-	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";\n" > Obj/Version.cpp
+	MAKE_VERSION = echo "const char* g_versionString = \"$(MAJOR).$(MINOR).$(BUILD)\";" > Obj/Version.cpp
 else
 	CC := cl
 	CXX := cl
@@ -91,9 +91,9 @@ RUNTIME_OBJS := $(patsubst %.lib,Obj/Obj/%.o,$(RUNTIME_LIBS))
 
 ifeq ($(CONFIG),release)
 REV := $(shell git describe --tags HEAD)
-MAJOR := $(shell $(PYTHON) -c "print '$(REV)'[1:].replace('-','.').split('.')[0]")
-MINOR := $(shell $(PYTHON) -c "print '$(REV)'[1:].replace('-','.').split('.')[1]")
-BUILD := $(shell $(PYTHON) -c "print '$(REV)'[1:].replace('-','.').split('.')[2]")
+MAJOR := $(shell $(PYTHON) -c "print('$(REV)'[1:].replace('-','.').split('.')[0])")
+MINOR := $(shell $(PYTHON) -c "print('$(REV)'[1:].replace('-','.').split('.')[1])")
+BUILD := $(shell $(PYTHON) -c "print('$(REV)'[1:].replace('-','.').split('.')[2])")
 VERSION_OBJ := Obj/Obj/Version.o
 else
 VERSION_OBJ :=

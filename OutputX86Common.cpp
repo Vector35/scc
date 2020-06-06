@@ -4618,6 +4618,7 @@ bool OUTPUT_CLASS_NAME::GeneratePeb(SymInstrBlock* out, const ILInstruction& ins
 #ifdef OUTPUT32
 	src.width = 4;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	src.highReg = NONE;
 	EMIT_RM(mov_fs_32, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x30));
 	if (!Move(out, dest, src))
 		return false;
@@ -4627,6 +4628,7 @@ bool OUTPUT_CLASS_NAME::GeneratePeb(SymInstrBlock* out, const ILInstruction& ins
 	EMIT_R(pop, ofs);
 	src.width = 8;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	src.highReg = NONE;
 	EMIT_RM(mov_gs_64, src.reg, X86_SYM_MEM_INDEX(ofs, SYMREG_NONE, 1, SYMREG_NONE, 0));
 	if (!Move(out, dest, src))
 		return false;
@@ -4647,6 +4649,7 @@ bool OUTPUT_CLASS_NAME::GenerateTeb(SymInstrBlock* out, const ILInstruction& ins
 #ifdef OUTPUT32
 	src.width = 4;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	src.highReg = NONE;
 	EMIT_RM(mov_fs_32, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x18));
 	if (!Move(out, dest, src))
 		return false;
@@ -4656,6 +4659,7 @@ bool OUTPUT_CLASS_NAME::GenerateTeb(SymInstrBlock* out, const ILInstruction& ins
 	EMIT_R(pop, ofs);
 	src.width = 8;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	src.highReg = NONE;
 	EMIT_RM(mov_gs_64, src.reg, X86_SYM_MEM_INDEX(ofs, SYMREG_NONE, 1, SYMREG_NONE, 0));
 	if (!Move(out, dest, src))
 		return false;
@@ -4678,6 +4682,7 @@ bool OUTPUT_CLASS_NAME::GenerateInitialVararg(SymInstrBlock* out, const ILInstru
 	src.width = 8;
 #endif
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	src.highReg = NONE;
 
 	EMIT_RM(lea, src.reg, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, m_varargStart, 0));
 	return Move(out, dest, src);

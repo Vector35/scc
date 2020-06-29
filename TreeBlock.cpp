@@ -588,15 +588,31 @@ bool TreeBlock::GenerateFromILBlock(ILBlock* il, vector< Ref<TreeBlock> >& block
 			break;
 
 		case ILOP_PTR_ADD:
-			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
-				OperandToNode(vars, instr.params[1]), ConstantMultiplyNode(
-				OperandToNode(vars, instr.params[2]), instr.params[3].integerValue)));
+			if (instr.params[3].integerValue <= 1)
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
+					OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_ADD, OperandToNodeType(instr.params[0]),
+					OperandToNode(vars, instr.params[1]), ConstantMultiplyNode(
+					OperandToNode(vars, instr.params[2]), instr.params[3].integerValue)));
+			}
 			break;
 
 		case ILOP_PTR_SUB:
-			StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB, OperandToNodeType(instr.params[0]),
-				OperandToNode(vars, instr.params[1]), ConstantMultiplyNode(
-				OperandToNode(vars, instr.params[2]), instr.params[3].integerValue)));
+			if (instr.params[3].integerValue <= 1)
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB, OperandToNodeType(instr.params[0]),
+					OperandToNode(vars, instr.params[1]), OperandToNode(vars, instr.params[2])));
+			}
+			else
+			{
+				StoreToOperand(vars, instr.params[0], TreeNode::CreateNode(NODE_SUB, OperandToNodeType(instr.params[0]),
+					OperandToNode(vars, instr.params[1]), ConstantMultiplyNode(
+					OperandToNode(vars, instr.params[2]), instr.params[3].integerValue)));
+			}
 			break;
 
 		case ILOP_PTR_DIFF:

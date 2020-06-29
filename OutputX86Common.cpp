@@ -1471,7 +1471,7 @@ bool OUTPUT_CLASS_NAME::GenerateArrayIndexAssign(SymInstrBlock* out, const ILIns
 bool OUTPUT_CLASS_NAME::GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& instr)
 {
 	size_t width = (size_t)instr.params[3].integerValue;
-	if (width == 1)
+	if (width <= 1)
 		return GenerateAdd(out, instr);
 
 	OperandReference dest, a, b;
@@ -1561,7 +1561,7 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& 
 bool OUTPUT_CLASS_NAME::GeneratePtrSub(SymInstrBlock* out, const ILInstruction& instr)
 {
 	size_t width = (size_t)instr.params[3].integerValue;
-	if (width == 1)
+	if (width <= 1)
 		return GenerateSub(out, instr);
 
 	OperandReference dest, a, b;

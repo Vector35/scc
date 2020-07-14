@@ -4,7 +4,7 @@ import sys
 data = open(sys.argv[1], 'rb').read()
 fout = open(sys.argv[2], 'w')
 
-name = sys.argv[1].replace("/", "_").replace("\\", "_").replace(".", "_")
+name = sys.argv[3].replace("/", "_").replace("\\", "_").replace(".", "_")
 
 fout.write("unsigned char %s[] = {" % name)
 

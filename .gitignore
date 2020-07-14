@@ -4,3 +4,7 @@ Obj
 *.pyc
 .gdb_history
 .DS_Store
+Makefile
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake

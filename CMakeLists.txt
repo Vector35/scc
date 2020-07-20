@@ -68,6 +68,21 @@ endif()
 
 file(WRITE ${INTERMEDIATE}/Version.cpp "const char* g_versionString = \"${MAJOR}.${MINOR}.${BUILD}\";")
 
+add_executable(makeopstr ${PROJECT_SOURCE_DIR}/asmx86/makeopstr.cpp)
+
+set_target_properties(makeopstr PROPERTIES
+    CXX_STANDARD 11
+	CXX_STANDARD_REQUIRED ON
+	CXX_VISIBILITY_PRESET hidden
+	VISIBILITY_INLINES_HIDDEN ON
+	BUILD_WITH_INSTALL_RPATH OFF
+	RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+
+add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/asmx86/asmx86str.h
+	DEPENDS ${PROJECT_SOURCE_DIR}/asmx86/asmx86.h $<TARGET_FILE:makeopstr>
+	COMMAND $<TARGET_FILE:makeopstr> ${PROJECT_SOURCE_DIR}/asmx86/asmx86.h ${PROJECT_SOURCE_DIR}/asmx86/asmx86str.h
+)
+
 add_library(scc_common ${COMPILER_SOURCES}
 	${INTERMEDIATE}/PreprocessLexer.cpp
 	${INTERMEDIATE}/PreprocessLexer.h
@@ -82,7 +97,8 @@ add_library(scc_common ${COMPILER_SOURCES}
 	${INTERMEDIATE}/ArmCodeGen.cpp
 	${INTERMEDIATE}/QuarkCodeGen.cpp
 	${INTERMEDIATE}/MipsCodeGen.cpp
-	${INTERMEDIATE}/Version.cpp)
+	${INTERMEDIATE}/Version.cpp
+	${PROJECT_SOURCE_DIR}/asmx86/asmx86str.h)
 
 add_custom_command(OUTPUT ${INTERMEDIATE}/PreprocessLexer.cpp ${INTERMEDIATE}/PreprocessLexer.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/Preprocess.lex ${INTERMEDIATE}/PreprocessParser.h

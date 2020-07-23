@@ -66,7 +66,8 @@ else()
 		OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
-file(WRITE ${INTERMEDIATE}/Version.cpp "const char* g_versionString = \"${MAJOR}.${MINOR}.${BUILD}\";")
+add_custom_command(OUTPUT ${INTERMEDIATE}/Version.cpp
+	COMMAND ${CMAKE_COMMAND} -E echo \"const char* g_versionString = \\\"${MAJOR}.${MINOR}.${BUILD}\\\"\;\" > ${INTERMEDIATE}/Version.cpp)
 
 add_executable(makeopstr ${PROJECT_SOURCE_DIR}/asmx86/makeopstr.cpp)
 

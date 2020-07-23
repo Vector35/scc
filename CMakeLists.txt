@@ -268,6 +268,11 @@ set_target_properties(scc PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 if(BN_INTERNAL_BUILD)
-	add_custom_command(TARGET scc POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:scc> ${BN_CORE_PLUGIN_DIR}/scc)
+	if(WIN32)
+		add_custom_command(TARGET scc POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:scc> ${BN_CORE_PLUGIN_DIR}/scc.exe)
+	else()
+		add_custom_command(TARGET scc POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:scc> ${BN_CORE_PLUGIN_DIR}/scc)
+	endif()
 endif()

@@ -16,6 +16,13 @@ file(GLOB COMPILER_SOURCES
 	${PROJECT_SOURCE_DIR}/asmx86/asmx86.c
 	${PROJECT_SOURCE_DIR}/asmx86/asmx86.h)
 
+if(UNIX)
+	set_source_files_properties(
+		${INTERMEDIATE}/codegen/PreprocessLexer.cpp
+		${INTERMEDIATE}/codegen/CodegenLexer.cpp
+		PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-deprecated-register")
+endif()
+
 add_executable(codegen ${CODEGEN_SOURCES}
 	${INTERMEDIATE}/codegen/PreprocessLexer.cpp
 	${INTERMEDIATE}/codegen/PreprocessLexer.h
@@ -26,18 +33,27 @@ add_executable(codegen ${CODEGEN_SOURCES}
 	${INTERMEDIATE}/codegen/CodegenParser.cpp
 	${INTERMEDIATE}/codegen/CodegenParser.h)
 
+if(UNIX AND NOT APPLE)
+	# Mac has an old version of Bison that requires now deprecated constructs. If these
+	# ever actually get removed we will have to rethink how we use Bison. We only use
+	# latest Bison on Linux.
+	set(BISON_FLAGS -Wno-deprecated -Wno-other)
+else()
+	set(BISON_FLAGS "")
+endif()
+
 add_custom_command(OUTPUT ${INTERMEDIATE}/codegen/PreprocessLexer.cpp ${INTERMEDIATE}/codegen/PreprocessLexer.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/codegen/Preprocess.lex ${INTERMEDIATE}/codegen/PreprocessParser.h
 	COMMAND flex -R --prefix=Preprocess_ -o ${INTERMEDIATE}/codegen/PreprocessLexer.cpp --header=${INTERMEDIATE}/codegen/PreprocessLexer.h ${PROJECT_SOURCE_DIR}/codegen/Preprocess.lex)
 add_custom_command(OUTPUT ${INTERMEDIATE}/codegen/PreprocessParser.cpp ${INTERMEDIATE}/codegen/PreprocessParser.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/codegen/Preprocess.y
-	COMMAND bison --name-prefix=Preprocess_ -o ${INTERMEDIATE}/codegen/PreprocessParser.cpp --defines=${INTERMEDIATE}/codegen/PreprocessParser.h ${PROJECT_SOURCE_DIR}/codegen/Preprocess.y)
+	COMMAND bison ${BISON_FLAGS} --name-prefix=Preprocess_ -o ${INTERMEDIATE}/codegen/PreprocessParser.cpp --defines=${INTERMEDIATE}/codegen/PreprocessParser.h ${PROJECT_SOURCE_DIR}/codegen/Preprocess.y)
 add_custom_command(OUTPUT ${INTERMEDIATE}/codegen/CodegenLexer.cpp ${INTERMEDIATE}/codegen/CodegenLexer.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/codegen/Codegen.lex ${INTERMEDIATE}/codegen/CodegenParser.h
 	COMMAND flex -R --prefix=Codegen_ -o ${INTERMEDIATE}/codegen/CodegenLexer.cpp --header=${INTERMEDIATE}/codegen/CodegenLexer.h ${PROJECT_SOURCE_DIR}/codegen/Codegen.lex)
 add_custom_command(OUTPUT ${INTERMEDIATE}/codegen/CodegenParser.cpp ${INTERMEDIATE}/codegen/CodegenParser.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/codegen/Codegen.y
-	COMMAND bison --name-prefix=Codegen_ -o ${INTERMEDIATE}/codegen/CodegenParser.cpp --defines=${INTERMEDIATE}/codegen/CodegenParser.h ${PROJECT_SOURCE_DIR}/codegen/Codegen.y)
+	COMMAND bison ${BISON_FLAGS} --name-prefix=Codegen_ -o ${INTERMEDIATE}/codegen/CodegenParser.cpp --defines=${INTERMEDIATE}/codegen/CodegenParser.h ${PROJECT_SOURCE_DIR}/codegen/Codegen.y)
 
 target_include_directories(codegen PRIVATE ${INTERMEDIATE}/codegen ${PROJECT_SOURCE_DIR}/codegen)
 
@@ -84,6 +100,13 @@ add_custom_command(OUTPUT ${PROJECT_SOURCE_DIR}/asmx86/asmx86str.h
 	COMMAND $<TARGET_FILE:makeopstr> ${PROJECT_SOURCE_DIR}/asmx86/asmx86.h ${PROJECT_SOURCE_DIR}/asmx86/asmx86str.h
 )
 
+if(UNIX)
+	set_source_files_properties(
+		${INTERMEDIATE}/PreprocessLexer.cpp
+		${INTERMEDIATE}/CodeLexer.cpp
+		PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-deprecated-register")
+endif()
+
 add_library(scc_common ${COMPILER_SOURCES}
 	${INTERMEDIATE}/PreprocessLexer.cpp
 	${INTERMEDIATE}/PreprocessLexer.h
@@ -106,13 +129,13 @@ add_custom_command(OUTPUT ${INTERMEDIATE}/PreprocessLexer.cpp ${INTERMEDIATE}/Pr
 	COMMAND flex -R --prefix=Preprocess_ -o ${INTERMEDIATE}/PreprocessLexer.cpp --header=${INTERMEDIATE}/PreprocessLexer.h ${PROJECT_SOURCE_DIR}/Preprocess.lex)
 add_custom_command(OUTPUT ${INTERMEDIATE}/PreprocessParser.cpp ${INTERMEDIATE}/PreprocessParser.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/Preprocess.y
-	COMMAND bison --name-prefix=Preprocess_ -o ${INTERMEDIATE}/PreprocessParser.cpp --defines=${INTERMEDIATE}/PreprocessParser.h ${PROJECT_SOURCE_DIR}/Preprocess.y)
+	COMMAND bison ${BISON_FLAGS} --name-prefix=Preprocess_ -o ${INTERMEDIATE}/PreprocessParser.cpp --defines=${INTERMEDIATE}/PreprocessParser.h ${PROJECT_SOURCE_DIR}/Preprocess.y)
 add_custom_command(OUTPUT ${INTERMEDIATE}/CodeLexer.cpp ${INTERMEDIATE}/CodeLexer.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/Code.lex ${INTERMEDIATE}/CodeParser.h
 	COMMAND flex -R --prefix=Code_ -o ${INTERMEDIATE}/CodeLexer.cpp --header=${INTERMEDIATE}/CodeLexer.h ${PROJECT_SOURCE_DIR}/Code.lex)
 add_custom_command(OUTPUT ${INTERMEDIATE}/CodeParser.cpp ${INTERMEDIATE}/CodeParser.h
 	DEPENDS ${PROJECT_SOURCE_DIR}/Code.y
-	COMMAND bison --name-prefix=Code_ -o ${INTERMEDIATE}/CodeParser.cpp --defines=${INTERMEDIATE}/CodeParser.h ${PROJECT_SOURCE_DIR}/Code.y)
+	COMMAND bison ${BISON_FLAGS} --name-prefix=Code_ -o ${INTERMEDIATE}/CodeParser.cpp --defines=${INTERMEDIATE}/CodeParser.h ${PROJECT_SOURCE_DIR}/Code.y)
 
 add_custom_command(OUTPUT ${INTERMEDIATE}/PpcCodeGen.cpp
 	DEPENDS codegen ${PROJECT_SOURCE_DIR}/Ppc.cgen

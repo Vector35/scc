@@ -53,10 +53,10 @@ struct SymInstrOperand
 {
 	SymInstrOperandType type;
 	SymInstrOperandAccess access;
-	uint32_t reg;
-	int64_t immed;
-	Function* func;
-	ILBlock* block;
+	uint32_t reg = 0;
+	int64_t immed = 0;
+	Function* func = nullptr;
+	ILBlock* block = nullptr;
 	size_t dataFlowBit;
 	std::vector<size_t> useDefChain;
 

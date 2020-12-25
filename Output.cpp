@@ -14,6 +14,9 @@ void* OutputBlock::PrepareWrite(size_t desiredLen)
 	{
 		maxLen = ((len + desiredLen) * 3) / 2;
 		void* newBuf = malloc(maxLen);
+		if (!newBuf)
+			return nullptr;
+
 		memcpy(newBuf, code, len);
 		free(code);
 		code = newBuf;

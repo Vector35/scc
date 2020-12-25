@@ -119,6 +119,9 @@ bool Variable::DeserializeInternal(InputBlock* input)
 	if (!input->ReadNativeInteger(len))
 		return false;
 	void* data = malloc(len);
+	if (!data)
+		return false;
+
 	if (!input->Read(data, len))
 	{
 		free(data);

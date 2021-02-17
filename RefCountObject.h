@@ -1,37 +1,26 @@
 #ifndef __REFCOUNTOBJECT_H__
 #define __REFCOUNTOBJECT_H__
 
-#ifdef WIN32
-#include <windows.h>
-#endif
+#include <atomic>
 #include <stddef.h>
 
 
 class RefCountObject
 {
 public:
-	int m_refs;
+	std::atomic<int> m_refs;
 	RefCountObject(): m_refs(0) {}
 	virtual ~RefCountObject() {}
 
 	void AddRef()
 	{
-#ifdef WIN32
-		InterlockedIncrement((LONG*)&m_refs);
-#else
-		__sync_fetch_and_add(&m_refs, 1);
-#endif
+		m_refs.fetch_add(1);
 	}
 
 	void Release()
 	{
-#ifdef WIN32
-		if (InterlockedDecrement((LONG*)&m_refs) == 0)
+		if (m_refs.fetch_sub(1) == 1)
 			delete this;
-#else
-		if (__sync_fetch_and_add(&m_refs, -1) == 1)
-			delete this;
-#endif
 	}
 };
 

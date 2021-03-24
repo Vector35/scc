@@ -1,6 +1,9 @@
 #ifndef __REFCOUNTOBJECT_H__
 #define __REFCOUNTOBJECT_H__
 
+#ifdef WIN32
+#include <windows.h>
+#endif
 #include <atomic>
 #include <stddef.h>
 

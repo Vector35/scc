@@ -2869,6 +2869,18 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		maxRegVar = 4;
 #endif
 	}
+#ifdef OUTPUT64
+	else if (conv == CALLING_CONVENTION_SYSV)
+	{
+		// SYSV register ordering is different--not just a subset like other conventions
+		intParamRegs[0] = X86REGCLASS_EDI;
+		intParamRegs[1] = X86REGCLASS_ESI;
+		intParamRegs[2] = X86REGCLASS_EDX;
+		intParamRegs[3] = X86REGCLASS_ECX;
+		intParamRegs[4] = X86REGCLASS_R8;
+		intParamRegs[5] = X86REGCLASS_R9;
+	}
+#endif
 
 	if (maxRegVar > (size_t)instr.params[3].integerValue)
 		maxRegVar = (size_t)instr.params[3].integerValue;

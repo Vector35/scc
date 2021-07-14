@@ -3131,6 +3131,10 @@ bool X86_SYMINSTR_NAME(Function)::IsRegisterClassFixed(uint32_t cls)
 	case X86REGCLASS_ESI:
 	case X86REGCLASS_EDI:
 	case X86REGCLASS_ESP:
+#ifdef OUTPUT64
+	case X86REGCLASS_R8:
+	case X86REGCLASS_R9:
+#endif
 	case X86REGCLASS_SYSCALL_PARAM_0:
 	case X86REGCLASS_SYSCALL_PARAM_1:
 	case X86REGCLASS_SYSCALL_PARAM_2:
@@ -3207,6 +3211,12 @@ uint32_t X86_SYMINSTR_NAME(Function)::GetFixedRegisterForClass(uint32_t cls)
 		return SYMREG_NATIVE_REG(REG_EDI);
 	case X86REGCLASS_ESP:
 		return SYMREG_NATIVE_REG(REG_ESP);
+#ifdef OUTPUT64
+	case X86REGCLASS_R8:
+		return SYMREG_NATIVE_REG(REG_R8D);
+	case X86REGCLASS_R9:
+		return SYMREG_NATIVE_REG(REG_R9D);
+#endif
 	case X86REGCLASS_SYSCALL_PARAM_0:
 		return SYMREG_NATIVE_REG(REG_EAX);
 	case X86REGCLASS_SYSCALL_PARAM_1:
@@ -3498,6 +3508,14 @@ void X86_SYMINSTR_NAME(Function)::PrintRegisterClass(uint32_t cls)
 	case X86REGCLASS_ESP:
 		fprintf(stderr, "esp");
 		break;
+#ifdef OUTPUT64
+	case X86REGCLASS_R8:
+		fprintf(stderr, "r8");
+		break;
+	case X86REGCLASS_R9:
+		fprintf(stderr, "r9");
+		break;
+#endif
 	case X86REGCLASS_SYSCALL_PARAM_0:
 	case X86REGCLASS_SYSCALL_PARAM_1:
 	case X86REGCLASS_SYSCALL_PARAM_2:

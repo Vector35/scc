@@ -3352,7 +3352,7 @@ void X86_SYMINSTR_NAME(Function)::LayoutStackFrame()
 		adjust = 0;
 
 #ifdef OUTPUT64
-	if (m_settings.os == OS_WINDOWS)
+	if (m_settings.os == OS_WINDOWS && !m_settings.allowReturn)
 	{
 		// 64-bit Windows requires 16 byte stack alignment at all times
 		int64_t totalSize = m_stackFrameSize + adjust + 8;

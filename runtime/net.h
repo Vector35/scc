@@ -19,14 +19,13 @@
 // IN THE SOFTWARE.
 
 #ifndef __LIBC__NET_H__
-#define __LBIC__NET_H__
+	#define __LBIC__NET_H__
 
-#define INADDR_ANY        0
-#define INADDR_LOOPBACK   0x7f000001
-#define INADDR_BROADCAST  0xffffffff
-#define INADDR_NONE       0xffffffff
+	#define INADDR_ANY       0
+	#define INADDR_LOOPBACK  0x7f000001
+	#define INADDR_BROADCAST 0xffffffff
+	#define INADDR_NONE      0xffffffff
 
-#define IPV4_ADDR(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+	#define IPV4_ADDR(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 
 #endif
-

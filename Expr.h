@@ -1,8 +1,8 @@
 #ifndef __EXPR_H__
 #define __EXPR_H__
 
-#include "Type.h"
 #include "ILBlock.h"
+#include "Type.h"
 
 
 enum ExprClass
@@ -109,14 +109,14 @@ class ParserState;
 class Variable;
 class Function;
 
-class Expr: public RefCountObject
+class Expr : public RefCountObject
 {
 	ExprClass m_class;
 	Location m_location;
 	int64_t m_intValue;
 	double m_floatValue;
 	std::string m_stringValue;
-	std::vector< Ref<Expr> > m_children;
+	std::vector<Ref<Expr>> m_children;
 	Ref<Variable> m_variable;
 	Ref<Function> m_function;
 
@@ -124,7 +124,7 @@ class Expr: public RefCountObject
 
 	bool DeserializeInternal(InputBlock* input);
 
-public:
+ public:
 	Expr(ExprClass cls);
 	Expr(const Location& loc, ExprClass cls);
 
@@ -135,13 +135,16 @@ public:
 	void SetFloatValue(double value) { m_floatValue = value; }
 	void SetStringValue(const std::string& value) { m_stringValue = value; }
 	void AddChild(Expr* expr) { m_children.push_back(expr); }
-	void CopyChildren(Expr* expr) { m_children.insert(m_children.end(), expr->m_children.begin(), expr->m_children.end()); }
+	void CopyChildren(Expr* expr)
+	{
+		m_children.insert(m_children.end(), expr->m_children.begin(), expr->m_children.end());
+	}
 
 	ExprClass GetClass() const { return m_class; }
 	int64_t GetIntValue() const { return m_intValue; }
 	double GetFloatValue() const { return m_floatValue; }
 	const std::string& GetStringValue() const { return m_stringValue; }
-	const std::vector< Ref<Expr> >& GetChildren() const { return m_children; }
+	const std::vector<Ref<Expr>>& GetChildren() const { return m_children; }
 	Variable* GetVariable() const;
 	Function* GetFunction() const;
 
@@ -158,7 +161,8 @@ public:
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
 
-	void GenerateConditionalIL(ParserState* state, Function* func, ILBlock* block, ILBlock* trueBlock, ILBlock* falseBlock);
+	void GenerateConditionalIL(
+	    ParserState* state, Function* func, ILBlock* block, ILBlock* trueBlock, ILBlock* falseBlock);
 	ILParameter GenerateArrayAccessIL(ParserState* state, Function* func, ILBlock*& block);
 	ILParameter GenerateIL(ParserState* state, Function* func, ILBlock*& block);
 
@@ -179,8 +183,9 @@ public:
 	static Expr* ForExpr(const Location& loc, Expr* init, Expr* cond, Expr* update, Expr* body);
 	static Expr* WhileExpr(const Location& loc, Expr* cond, Expr* body);
 	static Expr* DoWhileExpr(const Location& loc, Expr* cond, Expr* body);
-	static Expr* CallExpr(const Location& loc, Expr* func, const std::vector< Ref<Expr> >& params);
-	static Expr* BuiltinCallExpr(const Location& loc, ExprClass cls, const std::vector< Ref<Expr> >& params);
+	static Expr* CallExpr(const Location& loc, Expr* func, const std::vector<Ref<Expr>>& params);
+	static Expr* BuiltinCallExpr(
+	    const Location& loc, ExprClass cls, const std::vector<Ref<Expr>>& params);
 	static Expr* CastExpr(const Location& loc, Type* type, Expr* value);
 	static Expr* LabelExpr(const Location& loc, const std::string& value);
 	static Expr* GotoLabelExpr(const Location& loc, const std::string& value);
@@ -195,4 +200,3 @@ public:
 
 
 #endif
-

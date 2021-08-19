@@ -22,9 +22,9 @@
 #define __TREENODE_H__
 
 #include "RefCountObject.h"
+#include <inttypes.h>
 #include <string>
 #include <vector>
-#include <inttypes.h>
 
 #define REG_MATCH_U8   1
 #define REG_MATCH_S8   2
@@ -104,14 +104,14 @@ enum TreeNodeClass
 	NODE_PUSH
 };
 
-class TreeNode: public RefCountObject
+class TreeNode : public RefCountObject
 {
 	TreeNodeClass m_class;
 	std::string m_name, m_typeName;
 	uint32_t m_sizeFlags;
-	std::vector< Ref<TreeNode> > m_children;
+	std::vector<Ref<TreeNode>> m_children;
 
-public:
+ public:
 	TreeNode(TreeNodeClass cls);
 	TreeNode(const TreeNode& copy);
 
@@ -125,19 +125,23 @@ public:
 	bool MatchesSize(uint32_t size) const { return (m_sizeFlags & size) != 0; }
 
 	void AddChildNode(TreeNode* node) { m_children.push_back(node); }
-	void AddChildNodes(const std::vector< Ref<TreeNode> >& nodes) { m_children.insert(m_children.end(), nodes.begin(), nodes.end()); }
-	const std::vector< Ref<TreeNode> >& GetChildNodes() const { return m_children; }
+	void AddChildNodes(const std::vector<Ref<TreeNode>>& nodes)
+	{
+		m_children.insert(m_children.end(), nodes.begin(), nodes.end());
+	}
+	const std::vector<Ref<TreeNode>>& GetChildNodes() const { return m_children; }
 
-	static TreeNode* CreateRegNode(const std::string& name, const std::string& typeName, uint32_t sizeFlags);
+	static TreeNode* CreateRegNode(
+	    const std::string& name, const std::string& typeName, uint32_t sizeFlags);
 	static TreeNode* CreateLoadNode(TreeNode* src, uint32_t sizeFlags);
 	static TreeNode* CreateStoreNode(TreeNode* dest, TreeNode* val, uint32_t sizeFlags);
 	static TreeNode* CreateNode(TreeNodeClass cls);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c);
-	static TreeNode* CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d);
+	static TreeNode* CreateNode(
+	    TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d);
 };
 
 
 #endif
-

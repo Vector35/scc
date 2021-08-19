@@ -22,16 +22,16 @@
 #define __REFCOUNTOBJECT_H__
 
 #ifdef WIN32
-#include <windows.h>
+	#include <windows.h>
 #endif
 #include <stddef.h>
 
 
 class RefCountObject
 {
-public:
+ public:
 	int m_refs;
-	RefCountObject(): m_refs(0) {}
+	RefCountObject() : m_refs(0) {}
 	virtual ~RefCountObject() {}
 
 	void AddRef()
@@ -61,18 +61,16 @@ class Ref
 {
 	T* m_obj;
 
-public:
-	Ref<T>(): m_obj(NULL)
-	{
-	}
+ public:
+	Ref<T>() : m_obj(NULL) {}
 
-	Ref<T>(T* obj): m_obj(obj)
+	Ref<T>(T* obj) : m_obj(obj)
 	{
 		if (m_obj)
 			m_obj->AddRef();
 	}
 
-	Ref<T>(const Ref<T>& obj): m_obj(obj.m_obj)
+	Ref<T>(const Ref<T>& obj) : m_obj(obj.m_obj)
 	{
 		if (m_obj)
 			m_obj->AddRef();
@@ -106,32 +104,16 @@ public:
 		return *this;
 	}
 
-	operator T*() const
-	{
-		return m_obj;
-	}
+	operator T*() const { return m_obj; }
 
-	T* operator->() const
-	{
-		return m_obj;
-	}
+	T* operator->() const { return m_obj; }
 
-	T& operator*() const
-	{
-		return *m_obj;
-	}
+	T& operator*() const { return *m_obj; }
 
-	bool operator!() const
-	{
-		return m_obj == NULL;
-	}
+	bool operator!() const { return m_obj == NULL; }
 
-	T* GetPtr() const
-	{
-		return m_obj;
-	}
+	T* GetPtr() const { return m_obj; }
 };
 
 
 #endif
-

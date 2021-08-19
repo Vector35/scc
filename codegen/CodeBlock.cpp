@@ -122,7 +122,8 @@ CodeToken* CodeToken::CreateVarBlockToken(const string& file, int line, const st
 }
 
 
-CodeToken* CodeToken::CreateVarIntToken(const string& file, int line, const string& name, int offset)
+CodeToken* CodeToken::CreateVarIntToken(
+    const string& file, int line, const string& name, int offset)
 {
 	CodeToken* token = new CodeToken;
 	token->fileName = file;
@@ -155,8 +156,8 @@ CodeToken* CodeToken::CreateInstrEndToken(const string& file, int line)
 }
 
 
-CodeToken* CodeToken::CreateInstrEncodingToken(const string& file, int line, const string& name,
-	const map< string, Ref<CodeBlock> >& operands)
+CodeToken* CodeToken::CreateInstrEncodingToken(
+    const string& file, int line, const string& name, const map<string, Ref<CodeBlock>>& operands)
 {
 	CodeToken* token = new CodeToken;
 	token->fileName = file;
@@ -168,8 +169,8 @@ CodeToken* CodeToken::CreateInstrEncodingToken(const string& file, int line, con
 }
 
 
-CodeToken* CodeToken::CreateInstrEncodingValueToken(const string& file, int line, const string& name,
-	const map< string, Ref<CodeBlock> >& operands)
+CodeToken* CodeToken::CreateInstrEncodingValueToken(
+    const string& file, int line, const string& name, const map<string, Ref<CodeBlock>>& operands)
 {
 	CodeToken* token = new CodeToken;
 	token->fileName = file;
@@ -181,9 +182,7 @@ CodeToken* CodeToken::CreateInstrEncodingValueToken(const string& file, int line
 }
 
 
-CodeBlock::CodeBlock()
-{
-}
+CodeBlock::CodeBlock() {}
 
 
 CodeBlock::CodeBlock(const CodeBlock& copy)
@@ -224,8 +223,8 @@ void CodeBlock::AddInstrEndToken(const string& file, int line)
 }
 
 
-void CodeBlock::AddInstrEncodingToken(const string& file, int line, const string& name,
-	const map< string, Ref<CodeBlock> >& operands)
+void CodeBlock::AddInstrEncodingToken(
+    const string& file, int line, const string& name, const map<string, Ref<CodeBlock>>& operands)
 {
 	CodeToken token;
 	token.fileName = file;
@@ -237,8 +236,8 @@ void CodeBlock::AddInstrEncodingToken(const string& file, int line, const string
 }
 
 
-void CodeBlock::AddInstrEncodingValueToken(const string& file, int line, const string& name,
-	const map< string, Ref<CodeBlock> >& operands)
+void CodeBlock::AddInstrEncodingValueToken(
+    const string& file, int line, const string& name, const map<string, Ref<CodeBlock>>& operands)
 {
 	CodeToken token;
 	token.fileName = file;
@@ -267,12 +266,12 @@ void CodeBlock::ReplaceVar(const std::string& from, const std::string& to)
 {
 	for (vector<CodeToken>::iterator i = m_tokens.begin(); i != m_tokens.end(); ++i)
 	{
-		if ((i->type != TOKEN_VAR) && (i->type != TOKEN_VAR_LOW) && (i->type != TOKEN_VAR_HIGH) && (i->type == TOKEN_VAR_INT) &&
-			(i->type != TOKEN_VAR_BASE) && (i->type != TOKEN_VAR_OFFSET) && (i->type != TOKEN_VAR_TEMP))
+		if ((i->type != TOKEN_VAR) && (i->type != TOKEN_VAR_LOW) && (i->type != TOKEN_VAR_HIGH) &&
+		    (i->type == TOKEN_VAR_INT) && (i->type != TOKEN_VAR_BASE) &&
+		    (i->type != TOKEN_VAR_OFFSET) && (i->type != TOKEN_VAR_TEMP))
 			continue;
 		if (i->name != from)
 			continue;
 		i->name = to;
 	}
 }
-

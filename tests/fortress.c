@@ -43,7 +43,7 @@ Property* g_sold = NULL;
 int readUntil(char* buffer, size_t len, char sentinal)
 {
 	char* ptr = buffer;
-	for (size_t i = 0; ; i++)
+	for (size_t i = 0;; i++)
 	{
 		char ch;
 		if (read(0, &ch, 1) != 1)
@@ -346,4 +346,3 @@ int main()
 		}
 	}
 }
-

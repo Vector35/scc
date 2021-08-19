@@ -1,14 +1,14 @@
-#include <stdlib.h>
 #include "Variable.h"
-#include "Struct.h"
 #include "Output.h"
 #include "ParserState.h"
+#include "Struct.h"
+#include <stdlib.h>
 
 using namespace std;
 
 
 size_t Variable::m_nextSerializationIndex;
-map< size_t, Ref<Variable> > Variable::m_serializationMap;
+map<size_t, Ref<Variable>> Variable::m_serializationMap;
 
 
 Variable::Variable()
@@ -157,4 +157,3 @@ Variable* Variable::Deserialize(InputBlock* input)
 		return var;
 	return NULL;
 }
-

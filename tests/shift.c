@@ -107,4 +107,3 @@ int main()
 	printf("%d\n", reduce(sar_64(-4242424242424242, 42)));
 	return 0;
 }
-

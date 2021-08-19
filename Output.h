@@ -1,11 +1,11 @@
 #ifndef __OUTPUT_H__
 #define __OUTPUT_H__
 
-#include <string>
-#include <vector>
 #include "ILBlock.h"
 #include "Settings.h"
 #include "TreeNode.h"
+#include <string>
+#include <vector>
 
 
 enum RelocationType
@@ -90,7 +90,8 @@ struct OutputBlock
 	void WriteOffsetUInt32(size_t ofs, uint32_t value);
 	void WriteOffsetUInt64(size_t ofs, uint64_t value);
 
-	void ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset);
+	void ReplaceInstruction(
+	    size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset);
 };
 
 struct InputBlock
@@ -123,20 +124,20 @@ class TreeBlock;
 
 class Output
 {
-protected:
+ protected:
 	Settings m_settings;
 	Function* m_startFunc;
 
-public:
+ public:
 	Output(const Settings& settings, Function* startFunc);
 	virtual ~Output();
 
 	virtual bool GenerateCode(Function* func) = 0;
 
-	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,
-		const std::vector< Ref<TreeNode> >& params, TreeNodeType resultType) = 0;
-	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const std::vector< Ref<TreeNode> >& params,
-		TreeNodeType resultType) = 0;
+	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv,
+	    size_t fixedParams, const std::vector<Ref<TreeNode>>& params, TreeNodeType resultType) = 0;
+	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num,
+	    const std::vector<Ref<TreeNode>>& params, TreeNodeType resultType) = 0;
 };
 
 
@@ -146,4 +147,3 @@ uint64_t BE64(uint64_t val);
 
 
 #endif
-

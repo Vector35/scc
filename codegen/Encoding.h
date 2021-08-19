@@ -21,11 +21,11 @@
 #ifndef __ENCODING_H__
 #define __ENCODING_H__
 
-#include <string>
-#include <map>
-#include <vector>
-#include <inttypes.h>
 #include "RefCountObject.h"
+#include <inttypes.h>
+#include <map>
+#include <string>
+#include <vector>
 
 
 enum EncodingFieldType
@@ -43,17 +43,18 @@ struct EncodingField
 	int64_t value;
 
 	static EncodingField* CreateNormalField(const std::string& name, size_t width);
-	static EncodingField* CreateDefaultValueField(const std::string& name, size_t width, int64_t value);
+	static EncodingField* CreateDefaultValueField(
+	    const std::string& name, size_t width, int64_t value);
 	static EncodingField* CreateFixedValueField(size_t width, int64_t value);
 };
 
-class Encoding: public RefCountObject
+class Encoding : public RefCountObject
 {
 	std::vector<EncodingField> m_fields;
 	std::map<std::string, size_t> m_fieldsByName;
 	uint32_t m_width;
 
-public:
+ public:
 	Encoding();
 
 	uint32_t GetWidth() const { return m_width; }
@@ -67,4 +68,3 @@ public:
 
 
 #endif
-

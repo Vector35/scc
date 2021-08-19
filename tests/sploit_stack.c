@@ -33,6 +33,5 @@ void* sploit(void* tempBuffer)
 void main()
 {
 	char data[65536];
-	goto *sploit(data);
+	goto* sploit(data);
 }
-

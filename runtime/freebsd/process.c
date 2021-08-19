@@ -34,7 +34,8 @@ unsigned int alarm(unsigned int seconds)
 	return old.it_value.tv_sec;
 }
 
-int sysctl(const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen)
+int sysctl(
+    const int* name, size_t namelen, void* oldp, size_t* oldlenp, const void* newp, size_t newlen)
 {
 	return __syscall(SYS___sysctl, name, namelen, oldp, oldlenp, newp, newlen);
 }
@@ -51,8 +52,8 @@ pid_t fork(void)
 
 sig_t signal(int sig, sig_t func)
 {
-	// FIXME: Handlers do not work on 64-bit because there is no way to force the correct calling convention.  Special
-	// values such as SIG_IGN do work.
+	// FIXME: Handlers do not work on 64-bit because there is no way to force the correct calling
+	// convention.  Special values such as SIG_IGN do work.
 	struct sigaction act, old;
 	memset(&act, 0, sizeof(act));
 	act.sa_handler = func;
@@ -67,4 +68,3 @@ int sigaction(int sig, const struct sigaction* act, struct sigaction* old)
 {
 	return __syscall(SYS_sigaction, sig, act, old);
 }
-

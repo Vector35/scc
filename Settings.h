@@ -1,9 +1,9 @@
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
 
-#include <vector>
-#include <string>
 #include <stdint.h>
+#include <string>
+#include <vector>
 
 #define DEFAULT_ANTIDISASM_FREQUENCY 20
 
@@ -96,4 +96,3 @@ struct Settings
 };
 
 #endif
-

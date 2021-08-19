@@ -19,16 +19,16 @@
 // IN THE SOFTWARE.
 
 #ifdef WIN32
-#define YY_NO_UNISTD_H
+	#define YY_NO_UNISTD_H
 #endif
-#include <string>
+#include "CodegenLexer.h"
+#include "CodegenParser.h"
+#include "OutputGenerator.h"
+#include "ParserState.h"
+#include "PreprocessState.h"
 #include <stdio.h>
 #include <string.h>
-#include "PreprocessState.h"
-#include "ParserState.h"
-#include "CodegenParser.h"
-#include "CodegenLexer.h"
-#include "OutputGenerator.h"
+#include <string>
 
 using namespace std;
 
@@ -145,4 +145,3 @@ int main(int argc, char* argv[])
 	fclose(fp);
 	return 0;
 }
-

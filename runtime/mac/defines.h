@@ -24,4 +24,3 @@
 #define MACOSX
 
 #endif
-

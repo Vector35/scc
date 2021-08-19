@@ -1,18 +1,18 @@
 #ifdef WIN32
-#define YY_NO_UNISTD_H
+	#define YY_NO_UNISTD_H
 #endif
-#include <stdio.h>
-#include <string.h>
-#include "asmx86.h"
 #include "Linker.h"
-#include "CodeParser.h"
 #include "CodeLexer.h"
-#include "Optimize.h"
-#include "OutputX86.h"
-#include "OutputX64.h"
+#include "CodeParser.h"
 #include "ElfOutput.h"
 #include "MachOOutput.h"
+#include "Optimize.h"
+#include "OutputX64.h"
+#include "OutputX86.h"
 #include "PeOutput.h"
+#include "asmx86.h"
+#include <stdio.h>
+#include <string.h>
 
 using namespace std;
 using namespace asmx86;
@@ -92,16 +92,16 @@ extern Output* CreateAArch64CodeGen(const Settings& settings, Function* startFun
 extern Output* CreatePpcCodeGen(const Settings& settings, Function* startFunc);
 
 
-Linker::Linker(const Settings& settings): m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
-	m_precompileState(settings, "precompiled headers", NULL), m_initExpression(new Expr(EXPR_SEQUENCE))
+Linker::Linker(const Settings& settings) :
+    m_settings(settings), m_precompiledPreprocess("precompiled headers", NULL, settings),
+    m_precompileState(settings, "precompiled headers", NULL),
+    m_initExpression(new Expr(EXPR_SEQUENCE))
 {
 	m_markovReady = false;
 }
 
 
-Linker::~Linker()
-{
-}
+Linker::~Linker() {}
 
 
 size_t Linker::AddInstructionToMarkovChain(uint16_t& prev, uint8_t* data, size_t len)
@@ -125,7 +125,8 @@ size_t Linker::AddInstructionToMarkovChain(uint16_t& prev, uint8_t* data, size_t
 	bool ok = true;
 	for (size_t j = 0; j < instr.length; j++)
 	{
-		for (vector<uint8_t>::iterator k = m_settings.blacklist.begin(); k != m_settings.blacklist.end(); k++)
+		for (vector<uint8_t>::iterator k = m_settings.blacklist.begin();
+		     k != m_settings.blacklist.end(); k++)
 		{
 			if (data[j] == *k)
 			{
@@ -142,8 +143,8 @@ size_t Linker::AddInstructionToMarkovChain(uint16_t& prev, uint8_t* data, size_t
 	{
 		m_markovChain[prev][string((char*)data, instr.length)]++;
 
-		// Insert all instructions into slot 0xffff (invalid for X86), this will be what is used when inserting
-		// an instruction from a fresh state (or one which has no valid transitions)
+		// Insert all instructions into slot 0xffff (invalid for X86), this will be what is used when
+		// inserting an instruction from a fresh state (or one which has no valid transitions)
 		m_markovChain[0xffff][string((char*)data, instr.length)]++;
 
 		if (instr.length == 1)
@@ -179,7 +180,7 @@ void Linker::PrepareMarkovInstructionsFromFile(const string& filename)
 	fclose(fp);
 
 	uint16_t prev = 0x90;
-	for (size_t i = 0; i < len; )
+	for (size_t i = 0; i < len;)
 	{
 		size_t maxLen = len - i;
 		if (maxLen > 15)
@@ -221,7 +222,8 @@ void Linker::InsertMarkovInstructions(OutputBlock* block, size_t len)
 	while (len > 0)
 	{
 		size_t total = 0;
-		for (map<string, size_t>::iterator i = m_markovChain[prev].begin(); i != m_markovChain[prev].end(); i++)
+		for (map<string, size_t>::iterator i = m_markovChain[prev].begin();
+		     i != m_markovChain[prev].end(); i++)
 			total += i->second;
 
 		if (total == 0)
@@ -233,7 +235,8 @@ void Linker::InsertMarkovInstructions(OutputBlock* block, size_t len)
 				for (size_t i = 0; i < 256; i++)
 				{
 					bool ok = true;
-					for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+					for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+					     j != m_settings.blacklist.end(); j++)
 					{
 						if (i == *j)
 						{
@@ -265,7 +268,8 @@ void Linker::InsertMarkovInstructions(OutputBlock* block, size_t len)
 		size_t cur = 0;
 		size_t pick = rand() % total;
 		string instruction;
-		for (map<string, size_t>::iterator i = m_markovChain[prev].begin(); i != m_markovChain[prev].end(); i++)
+		for (map<string, size_t>::iterator i = m_markovChain[prev].begin();
+		     i != m_markovChain[prev].end(); i++)
 		{
 			cur += i->second;
 			if (cur > pick)
@@ -634,7 +638,8 @@ bool Linker::FinalizePrecompiledHeaders()
 bool Linker::CompileSource(const std::string& source, const std::string& filename)
 {
 	string preprocessed;
-	if (!PreprocessState::PreprocessSource(m_settings, source, filename, preprocessed, &m_precompiledPreprocess))
+	if (!PreprocessState::PreprocessSource(
+	        m_settings, source, filename, preprocessed, &m_precompiledPreprocess))
 		return false;
 
 	yyscan_t scanner;
@@ -658,25 +663,25 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 
 	// Apply fixed function addresses, but ensure that user specified address takes priority
 	for (map<string, uint64_t>::const_iterator i = parser.GetFixedFunctionAddresses().begin();
-		i != parser.GetFixedFunctionAddresses().end(); ++i)
+	     i != parser.GetFixedFunctionAddresses().end(); ++i)
 	{
 		if ((m_settings.funcAddrs.find(i->first) == m_settings.funcAddrs.end()) &&
-			(m_settings.funcPtrAddrs.find(i->first) == m_settings.funcPtrAddrs.end()))
+		    (m_settings.funcPtrAddrs.find(i->first) == m_settings.funcPtrAddrs.end()))
 			m_settings.funcAddrs[i->first] = i->second;
 	}
 	for (map<string, uint64_t>::const_iterator i = parser.GetFixedFunctionPointers().begin();
-		i != parser.GetFixedFunctionPointers().end(); ++i)
+	     i != parser.GetFixedFunctionPointers().end(); ++i)
 	{
 		if ((m_settings.funcAddrs.find(i->first) == m_settings.funcAddrs.end()) &&
-			(m_settings.funcPtrAddrs.find(i->first) == m_settings.funcPtrAddrs.end()))
+		    (m_settings.funcPtrAddrs.find(i->first) == m_settings.funcPtrAddrs.end()))
 			m_settings.funcPtrAddrs[i->first] = i->second;
 	}
 
 	// First, propogate type information
 	parser.SetInitExpression(parser.GetInitExpression()->Simplify(&parser));
 	parser.GetInitExpression()->ComputeType(&parser, NULL);
-	for (map< string, Ref<Function> >::const_iterator i = parser.GetFunctions().begin();
-		i != parser.GetFunctions().end(); i++)
+	for (map<string, Ref<Function>>::const_iterator i = parser.GetFunctions().begin();
+	     i != parser.GetFunctions().end(); i++)
 	{
 		if (!i->second->IsFullyDefined())
 			continue;
@@ -689,8 +694,8 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 		return false;
 
 	// Generate IL
-	for (map< string, Ref<Function> >::const_iterator i = parser.GetFunctions().begin();
-		i != parser.GetFunctions().end(); i++)
+	for (map<string, Ref<Function>>::const_iterator i = parser.GetFunctions().begin();
+	     i != parser.GetFunctions().end(); i++)
 	{
 		if (!i->second->IsFullyDefined())
 			continue;
@@ -701,8 +706,8 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 		return false;
 
 	// Link functions to other files
-	for (map< string, Ref<Function> >::const_iterator i = parser.GetFunctions().begin();
-		i != parser.GetFunctions().end(); i++)
+	for (map<string, Ref<Function>>::const_iterator i = parser.GetFunctions().begin();
+	     i != parser.GetFunctions().end(); i++)
 	{
 		if (i->second->IsFullyDefined())
 		{
@@ -724,48 +729,44 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 						// Both functions have a body, this is an error
 						parser.Error();
 						fprintf(stderr, "%s:%d: error: duplicate function '%s' during link\n",
-							i->second->GetLocation().fileName.c_str(),
-							i->second->GetLocation().lineNumber, i->second->GetName().c_str());
+						    i->second->GetLocation().fileName.c_str(), i->second->GetLocation().lineNumber,
+						    i->second->GetName().c_str());
 						fprintf(stderr, "%s:%d: previous definition of '%s'\n",
-							prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
-							prev->GetName().c_str());
+						    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+						    prev->GetName().c_str());
 					}
 					else
 					{
 						// Other function was a prototype, check for compatibility
-						vector< pair< Ref<Type>, string> > params;
-						for (vector<FunctionParameter>::const_iterator j =
-							prev->GetParameters().begin(); j != prev->GetParameters().end(); j++)
-							params.push_back(pair< Ref<Type>, string>(j->type, j->name));
-						if (!i->second->IsCompatible(prev->GetReturnValue(),
-							prev->GetCallingConvention(), params, prev->HasVariableArguments()))
+						vector<pair<Ref<Type>, string>> params;
+						for (vector<FunctionParameter>::const_iterator j = prev->GetParameters().begin();
+						     j != prev->GetParameters().end(); j++)
+							params.push_back(pair<Ref<Type>, string>(j->type, j->name));
+						if (!i->second->IsCompatible(prev->GetReturnValue(), prev->GetCallingConvention(),
+						        params, prev->HasVariableArguments()))
 						{
 							parser.Error();
 							fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
-								i->second->GetLocation().fileName.c_str(),
-								i->second->GetLocation().lineNumber,
-								i->second->GetName().c_str());
+							    i->second->GetLocation().fileName.c_str(), i->second->GetLocation().lineNumber,
+							    i->second->GetName().c_str());
 							fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
-								prev->GetLocation().fileName.c_str(),
-								prev->GetLocation().lineNumber,
-								prev->GetName().c_str());
+							    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+							    prev->GetName().c_str());
 						}
 						if (prev->IsImportedFunction())
 						{
 							parser.Error();
 							fprintf(stderr, "%s:%d: error: imported function '%s' cannot have implementation\n",
-								i->second->GetLocation().fileName.c_str(),
-								i->second->GetLocation().lineNumber,
-								i->second->GetName().c_str());
+							    i->second->GetLocation().fileName.c_str(), i->second->GetLocation().lineNumber,
+							    i->second->GetName().c_str());
 							fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
-								prev->GetLocation().fileName.c_str(),
-								prev->GetLocation().lineNumber,
-								prev->GetName().c_str());
+							    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+							    prev->GetName().c_str());
 						}
 
 						// Replace old references with the fully defined one
-						for (vector< Ref<Function> >::iterator j = m_functions.begin();
-							j != m_functions.end(); j++)
+						for (vector<Ref<Function>>::iterator j = m_functions.begin(); j != m_functions.end();
+						     j++)
 							(*j)->ReplaceFunction(prev, i->second);
 						m_initExpression->ReplaceFunction(prev, i->second);
 					}
@@ -786,40 +787,36 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 					Function* prev = m_functionsByName[i->second->GetName()];
 
 					// Check for compatibility
-					vector< pair< Ref<Type>, string> > params;
-					for (vector<FunctionParameter>::const_iterator j =
-						prev->GetParameters().begin(); j != prev->GetParameters().end(); j++)
-						params.push_back(pair< Ref<Type>, string>(j->type, j->name));
-					if (!i->second->IsCompatible(prev->GetReturnValue(),
-						prev->GetCallingConvention(), params, prev->HasVariableArguments()))
+					vector<pair<Ref<Type>, string>> params;
+					for (vector<FunctionParameter>::const_iterator j = prev->GetParameters().begin();
+					     j != prev->GetParameters().end(); j++)
+						params.push_back(pair<Ref<Type>, string>(j->type, j->name));
+					if (!i->second->IsCompatible(prev->GetReturnValue(), prev->GetCallingConvention(), params,
+					        prev->HasVariableArguments()))
 					{
 						parser.Error();
 						fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
-							prev->GetLocation().fileName.c_str(),
-							prev->GetLocation().lineNumber,
-							prev->GetName().c_str());
+						    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+						    prev->GetName().c_str());
 						fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
-							i->second->GetLocation().fileName.c_str(),
-							i->second->GetLocation().lineNumber,
-							i->second->GetName().c_str());
+						    i->second->GetLocation().fileName.c_str(), i->second->GetLocation().lineNumber,
+						    i->second->GetName().c_str());
 					}
 
 					if (i->second->IsImportedFunction() != prev->IsImportedFunction())
 					{
 						parser.Error();
 						fprintf(stderr, "%s:%d: error: function '%s' incompatible with prototype\n",
-							prev->GetLocation().fileName.c_str(),
-							prev->GetLocation().lineNumber,
-							prev->GetName().c_str());
+						    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+						    prev->GetName().c_str());
 						fprintf(stderr, "%s:%d: prototype definition of '%s'\n",
-							i->second->GetLocation().fileName.c_str(),
-							i->second->GetLocation().lineNumber,
-							i->second->GetName().c_str());
+						    i->second->GetLocation().fileName.c_str(), i->second->GetLocation().lineNumber,
+						    i->second->GetName().c_str());
 					}
 
 					// Replace references with existing definition
-					for (map< string, Ref<Function> >::const_iterator j =
-						parser.GetFunctions().begin(); j != parser.GetFunctions().end(); j++)
+					for (map<string, Ref<Function>>::const_iterator j = parser.GetFunctions().begin();
+					     j != parser.GetFunctions().end(); j++)
 						j->second->ReplaceFunction(i->second, prev);
 					parser.GetInitExpression()->ReplaceFunction(i->second, prev);
 				}
@@ -840,8 +837,8 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 	m_initExpression->AddChild(parser.GetInitExpression());
 
 	// Link variables to other files
-	for (vector< Ref<Variable> >::const_iterator i = parser.GetGlobalScope()->GetVariables().begin();
-		i != parser.GetGlobalScope()->GetVariables().end(); i++)
+	for (vector<Ref<Variable>>::const_iterator i = parser.GetGlobalScope()->GetVariables().begin();
+	     i != parser.GetGlobalScope()->GetVariables().end(); i++)
 	{
 		if ((*i)->IsExternal())
 		{
@@ -856,19 +853,17 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 				{
 					parser.Error();
 					fprintf(stderr, "%s:%d: error: variable '%s' incompatible with previous definition\n",
-						(*i)->GetLocation().fileName.c_str(),
-						(*i)->GetLocation().lineNumber,
-						(*i)->GetName().c_str());
+					    (*i)->GetLocation().fileName.c_str(), (*i)->GetLocation().lineNumber,
+					    (*i)->GetName().c_str());
 					fprintf(stderr, "%s:%d: previous definition of '%s'\n",
-						prev->GetLocation().fileName.c_str(),
-						prev->GetLocation().lineNumber,
-						prev->GetName().c_str());
+					    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+					    prev->GetName().c_str());
 				}
 
 				if (!prev->IsExternal())
 				{
 					// Previous definition is complete, replace references with the correct definition
-					for (vector< Ref<Function> >::iterator j = m_functions.begin(); j != m_functions.end(); j++)
+					for (vector<Ref<Function>>::iterator j = m_functions.begin(); j != m_functions.end(); j++)
 						(*j)->ReplaceVariable(*i, prev);
 					m_initExpression->ReplaceVariable(*i, prev);
 				}
@@ -898,30 +893,25 @@ bool Linker::CompileSource(const std::string& source, const std::string& filenam
 				{
 					parser.Error();
 					fprintf(stderr, "%s:%d: error: duplicate variable '%s' during link\n",
-						(*i)->GetLocation().fileName.c_str(),
-						(*i)->GetLocation().lineNumber,
-						(*i)->GetName().c_str());
+					    (*i)->GetLocation().fileName.c_str(), (*i)->GetLocation().lineNumber,
+					    (*i)->GetName().c_str());
 					fprintf(stderr, "%s:%d: previous definition of '%s'\n",
-						prev->GetLocation().fileName.c_str(),
-						prev->GetLocation().lineNumber,
-						prev->GetName().c_str());
+					    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+					    prev->GetName().c_str());
 				}
 				else if ((*prev->GetType()) != (*(*i)->GetType()))
 				{
 					parser.Error();
 					fprintf(stderr, "%s:%d: error: variable '%s' incompatible with previous definition\n",
-						(*i)->GetLocation().fileName.c_str(),
-						(*i)->GetLocation().lineNumber,
-						(*i)->GetName().c_str());
+					    (*i)->GetLocation().fileName.c_str(), (*i)->GetLocation().lineNumber,
+					    (*i)->GetName().c_str());
 					fprintf(stderr, "%s:%d: previous definition of '%s'\n",
-						prev->GetLocation().fileName.c_str(),
-						prev->GetLocation().lineNumber,
-						prev->GetName().c_str());
+					    prev->GetLocation().fileName.c_str(), prev->GetLocation().lineNumber,
+					    prev->GetName().c_str());
 				}
 
 				// Replace old external references with this definition
-				for (vector< Ref<Function> >::iterator j = m_functions.begin();
-					j != m_functions.end(); j++)
+				for (vector<Ref<Function>>::iterator j = m_functions.begin(); j != m_functions.end(); j++)
 					(*j)->ReplaceVariable(prev, *i);
 				m_initExpression->ReplaceVariable(prev, *i);
 			}
@@ -947,17 +937,18 @@ bool Linker::OutputLibrary(OutputBlock* output)
 
 	// Serialize function objects
 	output->WriteInteger(m_functions.size());
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		(*i)->Serialize(output);
 
 	// Serialize variable objects
 	output->WriteInteger(m_variables.size());
-	for (vector< Ref<Variable> >::iterator i = m_variables.begin(); i != m_variables.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_variables.begin(); i != m_variables.end(); i++)
 		(*i)->Serialize(output);
 
 	// Serialize function name map
 	output->WriteInteger(m_functionsByName.size());
-	for (map< string, Ref<Function> >::iterator i = m_functionsByName.begin(); i != m_functionsByName.end(); i++)
+	for (map<string, Ref<Function>>::iterator i = m_functionsByName.begin();
+	     i != m_functionsByName.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
@@ -965,7 +956,8 @@ bool Linker::OutputLibrary(OutputBlock* output)
 
 	// Serialize variable name map
 	output->WriteInteger(m_variablesByName.size());
-	for (map< string, Ref<Variable> >::iterator i = m_variablesByName.begin(); i != m_variablesByName.end(); i++)
+	for (map<string, Ref<Variable>>::iterator i = m_variablesByName.begin();
+	     i != m_variablesByName.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
@@ -1027,7 +1019,7 @@ bool Linker::FinalizeLink()
 	}
 
 	// Find main function
-	map< string, Ref<Function> >::iterator mainFuncRef = m_functionsByName.find("main");
+	map<string, Ref<Function>>::iterator mainFuncRef = m_functionsByName.find("main");
 	if (mainFuncRef == m_functionsByName.end())
 	{
 		fprintf(stderr, "error: function 'main' is undefined\n");
@@ -1042,7 +1034,7 @@ bool Linker::FinalizeLink()
 	}
 
 	// Find exit function
-	map< string, Ref<Function> >::iterator exitFuncRef = m_functionsByName.find("exit");
+	map<string, Ref<Function>>::iterator exitFuncRef = m_functionsByName.find("exit");
 	if (exitFuncRef == m_functionsByName.end())
 	{
 		fprintf(stderr, "error: function 'exit' is undefined\n");
@@ -1065,7 +1057,7 @@ bool Linker::FinalizeLink()
 	m_functionsByName["__resolve_imports"] = importFunc;
 
 	// Generate _start function
-	map< string, Ref<Function> >::iterator entryFuncRef = m_functionsByName.find("_start");
+	map<string, Ref<Function>>::iterator entryFuncRef = m_functionsByName.find("_start");
 	if (entryFuncRef != m_functionsByName.end())
 	{
 		fprintf(stderr, "error: cannot override internal function '_start'\n");
@@ -1082,9 +1074,9 @@ bool Linker::FinalizeLink()
 	startInfo.location = mainFunc->GetLocation();
 
 	// Set up _start parameters to mirror main
-	vector< Ref<Variable> > paramVars;
+	vector<Ref<Variable>> paramVars;
 	for (vector<FunctionParameter>::const_iterator i = mainFunc->GetParameters().begin();
-		i != mainFunc->GetParameters().end(); i++)
+	     i != mainFunc->GetParameters().end(); i++)
 	{
 		string name = i->name;
 		if (name.c_str() == 0)
@@ -1094,7 +1086,7 @@ bool Linker::FinalizeLink()
 			name = str;
 		}
 
-		startInfo.params.push_back(pair< Ref<Type>, string >(i->type, name));
+		startInfo.params.push_back(pair<Ref<Type>, string>(i->type, name));
 
 		Variable* var = new Variable(paramVars.size(), i->type, name);
 		paramVars.push_back(var);
@@ -1110,19 +1102,21 @@ bool Linker::FinalizeLink()
 	// If using encoded pointers, choose the key now
 	if (m_settings.encodePointers)
 	{
-		m_settings.encodePointerKey = new Variable(VAR_GLOBAL, Type::IntType(GetTargetPointerSize(), false), "@pointer_key");
+		m_settings.encodePointerKey =
+		    new Variable(VAR_GLOBAL, Type::IntType(GetTargetPointerSize(), false), "@pointer_key");
 		m_variables.push_back(m_settings.encodePointerKey);
 		m_variablesByName["@pointer_key"] = m_settings.encodePointerKey;
 
 		Ref<Expr> keyExpr = Expr::VariableExpr(mainFunc->GetLocation(), m_settings.encodePointerKey);
-		Ref<Expr> valueExpr = new Expr(mainFunc->GetLocation(), (GetTargetPointerSize() == 4) ? EXPR_RDTSC_LOW : EXPR_RDTSC);
+		Ref<Expr> valueExpr = new Expr(
+		    mainFunc->GetLocation(), (GetTargetPointerSize() == 4) ? EXPR_RDTSC_LOW : EXPR_RDTSC);
 		startBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN, keyExpr, valueExpr));
 	}
 
 	// Call the import resolution function
-	vector< Ref<Expr> > importResolveParams;
-	startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), Expr::FunctionExpr(mainFunc->GetLocation(), importFunc),
-		importResolveParams));
+	vector<Ref<Expr>> importResolveParams;
+	startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(),
+	    Expr::FunctionExpr(mainFunc->GetLocation(), importFunc), importResolveParams));
 
 	// Add global variable initialization expression
 	startBody->AddChild(m_initExpression);
@@ -1131,7 +1125,7 @@ bool Linker::FinalizeLink()
 	Ref<Expr> exitExpr = Expr::FunctionExpr(mainFunc->GetLocation(), exitFunc);
 
 	// Generate call to main
-	vector< Ref<Expr> > params;
+	vector<Ref<Expr>> params;
 	for (size_t i = 0; i < mainFunc->GetParameters().size(); i++)
 		params.push_back(Expr::VariableExpr(mainFunc->GetLocation(), paramVars[i]));
 	Ref<Expr> callExpr = Expr::CallExpr(mainFunc->GetLocation(), mainExpr, params);
@@ -1148,13 +1142,13 @@ bool Linker::FinalizeLink()
 	{
 		startBody->AddChild(callExpr);
 
-		vector< Ref<Expr> > exitParams;
+		vector<Ref<Expr>> exitParams;
 		exitParams.push_back(new Expr(mainFunc->GetLocation(), EXPR_UNDEFINED));
 		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), exitExpr, exitParams));
 	}
 	else
 	{
-		vector< Ref<Expr> > exitParams;
+		vector<Ref<Expr>> exitParams;
 		exitParams.push_back(callExpr);
 		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), exitExpr, exitParams));
 	}
@@ -1177,15 +1171,17 @@ bool Linker::FinalizeLink()
 		return false;
 
 	// Replace functions with known addresses so that they are called directly
-	for (map<string, uint64_t>::iterator i = m_settings.funcAddrs.begin(); i != m_settings.funcAddrs.end(); ++i)
+	for (map<string, uint64_t>::iterator i = m_settings.funcAddrs.begin();
+	     i != m_settings.funcAddrs.end(); ++i)
 	{
-		map< string, Ref<Function> >::iterator funcIter = m_functionsByName.find(i->first);
+		map<string, Ref<Function>>::iterator funcIter = m_functionsByName.find(i->first);
 		if (funcIter != m_functionsByName.end())
 			funcIter->second->ReplaceWithFixedAddress(i->second);
 	}
-	for (map<string, uint64_t>::iterator i = m_settings.funcPtrAddrs.begin(); i != m_settings.funcPtrAddrs.end(); ++i)
+	for (map<string, uint64_t>::iterator i = m_settings.funcPtrAddrs.begin();
+	     i != m_settings.funcPtrAddrs.end(); ++i)
 	{
-		map< string, Ref<Function> >::iterator funcIter = m_functionsByName.find(i->first);
+		map<string, Ref<Function>>::iterator funcIter = m_functionsByName.find(i->first);
 		if (funcIter != m_functionsByName.end())
 			funcIter->second->ReplaceWithFixedPointer(i->second);
 	}
@@ -1193,46 +1189,56 @@ bool Linker::FinalizeLink()
 	// Ensure functions that will be needed for import resolution aren't deleted yet
 	Ref<Function> importResolveFunction;
 	bool hashImport = false;
-	if ((m_settings.os == OS_WINDOWS) && (m_settings.forcePebScan || (m_settings.format != FORMAT_PE)))
+	if ((m_settings.os == OS_WINDOWS) &&
+	    (m_settings.forcePebScan || (m_settings.format != FORMAT_PE)))
 	{
 		// Windows non-PE, need to import using GetProcAddress or a PEB scan
-		map< string, Ref<Function> >::iterator getModuleHandle = m_functionsByName.find("GetModuleHandleA");
-		map< string, Ref<Function> >::iterator loadLibrary = m_functionsByName.find("LoadLibraryA");
-		map< string, Ref<Function> >::iterator loadLibraryEx = m_functionsByName.find("LoadLibraryExA");
-		map< string, Ref<Function> >::iterator getProcAddress = m_functionsByName.find("GetProcAddress");
+		map<string, Ref<Function>>::iterator getModuleHandle =
+		    m_functionsByName.find("GetModuleHandleA");
+		map<string, Ref<Function>>::iterator loadLibrary = m_functionsByName.find("LoadLibraryA");
+		map<string, Ref<Function>>::iterator loadLibraryEx = m_functionsByName.find("LoadLibraryExA");
+		map<string, Ref<Function>>::iterator getProcAddress = m_functionsByName.find("GetProcAddress");
 
-		if ((getModuleHandle != m_functionsByName.end()) && (getModuleHandle->second->IsFullyDefined()) &&
-			(getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()) &&
-			(!m_settings.usesUnloadedModule))
+		if ((getModuleHandle != m_functionsByName.end()) &&
+		    (getModuleHandle->second->IsFullyDefined()) &&
+		    (getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()) &&
+		    (!m_settings.usesUnloadedModule))
 		{
-			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_GetModuleHandle");
+			map<string, Ref<Function>>::iterator i =
+			    m_functionsByName.find("__resolve_imports_GetModuleHandle");
 			if (i != m_functionsByName.end())
 				importResolveFunction = i->second;
 		}
 		else if ((loadLibrary != m_functionsByName.end()) && (loadLibrary->second->IsFullyDefined()) &&
-			(getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()))
+		         (getProcAddress != m_functionsByName.end()) &&
+		         (getProcAddress->second->IsFullyDefined()))
 		{
-			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_LoadLibrary");
+			map<string, Ref<Function>>::iterator i =
+			    m_functionsByName.find("__resolve_imports_LoadLibrary");
 			if (i != m_functionsByName.end())
 				importResolveFunction = i->second;
 		}
-		else if ((loadLibraryEx != m_functionsByName.end()) && (loadLibraryEx->second->IsFullyDefined()) &&
-			(getProcAddress != m_functionsByName.end()) && (getProcAddress->second->IsFullyDefined()))
+		else if ((loadLibraryEx != m_functionsByName.end()) &&
+		         (loadLibraryEx->second->IsFullyDefined()) &&
+		         (getProcAddress != m_functionsByName.end()) &&
+		         (getProcAddress->second->IsFullyDefined()))
 		{
-			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_LoadLibraryEx");
+			map<string, Ref<Function>>::iterator i =
+			    m_functionsByName.find("__resolve_imports_LoadLibraryEx");
 			if (i != m_functionsByName.end())
 				importResolveFunction = i->second;
 		}
 		else if (m_settings.usesUnloadedModule)
 		{
-			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_pebscan_loadlibrary");
+			map<string, Ref<Function>>::iterator i =
+			    m_functionsByName.find("__resolve_imports_pebscan_loadlibrary");
 			if (i != m_functionsByName.end())
 				importResolveFunction = i->second;
 			hashImport = false;
 		}
 		else
 		{
-			map< string, Ref<Function> >::iterator i = m_functionsByName.find("__resolve_imports_pebscan");
+			map<string, Ref<Function>>::iterator i = m_functionsByName.find("__resolve_imports_pebscan");
 			if (i != m_functionsByName.end())
 				importResolveFunction = i->second;
 			hashImport = true;
@@ -1244,7 +1250,7 @@ bool Linker::FinalizeLink()
 	optimize.RemoveUnreferencedSymbols(importResolveFunction);
 
 	// Find all imported functions and sort them by module
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
 		if (!(*i)->IsImportedFunction())
 			continue;
@@ -1255,10 +1261,12 @@ bool Linker::FinalizeLink()
 #ifndef WIN32
 	if (m_settings.internalDebug)
 	{
-		for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+		for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end();
+		     ++i)
 		{
 			fprintf(stderr, "Imported from %s:\n", i->first.c_str());
-			for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+			for (vector<Ref<Function>>::iterator j = i->second.functions.begin();
+			     j != i->second.functions.end(); ++j)
 			{
 				fprintf(stderr, "\t");
 				(*j)->PrintPrototype();
@@ -1274,20 +1282,25 @@ bool Linker::FinalizeLink()
 	}
 
 	// Generate import table structures for each module
-	for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+	for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end();
+	     ++i)
 	{
 		Ref<Struct> s = new Struct(false);
 		s->SetName(string("@import_") + i->first);
 
-		for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+		for (vector<Ref<Function>>::iterator j = i->second.functions.begin();
+		     j != i->second.functions.end(); ++j)
 		{
-			vector< pair< Ref<Type>, string > > params;
-			for (vector<FunctionParameter>::const_iterator k = (*j)->GetParameters().begin(); k != (*j)->GetParameters().end(); ++k)
+			vector<pair<Ref<Type>, string>> params;
+			for (vector<FunctionParameter>::const_iterator k = (*j)->GetParameters().begin();
+			     k != (*j)->GetParameters().end(); ++k)
 				params.push_back(pair<Ref<Type>, string>(k->type, k->name));
 			if ((*j)->HasVariableArguments())
 				params.push_back(pair<Ref<Type>, string>(NULL, "..."));
 
-			s->AddMember(NULL, Type::FunctionType((*j)->GetReturnValue(), (*j)->GetCallingConvention(), params), (*j)->GetName());
+			s->AddMember(NULL,
+			    Type::FunctionType((*j)->GetReturnValue(), (*j)->GetCallingConvention(), params),
+			    (*j)->GetName());
 		}
 
 		if (m_settings.format == FORMAT_PE)
@@ -1301,11 +1314,13 @@ bool Linker::FinalizeLink()
 		i->second.table = importTable;
 
 		// Ensure all references to this module will use the import table
-		for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+		for (vector<Ref<Function>>::iterator j = i->second.functions.begin();
+		     j != i->second.functions.end(); ++j)
 		{
-			for (vector< Ref<Function> >::iterator k = m_functions.begin(); k != m_functions.end(); ++k)
+			for (vector<Ref<Function>>::iterator k = m_functions.begin(); k != m_functions.end(); ++k)
 			{
-				for (vector<ILBlock*>::const_iterator block = (*k)->GetIL().begin(); block != (*k)->GetIL().end(); ++block)
+				for (vector<ILBlock*>::const_iterator block = (*k)->GetIL().begin();
+				     block != (*k)->GetIL().end(); ++block)
 					(*block)->ResolveImportedFunction(*j, importTable);
 			}
 		}
@@ -1316,7 +1331,7 @@ bool Linker::FinalizeLink()
 	importFunc->SetBody(importBody);
 
 	if ((m_settings.os == OS_WINDOWS) && (m_importTables.size() != 0) &&
-		(m_settings.forcePebScan || (m_settings.format != FORMAT_PE)))
+	    (m_settings.forcePebScan || (m_settings.format != FORMAT_PE)))
 	{
 		// Import function needed
 		if (!importResolveFunction)
@@ -1335,26 +1350,30 @@ bool Linker::FinalizeLink()
 		Ref<Variable> importDescVar;
 		if (hashImport)
 		{
-			for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+			for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end();
+			     ++i)
 			{
 				importDesc.WriteUInt32(GetCaseInsensitiveNameHash(i->first + ".dll"));
-				for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+				for (vector<Ref<Function>>::iterator j = i->second.functions.begin();
+				     j != i->second.functions.end(); ++j)
 					importDesc.WriteUInt32(GetNameHash((*j)->GetName()));
 			}
 			importDesc.WriteUInt32(0);
 
-			importDescVar = new Variable(VAR_GLOBAL, Type::ArrayType(Type::IntType(4, false), importDesc.len / 4),
-				"__import_descriptor");
+			importDescVar = new Variable(VAR_GLOBAL,
+			    Type::ArrayType(Type::IntType(4, false), importDesc.len / 4), "__import_descriptor");
 		}
 		else
 		{
-			for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i)
+			for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end();
+			     ++i)
 			{
 				string name = i->first;
 				importDesc.WriteUInt8((uint8_t)strlen(name.c_str()));
 				importDesc.Write(name.c_str(), strlen(name.c_str()) + 1);
 
-				for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+				for (vector<Ref<Function>>::iterator j = i->second.functions.begin();
+				     j != i->second.functions.end(); ++j)
 				{
 					name = (*j)->GetName();
 					importDesc.WriteUInt8((uint8_t)strlen(name.c_str()));
@@ -1364,8 +1383,8 @@ bool Linker::FinalizeLink()
 				importDesc.WriteUInt8(0);
 			}
 
-			importDescVar = new Variable(VAR_GLOBAL, Type::ArrayType(Type::IntType(1, false), importDesc.len),
-				"__import_descriptor");
+			importDescVar = new Variable(VAR_GLOBAL,
+			    Type::ArrayType(Type::IntType(1, false), importDesc.len), "__import_descriptor");
 		}
 
 		importDescVar->GetData().Write(importDesc.code, importDesc.len);
@@ -1373,29 +1392,34 @@ bool Linker::FinalizeLink()
 		m_variablesByName[importDescVar->GetName()] = importDescVar;
 
 		// Generate code to set up IAT array
-		Ref<Variable> iatArray = new Variable(VAR_LOCAL, Type::ArrayType(Type::PointerType(Type::VoidType(), 2),
-			m_importTables.size()+1), "iat");
+		Ref<Variable> iatArray = new Variable(VAR_LOCAL,
+		    Type::ArrayType(Type::PointerType(Type::VoidType(), 2), m_importTables.size() + 1), "iat");
 		importFunc->AddVariable(iatArray);
 
 		size_t iatIndex = 0;
-		for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end(); ++i, ++iatIndex)
+		for (map<string, ImportTable>::iterator i = m_importTables.begin(); i != m_importTables.end();
+		     ++i, ++iatIndex)
 		{
 			importBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN,
-				Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ARRAY_INDEX, Expr::VariableExpr(mainFunc->GetLocation(), iatArray),
-				Expr::IntExpr(mainFunc->GetLocation(), iatIndex)), Expr::CastExpr(mainFunc->GetLocation(),
-				Type::PointerType(Type::VoidType(), 2), Expr::UnaryExpr(mainFunc->GetLocation(),
-				EXPR_ADDRESS_OF, Expr::VariableExpr(mainFunc->GetLocation(), i->second.table)))));
+			    Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ARRAY_INDEX,
+			        Expr::VariableExpr(mainFunc->GetLocation(), iatArray),
+			        Expr::IntExpr(mainFunc->GetLocation(), iatIndex)),
+			    Expr::CastExpr(mainFunc->GetLocation(), Type::PointerType(Type::VoidType(), 2),
+			        Expr::UnaryExpr(mainFunc->GetLocation(), EXPR_ADDRESS_OF,
+			            Expr::VariableExpr(mainFunc->GetLocation(), i->second.table)))));
 		}
 		importBody->AddChild(Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ASSIGN,
-			Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ARRAY_INDEX, Expr::VariableExpr(mainFunc->GetLocation(), iatArray),
-			Expr::IntExpr(mainFunc->GetLocation(), iatIndex)), Expr::IntExpr(mainFunc->GetLocation(), 0)));
+		    Expr::BinaryExpr(mainFunc->GetLocation(), EXPR_ARRAY_INDEX,
+		        Expr::VariableExpr(mainFunc->GetLocation(), iatArray),
+		        Expr::IntExpr(mainFunc->GetLocation(), iatIndex)),
+		    Expr::IntExpr(mainFunc->GetLocation(), 0)));
 
 		// Generate code to call import resolution function
-		vector< Ref<Expr> > importParams;
+		vector<Ref<Expr>> importParams;
 		importParams.push_back(Expr::VariableExpr(mainFunc->GetLocation(), importDescVar));
 		importParams.push_back(Expr::VariableExpr(mainFunc->GetLocation(), iatArray));
-		importBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), Expr::FunctionExpr(mainFunc->GetLocation(),
-			importResolveFunction), importParams));
+		importBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(),
+		    Expr::FunctionExpr(mainFunc->GetLocation(), importResolveFunction), importParams));
 
 		// All imports are resolved by the above code
 		m_importTables.clear();
@@ -1420,7 +1444,7 @@ bool Linker::FinalizeLink()
 
 	// Generate errors for undefined references
 	size_t errors = 0;
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		(*i)->CheckForUndefinedReferences(errors);
 	if (errors > 0)
 		return false;
@@ -1438,14 +1462,14 @@ bool Linker::FinalizeLink()
 	// Perform analysis on the code and optimize using settings.  Be sure to reevaluate global
 	// optimiziations if functions have changed.
 	// IMPORTANT: The call to the optimizer must be made, even if optimization is disabled, so that
-	// control and data flow analysis is performed (needed for code generation).  No actual optimization
-	// will be done if optimization is disabled.
+	// control and data flow analysis is performed (needed for code generation).  No actual
+	// optimization will be done if optimization is disabled.
 	bool changed = true;
 	while (changed)
 	{
 		changed = false;
 		optimize.PerformGlobalOptimizations();
-		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		{
 			if (optimize.OptimizeFunction(*i))
 				changed = true;
@@ -1453,21 +1477,21 @@ bool Linker::FinalizeLink()
 	}
 
 	// Make string constants into global const character arrays
-	map< string, Ref<Variable> > stringMap;
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	map<string, Ref<Variable>> stringMap;
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
 		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
 			(*j)->ConvertStringsToVariables(stringMap);
 	}
 
-	for (map< string, Ref<Variable> >::iterator i = stringMap.begin(); i != stringMap.end(); i++)
+	for (map<string, Ref<Variable>>::iterator i = stringMap.begin(); i != stringMap.end(); i++)
 		m_variables.push_back(i->second);
 
 #ifndef WIN32
 	if (m_settings.internalDebug)
 	{
 		fprintf(stderr, "Functions:\n");
-		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 			(*i)->Print();
 	}
 #endif
@@ -1478,7 +1502,8 @@ bool Linker::FinalizeLink()
 
 bool Linker::LayoutCode(vector<ILBlock*>& codeBlocks)
 {
-	// Check relocations and ensure that everything is within bounds, and expand any references that are not
+	// Check relocations and ensure that everything is within bounds, and expand any references that
+	// are not
 	while (true)
 	{
 		// Lay out address space for code
@@ -1513,7 +1538,8 @@ bool Linker::LayoutCode(vector<ILBlock*>& codeBlocks)
 			break;
 		}
 
-		// There are relocations that do not fit within the size allocated, need to call the overflow handlers
+		// There are relocations that do not fit within the size allocated, need to call the overflow
+		// handlers
 		for (vector<RelocationReference>::iterator i = overflows.begin(); i != overflows.end(); i++)
 		{
 			if (!i->reloc->overflow)
@@ -1577,11 +1603,12 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 	// Lay out address space for data
 	uint64_t addr = 0;
-	for (vector< Ref<Variable> >::iterator i = m_variables.begin(); i != m_variables.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_variables.begin(); i != m_variables.end(); i++)
 	{
 		if (addr & ((*i)->GetType()->GetAlignment() - 1))
 		{
-			size_t padding = (size_t)((*i)->GetType()->GetAlignment() - (addr & ((*i)->GetType()->GetAlignment() - 1)));
+			size_t padding = (size_t)((*i)->GetType()->GetAlignment() -
+			                          (addr & ((*i)->GetType()->GetAlignment() - 1)));
 			uint8_t zero = 0;
 			addr += padding;
 			for (size_t j = 0; j < padding; j++)
@@ -1613,7 +1640,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 			for (size_t i = 0; i < 256; i++)
 			{
 				bool ok = true;
-				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+				     j != m_settings.blacklist.end(); j++)
 				{
 					if (i == *j)
 					{
@@ -1646,7 +1674,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 	// Generate list of IL blocks
 	vector<ILBlock*> codeBlocks;
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
 		for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
 			codeBlocks.push_back(*j);
@@ -1680,7 +1708,7 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		// Mixed mode enabled, choose random subarchitecture for any function that does not
 		// have a subarchitecture explicitly defined.  Be sure to skip the _start function,
 		// which has to be the default subarchitecture.
-		for (vector< Ref<Function> >::iterator i = m_functions.begin() + 1; i != m_functions.end(); i++)
+		for (vector<Ref<Function>>::iterator i = m_functions.begin() + 1; i != m_functions.end(); i++)
 		{
 			if ((*i)->GetSubarchitecture() != SUBARCH_DEFAULT)
 				continue;
@@ -1696,20 +1724,18 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 	}
 
 	// Generate code for each block
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
 		map<SubarchitectureType, Output*>::iterator j = out.find((*i)->GetSubarchitecture());
 		if (j == out.end())
 		{
-			fprintf(stderr, "error: invalid subarchitecture in function '%s'\n",
-				(*i)->GetName().c_str());
+			fprintf(stderr, "error: invalid subarchitecture in function '%s'\n", (*i)->GetName().c_str());
 			return false;
 		}
 
 		if (!j->second->GenerateCode(*i))
 		{
-			fprintf(stderr, "error: code generation failed for function '%s'\n",
-				(*i)->GetName().c_str());
+			fprintf(stderr, "error: code generation failed for function '%s'\n", (*i)->GetName().c_str());
 			return false;
 		}
 	}
@@ -1731,7 +1757,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 			PrepareMarkovInstructionsFromBlocks(codeBlocks);
 		}
 
-		// Padding is enabled, insert random code in between blocks to get the code closer to the target size
+		// Padding is enabled, insert random code in between blocks to get the code closer to the target
+		// size
 		while (true)
 		{
 			size_t totalSize = dataSection.len;
@@ -1782,7 +1809,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 					for (size_t i = 0; i < 256; i++)
 					{
 						bool ok = true;
-						for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+						for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+						     j != m_settings.blacklist.end(); j++)
 						{
 							if (i == *j)
 							{
@@ -1836,10 +1864,11 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 	if (m_settings.sizeInfo)
 	{
-		for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+		for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		{
 			size_t size = 0;
-			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end(); j++)
+			for (vector<ILBlock*>::const_iterator j = (*i)->GetIL().begin(); j != (*i)->GetIL().end();
+			     j++)
 				size += (*j)->GetOutputBlock()->len;
 
 			fprintf(stderr, "%-32s  %d bytes\n", (*i)->GetName().c_str(), (int)size);
@@ -1859,7 +1888,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 			for (size_t i = 0; i < 256; i++)
 			{
 				bool ok = true;
-				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+				     j != m_settings.blacklist.end(); j++)
 				{
 					if (i == *j)
 					{
@@ -1929,7 +1959,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		{
 			bool valid = true;
 			uint8_t errorByte = 0;
-			for (vector<uint8_t>::iterator j = m_settings.blacklist.begin(); j != m_settings.blacklist.end(); j++)
+			for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+			     j != m_settings.blacklist.end(); j++)
 			{
 				if (((uint8_t*)finalBinary->code)[i] == *j)
 				{
@@ -1941,7 +1972,8 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 
 			if (!valid)
 			{
-				fprintf(stderr, "error: unable to satisfy constraints (output contains 0x%.2x)\n", errorByte);
+				fprintf(
+				    stderr, "error: unable to satisfy constraints (output contains 0x%.2x)\n", errorByte);
 				return false;
 			}
 		}
@@ -1960,33 +1992,36 @@ bool Linker::WriteMapFile(const string& filename)
 		return false;
 	}
 
-	for (vector< Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (vector<Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
 		if ((*i)->GetName().size() == 0)
 			continue;
 #ifdef WIN32
-		fprintf(outFP, "%I64x %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(), (*i)->GetName().c_str());
+		fprintf(outFP, "%I64x %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(),
+		    (*i)->GetName().c_str());
 #else
-		fprintf(outFP, "%llx %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(), (*i)->GetName().c_str());
+		fprintf(outFP, "%llx %s\n", (unsigned long long)(*i)->GetIL()[0]->GetAddress(),
+		    (*i)->GetName().c_str());
 #endif
 	}
 
-	for (vector< Ref<Variable> >::iterator i = m_variables.begin(); i != m_variables.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_variables.begin(); i != m_variables.end(); i++)
 	{
 		if ((*i)->GetName().size() == 0)
 			continue;
 		if ((*i)->GetName()[0] == '$')
 			continue;
 #ifdef WIN32
-		fprintf(outFP, "%I64x %s\n", (unsigned long long)(m_settings.dataSectionBase +
-			(*i)->GetDataSectionOffset()), (*i)->GetName().c_str());
+		fprintf(outFP, "%I64x %s\n",
+		    (unsigned long long)(m_settings.dataSectionBase + (*i)->GetDataSectionOffset()),
+		    (*i)->GetName().c_str());
 #else
-		fprintf(outFP, "%llx %s\n", (unsigned long long)(m_settings.dataSectionBase +
-			(*i)->GetDataSectionOffset()), (*i)->GetName().c_str());
+		fprintf(outFP, "%llx %s\n",
+		    (unsigned long long)(m_settings.dataSectionBase + (*i)->GetDataSectionOffset()),
+		    (*i)->GetName().c_str());
 #endif
 	}
 
 	fclose(outFP);
 	return true;
 }
-

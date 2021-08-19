@@ -27,4 +27,3 @@
 #define O_NOFOLLOW  0x20000
 
 #endif
-

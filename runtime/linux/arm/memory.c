@@ -28,4 +28,3 @@ void* munmap(void* addr, size_t len)
 {
 	return (void*)__syscall(SYS_munmap, addr, len);
 }
-

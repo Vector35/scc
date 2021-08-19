@@ -47,4 +47,3 @@ int __vaprintf(void (*output)(void* ctxt, char ch), void* ctxt, const char* fmt,
 int atoi(const char* str);
 
 #endif
-

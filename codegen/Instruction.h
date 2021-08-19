@@ -21,17 +21,17 @@
 #ifndef __INSTRUCTION_H__
 #define __INSTRUCTION_H__
 
-#include <string>
-#include <inttypes.h>
 #include "CodeBlock.h"
+#include <inttypes.h>
+#include <string>
 
-#define SYMFLAG_WRITES_FLAGS    1
-#define SYMFLAG_USES_FLAGS      2
-#define SYMFLAG_MEMORY_BARRIER  4
-#define SYMFLAG_CONTROL_FLOW    8
-#define SYMFLAG_CALL            0x10
-#define SYMFLAG_COPY            0x20
-#define SYMFLAG_STACK           0x40
+#define SYMFLAG_WRITES_FLAGS   1
+#define SYMFLAG_USES_FLAGS     2
+#define SYMFLAG_MEMORY_BARRIER 4
+#define SYMFLAG_CONTROL_FLOW   8
+#define SYMFLAG_CALL           0x10
+#define SYMFLAG_COPY           0x20
+#define SYMFLAG_STACK          0x40
 
 
 enum InstructionTokenType
@@ -68,12 +68,13 @@ struct InstructionToken
 	OperandType operand;
 	OperandAccessType access;
 
-	static InstructionToken* CreateTextToken(const std::string& fileName, int line, const std::string& name);
-	static InstructionToken* CreateOperandToken(const std::string& fileName, int line, const std::string& name,
-		OperandType operand, OperandAccessType access);
+	static InstructionToken* CreateTextToken(
+	    const std::string& fileName, int line, const std::string& name);
+	static InstructionToken* CreateOperandToken(const std::string& fileName, int line,
+	    const std::string& name, OperandType operand, OperandAccessType access);
 };
 
-class Instruction: public RefCountObject
+class Instruction : public RefCountObject
 {
 	std::string m_name;
 	uint32_t m_flags;
@@ -81,9 +82,9 @@ class Instruction: public RefCountObject
 	Ref<CodeBlock> m_code;
 	Ref<CodeBlock> m_update;
 
-public:
+ public:
 	Instruction(const std::string& name, uint32_t flags, const std::vector<InstructionToken>& tokens,
-		CodeBlock* code, CodeBlock* update);
+	    CodeBlock* code, CodeBlock* update);
 
 	const std::string& GetName() const { return m_name; }
 	uint32_t GetFlags() const { return m_flags; }
@@ -94,4 +95,3 @@ public:
 
 
 #endif
-

@@ -128,7 +128,8 @@ ssize_t recv(int fd, void* buf, size_t n, int flags)
 	return __syscall(SYS_socketcall, SYS_recv, args);
 }
 
-ssize_t sendto(int fd, const void* buf, size_t n, int flags, const struct sockaddr* addr, socklen_t addrlen)
+ssize_t sendto(
+    int fd, const void* buf, size_t n, int flags, const struct sockaddr* addr, socklen_t addrlen)
 {
 	size_t args[6];
 	args[0] = fd;
@@ -173,4 +174,3 @@ int setsockopt(int fd, int level, int optname, const void* optval, socklen_t opt
 	args[4] = optlen;
 	return __syscall(SYS_socketcall, SYS_setsockopt, args);
 }
-

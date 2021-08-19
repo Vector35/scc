@@ -217,7 +217,8 @@ typedef struct
 #define GetCurrentPeb() ((PEB*)__peb)
 
 void* __stdcall LoadLibraryA(const char* name) __import("kernel32");
-void* __stdcall LoadLibraryExA(const char* name, void* reserved, uint32_t flags) __import("kernel32");
+void* __stdcall LoadLibraryExA(const char* name, void* reserved, uint32_t flags)
+    __import("kernel32");
 void* __stdcall GetModuleHandleA(const char* name) __import("kernel32");
 void* __stdcall GetProcAddress(void* module, const char* name) __import("kernel32");
 
@@ -228,4 +229,3 @@ void __resolve_imports_pebscan(const uint32_t* importDesc, void*** iats);
 void __resolve_imports_pebscan_loadlibrary(const uint8_t* importDesc, void*** iats);
 
 #endif
-

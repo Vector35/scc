@@ -1,10 +1,10 @@
 #ifndef __ILBLOCK_H__
 #define __ILBLOCK_H__
 
+#include "BitVector.h"
+#include "Type.h"
 #include <set>
 #include <stack>
-#include "Type.h"
-#include "BitVector.h"
 
 
 typedef enum
@@ -151,7 +151,7 @@ struct ILParameter
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
-	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void ConvertStringsToVariables(std::map<std::string, Ref<Variable>>& stringMap);
 	void ResolveImportedFunction(Function* from, Variable* importTable);
 	bool IsConstant() const;
 	void TagReferences();
@@ -172,13 +172,14 @@ struct ILInstruction
 	ILInstruction(ILOperation op, const ILParameter& a);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c);
-	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c, const ILParameter& d);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d, const ILParameter& e);
+	    const ILParameter& d);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d, const ILParameter& e, const ILParameter& f);
+	    const ILParameter& d, const ILParameter& e);
 	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g);
+	    const ILParameter& d, const ILParameter& e, const ILParameter& f);
+	ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
+	    const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g);
 	ILInstruction(ILOperation op, const std::vector<ILParameter>& list);
 	ILInstruction(const ILInstruction& instr);
 	ILInstruction& operator=(const ILInstruction& instr);
@@ -186,7 +187,7 @@ struct ILInstruction
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
-	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void ConvertStringsToVariables(std::map<std::string, Ref<Variable>>& stringMap);
 	void ResolveImportedFunction(Function* from, Variable* importTable);
 	void TagReferences();
 	bool WritesToFirstParameter() const;
@@ -209,13 +210,13 @@ class ILBlock
 
 	std::set<ILBlock*> m_entryBlocks, m_exitBlocks;
 	BitVector m_defPreserve, m_defGenerate, m_defReachIn, m_defReachOut;
-	std::vector< std::vector< std::pair<ILBlock*, size_t> > > m_useDefChains;
-	std::vector< std::vector< std::pair<ILBlock*, size_t> > > m_defUseChains;
+	std::vector<std::vector<std::pair<ILBlock*, size_t>>> m_useDefChains;
+	std::vector<std::vector<std::pair<ILBlock*, size_t>>> m_defUseChains;
 
 	static std::map<size_t, ILBlock*> m_serializationMapping;
-	static std::stack< std::map<size_t, ILBlock*> > m_savedSerializationMappings;
+	static std::stack<std::map<size_t, ILBlock*>> m_savedSerializationMappings;
 
-public:
+ public:
 	ILBlock();
 	ILBlock(size_t i);
 	~ILBlock();
@@ -230,22 +231,48 @@ public:
 	const std::vector<ILInstruction>& GetInstructions() const { return m_instrs; }
 	void AddInstruction(const ILInstruction& instr);
 	void AddInstruction(ILOperation op) { AddInstruction(ILInstruction(op)); }
-	void AddInstruction(ILOperation op, const ILParameter& a) { AddInstruction(ILInstruction(op, a)); }
-	void AddInstruction(ILOperation op, const ILParameter& a,
-		const ILParameter& b) { AddInstruction(ILInstruction(op, a, b)); }
+	void AddInstruction(ILOperation op, const ILParameter& a)
+	{
+		AddInstruction(ILInstruction(op, a));
+	}
+	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b)
+	{
+		AddInstruction(ILInstruction(op, a, b));
+	}
+	void AddInstruction(
+	    ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c)
+	{
+		AddInstruction(ILInstruction(op, a, b, c));
+	}
 	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
-		const ILParameter& c) { AddInstruction(ILInstruction(op, a, b, c)); }
-	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d) { AddInstruction(ILInstruction(op, a, b, c, d)); }
-	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d, const ILParameter& e) { AddInstruction(ILInstruction(op, a, b, c, d, e)); }
-	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d, const ILParameter& e, const ILParameter& f) { AddInstruction(ILInstruction(op, a, b, c, d, e, f)); }
-	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-		const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g)
-		{ AddInstruction(ILInstruction(op, a, b, c, d, e, f, g)); }
-	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list) { AddInstruction(ILInstruction(op, list)); }
-	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value) { m_instrs[i].params[param] = value; }
+	    const ILParameter& c, const ILParameter& d)
+	{
+		AddInstruction(ILInstruction(op, a, b, c, d));
+	}
+	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+	    const ILParameter& c, const ILParameter& d, const ILParameter& e)
+	{
+		AddInstruction(ILInstruction(op, a, b, c, d, e));
+	}
+	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+	    const ILParameter& c, const ILParameter& d, const ILParameter& e, const ILParameter& f)
+	{
+		AddInstruction(ILInstruction(op, a, b, c, d, e, f));
+	}
+	void AddInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+	    const ILParameter& c, const ILParameter& d, const ILParameter& e, const ILParameter& f,
+	    const ILParameter& g)
+	{
+		AddInstruction(ILInstruction(op, a, b, c, d, e, f, g));
+	}
+	void AddInstruction(ILOperation op, const std::vector<ILParameter>& list)
+	{
+		AddInstruction(ILInstruction(op, list));
+	}
+	void SetInstructionParameter(size_t i, size_t param, const ILParameter& value)
+	{
+		m_instrs[i].params[param] = value;
+	}
 	void SetInstructionDataFlowBit(size_t i, size_t bit) { m_instrs[i].dataFlowBit = bit; }
 
 	void RemoveLastInstruction();
@@ -254,14 +281,15 @@ public:
 	void ReplaceFunction(Function* from, Function* to);
 	void ReplaceVariable(Variable* from, Variable* to);
 	void CheckForUndefinedReferences(size_t& errors);
-	void ConvertStringsToVariables(std::map< std::string, Ref<Variable> >& stringMap);
+	void ConvertStringsToVariables(std::map<std::string, Ref<Variable>>& stringMap);
 	void ResolveImportedFunction(Function* from, Variable* importTable);
 
 	OutputBlock* GetOutputBlock() const { return m_output; }
 	void SetOutputBlock(OutputBlock* output);
 	uint64_t GetAddress() const { return m_addr; }
 	void SetAddress(uint64_t addr) { m_addr = addr; }
-	bool CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase, std::vector<RelocationReference>& overflows);
+	bool CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase,
+	    std::vector<RelocationReference>& overflows);
 	bool ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase);
 
 	bool EndsWithReturn() const;
@@ -282,8 +310,14 @@ public:
 	BitVector& GetGeneratedDefinitions() { return m_defGenerate; }
 	BitVector& GetReachingDefinitionsInput() { return m_defReachIn; }
 	BitVector& GetReachingDefinitionsOutput() { return m_defReachOut; }
-	std::vector< std::vector< std::pair<ILBlock*, size_t> > >& GetUseDefinitionChains() { return m_useDefChains; }
-	std::vector< std::vector< std::pair<ILBlock*, size_t> > >& GetDefinitionUseChains() { return m_defUseChains; }
+	std::vector<std::vector<std::pair<ILBlock*, size_t>>>& GetUseDefinitionChains()
+	{
+		return m_useDefChains;
+	}
+	std::vector<std::vector<std::pair<ILBlock*, size_t>>>& GetDefinitionUseChains()
+	{
+		return m_defUseChains;
+	}
 
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
@@ -297,4 +331,3 @@ public:
 
 
 #endif
-

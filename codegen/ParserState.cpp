@@ -18,14 +18,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include <stdio.h>
 #include "ParserState.h"
+#include <stdio.h>
 
 using namespace std;
 
 
-ParserState::ParserState(const string& name, void* scanner):
-	m_fileName(name), m_scanner(scanner)
+ParserState::ParserState(const string& name, void* scanner) : m_fileName(name), m_scanner(scanner)
 {
 	m_errors = 0;
 	m_line = 1;
@@ -33,9 +32,7 @@ ParserState::ParserState(const string& name, void* scanner):
 }
 
 
-ParserState::~ParserState()
-{
-}
+ParserState::~ParserState() {}
 
 
 Location ParserState::GetLocation()
@@ -47,13 +44,14 @@ Location ParserState::GetLocation()
 }
 
 
-void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, CodeBlock* fixed, bool isDefault)
+void ParserState::DefineRegisterClass(
+    uint32_t sizeFlags, const string& name, CodeBlock* fixed, bool isDefault)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return;
 	}
 
@@ -64,8 +62,8 @@ void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, Co
 		if (m_defaultRegClass)
 		{
 			Error();
-			fprintf(stderr, "%s:%d: error: more than one default register class defined\n", GetFileName().c_str(),
-				GetLineNumber());
+			fprintf(stderr, "%s:%d: error: more than one default register class defined\n",
+			    GetFileName().c_str(), GetLineNumber());
 			return;
 		}
 
@@ -76,14 +74,14 @@ void ParserState::DefineRegisterClass(uint32_t sizeFlags, const string& name, Co
 }
 
 
-void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& name,
-	const string& lowRegClass, const string& highRegClass)
+void ParserState::DefineLargeRegisterClass(
+    uint32_t sizeFlags, const string& name, const string& lowRegClass, const string& highRegClass)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return;
 	}
 
@@ -91,7 +89,7 @@ void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& nam
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
-			GetLineNumber(), lowRegClass.c_str());
+		    GetLineNumber(), lowRegClass.c_str());
 		return;
 	}
 
@@ -99,7 +97,7 @@ void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& nam
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
-			GetLineNumber(), highRegClass.c_str());
+		    GetLineNumber(), highRegClass.c_str());
 		return;
 	}
 
@@ -107,13 +105,14 @@ void ParserState::DefineLargeRegisterClass(uint32_t sizeFlags, const string& nam
 }
 
 
-void ParserState::DefineTempRegisterClass(uint32_t sizeFlags, const string& name, const string& symRegClass)
+void ParserState::DefineTempRegisterClass(
+    uint32_t sizeFlags, const string& name, const string& symRegClass)
 {
 	if (m_regClasses.find(name) != m_regClasses.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return;
 	}
 
@@ -121,7 +120,7 @@ void ParserState::DefineTempRegisterClass(uint32_t sizeFlags, const string& name
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
-			GetLineNumber(), symRegClass.c_str());
+		    GetLineNumber(), symRegClass.c_str());
 		return;
 	}
 
@@ -135,7 +134,7 @@ void ParserState::DefineImmediateClass(const std::string& name, CodeBlock* code)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: immediate class '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return;
 	}
 
@@ -149,7 +148,7 @@ void ParserState::DefineRegisterSubclass(const std::string& name, const std::str
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: register class '%s' not defined\n", GetFileName().c_str(),
-			GetLineNumber(), base.c_str());
+		    GetLineNumber(), base.c_str());
 		return;
 	}
 
@@ -187,14 +186,16 @@ void ParserState::DefineVariable(CodeBlock* var)
 }
 
 
-void ParserState::DefineMatch(const string& file, int line, TreeNode* match, TreeNode* result, TreeNode* temp, CodeBlock* code)
+void ParserState::DefineMatch(const string& file, int line, TreeNode* match, TreeNode* result,
+    TreeNode* temp, CodeBlock* code)
 {
 	if (match->GetClass() == NODE_REG)
 	{
 		if (!result)
 		{
 			Error();
-			fprintf(stderr, "%s:%d: error: result match required\n", GetFileName().c_str(), GetLineNumber());
+			fprintf(
+			    stderr, "%s:%d: error: result match required\n", GetFileName().c_str(), GetLineNumber());
 			return;
 		}
 
@@ -202,9 +203,11 @@ void ParserState::DefineMatch(const string& file, int line, TreeNode* match, Tre
 		if (regClass && (regClass->GetClassType() == REGCLASS_TEMP))
 		{
 			if (temp)
-				m_tempRegMatches.push_back(new Match(file, line, match, result, temp->GetChildNodes(), code));
+				m_tempRegMatches.push_back(
+				    new Match(file, line, match, result, temp->GetChildNodes(), code));
 			else
-				m_tempRegMatches.push_back(new Match(file, line, match, result, vector< Ref<TreeNode> >(), code));
+				m_tempRegMatches.push_back(
+				    new Match(file, line, match, result, vector<Ref<TreeNode>>(), code));
 			return;
 		}
 	}
@@ -216,7 +219,7 @@ void ParserState::DefineMatch(const string& file, int line, TreeNode* match, Tre
 	if (temp)
 		m_matches.push_back(new Match(file, line, match, result, temp->GetChildNodes(), code));
 	else
-		m_matches.push_back(new Match(file, line, match, result, vector< Ref<TreeNode> >(), code));
+		m_matches.push_back(new Match(file, line, match, result, vector<Ref<TreeNode>>(), code));
 }
 
 
@@ -226,18 +229,18 @@ void ParserState::DefineEncoding(const std::string& name, Encoding* encoding)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: encoding '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return;
 	}
 
 	m_encodings[name] = encoding;
 
 	if ((encoding->GetWidth() != 8) && (encoding->GetWidth() != 16) && (encoding->GetWidth() != 32) &&
-		(encoding->GetWidth() != 64))
+	    (encoding->GetWidth() != 64))
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: encoding '%s' has invalid size %d\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str(), (int)encoding->GetWidth());
+		    GetLineNumber(), name.c_str(), (int)encoding->GetWidth());
 		return;
 	}
 }
@@ -249,13 +252,13 @@ void ParserState::DefineInstruction(Instruction* instr)
 }
 
 
-void ParserState::AddCallerSavedRegs(const vector< Ref<CodeBlock> >& regs)
+void ParserState::AddCallerSavedRegs(const vector<Ref<CodeBlock>>& regs)
 {
 	m_callerSavedRegs.insert(m_callerSavedRegs.end(), regs.begin(), regs.end());
 }
 
 
-void ParserState::AddCalleeSavedRegs(const vector< Ref<CodeBlock> >& regs)
+void ParserState::AddCalleeSavedRegs(const vector<Ref<CodeBlock>>& regs)
 {
 	m_calleeSavedRegs.insert(m_calleeSavedRegs.end(), regs.begin(), regs.end());
 }
@@ -267,7 +270,7 @@ void ParserState::DefineSpecialReg(const std::string& name, CodeBlock* reg)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: special register '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return;
 	}
 
@@ -277,9 +280,9 @@ void ParserState::DefineSpecialReg(const std::string& name, CodeBlock* reg)
 
 void ParserState::ExpandTempRegisterClasses()
 {
-	vector< Ref<Match> > expanded;
+	vector<Ref<Match>> expanded;
 
-	for (vector< Ref<Match> >::iterator i = m_matches.begin(); i != m_matches.end(); ++i)
+	for (vector<Ref<Match>>::iterator i = m_matches.begin(); i != m_matches.end(); ++i)
 	{
 		if (!(*i)->GetResult())
 		{
@@ -294,21 +297,24 @@ void ParserState::ExpandTempRegisterClasses()
 			continue;
 		}
 
-		// Rule has a result of a temporary register class, expand using the temporary register class rules
-		for (vector< Ref<Match> >::iterator j = m_tempRegMatches.begin(); j != m_tempRegMatches.end(); ++j)
+		// Rule has a result of a temporary register class, expand using the temporary register class
+		// rules
+		for (vector<Ref<Match>>::iterator j = m_tempRegMatches.begin(); j != m_tempRegMatches.end();
+		     ++j)
 		{
 			if ((*j)->GetCode()->GetTokens().size() == 0)
 			{
 				// No code for this rule, create a replacement rule that simply changes the register class
 				Ref<TreeNode> finalResult = new TreeNode(*(*j)->GetResult());
-				Ref<Match> newMatch = new Match((*i)->GetFileName(), (*i)->GetLineNumber(), (*i)->GetMatch(), finalResult,
-					(*i)->GetTemps(), (*i)->GetCode());
+				Ref<Match> newMatch = new Match((*i)->GetFileName(), (*i)->GetLineNumber(),
+				    (*i)->GetMatch(), finalResult, (*i)->GetTemps(), (*i)->GetCode());
 				expanded.push_back(newMatch);
 				continue;
 			}
 
-			vector< Ref<TreeNode> > temp = (*i)->GetTemps();
-			for (vector< Ref<TreeNode> >::const_iterator k = (*j)->GetTemps().begin(); k != (*j)->GetTemps().end(); ++k)
+			vector<Ref<TreeNode>> temp = (*i)->GetTemps();
+			for (vector<Ref<TreeNode>>::const_iterator k = (*j)->GetTemps().begin();
+			     k != (*j)->GetTemps().end(); ++k)
 			{
 				TreeNode* newTemp = new TreeNode(**k);
 				newTemp->SetName(string("_t_") + newTemp->GetName());
@@ -333,7 +339,8 @@ void ParserState::ExpandTempRegisterClasses()
 			Ref<TreeNode> match = new TreeNode(*(*i)->GetMatch());
 			match->SetSizeFlags(match->GetSizeFlags() & finalResult->GetSizeFlags());
 
-			Ref<Match> newMatch = new Match((*i)->GetFileName(), (*i)->GetLineNumber(), match, finalResult, temp, code);
+			Ref<Match> newMatch =
+			    new Match((*i)->GetFileName(), (*i)->GetLineNumber(), match, finalResult, temp, code);
 			expanded.push_back(newMatch);
 		}
 	}
@@ -347,7 +354,7 @@ void ParserState::ExpandTempRegisterClasses()
 
 RegisterClassDef* ParserState::GetRegisterClass(const string& name) const
 {
-	map< string, Ref<RegisterClassDef> >::const_iterator i = m_regClasses.find(name);
+	map<string, Ref<RegisterClassDef>>::const_iterator i = m_regClasses.find(name);
 	if (i == m_regClasses.end())
 		return NULL;
 	return i->second;
@@ -356,7 +363,7 @@ RegisterClassDef* ParserState::GetRegisterClass(const string& name) const
 
 CodeBlock* ParserState::GetImmediateClass(const string& name) const
 {
-	map< string, Ref<CodeBlock> >::const_iterator i = m_immClasses.find(name);
+	map<string, Ref<CodeBlock>>::const_iterator i = m_immClasses.find(name);
 	if (i == m_immClasses.end())
 		return NULL;
 	return i->second;
@@ -365,9 +372,8 @@ CodeBlock* ParserState::GetImmediateClass(const string& name) const
 
 Encoding* ParserState::GetEncoding(const std::string& name) const
 {
-	map< string, Ref<Encoding> >::const_iterator i = m_encodings.find(name);
+	map<string, Ref<Encoding>>::const_iterator i = m_encodings.find(name);
 	if (i == m_encodings.end())
 		return NULL;
 	return i->second;
 }
-

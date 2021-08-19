@@ -1,22 +1,22 @@
 #ifdef OUTPUT_CLASS_NAME
 
-#include <map>
-#include "Output.h"
-#include "SymInstr.h"
+	#include "Output.h"
+	#include "SymInstr.h"
+	#include <map>
 
 
-#ifdef WIN32
+	#ifdef WIN32
 typedef ptrdiff_t ssize_t;
-#endif
+	#endif
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 class X86Sym_Function;
-#else
+	#else
 class X64Sym_Function;
-#endif
+	#endif
 
 
-class OUTPUT_CLASS_NAME: public Output
+class OUTPUT_CLASS_NAME : public Output
 {
 	struct X86MemoryReference
 	{
@@ -86,11 +86,11 @@ class OUTPUT_CLASS_NAME: public Output
 	};
 
 	Function* m_func;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	X86Sym_Function* m_symFunc;
-#else
+	#else
 	X64Sym_Function* m_symFunc;
-#endif
+	#endif
 	std::map<Variable*, int32_t> m_stackFrame;
 	std::map<Variable*, int32_t> m_stackVar;
 	std::map<Variable*, uint32_t> m_varReg;
@@ -103,7 +103,8 @@ class OUTPUT_CLASS_NAME: public Output
 	uint32_t GetRegisterByName(const std::string& name);
 
 	void GetDataAddressFromInstructionPointer(SymInstrBlock* out, uint32_t reg, int64_t offset);
-	void GetCodeAddressFromInstructionPointer(SymInstrBlock* out, uint32_t reg, Function* func, ILBlock* block);
+	void GetCodeAddressFromInstructionPointer(
+	    SymInstrBlock* out, uint32_t reg, Function* func, ILBlock* block);
 	bool AccessVariableStorage(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
 	bool LoadCodePointer(SymInstrBlock* out, Function* func, ILBlock* block, OperandReference& ref);
 	bool PrepareLoad(SymInstrBlock* out, const ILParameter& param, OperandReference& ref);
@@ -116,17 +117,21 @@ class OUTPUT_CLASS_NAME: public Output
 	bool Or(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool Xor(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool ShiftLeft(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool ShiftRightUnsigned(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
-	bool ShiftRightSigned(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftRightUnsigned(
+	    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
+	bool ShiftRightSigned(
+	    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src);
 	bool Neg(SymInstrBlock* out, const OperandReference& dest);
 	bool Not(SymInstrBlock* out, const OperandReference& dest);
 	bool Increment(SymInstrBlock* out, const OperandReference& dest);
 	bool Decrement(SymInstrBlock* out, const OperandReference& dest);
-	void ConditionalJump(SymInstrBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
+	void ConditionalJump(
+	    SymInstrBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock);
 	void UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit = true);
-#ifdef OUTPUT32
-	bool Mult64(SymInstrBlock* out, const OperandReference& dest, const OperandReference& a, const OperandReference& b);
-#endif
+	#ifdef OUTPUT32
+	bool Mult64(SymInstrBlock* out, const OperandReference& dest, const OperandReference& a,
+	    const OperandReference& b);
+	#endif
 
 	bool GenerateAssign(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateAddressOf(SymInstrBlock* out, const ILInstruction& instr);
@@ -186,16 +191,15 @@ class OUTPUT_CLASS_NAME: public Output
 
 	bool GenerateCodeBlock(SymInstrBlock* out, ILBlock* block);
 
-public:
+ public:
 	OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc);
 
 	virtual bool GenerateCode(Function* func);
-	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,
-		const std::vector< Ref<TreeNode> >& params, TreeNodeType resultType);
-	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num, const std::vector< Ref<TreeNode> >& params,
-		TreeNodeType resultType);
+	virtual TreeNode* GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv,
+	    size_t fixedParams, const std::vector<Ref<TreeNode>>& params, TreeNodeType resultType);
+	virtual TreeNode* GenerateSyscall(TreeBlock* block, TreeNode* num,
+	    const std::vector<Ref<TreeNode>>& params, TreeNodeType resultType);
 };
 
 
 #endif
-

@@ -19,12 +19,12 @@
 // IN THE SOFTWARE.
 
 #ifdef WIN32
-#define YY_NO_UNISTD_H
+	#define YY_NO_UNISTD_H
 #endif
-#include <stdio.h>
 #include "PreprocessState.h"
-#include "PreprocessParser.h"
 #include "PreprocessLexer.h"
+#include "PreprocessParser.h"
+#include <stdio.h>
 
 using namespace std;
 
@@ -33,8 +33,8 @@ extern int Preprocess_parse(PreprocessState* state);
 extern int Preprocess_get_lineno(void* yyscanner);
 
 
-PreprocessState::PreprocessState(const string& name, void* scanner):
-	m_fileName(name), m_scanner(scanner)
+PreprocessState::PreprocessState(const string& name, void* scanner) :
+    m_fileName(name), m_scanner(scanner)
 {
 	m_errors = 0;
 	m_expansionInProgress = false;
@@ -45,8 +45,8 @@ PreprocessState::PreprocessState(const string& name, void* scanner):
 }
 
 
-PreprocessState::PreprocessState(PreprocessState& parent, const string& name, void* scanner):
-	m_fileName(name), m_scanner(scanner)
+PreprocessState::PreprocessState(PreprocessState& parent, const string& name, void* scanner) :
+    m_fileName(name), m_scanner(scanner)
 {
 	m_errors = 0;
 	m_expansionInProgress = false;
@@ -59,9 +59,7 @@ PreprocessState::PreprocessState(PreprocessState& parent, const string& name, vo
 }
 
 
-PreprocessState::~PreprocessState()
-{
-}
+PreprocessState::~PreprocessState() {}
 
 
 int PreprocessState::GetLineNumber()
@@ -244,11 +242,12 @@ void PreprocessState::IncludeFile(const string& name)
 		if (m_scanner)
 		{
 			fprintf(stderr, "%s:%d: error: include file '%s' not found\n", GetFileName().c_str(),
-				GetLineNumber(), name.c_str());
+			    GetLineNumber(), name.c_str());
 		}
 		else
 		{
-			fprintf(stderr, "%s: error: include file '%s' not found\n", GetFileName().c_str(), name.c_str());
+			fprintf(
+			    stderr, "%s: error: include file '%s' not found\n", GetFileName().c_str(), name.c_str());
 		}
 		m_errors++;
 		return;
@@ -261,7 +260,8 @@ void PreprocessState::IncludeFile(const string& name)
 	char* data = new char[size + 2];
 	if (fread(data, 1, size, fp) != (size_t)size)
 	{
-		fprintf(stderr, "%s: error: include file '%s' could not be read\n", GetFileName().c_str(), name.c_str());
+		fprintf(stderr, "%s: error: include file '%s' could not be read\n", GetFileName().c_str(),
+		    name.c_str());
 		m_errors++;
 		delete[] data;
 		fclose(fp);
@@ -297,7 +297,8 @@ void PreprocessState::IncludeFile(const string& name)
 }
 
 
-void PreprocessState::Define(const string& name, const vector<string>& params, const vector< Ref<Token> >& tokens, bool hasParams)
+void PreprocessState::Define(const string& name, const vector<string>& params,
+    const vector<Ref<Token>>& tokens, bool hasParams)
 {
 	// Ignore anything inside a failed #ifdef
 	if (m_ifFailCount > 0)
@@ -306,10 +307,10 @@ void PreprocessState::Define(const string& name, const vector<string>& params, c
 	if (m_macros.find(name) != m_macros.end())
 	{
 		Macro oldDef = m_macros[name];
-		fprintf(stderr, "%s:%d: error: '%s' redefined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
-		fprintf(stderr, "%s:%d: error: previous declaration of '%s'\n", oldDef.location.fileName.c_str(),
-			oldDef.location.lineNumber, name.c_str());
+		fprintf(stderr, "%s:%d: error: '%s' redefined\n", GetFileName().c_str(), GetLineNumber(),
+		    name.c_str());
+		fprintf(stderr, "%s:%d: error: previous declaration of '%s'\n",
+		    oldDef.location.fileName.c_str(), oldDef.location.lineNumber, name.c_str());
 		m_errors++;
 	}
 
@@ -332,8 +333,8 @@ void PreprocessState::Undefine(const string& name)
 
 	if (m_macros.find(name) == m_macros.end())
 	{
-		fprintf(stderr, "%s:%d: error: '%s' is not defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		fprintf(stderr, "%s:%d: error: '%s' is not defined\n", GetFileName().c_str(), GetLineNumber(),
+		    name.c_str());
 		m_errors++;
 	}
 	else
@@ -394,25 +395,26 @@ void PreprocessState::FinishMacroExpansion()
 	if (expansion.params.size() != expansion.macro.params.size())
 	{
 		fprintf(stderr, "%s:%d: error: expected %d argument%s to '%s'\n", GetFileName().c_str(),
-			GetLineNumber(), (int)expansion.macro.params.size(), (expansion.macro.params.size() == 1) ? "" : "s",
-			expansion.macro.name.c_str());
+		    GetLineNumber(), (int)expansion.macro.params.size(),
+		    (expansion.macro.params.size() == 1) ? "" : "s", expansion.macro.name.c_str());
 		m_errors++;
 		return;
 	}
 
 	// Organize parameters by name
-	map< string, vector< Ref<Token> > > paramsByName;
+	map<string, vector<Ref<Token>>> paramsByName;
 	for (size_t i = 0; i < expansion.params.size(); i++)
 		paramsByName[expansion.macro.params[i]] = expansion.params[i];
 
 	// Paste macro tokens into output stream
-	for (vector< Ref<Token> >::iterator i = expansion.macro.tokens.begin(); i != expansion.macro.tokens.end(); i++)
+	for (vector<Ref<Token>>::iterator i = expansion.macro.tokens.begin();
+	     i != expansion.macro.tokens.end(); i++)
 	{
 		if ((*i)->GetType() != TOKEN_ID)
 			Append(*i);
 		else
 		{
-			map< string, vector< Ref<Token> > >::iterator j = paramsByName.find((*i)->GetString());
+			map<string, vector<Ref<Token>>>::iterator j = paramsByName.find((*i)->GetString());
 			if (j == paramsByName.end())
 			{
 				if (((*i)->GetType() == TOKEN_ID) && IsDefined((*i)->GetString()))
@@ -422,7 +424,7 @@ void PreprocessState::FinishMacroExpansion()
 			}
 			else
 			{
-				for (vector< Ref<Token> >::iterator k = j->second.begin(); k != j->second.end(); k++)
+				for (vector<Ref<Token>>::iterator k = j->second.begin(); k != j->second.end(); k++)
 				{
 					if (((*k)->GetType() == TOKEN_ID) && IsDefined((*k)->GetString()))
 						BeginMacroExpansion((*k)->GetString());
@@ -442,7 +444,7 @@ void PreprocessState::Finalize()
 		if ((m_expansion.parens > 0) || (m_expansionStack.size() > 0))
 		{
 			fprintf(stderr, "%s:%d: error: unterminated macro expansion\n", GetFileName().c_str(),
-				GetLineNumber());
+			    GetLineNumber());
 			m_errors++;
 		}
 		else
@@ -453,8 +455,7 @@ void PreprocessState::Finalize()
 
 	if (m_ifStack.size() != m_startingIfStackSize)
 	{
-		fprintf(stderr, "%s:%d: error: expected #endif\n", GetFileName().c_str(),
-			GetLineNumber());
+		fprintf(stderr, "%s:%d: error: expected #endif\n", GetFileName().c_str(), GetLineNumber());
 		m_errors++;
 	}
 }
@@ -473,7 +474,7 @@ void PreprocessState::Else()
 	if (m_ifStack.size() == 0)
 	{
 		fprintf(stderr, "%s:%d: error: #else outside of conditional\n", GetFileName().c_str(),
-			GetLineNumber());
+		    GetLineNumber());
 		m_errors++;
 		return;
 	}
@@ -489,7 +490,7 @@ void PreprocessState::EndIf()
 	if (m_ifStack.size() == 0)
 	{
 		fprintf(stderr, "%s:%d: error: #endif outside of conditional\n", GetFileName().c_str(),
-			GetLineNumber());
+		    GetLineNumber());
 		m_errors++;
 		return;
 	}
@@ -500,8 +501,8 @@ void PreprocessState::EndIf()
 }
 
 
-bool PreprocessState::PreprocessSource(const string& source, const string& fileName,
-	string& output, PreprocessState* parent)
+bool PreprocessState::PreprocessSource(
+    const string& source, const string& fileName, string& output, PreprocessState* parent)
 {
 	yyscan_t scanner;
 	Preprocess_lex_init(&scanner);
@@ -513,7 +514,7 @@ bool PreprocessState::PreprocessSource(const string& source, const string& fileN
 
 #ifdef _MSC_VER
 	// yes, this is probably evil, but I need bit intrinsics in AArch64.cgen, so here we are
-	parser->Define("_MSC_VER", std::vector<std::string>(), std::vector< Ref<Token> >(), false);
+	parser->Define("_MSC_VER", std::vector<std::string>(), std::vector<Ref<Token>>(), false);
 #endif
 
 	YY_BUFFER_STATE buf = Preprocess__scan_string(source.c_str(), scanner);
@@ -533,4 +534,3 @@ bool PreprocessState::PreprocessSource(const string& source, const string& fileN
 	delete parser;
 	return ok;
 }
-

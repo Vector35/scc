@@ -21,16 +21,16 @@
 #ifndef __LIBC__FILE_H__
 #define __LIBC__FILE_H__
 
-#define STD_INPUT_HANDLE (-10)
+#define STD_INPUT_HANDLE  (-10)
 #define STD_OUTPUT_HANDLE (-11)
-#define STD_ERROR_HANDLE (-12)
+#define STD_ERROR_HANDLE  (-12)
 
-#define stdin  (FILE*)(GetStdHandle(STD_INPUT_HANDLE))
-#define stdout (FILE*)(GetStdHandle(STD_OUTPUT_HANDLE))
-#define stderr (FILE*)(GetStdHandle(STD_ERROR_HANDLE))
+#define stdin      (FILE*)(GetStdHandle(STD_INPUT_HANDLE))
+#define stdout     (FILE*)(GetStdHandle(STD_OUTPUT_HANDLE))
+#define stderr     (FILE*)(GetStdHandle(STD_ERROR_HANDLE))
 #define fdopen(fd) ((FILE*)(fd))
 
-#define EOF    -1
+#define EOF -1
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -80,13 +80,13 @@
 #define FILE_FLAG_OVERLAPPED               0x40000000
 #define FILE_FLAG_WRITE_THROUGH            0x80000000
 
-#define O_RDONLY    GENERIC_READ
-#define O_WRONLY    GENERIC_WRITE
-#define O_RDWR      (GENERIC_READ | GENERIC_WRITE)
-#define O_CREAT     0x10
-#define O_EXCL      0x20
-#define O_TRUNC     0x40
-#define O_APPEND    0
+#define O_RDONLY GENERIC_READ
+#define O_WRONLY GENERIC_WRITE
+#define O_RDWR   (GENERIC_READ | GENERIC_WRITE)
+#define O_CREAT  0x10
+#define O_EXCL   0x20
+#define O_TRUNC  0x40
+#define O_APPEND 0
 
 #define INVALID_HANDLE_VALUE    ((HANDLE)-1)
 #define INVALID_FILE_SIZE       0xffffffff
@@ -145,15 +145,17 @@ typedef struct
 } BY_HANDLE_FILE_INFORMATION;
 
 HANDLE __stdcall GetStdHandle(uint32_t type) __import("kernel32");
-HANDLE __stdcall CreateFileA(const char* name, uint32_t access, uint32_t share, void* security, uint32_t disposition,
-	uint32_t flags, HANDLE templateFile) __import("kernel32");
+HANDLE __stdcall CreateFileA(const char* name, uint32_t access, uint32_t share, void* security,
+    uint32_t disposition, uint32_t flags, HANDLE templateFile) __import("kernel32");
 bool __stdcall CloseHandle(HANDLE handle) __import("kernel32");
-bool __stdcall ReadFile(HANDLE file, void* buf, uint32_t bytesToRead, uint32_t* bytesRead, void* overlapped) __import("kernel32");
-bool __stdcall WriteFile(HANDLE file, const void* buf, uint32_t bytesToWrite, uint32_t* bytesWritten,
-	void* overlapped) __import("kernel32");
+bool __stdcall ReadFile(HANDLE file, void* buf, uint32_t bytesToRead, uint32_t* bytesRead,
+    void* overlapped) __import("kernel32");
+bool __stdcall WriteFile(HANDLE file, const void* buf, uint32_t bytesToWrite,
+    uint32_t* bytesWritten, void* overlapped) __import("kernel32");
 bool __stdcall DeleteFileA(const char* name) __import("kernel32");
 bool __stdcall MoveFileA(const char* from, const char* to) __import("kernel32");
-uint32_t __stdcall SetFilePointer(HANDLE file, int32_t dist, int32_t* distHigh, uint32_t method) __import("kernel32");
+uint32_t __stdcall SetFilePointer(HANDLE file, int32_t dist, int32_t* distHigh, uint32_t method)
+    __import("kernel32");
 bool __stdcall SetEndOfFile(HANDLE file) __import("kernel32");
 bool __stdcall SetCurrentDirectoryA(const char* name) __import("kernel32");
 bool __stdcall CreateDirectoryA(const char* name, void* security) __import("kernel32");
@@ -163,10 +165,13 @@ HANDLE __stdcall FindFirstFileA(const char* name, WIN32_FIND_DATAA* data) __impo
 bool __stdcall FindNextFileA(HANDLE find, WIN32_FIND_DATAA* data) __import("kernel32");
 bool __stdcall FindClose(HANDLE find) __import("kernel32");
 uint32_t __stdcall GetFileAttributesA(const char* name) __import("kernel32");
-bool __stdcall GetFileAttributesExA(const char* name, uint32_t level, void* info) __import("kernel32");
+bool __stdcall GetFileAttributesExA(const char* name, uint32_t level, void* info)
+    __import("kernel32");
 uint32_t __stdcall GetFileSize(HANDLE file, uint32_t* high) __import("kernel32");
-bool __stdcall GetFileInformationByHandle(HANDLE file, BY_HANDLE_FILE_INFORMATION* info) __import("kernel32");
-bool __stdcall CreatePipe(HANDLE* read, HANDLE* write, void* security, uint32_t size) __import("kernel32");
+bool __stdcall GetFileInformationByHandle(HANDLE file, BY_HANDLE_FILE_INFORMATION* info)
+    __import("kernel32");
+bool __stdcall CreatePipe(HANDLE* read, HANDLE* write, void* security, uint32_t size)
+    __import("kernel32");
 
 int open(const char* file, uint32_t flags, int mode);
 int close(int fd);
@@ -199,4 +204,3 @@ int ftruncate(int fd, ssize_t length);
 int pipe(int* fds);
 
 #endif
-

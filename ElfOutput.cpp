@@ -1,7 +1,7 @@
-#include <stdlib.h>
-#include <string.h>
 #include "ElfOutput.h"
 #include "Struct.h"
+#include <stdlib.h>
+#include <string.h>
 
 
 struct ElfIdent
@@ -227,15 +227,19 @@ static const char* GetInterpreterName(const Settings& settings)
 }
 
 
-bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection, OutputBlock* dataSection)
+bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection,
+    OutputBlock* dataSection)
 {
 	// Output file identification header
 	ElfIdent ident;
-	memcpy(ident.signature, "\x7f""ELF", 4);
+	memcpy(ident.signature,
+	    "\x7f"
+	    "ELF",
+	    4);
 
-	ident.fileClass = 1; // 32-bit
+	ident.fileClass = 1;  // 32-bit
 	if (settings.preferredBits == 64)
-		ident.fileClass = 2; // 64-bit
+		ident.fileClass = 2;  // 64-bit
 
 	ident.encoding = settings.bigEndian ? 2 : 1;
 	ident.version = 1;
@@ -256,14 +260,14 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 	// Write out part of header that is common between 32-bit and 64-bit
 	ElfCommonHeader commonHeader;
-	commonHeader.type = 2; // Executable
+	commonHeader.type = 2;  // Executable
 	if (settings.positionIndependent)
-		commonHeader.type = 3; // Shared library
+		commonHeader.type = 3;  // Shared library
 
 	switch (settings.architecture)
 	{
 	case ARCH_X86:
-		commonHeader.arch = 3; // x86
+		commonHeader.arch = 3;  // x86
 		if (settings.preferredBits == 64)
 			commonHeader.arch = 62;
 		break;
@@ -314,8 +318,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (settings.positionIndependent)
 		{
 			Elf64ProgramHeader phdr;
-			phdr.type = 6; // PHDR
-			phdr.flags = 5; // Read execute
+			phdr.type = 6;   // PHDR
+			phdr.flags = 5;  // Read execute
 			phdr.offset = header.programHeaderOffset;
 			phdr.virtualAddress = phdr.offset;
 			phdr.physicalAddress = phdr.offset;
@@ -330,8 +334,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 			const char* interpName = GetInterpreterName(settings);
 			Elf64ProgramHeader interp;
-			interp.type = 3; // INTERP
-			interp.flags = 4; // Read
+			interp.type = 3;   // INTERP
+			interp.flags = 4;  // Read
 			interp.offset = header.headerSize + (sizeof(Elf64ProgramHeader) * header.programHeaderCount);
 			interp.virtualAddress = interp.offset;
 			interp.physicalAddress = interp.offset;
@@ -345,8 +349,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		}
 
 		Elf64ProgramHeader code;
-		code.type = 1; // Loadable segment
-		code.flags = 5; // Read execute
+		code.type = 1;   // Loadable segment
+		code.flags = 5;  // Read execute
 		code.offset = 0;
 		code.virtualAddress = header.entry & (~0xfff);
 		code.physicalAddress = code.virtualAddress;
@@ -369,15 +373,15 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 				dataSection->Write(pad, 8 - ((dataStart + dataSection->len) & 7));
 
 			uint64_t dynEntries[10];
-			dynEntries[0] = 5; // STRTAB;
+			dynEntries[0] = 5;  // STRTAB;
 			dynEntries[1] = 0;
-			dynEntries[2] = 6; // SYMTAB;
+			dynEntries[2] = 6;  // SYMTAB;
 			dynEntries[3] = 0;
-			dynEntries[4] = 0xa; // STRSZ;
+			dynEntries[4] = 0xa;  // STRSZ;
 			dynEntries[5] = 0;
-			dynEntries[6] = 0xb; // SYMENT;
+			dynEntries[6] = 0xb;  // SYMENT;
 			dynEntries[7] = 16;
-			dynEntries[8] = 0; // NULL
+			dynEntries[8] = 0;  // NULL
 			dynEntries[9] = 0;
 
 			if (settings.bigEndian)
@@ -389,8 +393,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		}
 
 		Elf64ProgramHeader data;
-		data.type = 1; // Loadable segment
-		data.flags = 6; // Read write
+		data.type = 1;   // Loadable segment
+		data.flags = 6;  // Read write
 		data.offset = (header.entry & 0xfff) + codeSection->len;
 		data.virtualAddress = dataStart;
 		data.physicalAddress = data.virtualAddress;
@@ -403,7 +407,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			output->Write(&data, sizeof(data));
 
 		Elf64ProgramHeader stack;
-		stack.type = 0x6474e551; // GNU_STACK
+		stack.type = 0x6474e551;  // GNU_STACK
 		stack.flags = settings.execStack ? 7 : 6;
 		stack.offset = 0;
 		stack.virtualAddress = 0;
@@ -419,8 +423,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (settings.positionIndependent)
 		{
 			Elf64ProgramHeader dynamic;
-			dynamic.type = 2; // DYNAMIC
-			dynamic.flags = 4; // Read
+			dynamic.type = 2;   // DYNAMIC
+			dynamic.flags = 4;  // Read
 			dynamic.offset = data.offset + dataSection->len - 80;
 			dynamic.virtualAddress = data.virtualAddress + dataSection->len - 80;
 			dynamic.physicalAddress = data.physicalAddress + dataSection->len - 80;
@@ -457,8 +461,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (settings.positionIndependent)
 		{
 			Elf32ProgramHeader phdr;
-			phdr.type = 6; // PHDR
-			phdr.flags = 5; // Read execute
+			phdr.type = 6;   // PHDR
+			phdr.flags = 5;  // Read execute
 			phdr.offset = header.programHeaderOffset;
 			phdr.virtualAddress = phdr.offset;
 			phdr.physicalAddress = phdr.offset;
@@ -472,8 +476,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 
 			const char* interpName = GetInterpreterName(settings);
 			Elf32ProgramHeader interp;
-			interp.type = 3; // INTERP
-			interp.flags = 4; // Read
+			interp.type = 3;   // INTERP
+			interp.flags = 4;  // Read
 			interp.offset = header.headerSize + (sizeof(Elf32ProgramHeader) * header.programHeaderCount);
 			interp.virtualAddress = interp.offset;
 			interp.physicalAddress = interp.offset;
@@ -487,8 +491,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		}
 
 		Elf32ProgramHeader code;
-		code.type = 1; // Loadable segment
-		code.flags = 5; // Read execute
+		code.type = 1;   // Loadable segment
+		code.flags = 5;  // Read execute
 		code.offset = 0;
 		code.virtualAddress = header.entry & (~0xfff);
 		code.physicalAddress = code.virtualAddress;
@@ -511,15 +515,15 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 				dataSection->Write(pad, 4 - ((dataStart + dataSection->len) & 3));
 
 			uint32_t dynEntries[10];
-			dynEntries[0] = 5; // STRTAB;
+			dynEntries[0] = 5;  // STRTAB;
 			dynEntries[1] = 0;
-			dynEntries[2] = 6; // SYMTAB;
+			dynEntries[2] = 6;  // SYMTAB;
 			dynEntries[3] = 0;
-			dynEntries[4] = 0xa; // STRSZ;
+			dynEntries[4] = 0xa;  // STRSZ;
 			dynEntries[5] = 0;
-			dynEntries[6] = 0xb; // SYMENT;
+			dynEntries[6] = 0xb;  // SYMENT;
 			dynEntries[7] = 16;
-			dynEntries[8] = 0; // NULL
+			dynEntries[8] = 0;  // NULL
 			dynEntries[9] = 0;
 
 			if (settings.bigEndian)
@@ -531,8 +535,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		}
 
 		Elf32ProgramHeader data;
-		data.type = 1; // Loadable segment
-		data.flags = 6; // Read write
+		data.type = 1;   // Loadable segment
+		data.flags = 6;  // Read write
 		data.offset = (header.entry & 0xfff) + codeSection->len;
 		data.virtualAddress = dataStart;
 		data.physicalAddress = data.virtualAddress;
@@ -545,7 +549,7 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 			output->Write(&data, sizeof(data));
 
 		Elf32ProgramHeader stack;
-		stack.type = 0x6474e551; // GNU_STACK
+		stack.type = 0x6474e551;  // GNU_STACK
 		stack.flags = settings.execStack ? 7 : 6;
 		stack.offset = 0;
 		stack.virtualAddress = 0;
@@ -561,8 +565,8 @@ bool GenerateElfFile(OutputBlock* output, const Settings& settings, OutputBlock*
 		if (settings.positionIndependent)
 		{
 			Elf32ProgramHeader dynamic;
-			dynamic.type = 2; // DYNAMIC
-			dynamic.flags = 4; // Read
+			dynamic.type = 2;   // DYNAMIC
+			dynamic.flags = 4;  // Read
 			dynamic.offset = data.offset + dataSection->len - 40;
 			dynamic.virtualAddress = data.virtualAddress + dataSection->len - 40;
 			dynamic.physicalAddress = data.physicalAddress + dataSection->len - 40;
@@ -618,4 +622,3 @@ uint64_t AdjustDataSectionBaseForElfFile(uint64_t base)
 		base += 0x1000;
 	return base;
 }
-

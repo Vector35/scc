@@ -25,4 +25,3 @@
 #define WINDOWS
 
 #endif
-

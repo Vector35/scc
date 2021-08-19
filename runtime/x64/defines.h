@@ -25,4 +25,3 @@
 #define __64BIT
 
 #endif
-

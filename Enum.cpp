@@ -1,14 +1,14 @@
-#include <stdio.h>
 #include "Enum.h"
 #include "Output.h"
-#include "Struct.h"
 #include "ParserState.h"
+#include "Struct.h"
+#include <stdio.h>
 
 using namespace std;
 
 
 size_t Enum::m_nextSerializationIndex = 0;
-map< size_t, Ref<Enum> > Enum::m_serializationMap;
+map<size_t, Ref<Enum>> Enum::m_serializationMap;
 
 
 Enum::Enum()
@@ -125,4 +125,3 @@ Enum* Enum::Deserialize(InputBlock* input)
 
 	return result;
 }
-

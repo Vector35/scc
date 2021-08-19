@@ -149,7 +149,8 @@ int closesocket(int sockfd);
 
 ssize_t send(int fd, const void* buf, size_t n, int flags);
 ssize_t recv(int fd, void* buf, size_t n, int flags);
-ssize_t sendto(int fd, const void* buf, size_t n, int flags, const struct sockaddr* addr, socklen_t addrlen);
+ssize_t sendto(
+    int fd, const void* buf, size_t n, int flags, const struct sockaddr* addr, socklen_t addrlen);
 ssize_t recvfrom(int fd, void* buf, size_t n, int flags, struct sockaddr* addr, socklen_t* addrlen);
 
 int getsockopt(int fd, int level, int optname, void* optval, socklen_t* optlen);
@@ -164,4 +165,3 @@ ssize_t recv_all(int fd, void* buf, size_t n, int flags);
 ssize_t send_string(int fd, const char* str);
 
 #endif
-

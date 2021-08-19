@@ -22,8 +22,8 @@
 #define __REGISTERCLASS_H__
 
 #include "RefCountObject.h"
-#include <string>
 #include <stdint.h>
+#include <string>
 
 
 enum RegisterClassType
@@ -35,17 +35,18 @@ enum RegisterClassType
 
 class CodeBlock;
 
-class RegisterClassDef: public RefCountObject
+class RegisterClassDef : public RefCountObject
 {
 	RegisterClassType m_classType;
 	uint32_t m_sizeFlags;
 	std::string m_matchName, m_regClass, m_highClass;
 	Ref<CodeBlock> m_fixed;
 
-public:
-	RegisterClassDef(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName, const std::string& regClass,
-		CodeBlock* fixed);
-	RegisterClassDef(uint32_t sizeFlags, const std::string& matchName, const std::string& lowClass, const std::string& highClass);
+ public:
+	RegisterClassDef(RegisterClassType type, uint32_t sizeFlags, const std::string& matchName,
+	    const std::string& regClass, CodeBlock* fixed);
+	RegisterClassDef(uint32_t sizeFlags, const std::string& matchName, const std::string& lowClass,
+	    const std::string& highClass);
 
 	RegisterClassType GetClassType() const { return m_classType; }
 	uint32_t GetSizeFlags() const { return m_sizeFlags; }
@@ -59,4 +60,3 @@ public:
 
 
 #endif
-

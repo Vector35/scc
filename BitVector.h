@@ -10,7 +10,7 @@ class BitVector
 	uint32_t* m_data;
 	size_t m_size;
 
-public:
+ public:
 	BitVector();
 	BitVector(const BitVector& v);
 	~BitVector();
@@ -33,4 +33,3 @@ public:
 
 
 #endif
-

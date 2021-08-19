@@ -146,4 +146,3 @@ ssize_t send_string(int fd, const char* str)
 {
 	return send_all(fd, str, strlen(str), 0);
 }
-

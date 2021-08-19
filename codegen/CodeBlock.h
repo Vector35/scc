@@ -21,10 +21,10 @@
 #ifndef __CODEBLOCK_H__
 #define __CODEBLOCK_H__
 
+#include "RefCountObject.h"
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
-#include "RefCountObject.h"
 
 
 enum CodeTokenType
@@ -54,24 +54,28 @@ struct CodeToken
 	CodeTokenType type;
 	std::string name;
 	int offset;
-	std::map< std::string, Ref<CodeBlock> > operands;
+	std::map<std::string, Ref<CodeBlock>> operands;
 
 	static CodeToken* CreateTextToken(const std::string& file, int line, const std::string& text);
 	static CodeToken* CreateVarToken(const std::string& file, int line, const std::string& name);
 	static CodeToken* CreateVarLowToken(const std::string& file, int line, const std::string& name);
 	static CodeToken* CreateVarHighToken(const std::string& file, int line, const std::string& name);
 	static CodeToken* CreateVarBaseToken(const std::string& file, int line, const std::string& name);
-	static CodeToken* CreateVarOffsetToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateVarOffsetToken(
+	    const std::string& file, int line, const std::string& name);
 	static CodeToken* CreateVarTempToken(const std::string& file, int line, const std::string& name);
-	static CodeToken* CreateVarFunctionToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateVarFunctionToken(
+	    const std::string& file, int line, const std::string& name);
 	static CodeToken* CreateVarBlockToken(const std::string& file, int line, const std::string& name);
-	static CodeToken* CreateVarIntToken(const std::string& file, int line, const std::string& name, int offset);
-	static CodeToken* CreateInstrStartToken(const std::string& file, int line, const std::string& name);
+	static CodeToken* CreateVarIntToken(
+	    const std::string& file, int line, const std::string& name, int offset);
+	static CodeToken* CreateInstrStartToken(
+	    const std::string& file, int line, const std::string& name);
 	static CodeToken* CreateInstrEndToken(const std::string& file, int line);
-	static CodeToken* CreateInstrEncodingToken(const std::string& file, int line, const std::string& name,
-		const std::map< std::string, Ref<CodeBlock> >& operands);
-	static CodeToken* CreateInstrEncodingValueToken(const std::string& file, int line, const std::string& name,
-		const std::map< std::string, Ref<CodeBlock> >& operands);
+	static CodeToken* CreateInstrEncodingToken(const std::string& file, int line,
+	    const std::string& name, const std::map<std::string, Ref<CodeBlock>>& operands);
+	static CodeToken* CreateInstrEncodingValueToken(const std::string& file, int line,
+	    const std::string& name, const std::map<std::string, Ref<CodeBlock>>& operands);
 };
 
 struct OperandDefinition
@@ -80,11 +84,11 @@ struct OperandDefinition
 	Ref<CodeBlock> block;
 };
 
-class CodeBlock: public RefCountObject
+class CodeBlock : public RefCountObject
 {
 	std::vector<CodeToken> m_tokens;
 
-public:
+ public:
 	CodeBlock();
 	CodeBlock(const CodeBlock& copy);
 
@@ -92,9 +96,9 @@ public:
 	void AddInstrStartToken(const std::string& file, int line, const std::string& name);
 	void AddInstrEndToken(const std::string& file, int line);
 	void AddInstrEncodingToken(const std::string& file, int line, const std::string& name,
-		const std::map< std::string, Ref<CodeBlock> >& operands);
+	    const std::map<std::string, Ref<CodeBlock>>& operands);
 	void AddInstrEncodingValueToken(const std::string& file, int line, const std::string& name,
-		const std::map< std::string, Ref<CodeBlock> >& operands);
+	    const std::map<std::string, Ref<CodeBlock>>& operands);
 
 	void AddToken(const CodeToken& token);
 	void AddTokens(const std::vector<CodeToken>& tokens);
@@ -106,4 +110,3 @@ public:
 
 
 #endif
-

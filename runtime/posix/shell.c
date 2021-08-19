@@ -71,4 +71,3 @@ int system(const char* cmd)
 	waitpid(pid, &status, 0);
 	return status;
 }
-

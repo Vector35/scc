@@ -1,6 +1,6 @@
 #include "Scope.h"
-#include "Struct.h"
 #include "Output.h"
+#include "Struct.h"
 
 using namespace std;
 
@@ -16,10 +16,11 @@ Scope* Scope::Duplicate(DuplicateContext& dup)
 {
 	Scope* scope = new Scope(NULL, true);
 
-	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_vars.begin(); i != m_vars.end(); i++)
 		scope->m_vars.push_back((*i)->Duplicate(dup));
 
-	for (map< string, Ref<Variable> >::iterator i = m_currentScopeVars.begin(); i != m_currentScopeVars.end(); i++)
+	for (map<string, Ref<Variable>>::iterator i = m_currentScopeVars.begin();
+	     i != m_currentScopeVars.end(); i++)
 		scope->m_currentScopeVars[i->first] = i->second->Duplicate(dup);
 
 	return scope;
@@ -28,7 +29,7 @@ Scope* Scope::Duplicate(DuplicateContext& dup)
 
 bool Scope::IsVariableDefined(const string& name) const
 {
-	map< string, Ref<Variable> >::const_iterator i = m_currentScopeVars.find(name);
+	map<string, Ref<Variable>>::const_iterator i = m_currentScopeVars.find(name);
 	if (i != m_currentScopeVars.end())
 		return true;
 	if (!m_parent)
@@ -39,14 +40,14 @@ bool Scope::IsVariableDefined(const string& name) const
 
 bool Scope::IsVariableDefinedInCurrentScope(const string& name) const
 {
-	map< string, Ref<Variable> >::const_iterator i = m_currentScopeVars.find(name);
+	map<string, Ref<Variable>>::const_iterator i = m_currentScopeVars.find(name);
 	return i != m_currentScopeVars.end();
 }
 
 
 Variable* Scope::GetVariable(const string& name) const
 {
-	map< string, Ref<Variable> >::const_iterator i = m_currentScopeVars.find(name);
+	map<string, Ref<Variable>>::const_iterator i = m_currentScopeVars.find(name);
 	if (i != m_currentScopeVars.end())
 		return i->second;
 	if (!m_parent)
@@ -88,11 +89,12 @@ void Scope::DefineVariable(Variable* var)
 void Scope::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(m_vars.size());
-	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_vars.begin(); i != m_vars.end(); i++)
 		(*i)->Serialize(output);
 
 	output->WriteInteger(m_currentScopeVars.size());
-	for (map< string, Ref<Variable> >::iterator i = m_currentScopeVars.begin(); i != m_currentScopeVars.end(); i++)
+	for (map<string, Ref<Variable>>::iterator i = m_currentScopeVars.begin();
+	     i != m_currentScopeVars.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
@@ -130,4 +132,3 @@ bool Scope::Deserialize(InputBlock* input)
 
 	return true;
 }
-

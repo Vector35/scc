@@ -1,15 +1,15 @@
-#include <stdio.h>
 #include "Function.h"
-#include "Struct.h"
-#include "ParserState.h"
 #include "Output.h"
+#include "ParserState.h"
+#include "Struct.h"
 #include "TreeBlock.h"
+#include <stdio.h>
 
 using namespace std;
 
 
 size_t Function::m_nextSerializationIndex;
-map< size_t, Ref<Function> > Function::m_serializationMap;
+map<size_t, Ref<Function>> Function::m_serializationMap;
 
 
 void FunctionInfo::CombineFunctionAttributes(const FunctionInfo& other)
@@ -63,7 +63,8 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 	m_importModule = info.module;
 	m_isFixedAddress = false;
 
-	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
+	for (vector<pair<Ref<Type>, string>>::const_iterator i = info.params.begin();
+	     i != info.params.end(); i++)
 	{
 		if (i->second == "...")
 			m_variableArguments = true;
@@ -78,7 +79,8 @@ Function::Function(const FunctionInfo& info, bool isLocalScope)
 }
 
 
-Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars, Expr* body, bool isLocalScope)
+Function::Function(
+    const FunctionInfo& info, const vector<Ref<Variable>>& vars, Expr* body, bool isLocalScope)
 {
 	m_returnValue = info.returnValue;
 	m_callingConvention = info.callingConvention;
@@ -98,7 +100,8 @@ Function::Function(const FunctionInfo& info, const vector< Ref<Variable> >& vars
 	m_importModule = info.module;
 	m_isFixedAddress = false;
 
-	for (vector< pair< Ref<Type>, string > >::const_iterator i = info.params.begin(); i != info.params.end(); i++)
+	for (vector<pair<Ref<Type>, string>>::const_iterator i = info.params.begin();
+	     i != info.params.end(); i++)
 	{
 		if (i->second == "...")
 			m_variableArguments = true;
@@ -153,7 +156,7 @@ Function* Function::Duplicate(DuplicateContext& dup)
 		func->m_params.push_back(param);
 	}
 
-	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_vars.begin(); i != m_vars.end(); i++)
 		func->m_vars.push_back((*i)->Duplicate(dup));
 
 	return func;
@@ -162,7 +165,7 @@ Function* Function::Duplicate(DuplicateContext& dup)
 
 bool Function::IsCompatible(const FunctionInfo& info)
 {
-	vector< pair< Ref<Type>, string > > params = info.params;
+	vector<pair<Ref<Type>, string>> params = info.params;
 	bool variableArguments = false;
 	if ((params.size() > 0) && (params[params.size() - 1].second == "..."))
 	{
@@ -175,7 +178,7 @@ bool Function::IsCompatible(const FunctionInfo& info)
 
 
 bool Function::IsCompatible(Type* returnValue, CallingConvention callingConvention,
-	const vector< pair< Ref<Type>, string > >& params, bool variableArguments)
+    const vector<pair<Ref<Type>, string>>& params, bool variableArguments)
 {
 	if ((*m_returnValue) != (*returnValue))
 		return false;
@@ -198,11 +201,11 @@ bool Function::IsCompatible(Type* returnValue, CallingConvention callingConventi
 
 Type* Function::GetType() const
 {
-	vector< pair< Ref<Type>, string > > params;
+	vector<pair<Ref<Type>, string>> params;
 	for (vector<FunctionParameter>::const_iterator i = m_params.begin(); i != m_params.end(); i++)
-		params.push_back(pair< Ref<Type>, string >(i->type, i->name));
+		params.push_back(pair<Ref<Type>, string>(i->type, i->name));
 	if (m_variableArguments)
-		params.push_back(pair< Ref<Type>, string >(NULL, "..."));
+		params.push_back(pair<Ref<Type>, string>(NULL, "..."));
 	return Type::FunctionType(m_returnValue, m_callingConvention, params);
 }
 
@@ -221,7 +224,8 @@ void Function::GenerateIL(ParserState* state)
 }
 
 
-bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignments& vars, Output* output)
+bool Function::GenerateTreeIL(
+    const Settings& settings, const VariableAssignments& vars, Output* output)
 {
 	m_treeBlocks.clear();
 	for (size_t i = 0; i < m_ilBlocks.size(); i++)
@@ -240,7 +244,7 @@ bool Function::GenerateTreeIL(const Settings& settings, const VariableAssignment
 	{
 		PrintPrototype();
 
-		for (vector< Ref<TreeBlock> >::iterator i = m_treeBlocks.begin(); i != m_treeBlocks.end(); i++)
+		for (vector<Ref<TreeBlock>>::iterator i = m_treeBlocks.begin(); i != m_treeBlocks.end(); i++)
 		{
 			fprintf(stderr, "%d:\n", (int)(*i)->GetIndex());
 			(*i)->Print();
@@ -297,7 +301,7 @@ void Function::SetLabel(const std::string& name, ILBlock* block)
 	m_labels[name] = block;
 
 	// Resolve forward references
-	map< string, vector<LabelFixup> >::iterator i = m_labelFixups.find(name);
+	map<string, vector<LabelFixup>>::iterator i = m_labelFixups.find(name);
 	if (i == m_labelFixups.end())
 		return;
 
@@ -310,7 +314,7 @@ void Function::SetLabel(const std::string& name, ILBlock* block)
 size_t Function::GetApproxStackFrameSize()
 {
 	size_t result = 0;
-	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_vars.begin(); i != m_vars.end(); i++)
 	{
 		if (result & ((*i)->GetType()->GetAlignment() - 1))
 			result += (*i)->GetType()->GetAlignment() - (result & ((*i)->GetType()->GetAlignment() - 1));
@@ -341,14 +345,15 @@ void Function::AddLabelFixup(ILBlock* block, size_t i, const Location& loc, cons
 
 void Function::ReportUndefinedLabels(ParserState* state)
 {
-	for (map< string, vector<LabelFixup> >::iterator i = m_labelFixups.begin(); i != m_labelFixups.end(); i++)
+	for (map<string, vector<LabelFixup>>::iterator i = m_labelFixups.begin();
+	     i != m_labelFixups.end(); i++)
 	{
 		if (i->second.size() == 0)
 			continue;
 
 		state->Error();
-		fprintf(stderr, "%s:%d: error: label '%s' is not defined\n", i->second[0].location.fileName.c_str(),
-			i->second[0].location.lineNumber, i->first.c_str());
+		fprintf(stderr, "%s:%d: error: label '%s' is not defined\n",
+		    i->second[0].location.fileName.c_str(), i->second[0].location.lineNumber, i->first.c_str());
 	}
 }
 
@@ -428,13 +433,13 @@ void Function::CheckForUndefinedReferences(size_t& errors)
 
 void Function::CheckForVariableWrites()
 {
-	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_vars.begin(); i != m_vars.end(); i++)
 		(*i)->SetWritten(false);
 
 	for (vector<ILBlock*>::iterator i = m_ilBlocks.begin(); i != m_ilBlocks.end(); i++)
 	{
 		for (vector<ILInstruction>::iterator j = (*i)->GetInstructions().begin();
-			j != (*i)->GetInstructions().end(); j++)
+		     j != (*i)->GetInstructions().end(); j++)
 			j->MarkWrittenVariables();
 	}
 }
@@ -454,7 +459,8 @@ ParameterLocation Function::GetParameterLocation(size_t i) const
 }
 
 
-void Function::SetDefinitions(const map< Ref<Variable>, vector<size_t> >& varDefs, const vector< pair<ILBlock*, size_t> >& defLocs)
+void Function::SetDefinitions(const map<Ref<Variable>, vector<size_t>>& varDefs,
+    const vector<pair<ILBlock*, size_t>>& defLocs)
 {
 	m_varDefs = varDefs;
 	m_defLocs = defLocs;
@@ -525,7 +531,8 @@ void Function::Serialize(OutputBlock* output)
 	output->WriteInteger(m_variableArguments ? 1 : 0);
 
 	output->WriteInteger(m_paramLocations.size());
-	for (vector<ParameterLocation>::iterator i = m_paramLocations.begin(); i != m_paramLocations.end(); i++)
+	for (vector<ParameterLocation>::iterator i = m_paramLocations.begin();
+	     i != m_paramLocations.end(); i++)
 	{
 		output->WriteInteger(i->type);
 		if (i->type == PARAM_REG)
@@ -788,7 +795,7 @@ void Function::Print()
 		return;
 	}
 
-	for (vector< Ref<Variable> >::iterator i = m_vars.begin(); i != m_vars.end(); i++)
+	for (vector<Ref<Variable>>::iterator i = m_vars.begin(); i != m_vars.end(); i++)
 	{
 		fprintf(stderr, "\t");
 		if ((*i)->IsParameter())
@@ -812,7 +819,7 @@ void Function::Print()
 		{
 			fprintf(stderr, "[entry ");
 			for (set<ILBlock*>::const_iterator j = (*i)->GetEntryBlocks().begin();
-				j != (*i)->GetEntryBlocks().end(); j++)
+			     j != (*i)->GetEntryBlocks().end(); j++)
 			{
 				if (j != (*i)->GetEntryBlocks().begin())
 					fprintf(stderr, ", ");
@@ -825,7 +832,7 @@ void Function::Print()
 		{
 			fprintf(stderr, "[exit ");
 			for (set<ILBlock*>::const_iterator j = (*i)->GetExitBlocks().begin();
-				j != (*i)->GetExitBlocks().end(); j++)
+			     j != (*i)->GetExitBlocks().end(); j++)
 			{
 				if (j != (*i)->GetExitBlocks().begin())
 					fprintf(stderr, ", ");
@@ -841,4 +848,3 @@ void Function::Print()
 	fprintf(stderr, "\n\n");
 }
 #endif
-

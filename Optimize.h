@@ -9,7 +9,7 @@ class Optimize
 	Linker* m_linker;
 	Settings m_settings;
 
-public:
+ public:
 	Optimize(Linker* linker);
 
 	void PerformControlFlowAnalysis(Function* func);
@@ -26,4 +26,3 @@ public:
 };
 
 #endif
-

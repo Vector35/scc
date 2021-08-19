@@ -21,11 +21,11 @@
 #ifndef __PREPROCESSSTATE_H__
 #define __PREPROCESSSTATE_H__
 
-#include <string>
-#include <map>
-#include <vector>
-#include <stack>
 #include "Token.h"
+#include <map>
+#include <stack>
+#include <string>
+#include <vector>
 
 
 struct Location
@@ -39,7 +39,7 @@ struct Macro
 	std::string name;
 	bool hasParams;
 	std::vector<std::string> params;
-	std::vector< Ref<Token> > tokens;
+	std::vector<Ref<Token>> tokens;
 	Location location;
 };
 
@@ -47,8 +47,8 @@ struct MacroExpansion
 {
 	Macro macro;
 	size_t parens;
-	std::vector< std::vector< Ref<Token> > > params;
-	std::vector< Ref<Token> > curParam;
+	std::vector<std::vector<Ref<Token>>> params;
+	std::vector<Ref<Token>> curParam;
 };
 
 class PreprocessState
@@ -73,7 +73,7 @@ class PreprocessState
 
 	bool m_paste;
 
-public:
+ public:
 	PreprocessState(const std::string& name, void* scanner);
 	PreprocessState(PreprocessState& parent, const std::string& name, void* scanner);
 	~PreprocessState();
@@ -99,7 +99,7 @@ public:
 	void IncludeFile(const std::string& name);
 
 	void Define(const std::string& name, const std::vector<std::string>& params,
-		const std::vector< Ref<Token> >& tokens, bool hasParams);
+	    const std::vector<Ref<Token>>& tokens, bool hasParams);
 	void Undefine(const std::string& name);
 	bool IsDefined(const std::string& name);
 
@@ -112,9 +112,8 @@ public:
 	void EndIf();
 
 	static bool PreprocessSource(const std::string& source, const std::string& fileName,
-		std::string& output, PreprocessState* parent = NULL);
+	    std::string& output, PreprocessState* parent = NULL);
 };
 
 
 #endif
-

@@ -36,4 +36,3 @@ int nanosleep(const struct timespec* amount, struct timespec* unslept)
 {
 	return __syscall(SYS_nanosleep, amount, unslept);
 }
-

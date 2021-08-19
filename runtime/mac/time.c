@@ -62,4 +62,3 @@ int nanosleep(const struct timespec* amount, struct timespec* unslept)
 	close(fds[1]);
 	return 0;
 }
-

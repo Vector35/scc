@@ -19,36 +19,38 @@
 // IN THE SOFTWARE.
 
 #define IMPLEMENT_RESOLVE_FUNC(name, loadModuleCode) \
-void name(const uint8_t* importDesc, void*** iats) \
-{ \
-	while (*iats != NULL) \
+	void name(const uint8_t* importDesc, void*** iats) \
 	{ \
-		size_t moduleNameLen = *(importDesc++); \
-		void* module = loadModuleCode; \
-		importDesc += moduleNameLen + 1; \
-\
-		size_t i = 0; \
-		while (true) \
+		while (*iats != NULL) \
 		{ \
-			size_t nameLen = *(importDesc++); \
-			if (nameLen == 0) \
-				break; \
-			(*iats)[i++] = GetProcAddress(module, (const char*)importDesc); \
-			importDesc += nameLen + 1; \
-		} \
+			size_t moduleNameLen = *(importDesc++); \
+			void* module = loadModuleCode; \
+			importDesc += moduleNameLen + 1; \
 \
-		iats++; \
-	} \
-}
+			size_t i = 0; \
+			while (true) \
+			{ \
+				size_t nameLen = *(importDesc++); \
+				if (nameLen == 0) \
+					break; \
+				(*iats)[i++] = GetProcAddress(module, (const char*)importDesc); \
+				importDesc += nameLen + 1; \
+			} \
+\
+			iats++; \
+		} \
+	}
 
 IMPLEMENT_RESOLVE_FUNC(__resolve_imports_GetModuleHandle, GetModuleHandleA((const char*)importDesc))
 IMPLEMENT_RESOLVE_FUNC(__resolve_imports_LoadLibrary, LoadLibraryA((const char*)importDesc))
-IMPLEMENT_RESOLVE_FUNC(__resolve_imports_LoadLibraryEx, LoadLibraryExA((const char*)importDesc, NULL, 0))
+IMPLEMENT_RESOLVE_FUNC(
+    __resolve_imports_LoadLibraryEx, LoadLibraryExA((const char*)importDesc, NULL, 0))
 
 void* __find_function_by_pebscan(uint32_t moduleHash, uint32_t funcHash)
 {
-	for (LDR_DATA_TABLE_ENTRY* module = (LDR_DATA_TABLE_ENTRY*)(GetCurrentPeb()->Ldr->InLoadOrderModuleList); module->DllBase;
-		module = (LDR_DATA_TABLE_ENTRY*)(((LIST_ENTRY*)module)->Flink))
+	for (LDR_DATA_TABLE_ENTRY* module =
+	         (LDR_DATA_TABLE_ENTRY*)(GetCurrentPeb()->Ldr->InLoadOrderModuleList);
+	     module->DllBase; module = (LDR_DATA_TABLE_ENTRY*)(((LIST_ENTRY*)module)->Flink))
 	{
 		uint32_t hash = 0;
 		for (uint16_t i = 0; i < module->BaseDllNameLength; i += 2)
@@ -67,8 +69,8 @@ void* __find_function_by_pebscan(uint32_t moduleHash, uint32_t funcHash)
 		size_t base = (size_t)module->DllBase;
 
 		IMAGE_NT_HEADERS* peHeader = (IMAGE_NT_HEADERS*)(base + ((IMAGE_DOS_HEADER*)base)->e_lfanew);
-		IMAGE_EXPORT_DIRECTORY* exportTable = (IMAGE_EXPORT_DIRECTORY*)(base +
-			peHeader->ExportDirectoryVirtualAddress);
+		IMAGE_EXPORT_DIRECTORY* exportTable =
+		    (IMAGE_EXPORT_DIRECTORY*)(base + peHeader->ExportDirectoryVirtualAddress);
 
 		for (uint32_t i = 0; i < exportTable->NumberOfNames; i++)
 		{
@@ -85,8 +87,8 @@ void* __find_function_by_pebscan(uint32_t moduleHash, uint32_t funcHash)
 			if (funcHash != hash)
 				continue;
 
-			return (void*)(base + ((uint32_t*)(base + exportTable->AddressOfFunctions))
-				[((uint16_t*)(base + exportTable->AddressOfNameOrdinals))[i]]);
+			return (void*)(base + ((uint32_t*)(base + exportTable->AddressOfFunctions))[(
+			                          (uint16_t*)(base + exportTable->AddressOfNameOrdinals))[i]]);
 		}
 	}
 	return NULL;
@@ -115,10 +117,10 @@ void __resolve_imports_pebscan(const uint32_t* importDesc, void*** iats)
 
 void __resolve_imports_pebscan_loadlibrary(const uint8_t* importDesc, void*** iats)
 {
-	void* (__stdcall *loadLibraryA)(const char*) = (void* (__stdcall*)(const char*))
-		__find_function_by_pebscan(0x6e2bca17, 0xec0e4e8e);
-	void* (__stdcall *getProcAddress)(void*, const char*) = (void* (__stdcall*)(void*, const char*))
-		__find_function_by_pebscan(0x6e2bca17, 0x7c0dfcaa);
+	void*(__stdcall * loadLibraryA)(const char*) =
+	    (void*(__stdcall*)(const char*))__find_function_by_pebscan(0x6e2bca17, 0xec0e4e8e);
+	void*(__stdcall * getProcAddress)(void*, const char*) =
+	    (void*(__stdcall*)(void*, const char*))__find_function_by_pebscan(0x6e2bca17, 0x7c0dfcaa);
 
 	while (*iats != NULL)
 	{
@@ -139,4 +141,3 @@ void __resolve_imports_pebscan_loadlibrary(const uint8_t* importDesc, void*** ia
 		iats++;
 	}
 }
-

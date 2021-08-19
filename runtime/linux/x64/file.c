@@ -27,4 +27,3 @@ int pipe(int* fds)
 {
 	return __syscall(SYS_pipe, fds);
 }
-

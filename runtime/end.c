@@ -19,4 +19,3 @@
 // IN THE SOFTWARE.
 
 uint8_t __end[0];
-

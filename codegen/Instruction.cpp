@@ -23,7 +23,8 @@
 using namespace std;
 
 
-InstructionToken* InstructionToken::CreateTextToken(const string& fileName, int line, const string& name)
+InstructionToken* InstructionToken::CreateTextToken(
+    const string& fileName, int line, const string& name)
 {
 	InstructionToken* token = new InstructionToken;
 	token->fileName = fileName;
@@ -34,8 +35,8 @@ InstructionToken* InstructionToken::CreateTextToken(const string& fileName, int 
 }
 
 
-InstructionToken* InstructionToken::CreateOperandToken(const string& fileName, int line, const string& name,
-	OperandType operand, OperandAccessType access)
+InstructionToken* InstructionToken::CreateOperandToken(const string& fileName, int line,
+    const string& name, OperandType operand, OperandAccessType access)
 {
 	InstructionToken* token = new InstructionToken;
 	token->fileName = fileName;
@@ -49,7 +50,7 @@ InstructionToken* InstructionToken::CreateOperandToken(const string& fileName, i
 
 
 Instruction::Instruction(const string& name, uint32_t flags, const vector<InstructionToken>& tokens,
-	CodeBlock* code, CodeBlock* update): m_name(name), m_flags(flags), m_tokens(tokens), m_code(code), m_update(update)
-{
-}
-
+    CodeBlock* code, CodeBlock* update) :
+    m_name(name),
+    m_flags(flags), m_tokens(tokens), m_code(code), m_update(update)
+{}

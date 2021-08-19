@@ -1,10 +1,8 @@
-#include <string.h>
 #include "BitVector.h"
+#include <string.h>
 
 
-BitVector::BitVector(): m_data(NULL), m_size(0)
-{
-}
+BitVector::BitVector() : m_data(NULL), m_size(0) {}
 
 
 BitVector::BitVector(const BitVector& v)
@@ -109,4 +107,3 @@ void BitVector::Difference(const BitVector& v)
 	for (size_t i = 0; i < (m_size + 31) / 32; i++)
 		m_data[i] &= ~v.m_data[i];
 }
-

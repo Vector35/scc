@@ -1,15 +1,13 @@
-#include <stdio.h>
 #include "TreeNode.h"
-#include "TreeBlock.h"
-#include "SymInstr.h"
 #include "Function.h"
+#include "SymInstr.h"
+#include "TreeBlock.h"
+#include <stdio.h>
 
 using namespace std;
 
 
-TreeNode::TreeNode(TreeNodeClass cls): m_class(cls), m_type(NODETYPE_UNDEFINED)
-{
-}
+TreeNode::TreeNode(TreeNodeClass cls) : m_class(cls), m_type(NODETYPE_UNDEFINED) {}
 
 
 TreeNode::TreeNode(const TreeNode& copy)
@@ -24,7 +22,8 @@ TreeNode::TreeNode(const TreeNode& copy)
 	m_highRegClass = copy.m_highRegClass;
 	m_var = copy.m_var;
 	m_immediate = copy.m_immediate;
-	for (vector< Ref<TreeNode> >::const_iterator i = copy.m_children.begin(); i != copy.m_children.end(); ++i)
+	for (vector<Ref<TreeNode>>::const_iterator i = copy.m_children.begin();
+	     i != copy.m_children.end(); ++i)
 		m_children.push_back(new TreeNode(**i));
 }
 
@@ -44,7 +43,8 @@ TreeNode::TreeNode(const TreeNode* copy, TreeNode* replaceFrom, TreeNode* replac
 	m_highRegClass = copy->m_highRegClass;
 	m_var = copy->m_var;
 	m_immediate = copy->m_immediate;
-	for (vector< Ref<TreeNode> >::const_iterator i = copy->m_children.begin(); i != copy->m_children.end(); ++i)
+	for (vector<Ref<TreeNode>>::const_iterator i = copy->m_children.begin();
+	     i != copy->m_children.end(); ++i)
 		m_children.push_back(new TreeNode(*i, replaceFrom, replaceTo));
 }
 
@@ -73,7 +73,8 @@ Function* TreeNode::GetFunction() const
 }
 
 
-TreeNode* TreeNode::CreateStackVarNode(uint32_t base, int32_t var, int64_t offset, TreeNodeType type)
+TreeNode* TreeNode::CreateStackVarNode(
+    uint32_t base, int32_t var, int64_t offset, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(NODE_STACK_VAR);
 	result->SetType(type);
@@ -120,7 +121,8 @@ TreeNode* TreeNode::CreateRegNode(uint32_t reg, uint32_t regClass, TreeNodeType 
 }
 
 
-TreeNode* TreeNode::CreateLargeRegNode(uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type)
+TreeNode* TreeNode::CreateLargeRegNode(
+    uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type)
 {
 	TreeNode* result = new TreeNode(NODE_LARGE_REG);
 	result->SetType(type);
@@ -168,7 +170,8 @@ TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c)
+TreeNode* TreeNode::CreateNode(
+    TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c)
 {
 	TreeNode* result = new TreeNode(cls);
 	result->SetType(type);
@@ -179,7 +182,8 @@ TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d)
+TreeNode* TreeNode::CreateNode(
+    TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d)
 {
 	TreeNode* result = new TreeNode(cls);
 	result->SetType(type);
@@ -512,10 +516,9 @@ void TreeNode::Print() const
 		break;
 	}
 
-	for (vector< Ref<TreeNode> >::const_iterator i = m_children.begin(); i != m_children.end(); ++i)
+	for (vector<Ref<TreeNode>>::const_iterator i = m_children.begin(); i != m_children.end(); ++i)
 	{
 		fprintf(stderr, " ");
 		(*i)->Print();
 	}
 }
-

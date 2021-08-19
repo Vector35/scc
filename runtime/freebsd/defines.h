@@ -24,4 +24,3 @@
 #define FREEBSD
 
 #endif
-

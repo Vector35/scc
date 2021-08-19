@@ -1,11 +1,11 @@
 #ifndef __TYPE_H__
 #define __TYPE_H__
 
-#include <stddef.h>
-#include <vector>
-#include <string>
-#include "RefCountObject.h"
 #include "Enum.h"
+#include "RefCountObject.h"
+#include <stddef.h>
+#include <string>
+#include <vector>
 
 
 enum TypeClass
@@ -34,14 +34,14 @@ enum CallingConvention
 class Struct;
 struct OutputBlock;
 
-class Type: public RefCountObject
+class Type : public RefCountObject
 {
 	TypeClass m_class;
 	size_t m_width, m_alignment;
 	bool m_signed, m_const;
 	Ref<Type> m_childType;
 	CallingConvention m_callingConvention;
-	std::vector< Ref<Type> > m_params;
+	std::vector<Ref<Type>> m_params;
 	bool m_variableArguments;
 	Ref<Struct> m_struct;
 	Ref<Enum> m_enum;
@@ -50,11 +50,11 @@ class Type: public RefCountObject
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
-	static std::map< size_t, Ref<Type> > m_serializationMap;
+	static std::map<size_t, Ref<Type>> m_serializationMap;
 
 	bool DeserializeInternal(InputBlock* input);
 
-public:
+ public:
 	Type();
 	Type(Type* type);
 
@@ -68,7 +68,7 @@ public:
 	bool IsFloat() const { return m_class == TYPE_FLOAT; }
 	Type* GetChildType() const { return m_childType; }
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }
-	const std::vector< Ref<Type> >& GetParams() const { return m_params; }
+	const std::vector<Ref<Type>>& GetParams() const { return m_params; }
 	bool HasVariableArguments() const { return m_variableArguments; }
 	Struct* GetStruct() const { return m_struct; }
 	Enum* GetEnum() const { return m_enum; }
@@ -81,7 +81,7 @@ public:
 	void SetConst(bool cnst) { m_const = cnst; }
 	void SetChildType(Type* type) { m_childType = type; }
 	void SetCallingConvention(CallingConvention cc) { m_callingConvention = cc; }
-	void SetParams(const std::vector< Ref<Type> >& params) { m_params = params; }
+	void SetParams(const std::vector<Ref<Type>>& params) { m_params = params; }
 	void SetStruct(Struct* strct) { m_struct = strct; }
 	void SetEnum(Enum* enm) { m_enum = enm; }
 	void SetElements(size_t elem) { m_elements = elem; }
@@ -99,7 +99,7 @@ public:
 	static Type* PointerType(Type* type, size_t depth);
 	static Type* ArrayType(Type* type, size_t elem);
 	static Type* FunctionType(Type* returnValue, CallingConvention cc,
-		const std::vector< std::pair< Ref<Type>, std::string > >& params);
+	    const std::vector<std::pair<Ref<Type>, std::string>>& params);
 
 	static Type* StructMemberType(Type* type, const std::string& name);
 
@@ -117,4 +117,3 @@ void SetTargetPointerSize(size_t size);
 
 
 #endif
-

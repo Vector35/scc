@@ -49,4 +49,3 @@ pid_t fork(void)
 	return __syscall(SYS_clone, SIGCHLD, 0);
 #endif
 }
-

@@ -46,4 +46,3 @@ int gettimeofday(struct timeval* t, struct timezone* tz);
 int nanosleep(const struct timespec* amount, struct timespec* unslept);
 
 #endif
-

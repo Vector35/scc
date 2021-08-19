@@ -1,40 +1,42 @@
 #ifdef OUTPUT_CLASS_NAME
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include "OutputX86Common.h"
-#include "Struct.h"
-#include "Function.h"
-#include "asmx86.h"
-#ifdef OUTPUT32
-#include "X86SymInstr.h"
-#define OUTPUT32
-#else
-#include "X64SymInstr.h"
-#define OUTPUT64
-#endif
+	#include "OutputX86Common.h"
+	#include "Function.h"
+	#include "Struct.h"
+	#include "asmx86.h"
+	#include <stdarg.h>
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#ifdef OUTPUT32
+		#include "X86SymInstr.h"
+		#define OUTPUT32
+	#else
+		#include "X64SymInstr.h"
+		#define OUTPUT64
+	#endif
 
-#define UNSAFE_STACK_PIVOT 0x1000
+	#define UNSAFE_STACK_PIVOT 0x1000
 
-#define X86_MEM_REF(ref) X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).var, (ref).offset)
-#define X86_MEM_REF_OFFSET(ref, ofs) X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).var, (ref).offset + (ofs))
+	#define X86_MEM_REF(ref) \
+		X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).var, (ref).offset)
+	#define X86_MEM_REF_OFFSET(ref, ofs) \
+		X86_SYM_MEM_INDEX((ref).base, (ref).index, (ref).scale, (ref).var, (ref).offset + (ofs))
 
-#define EMIT(name)               out->AddInstruction(X86_SYMINSTR_NAME(name)())
-#define EMIT_R(name, a)          out->AddInstruction(X86_SYMINSTR_NAME_OP(name, R)(a))
-#define EMIT_M(name, a)          out->AddInstruction(X86_SYMINSTR_NAME_OP(name, M)(a))
-#define EMIT_I(name, a)          out->AddInstruction(X86_SYMINSTR_NAME_OP(name, I)(a))
-#define EMIT_RR(name, a, b)      out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RR)(a, b))
-#define EMIT_RM(name, a, b)      out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RM)(a, b))
-#define EMIT_MR(name, a, b)      out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MR)(a, b))
-#define EMIT_RI(name, a, b)      out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RI)(a, b))
-#define EMIT_MI(name, a, b)      out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MI)(a, b))
-#define EMIT_II(name, a, b)      out->AddInstruction(X86_SYMINSTR_NAME_OP(name, II)(a, b))
-#define EMIT_RRR(name, a, b, c)  out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RRR)(a, b, c))
-#define EMIT_RRI(name, a, b, c)  out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RRI)(a, b, c))
-#define EMIT_MRR(name, a, b, c)  out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MRR)(a, b, c))
-#define EMIT_MRI(name, a, b, c)  out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MRI)(a, b, c))
+	#define EMIT(name)              out->AddInstruction(X86_SYMINSTR_NAME(name)())
+	#define EMIT_R(name, a)         out->AddInstruction(X86_SYMINSTR_NAME_OP(name, R)(a))
+	#define EMIT_M(name, a)         out->AddInstruction(X86_SYMINSTR_NAME_OP(name, M)(a))
+	#define EMIT_I(name, a)         out->AddInstruction(X86_SYMINSTR_NAME_OP(name, I)(a))
+	#define EMIT_RR(name, a, b)     out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RR)(a, b))
+	#define EMIT_RM(name, a, b)     out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RM)(a, b))
+	#define EMIT_MR(name, a, b)     out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MR)(a, b))
+	#define EMIT_RI(name, a, b)     out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RI)(a, b))
+	#define EMIT_MI(name, a, b)     out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MI)(a, b))
+	#define EMIT_II(name, a, b)     out->AddInstruction(X86_SYMINSTR_NAME_OP(name, II)(a, b))
+	#define EMIT_RRR(name, a, b, c) out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RRR)(a, b, c))
+	#define EMIT_RRI(name, a, b, c) out->AddInstruction(X86_SYMINSTR_NAME_OP(name, RRI)(a, b, c))
+	#define EMIT_MRR(name, a, b, c) out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MRR)(a, b, c))
+	#define EMIT_MRI(name, a, b, c) out->AddInstruction(X86_SYMINSTR_NAME_OP(name, MRI)(a, b, c))
 
 using namespace std;
 using namespace asmx86;
@@ -52,10 +54,10 @@ bool OUTPUT_CLASS_NAME::OperandReference::operator==(const OperandReference& ref
 	case OPERANDREF_REG:
 		if (reg != ref.reg)
 			return false;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if ((width == 8) && (highReg != ref.highReg))
 			return false;
-#endif
+	#endif
 		return true;
 	case OPERANDREF_MEM:
 		if (mem.base != ref.mem.base)
@@ -85,9 +87,9 @@ bool OUTPUT_CLASS_NAME::OperandReference::operator!=(const OperandReference& ref
 }
 
 
-OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc): Output(settings, startFunc)
-{
-}
+OUTPUT_CLASS_NAME::OUTPUT_CLASS_NAME(const Settings& settings, Function* startFunc) :
+    Output(settings, startFunc)
+{}
 
 
 uint32_t OUTPUT_CLASS_NAME::GetRegisterByName(const string& name)
@@ -232,7 +234,8 @@ uint32_t OUTPUT_CLASS_NAME::GetRegisterByName(const string& name)
 }
 
 
-void OUTPUT_CLASS_NAME::GetDataAddressFromInstructionPointer(SymInstrBlock* out, uint32_t reg, int64_t offset)
+void OUTPUT_CLASS_NAME::GetDataAddressFromInstructionPointer(
+    SymInstrBlock* out, uint32_t reg, int64_t offset)
 {
 	if (m_normalStack)
 	{
@@ -242,16 +245,17 @@ void OUTPUT_CLASS_NAME::GetDataAddressFromInstructionPointer(SymInstrBlock* out,
 	else
 	{
 		// Not a normal stack, must use fstenv method
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		out->AddInstruction(X86_SYMINSTR_NAME(FstenvDataAddr)(reg, offset));
-#else
+	#else
 		out->AddInstruction(X86_SYMINSTR_NAME(FstenvDataAddr)(reg, offset));
-#endif
+	#endif
 	}
 }
 
 
-void OUTPUT_CLASS_NAME::GetCodeAddressFromInstructionPointer(SymInstrBlock* out, uint32_t reg, Function* func, ILBlock* block)
+void OUTPUT_CLASS_NAME::GetCodeAddressFromInstructionPointer(
+    SymInstrBlock* out, uint32_t reg, Function* func, ILBlock* block)
 {
 	if (m_normalStack)
 	{
@@ -261,16 +265,17 @@ void OUTPUT_CLASS_NAME::GetCodeAddressFromInstructionPointer(SymInstrBlock* out,
 	else
 	{
 		// Not a normal stack, must use fstenv method
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		out->AddInstruction(X86_SYMINSTR_NAME(FstenvCodeAddr)(reg, func, block));
-#else
+	#else
 		out->AddInstruction(X86_SYMINSTR_NAME(FstenvCodeAddr)(reg, func, block));
-#endif
+	#endif
 	}
 }
 
 
-bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
+bool OUTPUT_CLASS_NAME::AccessVariableStorage(
+    SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
 {
 	if (param.cls == ILPARAM_MEMBER)
 	{
@@ -305,25 +310,26 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 		ref.mem.var = SYMREG_NONE;
 		ref.mem.offset = 0;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (!m_settings.positionIndependent)
 		{
-			out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrAbsolute)(ptr, param.variable->GetDataSectionOffset()));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME(MovDataPtrAbsolute)(ptr, param.variable->GetDataSectionOffset()));
 			return true;
 		}
 
 		if (m_settings.basePointer != SYMREG_NONE)
 		{
-			out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(ptr, m_settings.basePointer,
-				param.variable->GetDataSectionOffset()));
+			out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(
+			    ptr, m_settings.basePointer, param.variable->GetDataSectionOffset()));
 			return true;
 		}
 
 		GetDataAddressFromInstructionPointer(out, ptr, param.variable->GetDataSectionOffset());
-#else
-		out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(ptr, SYMREG_IP,
-			param.variable->GetDataSectionOffset()));
-#endif
+	#else
+		out->AddInstruction(X86_SYMINSTR_NAME(MovDataPtrBaseRelative)(
+		    ptr, SYMREG_IP, param.variable->GetDataSectionOffset()));
+	#endif
 
 		return true;
 	}
@@ -364,20 +370,22 @@ bool OUTPUT_CLASS_NAME::AccessVariableStorage(SymInstrBlock* out, const ILParame
 }
 
 
-bool OUTPUT_CLASS_NAME::LoadCodePointer(SymInstrBlock* out, Function* func, ILBlock* block, OperandReference& ref)
+bool OUTPUT_CLASS_NAME::LoadCodePointer(
+    SymInstrBlock* out, Function* func, ILBlock* block, OperandReference& ref)
 {
 	ref.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	ref.width = 4;
-#else
+	#else
 	ref.width = 8;
-#endif
+	#endif
 	ref.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (m_settings.basePointer != SYMREG_NONE)
 	{
-		out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, m_settings.basePointer, func, block));
+		out->AddInstruction(
+		    X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, m_settings.basePointer, func, block));
 	}
 	else if (m_settings.positionIndependent)
 	{
@@ -387,9 +395,9 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(SymInstrBlock* out, Function* func, ILBl
 	{
 		out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrAbsolute)(ref.reg, func, block));
 	}
-#else
+	#else
 	out->AddInstruction(X86_SYMINSTR_NAME(MovCodePtrBaseRelative)(ref.reg, SYMREG_IP, func, block));
-#endif
+	#endif
 
 	if (m_settings.encodePointers)
 	{
@@ -405,7 +413,8 @@ bool OUTPUT_CLASS_NAME::LoadCodePointer(SymInstrBlock* out, Function* func, ILBl
 }
 
 
-bool OUTPUT_CLASS_NAME::PrepareLoad(SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
+bool OUTPUT_CLASS_NAME::PrepareLoad(
+    SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
 {
 	ref.width = param.GetWidth();
 
@@ -429,14 +438,14 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(SymInstrBlock* out, const ILParameter& param
 		{
 			if (param.function->IsFixedAddressDeref())
 			{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				ref.type = OPERANDREF_MEM;
 				ref.mem.base = SYMREG_NONE;
 				ref.mem.index = SYMREG_NONE;
 				ref.mem.scale = 1;
 				ref.mem.var = SYMREG_NONE;
 				ref.mem.offset = param.function->GetFixedAddress();
-#else
+	#else
 				uint32_t ptr = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 				EMIT_RI(mov_64, ptr, param.function->GetFixedAddress());
 				ref.type = OPERANDREF_MEM;
@@ -445,7 +454,7 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(SymInstrBlock* out, const ILParameter& param
 				ref.mem.scale = 1;
 				ref.mem.var = SYMREG_NONE;
 				ref.mem.offset = 0;
-#endif
+	#endif
 				return true;
 			}
 			ref.type = OPERANDREF_IMMED;
@@ -456,7 +465,8 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(SymInstrBlock* out, const ILParameter& param
 	case ILPARAM_UNDEFINED:
 		ref.type = OPERANDREF_REG;
 		ref.width = param.GetWidth();
-		ref.reg = m_symFunc->AddRegister((ref.width == 1) ? X86REGCLASS_INTEGER_8BIT : X86REGCLASS_INTEGER);
+		ref.reg =
+		    m_symFunc->AddRegister((ref.width == 1) ? X86REGCLASS_INTEGER_8BIT : X86REGCLASS_INTEGER);
 		return true;
 	default:
 		return false;
@@ -464,7 +474,8 @@ bool OUTPUT_CLASS_NAME::PrepareLoad(SymInstrBlock* out, const ILParameter& param
 }
 
 
-bool OUTPUT_CLASS_NAME::PrepareStore(SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
+bool OUTPUT_CLASS_NAME::PrepareStore(
+    SymInstrBlock* out, const ILParameter& param, OperandReference& ref)
 {
 	ref.width = param.GetWidth();
 
@@ -481,185 +492,233 @@ bool OUTPUT_CLASS_NAME::PrepareStore(SymInstrBlock* out, const ILParameter& para
 }
 
 
-#ifdef OUTPUT32
-#define IMPLEMENT_BINARY_OP_64(operation, highOperation) \
-	if (dest.type == OPERANDREF_REG) \
-	{ \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG: \
-			EMIT_RR(operation ## _32, dest.reg, src.reg); \
-			EMIT_RR(highOperation ## _32, dest.highReg, src.highReg); \
-			return true; \
-		case OPERANDREF_MEM: \
-			EMIT_RM(operation ## _32, dest.reg, X86_MEM_REF(src.mem)); \
-			EMIT_RM(highOperation ## _32, dest.highReg, X86_MEM_REF_OFFSET(src.mem, 4)); \
-			return true; \
-		case OPERANDREF_IMMED: \
-			EMIT_RI(operation ## _32, dest.reg, (uint32_t)src.immed); \
-			EMIT_RI(highOperation ## _32, dest.highReg, (uint32_t)(src.immed >> 32)); \
-			return true; \
-		default: \
-			return false; \
-		} \
-	} \
-	else if (dest.type == OPERANDREF_MEM) \
-	{ \
-		uint32_t temp; \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG: \
-			EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), src.reg); \
-			EMIT_MR(highOperation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.highReg); \
-			return true; \
-		case OPERANDREF_MEM: \
-			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-			EMIT_RM(mov_32, temp, X86_MEM_REF(src.mem)); \
-			EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), temp); \
-			EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(src.mem, 4)); \
-			EMIT_MR(highOperation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
-			return true; \
-		case OPERANDREF_IMMED: \
-			EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); \
-			EMIT_MI(highOperation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), (uint32_t)(src.immed >> 32)); \
-			return true; \
-		default: \
-			return false; \
-		} \
-	}
-#else
-#define IMPLEMENT_BINARY_OP_64(operation, highOperation) \
-	if (dest.type == OPERANDREF_REG) \
-	{ \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_RR(operation ## _64, dest.reg, src.reg); return true; \
-		case OPERANDREF_MEM:  EMIT_RM(operation ## _64, dest.reg, X86_MEM_REF(src.mem)); return true; \
-		case OPERANDREF_IMMED:  EMIT_RI(operation ## _64, dest.reg, src.immed); return true; \
-		default:  return false; \
-		} \
-	} \
-	else if (dest.type == OPERANDREF_MEM) \
-	{ \
-		uint32_t temp; \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), src.reg); return true; \
-		case OPERANDREF_MEM: \
-			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-			EMIT_RM(mov_64, temp, X86_MEM_REF(src.mem)); \
-			EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), temp); \
-			return true; \
-		case OPERANDREF_IMMED: \
-			if ((src.immed < -0x80000000LL) || (src.immed >= 0x80000000LL)) \
+	#ifdef OUTPUT32
+		#define IMPLEMENT_BINARY_OP_64(operation, highOperation) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RI(mov_64, temp, src.immed); \
-				EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), temp); \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_32, dest.reg, src.reg); \
+					EMIT_RR(highOperation##_32, dest.highReg, src.highReg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(operation##_32, dest.reg, X86_MEM_REF(src.mem)); \
+					EMIT_RM(highOperation##_32, dest.highReg, X86_MEM_REF_OFFSET(src.mem, 4)); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_32, dest.reg, (uint32_t)src.immed); \
+					EMIT_RI(highOperation##_32, dest.highReg, (uint32_t)(src.immed >> 32)); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
-			else \
+			else if (dest.type == OPERANDREF_MEM) \
 			{ \
-				EMIT_MI(operation ## _64, X86_MEM_REF(dest.mem), src.immed); \
+				uint32_t temp; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_32, X86_MEM_REF(dest.mem), src.reg); \
+					EMIT_MR(highOperation##_32, X86_MEM_REF_OFFSET(dest.mem, 4), src.highReg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(src.mem)); \
+					EMIT_MR(operation##_32, X86_MEM_REF(dest.mem), temp); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(src.mem, 4)); \
+					EMIT_MR(highOperation##_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); \
+					EMIT_MI( \
+					    highOperation##_32, X86_MEM_REF_OFFSET(dest.mem, 4), (uint32_t)(src.immed >> 32)); \
+					return true; \
+				default: \
+					return false; \
+				} \
+			}
+	#else
+		#define IMPLEMENT_BINARY_OP_64(operation, highOperation) \
+			if (dest.type == OPERANDREF_REG) \
+			{ \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_64, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(operation##_64, dest.reg, X86_MEM_REF(src.mem)); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_64, dest.reg, src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
-			return true; \
-		default:  return false; \
-		} \
-	}
-#endif
+			else if (dest.type == OPERANDREF_MEM) \
+			{ \
+				uint32_t temp; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_64, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_64, temp, X86_MEM_REF(src.mem)); \
+					EMIT_MR(operation##_64, X86_MEM_REF(dest.mem), temp); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					if ((src.immed < -0x80000000LL) || (src.immed >= 0x80000000LL)) \
+					{ \
+						temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+						EMIT_RI(mov_64, temp, src.immed); \
+						EMIT_MR(operation##_64, X86_MEM_REF(dest.mem), temp); \
+					} \
+					else \
+					{ \
+						EMIT_MI(operation##_64, X86_MEM_REF(dest.mem), src.immed); \
+					} \
+					return true; \
+				default: \
+					return false; \
+				} \
+			}
+	#endif
 
-#define IMPLEMENT_BINARY_OP(operation, highOperation) \
-	if (dest.width == 1) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
+	#define IMPLEMENT_BINARY_OP(operation, highOperation) \
+		if (dest.width == 1) \
 		{ \
-			switch (src.type) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_RR(operation ## _8, dest.reg, src.reg); return true; \
-			case OPERANDREF_MEM:  EMIT_RM(operation ## _8, dest.reg, X86_MEM_REF(src.mem)); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _8, dest.reg, (uint8_t)src.immed); return true; \
-			default:  return false; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_8, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(operation##_8, dest.reg, X86_MEM_REF(src.mem)); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_8, dest.reg, (uint8_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
+			} \
+			else if (dest.type == OPERANDREF_MEM) \
+			{ \
+				uint32_t temp; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_8, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
+					EMIT_RM(mov_8, temp, X86_MEM_REF(src.mem)); \
+					EMIT_MR(operation##_8, X86_MEM_REF(dest.mem), temp); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_8, X86_MEM_REF(dest.mem), (uint8_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
 		} \
-		else if (dest.type == OPERANDREF_MEM) \
+		else if (dest.width == 2) \
 		{ \
-			uint32_t temp; \
-			switch (src.type) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_MR(operation ## _8, X86_MEM_REF(dest.mem), src.reg); return true; \
-			case OPERANDREF_MEM: \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
-				EMIT_RM(mov_8, temp, X86_MEM_REF(src.mem)); \
-				EMIT_MR(operation ## _8, X86_MEM_REF(dest.mem), temp); \
-				return true; \
-			case OPERANDREF_IMMED:  EMIT_MI(operation ## _8, X86_MEM_REF(dest.mem), (uint8_t)src.immed); return true; \
-			default:  return false; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_16, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(operation##_16, dest.reg, X86_MEM_REF(src.mem)); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_16, dest.reg, (uint16_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
+			} \
+			else if (dest.type == OPERANDREF_MEM) \
+			{ \
+				uint32_t temp; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_16, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_16, temp, X86_MEM_REF(src.mem)); \
+					EMIT_MR(operation##_16, X86_MEM_REF(dest.mem), temp); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_16, X86_MEM_REF(dest.mem), (uint16_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
 		} \
-	} \
-	else if (dest.width == 2) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
+		else if (dest.width == 4) \
 		{ \
-			switch (src.type) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_RR(operation ## _16, dest.reg, src.reg); return true; \
-			case OPERANDREF_MEM:  EMIT_RM(operation ## _16, dest.reg, X86_MEM_REF(src.mem)); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _16, dest.reg, (uint16_t)src.immed); return true; \
-			default:  return false; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_32, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(operation##_32, dest.reg, X86_MEM_REF(src.mem)); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_32, dest.reg, (uint32_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
+			} \
+			else if (dest.type == OPERANDREF_MEM) \
+			{ \
+				uint32_t temp; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_32, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(src.mem)); \
+					EMIT_MR(operation##_32, X86_MEM_REF(dest.mem), temp); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
 		} \
-		else if (dest.type == OPERANDREF_MEM) \
+		else if (dest.width == 8) \
 		{ \
-			uint32_t temp; \
-			switch (src.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_MR(operation ## _16, X86_MEM_REF(dest.mem), src.reg); return true; \
-			case OPERANDREF_MEM: \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RM(mov_16, temp, X86_MEM_REF(src.mem)); \
-				EMIT_MR(operation ## _16, X86_MEM_REF(dest.mem), temp); \
-				return true; \
-			case OPERANDREF_IMMED:  EMIT_MI(operation ## _16, X86_MEM_REF(dest.mem), (uint16_t)src.immed); return true; \
-			default:  return false; \
-			} \
+			IMPLEMENT_BINARY_OP_64(operation, highOperation) \
 		} \
-	} \
-	else if (dest.width == 4) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
-		{ \
-			switch (src.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_RR(operation ## _32, dest.reg, src.reg); return true; \
-			case OPERANDREF_MEM:  EMIT_RM(operation ## _32, dest.reg, X86_MEM_REF(src.mem)); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _32, dest.reg, (uint32_t)src.immed); return true; \
-			default:  return false; \
-			} \
-		} \
-		else if (dest.type == OPERANDREF_MEM) \
-		{ \
-			uint32_t temp; \
-			switch (src.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), src.reg); return true; \
-			case OPERANDREF_MEM: \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RM(mov_32, temp, X86_MEM_REF(src.mem)); \
-				EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), temp); \
-				return true; \
-			case OPERANDREF_IMMED:  EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); return true; \
-			default:  return false; \
-			} \
-		} \
-	} \
-	else if (dest.width == 8) \
-	{ \
-		IMPLEMENT_BINARY_OP_64(operation, highOperation) \
-	} \
-	return false;
+		return false;
 
 
-bool OUTPUT_CLASS_NAME::Move(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::Move(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	if (dest == src)
 		return true;
@@ -667,331 +726,379 @@ bool OUTPUT_CLASS_NAME::Move(SymInstrBlock* out, const OperandReference& dest, c
 }
 
 
-bool OUTPUT_CLASS_NAME::Add(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::Add(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_BINARY_OP(add, adc);
 }
 
 
-bool OUTPUT_CLASS_NAME::Sub(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::Sub(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_BINARY_OP(sub, sbb);
 }
 
 
-bool OUTPUT_CLASS_NAME::And(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::And(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_BINARY_OP(and, and);
 }
 
 
-bool OUTPUT_CLASS_NAME::Or(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::Or(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_BINARY_OP(or, or);
 }
 
 
-bool OUTPUT_CLASS_NAME::Xor(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::Xor(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_BINARY_OP(xor, xor);
 }
 
 
-#ifdef OUTPUT32
-#define IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
-	if (dest.type == OPERANDREF_REG) \
-	{ \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG: \
-			if (right) \
+	#ifdef OUTPUT32
+		#define IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-				uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
-				EMIT_RR(xor_32, temp, temp); \
-				if (sign) \
+				switch (src.type) \
 				{ \
-					EMIT_RR(test_32, dest.highReg, dest.highReg); \
-					EMIT_R(sets, temp); \
-					EMIT_R(neg_32, temp); \
+				case OPERANDREF_REG: \
+					if (right) \
+					{ \
+						uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
+						EMIT_RR(xor_32, temp, temp); \
+						if (sign) \
+						{ \
+							EMIT_RR(test_32, dest.highReg, dest.highReg); \
+							EMIT_R(sets, temp); \
+							EMIT_R(neg_32, temp); \
+						} \
+						EMIT_RI(test_8, src.reg, 32); \
+						EMIT_RR(cmovnz_32, dest.reg, dest.highReg); \
+						EMIT_RR(cmovnz_32, dest.highReg, temp); \
+						EMIT_RRR(shrd_32, dest.reg, dest.highReg, src.reg); \
+						EMIT_RR(operation##_32, dest.highReg, src.reg); \
+					} \
+					else \
+					{ \
+						uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+						EMIT_RR(xor_32, temp, temp); \
+						EMIT_RI(test_8, src.reg, 32); \
+						EMIT_RR(cmovnz_32, dest.highReg, dest.reg); \
+						EMIT_RR(cmovnz_32, dest.reg, temp); \
+						EMIT_RRR(shld_32, dest.highReg, dest.reg, src.reg); \
+						EMIT_RR(operation##_32, dest.reg, src.reg); \
+					} \
+					return true; \
+				case OPERANDREF_IMMED: \
+					if (right) \
+					{ \
+						if ((src.immed & 63) >= 32) \
+						{ \
+							EMIT_RR(mov_32, dest.reg, dest.highReg); \
+							if (src.immed & 31) \
+								EMIT_RI(operation##_32, dest.reg, (src.immed & 31)); \
+							if (sign) \
+								EMIT_RI(operation##_32, dest.highReg, 31); \
+							else \
+								EMIT_RR(xor_32, dest.highReg, dest.highReg); \
+						} \
+						else \
+						{ \
+							EMIT_RRI(shrd_32, dest.reg, dest.highReg, src.immed); \
+							EMIT_RI(operation##_32, dest.highReg, src.immed); \
+						} \
+					} \
+					else \
+					{ \
+						if ((src.immed & 63) >= 32) \
+						{ \
+							EMIT_RR(mov_32, dest.highReg, dest.reg); \
+							EMIT_RR(xor_32, dest.reg, dest.reg); \
+							if (src.immed & 31) \
+								EMIT_RI(operation##_32, dest.highReg, (src.immed & 31)); \
+						} \
+						else \
+						{ \
+							EMIT_RRI(shld_32, dest.highReg, dest.reg, src.immed); \
+							EMIT_RI(operation##_32, dest.reg, src.immed); \
+						} \
+					} \
+					return true; \
+				default: \
+					return false; \
 				} \
-				EMIT_RI(test_8, src.reg, 32); \
-				EMIT_RR(cmovnz_32, dest.reg, dest.highReg); \
-				EMIT_RR(cmovnz_32, dest.highReg, temp); \
-				EMIT_RRR(shrd_32, dest.reg, dest.highReg, src.reg); \
-				EMIT_RR(operation ## _32, dest.highReg, src.reg); \
 			} \
-			else \
+			else if (dest.type == OPERANDREF_MEM) \
 			{ \
 				uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RR(xor_32, temp, temp); \
-				EMIT_RI(test_8, src.reg, 32); \
-				EMIT_RR(cmovnz_32, dest.highReg, dest.reg); \
-				EMIT_RR(cmovnz_32, dest.reg, temp); \
-				EMIT_RRR(shld_32, dest.highReg, dest.reg, src.reg); \
-				EMIT_RR(operation ## _32, dest.reg, src.reg); \
-			} \
-			return true; \
-		case OPERANDREF_IMMED: \
-			if (right) \
-			{ \
-				if ((src.immed & 63) >= 32) \
+				switch (src.type) \
 				{ \
-					EMIT_RR(mov_32, dest.reg, dest.highReg); \
-					if (src.immed & 31) \
-						EMIT_RI(operation ## _32, dest.reg, (src.immed & 31)); \
-					if (sign) \
-						EMIT_RI(operation ## _32, dest.highReg, 31); \
+				case OPERANDREF_REG: \
+					if (right) \
+					{ \
+						uint32_t high = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
+						EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+						EMIT_RR(xor_32, high, high); \
+						if (sign) \
+						{ \
+							EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(dest.mem, 4), high); \
+							EMIT_R(sets, high); \
+							EMIT_R(neg_32, high); \
+						} \
+						EMIT_RI(test_8, src.reg, 32); \
+						EMIT_RR(cmovnz_32, temp, high); \
+						uint32_t low = high; \
+						EMIT_RM(mov_32, low, X86_MEM_REF(dest.mem)); \
+						EMIT_RM(cmovnz_32, low, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+						EMIT_RRR(shrd_32, low, temp, src.reg); \
+						EMIT_RR(operation##_32, temp, src.reg); \
+						EMIT_MR(mov_32, X86_MEM_REF(dest.mem), low); \
+						EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
+					} \
 					else \
-						EMIT_RR(xor_32, dest.highReg, dest.highReg); \
-				} \
-				else \
-				{ \
-					EMIT_RRI(shrd_32, dest.reg, dest.highReg, src.immed); \
-					EMIT_RI(operation ## _32, dest.highReg, src.immed); \
-				} \
-			} \
-			else \
-			{ \
-				if ((src.immed & 63) >= 32) \
-				{ \
-					EMIT_RR(mov_32, dest.highReg, dest.reg); \
-					EMIT_RR(xor_32, dest.reg, dest.reg); \
-					if (src.immed & 31) \
-						EMIT_RI(operation ## _32, dest.highReg, (src.immed & 31)); \
-				} \
-				else \
-				{ \
-					EMIT_RRI(shld_32, dest.highReg, dest.reg, src.immed); \
-					EMIT_RI(operation ## _32, dest.reg, src.immed); \
-				} \
-			} \
-			return true; \
-		default: \
-			return false; \
-		} \
-	} \
-	else if (dest.type == OPERANDREF_MEM) \
-	{ \
-		uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG: \
-			if (right) \
-			{ \
-				uint32_t high = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
-				EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-				EMIT_RR(xor_32, high, high); \
-				if (sign) \
-				{ \
-					EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(dest.mem, 4), high); \
-					EMIT_R(sets, high); \
-					EMIT_R(neg_32, high); \
-				} \
-				EMIT_RI(test_8, src.reg, 32); \
-				EMIT_RR(cmovnz_32, temp, high); \
-				uint32_t low = high; \
-				EMIT_RM(mov_32, low, X86_MEM_REF(dest.mem)); \
-				EMIT_RM(cmovnz_32, low, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-				EMIT_RRR(shrd_32, low, temp, src.reg); \
-				EMIT_RR(operation ## _32, temp, src.reg); \
-				EMIT_MR(mov_32, X86_MEM_REF(dest.mem), low); \
-				EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
-			} \
-			else \
-			{ \
-				uint32_t low = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
-				EMIT_RR(xor_32, low, low); \
-				EMIT_RI(test_8, src.reg, 32); \
-				EMIT_RR(cmovnz_32, temp, low); \
-				uint32_t high = low; \
-				EMIT_RM(mov_32, high, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-				EMIT_RM(cmovnz_32, high, X86_MEM_REF(dest.mem)); \
-				EMIT_RRR(shld_32, high, temp, src.reg); \
-				EMIT_RR(operation ## _32, temp, src.reg); \
-				EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp); \
-				EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), high); \
-			} \
-			return true; \
-		case OPERANDREF_IMMED: \
-			if (right) \
-			{ \
-				if ((src.immed & 63) >= 32) \
-				{ \
-					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-					if (src.immed & 31) \
-						EMIT_RI(operation ## _32, temp, (src.immed & 31)); \
-					EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp); \
-					if (sign) \
-						EMIT_MI(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), 31); \
+					{ \
+						uint32_t low = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+						EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+						EMIT_RR(xor_32, low, low); \
+						EMIT_RI(test_8, src.reg, 32); \
+						EMIT_RR(cmovnz_32, temp, low); \
+						uint32_t high = low; \
+						EMIT_RM(mov_32, high, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+						EMIT_RM(cmovnz_32, high, X86_MEM_REF(dest.mem)); \
+						EMIT_RRR(shld_32, high, temp, src.reg); \
+						EMIT_RR(operation##_32, temp, src.reg); \
+						EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp); \
+						EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), high); \
+					} \
+					return true; \
+				case OPERANDREF_IMMED: \
+					if (right) \
+					{ \
+						if ((src.immed & 63) >= 32) \
+						{ \
+							EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+							if (src.immed & 31) \
+								EMIT_RI(operation##_32, temp, (src.immed & 31)); \
+							EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp); \
+							if (sign) \
+								EMIT_MI(operation##_32, X86_MEM_REF_OFFSET(dest.mem, 4), 31); \
+							else \
+								EMIT_MI(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0); \
+						} \
+						else \
+						{ \
+							EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
+							EMIT_MRI(shrd_32, X86_MEM_REF(dest.mem), temp, src.immed); \
+							EMIT_MI(operation##_32, X86_MEM_REF_OFFSET(dest.mem, 4), src.immed); \
+						} \
+					} \
 					else \
-						EMIT_MI(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0); \
+					{ \
+						if ((src.immed & 63) >= 32) \
+						{ \
+							EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+							if (src.immed & 31) \
+								EMIT_RI(operation##_32, temp, (src.immed & 31)); \
+							EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
+							EMIT_MI(mov_32, X86_MEM_REF(dest.mem), 0); \
+						} \
+						else \
+						{ \
+							EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
+							EMIT_MRI(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.immed); \
+							EMIT_MI(operation##_32, X86_MEM_REF(dest.mem), src.immed); \
+						} \
+					} \
+					return true; \
+				default: \
+					return false; \
 				} \
-				else \
+			}
+	#else
+		#define IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
+			if (dest.type == OPERANDREF_REG) \
+			{ \
+				switch (src.type) \
 				{ \
-					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(dest.mem, 4)); \
-					EMIT_MRI(shrd_32, X86_MEM_REF(dest.mem), temp, src.immed); \
-					EMIT_MI(operation ## _32, X86_MEM_REF_OFFSET(dest.mem, 4), src.immed); \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_64, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_64, dest.reg, src.immed); \
+					return true; \
+				default: \
+					return false; \
 				} \
 			} \
-			else \
+			else if (dest.type == OPERANDREF_MEM) \
 			{ \
-				if ((src.immed & 63) >= 32) \
+				switch (src.type) \
 				{ \
-					EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
-					if (src.immed & 31) \
-						EMIT_RI(operation ## _32, temp, (src.immed & 31)); \
-					EMIT_MR(mov_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp); \
-					EMIT_MI(mov_32, X86_MEM_REF(dest.mem), 0); \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_64, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_64, X86_MEM_REF(dest.mem), src.immed); \
+					return true; \
+				default: \
+					return false; \
 				} \
-				else \
+			}
+	#endif
+
+	#define IMPLEMENT_SHIFT_OP(operation, right, sign) \
+		if (dest.width == 1) \
+		{ \
+			if (dest.type == OPERANDREF_REG) \
+			{ \
+				switch (src.type) \
 				{ \
-					EMIT_RM(mov_32, temp, X86_MEM_REF(dest.mem)); \
-					EMIT_MRI(shld_32, X86_MEM_REF_OFFSET(dest.mem, 4), temp, src.immed); \
-					EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), src.immed); \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_8, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_8, dest.reg, (uint8_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
 				} \
 			} \
-			return true; \
-		default: \
-			return false; \
-		} \
-	}
-#else
-#define IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
-	if (dest.type == OPERANDREF_REG) \
-	{ \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_RR(operation ## _64, dest.reg, src.reg); return true; \
-		case OPERANDREF_IMMED:  EMIT_RI(operation ## _64, dest.reg, src.immed); return true; \
-		default:  return false; \
-		} \
-	} \
-	else if (dest.type == OPERANDREF_MEM) \
-	{ \
-		switch (src.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_MR(operation ## _64, X86_MEM_REF(dest.mem), src.reg); return true; \
-		case OPERANDREF_IMMED: EMIT_MI(operation ## _64, X86_MEM_REF(dest.mem), src.immed); return true; \
-		default:  return false; \
-		} \
-	}
-#endif
-
-#define IMPLEMENT_SHIFT_OP(operation, right, sign) \
-	if (dest.width == 1) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
-		{ \
-			switch (src.type) \
+			else if (dest.type == OPERANDREF_MEM) \
 			{ \
-			case OPERANDREF_REG:  EMIT_RR(operation ## _8, dest.reg, src.reg); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _8, dest.reg, (uint8_t)src.immed); return true; \
-			default:  return false; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_8, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_8, X86_MEM_REF(dest.mem), (uint8_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
 		} \
-		else if (dest.type == OPERANDREF_MEM) \
+		else if (dest.width == 2) \
 		{ \
-			switch (src.type) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_MR(operation ## _8, X86_MEM_REF(dest.mem), src.reg); return true; \
-			case OPERANDREF_IMMED:  EMIT_MI(operation ## _8, X86_MEM_REF(dest.mem), (uint8_t)src.immed); return true; \
-			default:  return false; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_16, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_16, dest.reg, (uint8_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
+			} \
+			else if (dest.type == OPERANDREF_MEM) \
+			{ \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_16, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_16, X86_MEM_REF(dest.mem), (uint16_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
 		} \
-	} \
-	else if (dest.width == 2) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
+		else if (dest.width == 4) \
 		{ \
-			switch (src.type) \
+			if (dest.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_RR(operation ## _16, dest.reg, src.reg); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _16, dest.reg, (uint8_t)src.immed); return true; \
-			default:  return false; \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(operation##_32, dest.reg, src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(operation##_32, dest.reg, (uint8_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
+			} \
+			else if (dest.type == OPERANDREF_MEM) \
+			{ \
+				switch (src.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(operation##_32, X86_MEM_REF(dest.mem), src.reg); \
+					return true; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(operation##_32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); \
+					return true; \
+				default: \
+					return false; \
+				} \
 			} \
 		} \
-		else if (dest.type == OPERANDREF_MEM) \
+		else if (dest.width == 8) \
 		{ \
-			switch (src.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_MR(operation ## _16, X86_MEM_REF(dest.mem), src.reg); return true; \
-			case OPERANDREF_IMMED:  EMIT_MI(operation ## _16, X86_MEM_REF(dest.mem), (uint16_t)src.immed); return true; \
-			default:  return false; \
-			} \
+			IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
 		} \
-	} \
-	else if (dest.width == 4) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
-		{ \
-			switch (src.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_RR(operation ## _32, dest.reg, src.reg); return true; \
-			case OPERANDREF_IMMED:  EMIT_RI(operation ## _32, dest.reg, (uint8_t)src.immed); return true; \
-			default:  return false; \
-			} \
-		} \
-		else if (dest.type == OPERANDREF_MEM) \
-		{ \
-			switch (src.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_MR(operation ## _32, X86_MEM_REF(dest.mem), src.reg); return true; \
-			case OPERANDREF_IMMED:  EMIT_MI(operation ## _32, X86_MEM_REF(dest.mem), (uint32_t)src.immed); return true; \
-			default:  return false; \
-			} \
-		} \
-	} \
-	else if (dest.width == 8) \
-	{ \
-		IMPLEMENT_SHIFT_OP_64(operation, right, sign) \
-	} \
-	return false;
+		return false;
 
 
-bool OUTPUT_CLASS_NAME::ShiftLeft(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::ShiftLeft(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_SHIFT_OP(shl, false, false);
 }
 
 
-bool OUTPUT_CLASS_NAME::ShiftRightUnsigned(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::ShiftRightUnsigned(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_SHIFT_OP(shr, true, false);
 }
 
 
-bool OUTPUT_CLASS_NAME::ShiftRightSigned(SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
+bool OUTPUT_CLASS_NAME::ShiftRightSigned(
+    SymInstrBlock* out, const OperandReference& dest, const OperandReference& src)
 {
 	IMPLEMENT_SHIFT_OP(sar, true, true);
 }
 
 
-#define IMPLEMENT_UNARY_OP_COMMON(op) \
-	if (dest.width == 1) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
-			EMIT_R(op ## _8, dest.reg); \
-		else \
-			EMIT_M(op ## _8, X86_MEM_REF(dest.mem)); \
-		return true; \
-	} \
-	else if (dest.width == 2) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
-			EMIT_R(op ## _16, dest.reg); \
-		else \
-			EMIT_M(op ## _16, X86_MEM_REF(dest.mem)); \
-		return true; \
-	} \
-	else if (dest.width == 4) \
-	{ \
-		if (dest.type == OPERANDREF_REG) \
-			EMIT_R(op ## _32, dest.reg); \
-		else \
-			EMIT_M(op ## _32, X86_MEM_REF(dest.mem)); \
-		return true; \
-	}
+	#define IMPLEMENT_UNARY_OP_COMMON(op) \
+		if (dest.width == 1) \
+		{ \
+			if (dest.type == OPERANDREF_REG) \
+				EMIT_R(op##_8, dest.reg); \
+			else \
+				EMIT_M(op##_8, X86_MEM_REF(dest.mem)); \
+			return true; \
+		} \
+		else if (dest.width == 2) \
+		{ \
+			if (dest.type == OPERANDREF_REG) \
+				EMIT_R(op##_16, dest.reg); \
+			else \
+				EMIT_M(op##_16, X86_MEM_REF(dest.mem)); \
+			return true; \
+		} \
+		else if (dest.width == 4) \
+		{ \
+			if (dest.type == OPERANDREF_REG) \
+				EMIT_R(op##_32, dest.reg); \
+			else \
+				EMIT_M(op##_32, X86_MEM_REF(dest.mem)); \
+			return true; \
+		}
 
 
 bool OUTPUT_CLASS_NAME::Neg(SymInstrBlock* out, const OperandReference& dest)
@@ -999,7 +1106,7 @@ bool OUTPUT_CLASS_NAME::Neg(SymInstrBlock* out, const OperandReference& dest)
 	IMPLEMENT_UNARY_OP_COMMON(neg)
 	else if (dest.width == 8)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (dest.type == OPERANDREF_REG)
 		{
 			EMIT_R(not_32, dest.reg);
@@ -1015,13 +1122,13 @@ bool OUTPUT_CLASS_NAME::Neg(SymInstrBlock* out, const OperandReference& dest)
 			EMIT_MI(adc_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
 		}
 		return true;
-#else
+	#else
 		if (dest.type == OPERANDREF_REG)
 			EMIT_R(neg_64, dest.reg);
 		else
 			EMIT_M(neg_64, X86_MEM_REF(dest.mem));
 		return true;
-#endif
+	#endif
 	}
 
 	return false;
@@ -1030,10 +1137,10 @@ bool OUTPUT_CLASS_NAME::Neg(SymInstrBlock* out, const OperandReference& dest)
 
 bool OUTPUT_CLASS_NAME::Not(SymInstrBlock* out, const OperandReference& dest)
 {
-	IMPLEMENT_UNARY_OP_COMMON(not)
+	IMPLEMENT_UNARY_OP_COMMON(not )
 	else if (dest.width == 8)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (dest.type == OPERANDREF_REG)
 		{
 			EMIT_R(not_32, dest.reg);
@@ -1045,13 +1152,13 @@ bool OUTPUT_CLASS_NAME::Not(SymInstrBlock* out, const OperandReference& dest)
 			EMIT_M(not_32, X86_MEM_REF_OFFSET(dest.mem, 4));
 		}
 		return true;
-#else
+	#else
 		if (dest.type == OPERANDREF_REG)
 			EMIT_R(not_64, dest.reg);
 		else
 			EMIT_M(not_64, X86_MEM_REF(dest.mem));
 		return true;
-#endif
+	#endif
 	}
 
 	return false;
@@ -1063,7 +1170,7 @@ bool OUTPUT_CLASS_NAME::Increment(SymInstrBlock* out, const OperandReference& de
 	IMPLEMENT_UNARY_OP_COMMON(inc)
 	else if (dest.width == 8)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (dest.type == OPERANDREF_REG)
 		{
 			EMIT_RI(add_32, dest.reg, 1);
@@ -1075,13 +1182,13 @@ bool OUTPUT_CLASS_NAME::Increment(SymInstrBlock* out, const OperandReference& de
 			EMIT_MI(adc_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
 		}
 		return true;
-#else
+	#else
 		if (dest.type == OPERANDREF_REG)
 			EMIT_R(inc_64, dest.reg);
 		else
 			EMIT_M(inc_64, X86_MEM_REF(dest.mem));
 		return true;
-#endif
+	#endif
 	}
 
 	return false;
@@ -1093,7 +1200,7 @@ bool OUTPUT_CLASS_NAME::Decrement(SymInstrBlock* out, const OperandReference& de
 	IMPLEMENT_UNARY_OP_COMMON(dec)
 	else if (dest.width == 8)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (dest.type == OPERANDREF_REG)
 		{
 			EMIT_RI(sub_32, dest.reg, 1);
@@ -1105,20 +1212,21 @@ bool OUTPUT_CLASS_NAME::Decrement(SymInstrBlock* out, const OperandReference& de
 			EMIT_MI(sbb_32, X86_MEM_REF_OFFSET(dest.mem, 4), 0);
 		}
 		return true;
-#else
+	#else
 		if (dest.type == OPERANDREF_REG)
 			EMIT_R(dec_64, dest.reg);
 		else
 			EMIT_M(dec_64, X86_MEM_REF(dest.mem));
 		return true;
-#endif
+	#endif
 	}
 
 	return false;
 }
 
 
-void OUTPUT_CLASS_NAME::ConditionalJump(SymInstrBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock)
+void OUTPUT_CLASS_NAME::ConditionalJump(
+    SymInstrBlock* out, ConditionalJumpType type, ILBlock* trueBlock, ILBlock* falseBlock)
 {
 	out->AddInstruction(X86_SYMINSTR_NAME(CondJump)((uint8_t)type, m_func, trueBlock));
 	if (falseBlock)
@@ -1128,7 +1236,8 @@ void OUTPUT_CLASS_NAME::ConditionalJump(SymInstrBlock* out, ConditionalJumpType 
 
 void OUTPUT_CLASS_NAME::UnconditionalJump(SymInstrBlock* out, ILBlock* block, bool canOmit)
 {
-	if (canOmit && (!m_settings.pad) && (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
+	if (canOmit && (!m_settings.pad) &&
+	    (block->GetGlobalIndex() == (m_currentBlock->GetGlobalIndex() + 1)))
 	{
 		// The destination block is the one just after the current one, just fall through
 		return;
@@ -1166,11 +1275,11 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOf(SymInstrBlock* out, const ILInstructio
 	}
 
 	temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	temp.width = 4;
-#else
+	#else
 	temp.width = 8;
-#endif
+	#endif
 	temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 
 	EMIT_RM(lea, temp.reg, X86_MEM_REF(src.mem));
@@ -1189,11 +1298,11 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOfMember(SymInstrBlock* out, const ILInst
 	// Load pointer into a register
 	OperandReference temp;
 	temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	temp.width = 4;
-#else
+	#else
 	temp.width = 8;
-#endif
+	#endif
 	temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	if (!Move(out, temp, src))
 		return false;
@@ -1216,11 +1325,11 @@ bool OUTPUT_CLASS_NAME::GenerateAddressOfMember(SymInstrBlock* out, const ILInst
 	deref.mem.offset = member->offset;
 
 	temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	temp.width = 4;
-#else
+	#else
 	temp.width = 8;
-#endif
+	#endif
 	temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 
 	EMIT_RM(lea, temp.reg, X86_MEM_REF(deref.mem));
@@ -1241,11 +1350,11 @@ bool OUTPUT_CLASS_NAME::GenerateDeref(SymInstrBlock* out, const ILInstruction& i
 		// Load pointer into a register
 		OperandReference temp;
 		temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		temp.width = 4;
-#else
+	#else
 		temp.width = 8;
-#endif
+	#endif
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		if (!Move(out, temp, src))
 			return false;
@@ -1277,11 +1386,11 @@ bool OUTPUT_CLASS_NAME::GenerateDerefMember(SymInstrBlock* out, const ILInstruct
 		// Load pointer into a register
 		OperandReference temp;
 		temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		temp.width = 4;
-#else
+	#else
 		temp.width = 8;
-#endif
+	#endif
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		if (!Move(out, temp, src))
 			return false;
@@ -1320,11 +1429,11 @@ bool OUTPUT_CLASS_NAME::GenerateDerefAssign(SymInstrBlock* out, const ILInstruct
 		// Load pointer into a register
 		OperandReference temp;
 		temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		temp.width = 4;
-#else
+	#else
 		temp.width = 8;
-#endif
+	#endif
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		if (!Move(out, temp, dest))
 			return false;
@@ -1356,11 +1465,11 @@ bool OUTPUT_CLASS_NAME::GenerateDerefMemberAssign(SymInstrBlock* out, const ILIn
 		// Load pointer into a register
 		OperandReference temp;
 		temp.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		temp.width = 4;
-#else
+	#else
 		temp.width = 8;
-#endif
+	#endif
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		if (!Move(out, temp, dest))
 			return false;
@@ -1516,11 +1625,11 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& 
 		if ((width != 2) && (width != 4) && (width != 8))
 		{
 			uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RRI(imul_32, temp, b.reg, width);
-#else
+	#else
 			EMIT_RRI(imul_64, temp, b.reg, width);
-#endif
+	#endif
 			EMIT_RM(lea, dest.reg, X86_SYM_MEM_INDEX(a.reg, temp, 1, SYMREG_NONE, 0));
 		}
 		else
@@ -1533,24 +1642,24 @@ bool OUTPUT_CLASS_NAME::GeneratePtrAdd(SymInstrBlock* out, const ILInstruction& 
 		uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		if ((width != 2) && (width != 4) && (width != 8))
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RRI(imul_32, temp, b.reg, width);
 			EMIT_RR(add_32, temp, a.reg);
 			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
-#else
+	#else
 			EMIT_RRI(imul_64, temp, b.reg, width);
 			EMIT_RR(add_64, temp, a.reg);
 			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
-#endif
+	#endif
 		}
 		else
 		{
 			EMIT_RM(lea, temp, X86_SYM_MEM_INDEX(a.reg, b.reg, width, SYMREG_NONE, 0));
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
-#else
+	#else
 			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
-#endif
+	#endif
 		}
 	}
 
@@ -1590,11 +1699,11 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(SymInstrBlock* out, const ILInstruction& 
 		return false;
 	b = countTemp;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	EMIT_R(neg_32, b.reg);
-#else
+	#else
 	EMIT_R(neg_64, b.reg);
-#endif
+	#endif
 
 	if (a.type != OPERANDREF_REG)
 	{
@@ -1613,11 +1722,11 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(SymInstrBlock* out, const ILInstruction& 
 		if ((width != 2) && (width != 4) && (width != 8))
 		{
 			uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RRI(imul_32, temp, b.reg, width);
-#else
+	#else
 			EMIT_RRI(imul_64, temp, b.reg, width);
-#endif
+	#endif
 			EMIT_RM(lea, dest.reg, X86_SYM_MEM_INDEX(a.reg, temp, 1, SYMREG_NONE, 0));
 		}
 		else
@@ -1630,24 +1739,24 @@ bool OUTPUT_CLASS_NAME::GeneratePtrSub(SymInstrBlock* out, const ILInstruction& 
 		uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		if ((width != 2) && (width != 4) && (width != 8))
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RRI(imul_32, temp, b.reg, width);
 			EMIT_RR(add_32, temp, a.reg);
 			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
-#else
+	#else
 			EMIT_RRI(imul_64, temp, b.reg, width);
 			EMIT_RR(add_64, temp, a.reg);
 			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
-#endif
+	#endif
 		}
 		else
 		{
 			EMIT_RM(lea, temp, X86_SYM_MEM_INDEX(a.reg, b.reg, width, SYMREG_NONE, 0));
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_MR(mov_32, X86_MEM_REF(dest.mem), temp);
-#else
+	#else
 			EMIT_MR(mov_64, X86_MEM_REF(dest.mem), temp);
-#endif
+	#endif
 		}
 	}
 
@@ -1718,9 +1827,9 @@ bool OUTPUT_CLASS_NAME::GenerateSub(SymInstrBlock* out, const ILInstruction& ins
 }
 
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 bool OUTPUT_CLASS_NAME::Mult64(SymInstrBlock* out, const OperandReference& dest,
-	const OperandReference& a, const OperandReference& b)
+    const OperandReference& a, const OperandReference& b)
 {
 	uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	uint32_t eax = m_symFunc->AddRegister(X86REGCLASS_EAX);
@@ -1766,7 +1875,7 @@ bool OUTPUT_CLASS_NAME::Mult64(SymInstrBlock* out, const OperandReference& dest,
 	// Store EDX:EAX into result
 	return Move(out, dest, result);
 }
-#endif
+	#endif
 
 
 bool OUTPUT_CLASS_NAME::GenerateSignedMult(SymInstrBlock* out, const ILInstruction& instr)
@@ -1785,19 +1894,19 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(SymInstrBlock* out, const ILInstructi
 		temp.type = OPERANDREF_REG;
 		temp.width = a.width;
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (temp.width == 8)
 			temp.highReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#endif
+	#endif
 		if (!Move(out, temp, b))
 			return false;
 		b = temp;
 	}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (a.width == 8)
 		return Mult64(out, dest, a, b);
-#endif
+	#endif
 
 	OperandReference eax;
 	eax.type = OPERANDREF_REG;
@@ -1827,14 +1936,14 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMult(SymInstrBlock* out, const ILInstructi
 		else
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(imul, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(imul, 64, R)(b.reg, eax.reg, edx));
 		else
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(imul, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -1859,19 +1968,19 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(SymInstrBlock* out, const ILInstruc
 		temp.type = OPERANDREF_REG;
 		temp.width = a.width;
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (temp.width == 8)
 			temp.highReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#endif
+	#endif
 		if (!Move(out, temp, b))
 			return false;
 		b = temp;
 	}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (a.width == 8)
 		return Mult64(out, dest, a, b);
-#endif
+	#endif
 
 	OperandReference eax;
 	eax.type = OPERANDREF_REG;
@@ -1901,14 +2010,14 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMult(SymInstrBlock* out, const ILInstruc
 		else
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(mul, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(mul, 64, R)(b.reg, eax.reg, edx));
 		else
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(mul, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -1927,10 +2036,10 @@ bool OUTPUT_CLASS_NAME::GenerateSignedDiv(SymInstrBlock* out, const ILInstructio
 	if (!PrepareLoad(out, instr.params[2], b))
 		return false;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (a.width == 8)
 		return false;
-#endif
+	#endif
 
 	OperandReference eax;
 	eax.type = OPERANDREF_REG;
@@ -1951,11 +2060,11 @@ bool OUTPUT_CLASS_NAME::GenerateSignedDiv(SymInstrBlock* out, const ILInstructio
 	case 4:
 		out->AddInstruction(X86_SYMINSTR_NAME(cdq)(eax.reg, edx));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		out->AddInstruction(X86_SYMINSTR_NAME(cqo)(eax.reg, edx));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -1991,14 +2100,14 @@ bool OUTPUT_CLASS_NAME::GenerateSignedDiv(SymInstrBlock* out, const ILInstructio
 		else
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 64, R)(b.reg, eax.reg, edx));
 		else
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2030,11 +2139,11 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedDiv(SymInstrBlock* out, const ILInstruct
 	case 4:
 		EMIT_RR(xor_32, edxReg, edxReg);
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		EMIT_RR(xor_64, edxReg, edxReg);
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2069,22 +2178,25 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedDiv(SymInstrBlock* out, const ILInstruct
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 16, R)(b.reg, eax.reg, edxReg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 16, M)(X86_MEM_REF(b.mem), eax.reg, edxReg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(div, 16, M)(X86_MEM_REF(b.mem), eax.reg, edxReg));
 		break;
 	case 4:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 32, R)(b.reg, eax.reg, edxReg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 32, M)(X86_MEM_REF(b.mem), eax.reg, edxReg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(div, 32, M)(X86_MEM_REF(b.mem), eax.reg, edxReg));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 64, R)(b.reg, eax.reg, edxReg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 64, M)(X86_MEM_REF(b.mem), eax.reg, edxReg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(div, 64, M)(X86_MEM_REF(b.mem), eax.reg, edxReg));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2103,10 +2215,10 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMod(SymInstrBlock* out, const ILInstructio
 	if (!PrepareLoad(out, instr.params[2], b))
 		return false;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (a.width == 8)
 		return false;
-#endif
+	#endif
 
 	OperandReference eax;
 	eax.type = OPERANDREF_REG;
@@ -2132,11 +2244,11 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMod(SymInstrBlock* out, const ILInstructio
 	case 4:
 		out->AddInstruction(X86_SYMINSTR_NAME(cdq)(eax.reg, edx.reg));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		out->AddInstruction(X86_SYMINSTR_NAME(cqo)(eax.reg, edx.reg));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2165,22 +2277,25 @@ bool OUTPUT_CLASS_NAME::GenerateSignedMod(SymInstrBlock* out, const ILInstructio
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 16, R)(b.reg, eax.reg, edx.reg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 16, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(idiv, 16, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
 		break;
 	case 4:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 32, R)(b.reg, eax.reg, edx.reg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(idiv, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 64, R)(b.reg, eax.reg, edx.reg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(idiv, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(idiv, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2221,11 +2336,11 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMod(SymInstrBlock* out, const ILInstruct
 	case 4:
 		EMIT_RR(xor_32, edx.reg, edx.reg);
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		EMIT_RR(xor_64, edx.reg, edx.reg);
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2257,22 +2372,25 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedMod(SymInstrBlock* out, const ILInstruct
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 16, R)(b.reg, eax.reg, edx.reg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 16, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(div, 16, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
 		break;
 	case 4:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 32, R)(b.reg, eax.reg, edx.reg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(div, 32, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
 		break;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	case 8:
 		if (b.type == OPERANDREF_REG)
 			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 64, R)(b.reg, eax.reg, edx.reg));
 		else
-			out->AddInstruction(X86_SYMINSTR_NAME_SIZE_OP(div, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
+			out->AddInstruction(
+			    X86_SYMINSTR_NAME_SIZE_OP(div, 64, M)(X86_MEM_REF(b.mem), eax.reg, edx.reg));
 		break;
-#endif
+	#endif
 	default:
 		return false;
 	}
@@ -2455,297 +2573,357 @@ bool OUTPUT_CLASS_NAME::GenerateIfTrue(SymInstrBlock* out, const ILInstruction& 
 }
 
 
-#ifdef OUTPUT32
-#define IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
-	if (left.type == OPERANDREF_REG) \
-	{ \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG: \
-			EMIT_RR(cmp_32, left.highReg, right.highReg); \
-			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
-			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
-			EMIT_RR(cmp_32, left.reg, right.reg); \
-			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_MEM: \
-			EMIT_RM(cmp_32, left.highReg, X86_MEM_REF_OFFSET(right.mem, 4)); \
-			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
-			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
-			EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
-			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_IMMED: \
-			EMIT_RI(cmp_32, left.highReg, (uint32_t)(right.immed >> 32)); \
-			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
-			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
-			EMIT_RI(cmp_32, left.reg, (uint32_t)right.immed); \
-			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		default:  return false; \
-		} \
-	} \
-	else \
-	{ \
-		uint32_t temp; \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG: \
-			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), right.highReg); \
-			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
-			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
-			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
-			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_MEM: \
-			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-			EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(right.mem, 4)); \
-			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), temp); \
-			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
-			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
-			EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
-			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
-			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_IMMED: \
-			EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), (uint32_t)(right.immed >> 32)); \
-			ConditionalJump(out, highPred, instr.params[2].block, NULL); \
-			ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
-			EMIT_MI(cmp_32, X86_MEM_REF(left.mem), (uint32_t)right.immed); \
-			ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		default:  return false; \
-		} \
-	}
-#else
-#define IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
-	if (left.type == OPERANDREF_REG) \
-	{ \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_RR(cmp_64, left.reg, right.reg); break; \
-		case OPERANDREF_MEM:  EMIT_RM(cmp_64, left.reg, X86_MEM_REF(right.mem)); break; \
-		case OPERANDREF_IMMED:  EMIT_RI(cmp_64, left.reg, right.immed); break; \
-		default:  return false; \
-		} \
-		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-	} \
-	else \
-	{ \
-		uint32_t temp; \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_MR(cmp_64, X86_MEM_REF(left.mem), right.reg); break; \
-		case OPERANDREF_MEM: \
-			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-			EMIT_RM(mov_64, temp, X86_MEM_REF(right.mem)); \
-			EMIT_MR(cmp_64, X86_MEM_REF(left.mem), temp); \
-			break; \
-		case OPERANDREF_IMMED:  EMIT_MI(cmp_64, X86_MEM_REF(left.mem), right.immed); break; \
-		default:  return false; \
-		} \
-		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-	}
-#endif
+	#ifdef OUTPUT32
+		#define IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
+			if (left.type == OPERANDREF_REG) \
+			{ \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_32, left.highReg, right.highReg); \
+					ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+					ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+					EMIT_RR(cmp_32, left.reg, right.reg); \
+					ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_32, left.highReg, X86_MEM_REF_OFFSET(right.mem, 4)); \
+					ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+					ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+					EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
+					ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_32, left.highReg, (uint32_t)(right.immed >> 32)); \
+					ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+					ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+					EMIT_RI(cmp_32, left.reg, (uint32_t)right.immed); \
+					ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				default: \
+					return false; \
+				} \
+			} \
+			else \
+			{ \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), right.highReg); \
+					ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+					ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+					EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
+					ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(right.mem, 4)); \
+					EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), temp); \
+					ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+					ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
+					ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), (uint32_t)(right.immed >> 32)); \
+					ConditionalJump(out, highPred, instr.params[2].block, NULL); \
+					ConditionalJump(out, highInverse, instr.params[3].block, NULL); \
+					EMIT_MI(cmp_32, X86_MEM_REF(left.mem), (uint32_t)right.immed); \
+					ConditionalJump(out, lowPred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				default: \
+					return false; \
+				} \
+			}
+	#else
+		#define IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
+			if (left.type == OPERANDREF_REG) \
+			{ \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_64, left.reg, right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_64, left.reg, X86_MEM_REF(right.mem)); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_64, left.reg, right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			} \
+			else \
+			{ \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_64, X86_MEM_REF(left.mem), right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_64, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_64, X86_MEM_REF(left.mem), temp); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_64, X86_MEM_REF(left.mem), right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			}
+	#endif
 
-#ifdef OUTPUT32
-#define IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
-	if (left.type == OPERANDREF_REG) \
-	{ \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG: \
-			EMIT_RR(cmp_32, left.highReg, right.highReg); \
-			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
-			EMIT_RR(cmp_32, left.reg, right.reg); \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_MEM: \
-			EMIT_RM(cmp_32, left.highReg, X86_MEM_REF_OFFSET(right.mem, 4)); \
-			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
-			EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_IMMED: \
-			EMIT_RI(cmp_32, left.highReg, (uint32_t)(right.immed >> 32)); \
-			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
-			EMIT_RI(cmp_32, left.reg, (uint32_t)right.immed); \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		default:  return false; \
-		} \
-	} \
-	else \
-	{ \
-		uint32_t temp; \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG: \
-			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), right.highReg); \
-			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
-			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_MEM: \
-			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-			EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(right.mem, 4)); \
-			EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), temp); \
-			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
-			EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
-			EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		case OPERANDREF_IMMED: \
-			EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), (uint32_t)(right.immed >> 32)); \
-			ConditionalJump(out, inverse, instr.params[3].block, NULL); \
-			EMIT_MI(cmp_32, X86_MEM_REF(left.mem), (uint32_t)right.immed); \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-			break; \
-		default:  return false; \
-		} \
-	}
-#else
-#define IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
-	if (left.type == OPERANDREF_REG) \
-	{ \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_RR(cmp_64, left.reg, right.reg); break; \
-		case OPERANDREF_MEM:  EMIT_RM(cmp_64, left.reg, X86_MEM_REF(right.mem)); break; \
-		case OPERANDREF_IMMED:  EMIT_RI(cmp_64, left.reg, right.immed); break; \
-		default:  return false; \
-		} \
-		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-	} \
-	else \
-	{ \
-		uint32_t temp; \
-		switch (right.type) \
-		{ \
-		case OPERANDREF_REG:  EMIT_MR(cmp_64, X86_MEM_REF(left.mem), right.reg); break; \
-		case OPERANDREF_MEM: \
-			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-			EMIT_RM(mov_64, temp, X86_MEM_REF(right.mem)); \
-			EMIT_MR(cmp_64, X86_MEM_REF(left.mem), temp); \
-			break; \
-		case OPERANDREF_IMMED:  EMIT_MI(cmp_64, X86_MEM_REF(left.mem), right.immed); break; \
-		default:  return false; \
-		} \
-		ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-	}
-#endif
+	#ifdef OUTPUT32
+		#define IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
+			if (left.type == OPERANDREF_REG) \
+			{ \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_32, left.highReg, right.highReg); \
+					ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+					EMIT_RR(cmp_32, left.reg, right.reg); \
+					ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_32, left.highReg, X86_MEM_REF_OFFSET(right.mem, 4)); \
+					ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+					EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
+					ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_32, left.highReg, (uint32_t)(right.immed >> 32)); \
+					ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+					EMIT_RI(cmp_32, left.reg, (uint32_t)right.immed); \
+					ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				default: \
+					return false; \
+				} \
+			} \
+			else \
+			{ \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), right.highReg); \
+					ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+					EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
+					ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF_OFFSET(right.mem, 4)); \
+					EMIT_MR(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), temp); \
+					ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
+					ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_32, X86_MEM_REF_OFFSET(left.mem, 4), (uint32_t)(right.immed >> 32)); \
+					ConditionalJump(out, inverse, instr.params[3].block, NULL); \
+					EMIT_MI(cmp_32, X86_MEM_REF(left.mem), (uint32_t)right.immed); \
+					ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+					break; \
+				default: \
+					return false; \
+				} \
+			}
+	#else
+		#define IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
+			if (left.type == OPERANDREF_REG) \
+			{ \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_64, left.reg, right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_64, left.reg, X86_MEM_REF(right.mem)); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_64, left.reg, right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			} \
+			else \
+			{ \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_64, X86_MEM_REF(left.mem), right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_64, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_64, X86_MEM_REF(left.mem), temp); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_64, X86_MEM_REF(left.mem), right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			}
+	#endif
 
-#define IMPLEMENT_COMPARE(pred) \
-	if (left.width == 1) \
-	{ \
-		if (left.type == OPERANDREF_REG) \
+	#define IMPLEMENT_COMPARE(pred) \
+		if (left.width == 1) \
 		{ \
-			switch (right.type) \
+			if (left.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_RR(cmp_8, left.reg, right.reg); break; \
-			case OPERANDREF_MEM:  EMIT_RM(cmp_8, left.reg, X86_MEM_REF(right.mem)); break; \
-			case OPERANDREF_IMMED:  EMIT_RI(cmp_8, left.reg, right.immed); break; \
-			default:  return false; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_8, left.reg, right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_8, left.reg, X86_MEM_REF(right.mem)); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_8, left.reg, right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
 			} \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			else \
+			{ \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_8, X86_MEM_REF(left.mem), right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
+					EMIT_RM(mov_8, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_8, X86_MEM_REF(left.mem), temp); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_8, X86_MEM_REF(left.mem), right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			} \
 		} \
-		else \
+		else if (left.width == 2) \
 		{ \
-			uint32_t temp; \
-			switch (right.type) \
+			if (left.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_MR(cmp_8, X86_MEM_REF(left.mem), right.reg); break; \
-			case OPERANDREF_MEM: \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT); \
-				EMIT_RM(mov_8, temp, X86_MEM_REF(right.mem)); \
-				EMIT_MR(cmp_8, X86_MEM_REF(left.mem), temp); \
-				break; \
-			case OPERANDREF_IMMED:  EMIT_MI(cmp_8, X86_MEM_REF(left.mem), right.immed); break; \
-			default:  return false; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_16, left.reg, right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_16, left.reg, X86_MEM_REF(right.mem)); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_16, left.reg, right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
 			} \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			else \
+			{ \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_16, X86_MEM_REF(left.mem), right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_16, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_16, X86_MEM_REF(left.mem), temp); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_16, X86_MEM_REF(left.mem), right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+			} \
 		} \
-	} \
-	else if (left.width == 2) \
-	{ \
-		if (left.type == OPERANDREF_REG) \
+		else if (left.width == 4) \
 		{ \
-			switch (right.type) \
+			if (left.type == OPERANDREF_REG) \
 			{ \
-			case OPERANDREF_REG:  EMIT_RR(cmp_16, left.reg, right.reg); break; \
-			case OPERANDREF_MEM:  EMIT_RM(cmp_16, left.reg, X86_MEM_REF(right.mem)); break; \
-			case OPERANDREF_IMMED:  EMIT_RI(cmp_16, left.reg, right.immed); break; \
-			default:  return false; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_RR(cmp_32, left.reg, right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_RI(cmp_32, left.reg, right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
 			} \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-		} \
-		else \
-		{ \
-			uint32_t temp; \
-			switch (right.type) \
+			else \
 			{ \
-			case OPERANDREF_REG:  EMIT_MR(cmp_16, X86_MEM_REF(left.mem), right.reg); break; \
-			case OPERANDREF_MEM: \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RM(mov_16, temp, X86_MEM_REF(right.mem)); \
-				EMIT_MR(cmp_16, X86_MEM_REF(left.mem), temp); \
-				break; \
-			case OPERANDREF_IMMED:  EMIT_MI(cmp_16, X86_MEM_REF(left.mem), right.immed); break; \
-			default:  return false; \
+				uint32_t temp; \
+				switch (right.type) \
+				{ \
+				case OPERANDREF_REG: \
+					EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); \
+					break; \
+				case OPERANDREF_MEM: \
+					temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
+					EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
+					EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
+					break; \
+				case OPERANDREF_IMMED: \
+					EMIT_MI(cmp_32, X86_MEM_REF(left.mem), right.immed); \
+					break; \
+				default: \
+					return false; \
+				} \
+				ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
 			} \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
 		} \
-	} \
-	else if (left.width == 4) \
-	{ \
-		if (left.type == OPERANDREF_REG) \
-		{ \
-			switch (right.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_RR(cmp_32, left.reg, right.reg); break; \
-			case OPERANDREF_MEM:  EMIT_RM(cmp_32, left.reg, X86_MEM_REF(right.mem)); break; \
-			case OPERANDREF_IMMED:  EMIT_RI(cmp_32, left.reg, right.immed); break; \
-			default:  return false; \
-			} \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
+		else if (left.width == 8) \
+		{
+	#define IMPLEMENT_COMPARE_FINISH() \
 		} \
-		else \
-		{ \
-			uint32_t temp; \
-			switch (right.type) \
-			{ \
-			case OPERANDREF_REG:  EMIT_MR(cmp_32, X86_MEM_REF(left.mem), right.reg); break; \
-			case OPERANDREF_MEM: \
-				temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER); \
-				EMIT_RM(mov_32, temp, X86_MEM_REF(right.mem)); \
-				EMIT_MR(cmp_32, X86_MEM_REF(left.mem), temp); \
-				break; \
-			case OPERANDREF_IMMED:  EMIT_MI(cmp_32, X86_MEM_REF(left.mem), right.immed); break; \
-			default:  return false; \
-			} \
-			ConditionalJump(out, pred, instr.params[2].block, instr.params[3].block); \
-		} \
-	} \
-	else if (left.width == 8) \
-	{
+		else { return false; } \
+		return true;
 
-#define IMPLEMENT_COMPARE_FINISH() \
-	} \
-	else \
-	{ \
-		return false; \
-	} \
-	return true;
+	#define IMPLEMENT_ORDERED_COMPARE(pred, lowPred, highPred, highInverse) \
+		IMPLEMENT_COMPARE(pred) \
+		IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
+		IMPLEMENT_COMPARE_FINISH()
 
-#define IMPLEMENT_ORDERED_COMPARE(pred, lowPred, highPred, highInverse) \
-	IMPLEMENT_COMPARE(pred) \
-	IMPLEMENT_ORDERED_COMPARE_64(pred, lowPred, highPred, highInverse) \
-	IMPLEMENT_COMPARE_FINISH()
-
-#define IMPLEMENT_UNORDERED_COMPARE(pred, inverse) \
-	IMPLEMENT_COMPARE(pred) \
-	IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
-	IMPLEMENT_COMPARE_FINISH()
+	#define IMPLEMENT_UNORDERED_COMPARE(pred, inverse) \
+		IMPLEMENT_COMPARE(pred) \
+		IMPLEMENT_UNORDERED_COMPARE_64(pred, inverse) \
+		IMPLEMENT_COMPARE_FINISH()
 
 bool OUTPUT_CLASS_NAME::GenerateIfLessThan(SymInstrBlock* out, const ILInstruction& instr)
 {
@@ -2754,7 +2932,8 @@ bool OUTPUT_CLASS_NAME::GenerateIfLessThan(SymInstrBlock* out, const ILInstructi
 		return false;
 	if (!PrepareLoad(out, instr.params[1], right))
 		return false;
-	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_LESS_THAN, CONDJUMP_BELOW, CONDJUMP_LESS_THAN, CONDJUMP_GREATER_THAN);
+	IMPLEMENT_ORDERED_COMPARE(
+	    CONDJUMP_LESS_THAN, CONDJUMP_BELOW, CONDJUMP_LESS_THAN, CONDJUMP_GREATER_THAN);
 }
 
 
@@ -2765,7 +2944,8 @@ bool OUTPUT_CLASS_NAME::GenerateIfLessThanEqual(SymInstrBlock* out, const ILInst
 		return false;
 	if (!PrepareLoad(out, instr.params[1], right))
 		return false;
-	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_LESS_EQUAL, CONDJUMP_BELOW_EQUAL, CONDJUMP_LESS_THAN, CONDJUMP_GREATER_THAN);
+	IMPLEMENT_ORDERED_COMPARE(
+	    CONDJUMP_LESS_EQUAL, CONDJUMP_BELOW_EQUAL, CONDJUMP_LESS_THAN, CONDJUMP_GREATER_THAN);
 }
 
 
@@ -2787,7 +2967,8 @@ bool OUTPUT_CLASS_NAME::GenerateIfBelowEqual(SymInstrBlock* out, const ILInstruc
 		return false;
 	if (!PrepareLoad(out, instr.params[1], right))
 		return false;
-	IMPLEMENT_ORDERED_COMPARE(CONDJUMP_BELOW_EQUAL, CONDJUMP_BELOW_EQUAL, CONDJUMP_BELOW, CONDJUMP_ABOVE);
+	IMPLEMENT_ORDERED_COMPARE(
+	    CONDJUMP_BELOW_EQUAL, CONDJUMP_BELOW_EQUAL, CONDJUMP_BELOW, CONDJUMP_ABOVE);
 }
 
 
@@ -2821,11 +3002,11 @@ bool OUTPUT_CLASS_NAME::GenerateGoto(SymInstrBlock* out, const ILInstruction& in
 			break;
 		case OPERANDREF_IMMED:
 			temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RI(mov_32, temp, target.immed);
-#else
+	#else
 			EMIT_RI(mov_64, temp, target.immed);
-#endif
+	#endif
 			EMIT_R(jmpn, temp);
 			break;
 		default:
@@ -2846,30 +3027,32 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	CallingConvention conv = (CallingConvention)instr.params[2].integerValue;
 
 	// First try to place parameters in registers
-#ifdef OUTPUT32
-	uint32_t intParamRegs[4] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2, SYMREG_NONE};
+	#ifdef OUTPUT32
+	uint32_t intParamRegs[4] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1,
+	    X86REGCLASS_INTEGER_PARAM_2, SYMREG_NONE};
 	size_t maxRegVar = 3;
-#else
-	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2,
-		X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4, X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
+	#else
+	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1,
+	    X86REGCLASS_INTEGER_PARAM_2, X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4,
+	    X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
 	size_t maxRegVar = 6;
-#endif
+	#endif
 	uint32_t curIntParamReg = 0;
 	vector<bool> paramOnStack;
 	vector<uint32_t> reads;
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	size_t stackParamCount = 0;
-#endif
+	#endif
 
 	if ((conv == CALLING_CONVENTION_STDCALL) || (conv == CALLING_CONVENTION_CDECL))
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		maxRegVar = 0;
-#else
+	#else
 		maxRegVar = 4;
-#endif
+	#endif
 	}
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	else if (conv == CALLING_CONVENTION_SYSV)
 	{
 		// SYSV register ordering is different--not just a subset like other conventions
@@ -2880,7 +3063,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		intParamRegs[4] = X86REGCLASS_R8;
 		intParamRegs[5] = X86REGCLASS_R9;
 	}
-#endif
+	#endif
 
 	if (maxRegVar > (size_t)instr.params[3].integerValue)
 		maxRegVar = (size_t)instr.params[3].integerValue;
@@ -2890,9 +3073,9 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		if ((i - 4) >= maxRegVar)
 		{
 			// Additional parameters to variable argument functions must be on stack
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 			stackParamCount++;
-#endif
+	#endif
 			paramOnStack.push_back(true);
 			continue;
 		}
@@ -2901,18 +3084,19 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		if (width == 0)
 		{
 			// Indefinite width (used for immediates, for example), use native size
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			width = 4;
-#else
+	#else
 			width = 8;
-#endif
+	#endif
 		}
 
 		bool stackParam = false;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (width == 8)
 		{
-			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) || (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
+			if ((intParamRegs[curIntParamReg] == SYMREG_NONE) ||
+			    (intParamRegs[curIntParamReg + 1] == SYMREG_NONE))
 				stackParam = true;
 			else
 			{
@@ -2931,7 +3115,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			}
 		}
 		else
-#endif
+	#endif
 		{
 			if (intParamRegs[curIntParamReg] == SYMREG_NONE)
 				stackParam = true;
@@ -2950,14 +3134,14 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			}
 		}
 
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 		if (stackParam)
 			stackParamCount++;
-#endif
+	#endif
 		paramOnStack.push_back(stackParam);
 	}
 
-#ifdef OUTPUT64
+	#ifdef OUTPUT64
 	// Windows requires a 16 byte aligned stack
 	if ((m_settings.os == OS_WINDOWS) && (!m_settings.allowReturn) && (stackParamCount & 1))
 	{
@@ -2965,7 +3149,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		EMIT_R(push, reg);
 		pushSize += 8;
 	}
-#endif
+	#endif
 
 	// Push parameters from right to left
 	for (size_t i = instr.params.size() - 1; i >= 4; i--)
@@ -2980,21 +3164,22 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		if (param.width == 0)
 		{
 			// Indefinite width (used for immediates, for example), use native size
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			param.width = 4;
-#else
+	#else
 			param.width = 8;
-#endif
+	#endif
 		}
 
 		if (!m_normalStack)
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			size_t paramSize = (param.width + 3) & (~3);
-#else
+	#else
 			size_t paramSize = (param.width + 7) & (~7);
-#endif
-			EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? paramSize : -paramSize));
+	#endif
+			EMIT_RM(
+			    lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? paramSize : -paramSize));
 
 			OperandReference dest;
 			dest.type = OPERANDREF_MEM;
@@ -3005,11 +3190,11 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			dest.mem.var = SYMREG_NONE;
 			if (m_settings.stackGrowsUp)
 			{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				dest.mem.offset = 4 - paramSize;
-#else
+	#else
 				dest.mem.offset = 8 - paramSize;
-#endif
+	#endif
 			}
 			else
 			{
@@ -3025,7 +3210,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		}
 
 		// Check for native size parameters
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (param.width == 4)
 		{
 			switch (param.type)
@@ -3071,7 +3256,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 				pushSize += 8;
 			continue;
 		}
-#else
+	#else
 		if (param.width == 8)
 		{
 			switch (param.type)
@@ -3102,7 +3287,7 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			pushSize += 8;
 			continue;
 		}
-#endif
+	#endif
 
 		// Not native size
 		if (param.type == OPERANDREF_REG)
@@ -3115,33 +3300,35 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 			OperandReference temp;
 			temp.type = OPERANDREF_REG;
 			temp.width = param.width;
-			temp.reg = m_symFunc->AddRegister((param.width == 1) ? X86REGCLASS_INTEGER_8BIT : X86REGCLASS_INTEGER);
+			temp.reg = m_symFunc->AddRegister(
+			    (param.width == 1) ? X86REGCLASS_INTEGER_8BIT : X86REGCLASS_INTEGER);
 			if (!Move(out, temp, param))
 				return false;
 
 			EMIT_R(push, temp.reg);
 		}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if ((conv != CALLING_CONVENTION_STDCALL) || ((i - 4) >= (size_t)instr.params[3].integerValue))
-#endif
+	#endif
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			pushSize += 4;
-#else
+	#else
 			pushSize += 8;
-#endif
+	#endif
 		}
 	}
 
-#ifdef OUTPUT64
-	if ((m_settings.os == OS_WINDOWS) && ((conv == CALLING_CONVENTION_STDCALL) || (conv == CALLING_CONVENTION_CDECL)))
+	#ifdef OUTPUT64
+	if ((m_settings.os == OS_WINDOWS) &&
+	    ((conv == CALLING_CONVENTION_STDCALL) || (conv == CALLING_CONVENTION_CDECL)))
 	{
 		// 64-bit Windows has a 32 byte reserved area for spilling parameters
 		EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, -32));
 		pushSize += 32;
 	}
-#endif
+	#endif
 
 	uint32_t keyReg = SYMREG_NONE;
 	if (m_settings.encodePointers)
@@ -3150,11 +3337,11 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		ILParameter keyParam(m_settings.encodePointerKey);
 		OperandReference key, keyDest;
 		keyDest.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		keyDest.width = 4;
-#else
+	#else
 		keyDest.width = 8;
-#endif
+	#endif
 		keyDest.reg = keyReg;
 		if (!PrepareLoad(out, keyParam, key))
 			return false;
@@ -3167,18 +3354,18 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	if (instr.params[0].cls != ILPARAM_VOID)
 	{
 		retValReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_RETURN_VALUE);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (instr.params[0].GetWidth() > 4)
 			retValHighReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_RETURN_VALUE_HIGH);
-#endif
+	#endif
 	}
 
 	// Perform function call
 	uint32_t scratch = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	if ((instr.params[1].cls == ILPARAM_FUNC) && (!instr.params[1].function->IsFixedAddress()))
 	{
-		out->AddInstruction(X86_SYMINSTR_NAME(CallDirect)(instr.params[1].function, instr.params[1].function->GetIL()[0],
-			retValReg, retValHighReg, keyReg, scratch, reads));
+		out->AddInstruction(X86_SYMINSTR_NAME(CallDirect)(instr.params[1].function,
+		    instr.params[1].function->GetIL()[0], retValReg, retValHighReg, keyReg, scratch, reads));
 	}
 	else
 	{
@@ -3191,19 +3378,21 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 		{
 		case OPERANDREF_IMMED:
 			ptr = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RI(mov_32, ptr, (uint32_t)func.immed);
-#else
+	#else
 			EMIT_RI(mov_64, ptr, func.immed);
-#endif
-			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(ptr, retValReg, retValHighReg, keyReg, scratch, reads));
+	#endif
+			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(
+			    ptr, retValReg, retValHighReg, keyReg, scratch, reads));
 			break;
 		case OPERANDREF_REG:
-			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(func.reg, retValReg, retValHighReg, keyReg, scratch, reads));
+			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectReg)(
+			    func.reg, retValReg, retValHighReg, keyReg, scratch, reads));
 			break;
 		case OPERANDREF_MEM:
-			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectMem)(X86_MEM_REF(func.mem), retValReg, retValHighReg,
-				keyReg, scratch, reads));
+			out->AddInstruction(X86_SYMINSTR_NAME(CallIndirectMem)(
+			    X86_MEM_REF(func.mem), retValReg, retValHighReg, keyReg, scratch, reads));
 			break;
 		default:
 			return false;
@@ -3215,19 +3404,19 @@ bool OUTPUT_CLASS_NAME::GenerateCall(SymInstrBlock* out, const ILInstruction& in
 	{
 		if (m_settings.stackGrowsUp)
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RI(sub_32, SYMREG_SP, pushSize);
-#else
+	#else
 			EMIT_RI(sub_64, SYMREG_SP, pushSize);
-#endif
+	#endif
 		}
 		else
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RI(add_32, SYMREG_SP, pushSize);
-#else
+	#else
 			EMIT_RI(add_64, SYMREG_SP, pushSize);
-#endif
+	#endif
 		}
 	}
 
@@ -3373,7 +3562,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedConvert(SymInstrBlock* out, const ILInstru
 	}
 	else if (dest.width == 8)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (src.width == 1)
 		{
 			if (dest.type == OPERANDREF_REG)
@@ -3452,7 +3641,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedConvert(SymInstrBlock* out, const ILInstru
 		{
 			return Move(out, dest, src);
 		}
-#else
+	#else
 		if (src.width == 1)
 		{
 			if (dest.type == OPERANDREF_REG)
@@ -3520,7 +3709,7 @@ bool OUTPUT_CLASS_NAME::GenerateSignedConvert(SymInstrBlock* out, const ILInstru
 		{
 			return Move(out, dest, src);
 		}
-#endif
+	#endif
 	}
 	else
 	{
@@ -3652,7 +3841,7 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(SymInstrBlock* out, const ILInst
 	}
 	else if (dest.width == 8)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (src.width == 1)
 		{
 			if (dest.type == OPERANDREF_REG)
@@ -3727,7 +3916,7 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(SymInstrBlock* out, const ILInst
 		{
 			return Move(out, dest, src);
 		}
-#else
+	#else
 		if (src.width == 1)
 		{
 			if (dest.type == OPERANDREF_REG)
@@ -3797,7 +3986,7 @@ bool OUTPUT_CLASS_NAME::GenerateUnsignedConvert(SymInstrBlock* out, const ILInst
 		{
 			return Move(out, dest, src);
 		}
-#endif
+	#endif
 	}
 	else
 	{
@@ -3813,10 +4002,10 @@ bool OUTPUT_CLASS_NAME::GenerateReturn(SymInstrBlock* out, const ILInstruction& 
 	dest.width = instr.params[0].GetWidth();
 	dest.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_RETURN_VALUE);
 	dest.highReg = SYMREG_NONE;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (dest.width == 8)
 		dest.highReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_RETURN_VALUE_HIGH);
-#endif
+	#endif
 
 	if (!PrepareLoad(out, instr.params[0], src))
 		return false;
@@ -3844,11 +4033,11 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 			return false;
 
 		tempRef.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		tempRef.width = 4;
-#else
+	#else
 		tempRef.width = 8;
-#endif
+	#endif
 		tempRef.reg = temp;
 		if (!Move(out, tempRef, key))
 			return false;
@@ -3860,24 +4049,24 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 			EMIT(leave);
 		else if (m_normalStack)
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RR(mov_32, SYMREG_SP, SYMREG_BP);
-#else
+	#else
 			EMIT_RR(mov_64, SYMREG_SP, SYMREG_BP);
-#endif
+	#endif
 			EMIT_R(pop, SYMREG_BP);
 		}
 		else
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RR(mov_32, SYMREG_SP, SYMREG_BP);
 			EMIT_RM(mov_32, SYMREG_BP, X86_SYM_MEM(SYMREG_SP, 0));
 			EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -4 : 4));
-#else
+	#else
 			EMIT_RR(mov_64, SYMREG_SP, SYMREG_BP);
 			EMIT_RM(mov_64, SYMREG_BP, X86_SYM_MEM(SYMREG_SP, 0));
 			EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -8 : 8));
-#endif
+	#endif
 		}
 	}
 	else
@@ -3893,18 +4082,18 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 		if (m_settings.encodePointers)
 		{
 			// Using encoded pointers, decode return address before returning
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_MR(xor_32, X86_SYM_MEM(SYMREG_SP, 0), temp);
-#else
+	#else
 			EMIT_MR(xor_64, X86_SYM_MEM(SYMREG_SP, 0), temp);
-#endif
+	#endif
 		}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if ((m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL) && (m_stackParamSize != 0))
 			EMIT_I(retn, m_stackParamSize);
 		else
-#endif
+	#endif
 			EMIT(retn);
 	}
 	else
@@ -3918,26 +4107,26 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 		if (m_settings.encodePointers)
 		{
 			// Using encoded pointers, decode return address before returning
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RM(xor_32, temp, X86_SYM_MEM(SYMREG_SP, 0));
-#else
+	#else
 			EMIT_RM(xor_64, temp, X86_SYM_MEM(SYMREG_SP, 0));
-#endif
+	#endif
 		}
 		else
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			EMIT_RM(mov_32, temp, X86_SYM_MEM(SYMREG_SP, 0));
-#else
+	#else
 			EMIT_RM(mov_64, temp, X86_SYM_MEM(SYMREG_SP, 0));
-#endif
+	#endif
 		}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -4 : 4));
-#else
+	#else
 		EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? -8 : 8));
-#endif
+	#endif
 		EMIT_R(jmpn, temp);
 	}
 
@@ -3955,20 +4144,20 @@ bool OUTPUT_CLASS_NAME::GenerateAlloca(SymInstrBlock* out, const ILInstruction& 
 
 	OperandReference stack;
 	stack.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	stack.width = 4;
-#else
+	#else
 	stack.width = 8;
-#endif
+	#endif
 	stack.reg = SYMREG_SP;
 
 	if (m_settings.stackGrowsUp)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		EMIT_RI(add_32, SYMREG_SP, 4);
-#else
+	#else
 		EMIT_RI(add_32, SYMREG_SP, 8);
-#endif
+	#endif
 
 		if (!Move(out, dest, stack))
 			return false;
@@ -3976,11 +4165,11 @@ bool OUTPUT_CLASS_NAME::GenerateAlloca(SymInstrBlock* out, const ILInstruction& 
 			return false;
 
 		EMIT_R(dec_32, SYMREG_SP);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		EMIT_RI(and_32, SYMREG_SP, ~3);
-#else
+	#else
 		EMIT_RI(and_64, SYMREG_SP, ~7);
-#endif
+	#endif
 
 		return true;
 	}
@@ -3989,11 +4178,11 @@ bool OUTPUT_CLASS_NAME::GenerateAlloca(SymInstrBlock* out, const ILInstruction& 
 		if (!Sub(out, stack, size))
 			return false;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		EMIT_RI(and_32, SYMREG_SP, ~3);
-#else
+	#else
 		EMIT_RI(and_64, SYMREG_SP, ~7);
-#endif
+	#endif
 
 		return Move(out, dest, stack);
 	}
@@ -4013,7 +4202,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemcpy(SymInstrBlock* out, const ILInstruction& 
 	if (!PrepareLoad(out, instr.params[2], size))
 		return false;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	switch (src.type)
 	{
 	case OPERANDREF_REG:
@@ -4058,7 +4247,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemcpy(SymInstrBlock* out, const ILInstruction& 
 	default:
 		return false;
 	}
-#else
+	#else
 	switch (src.type)
 	{
 	case OPERANDREF_REG:
@@ -4103,7 +4292,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemcpy(SymInstrBlock* out, const ILInstruction& 
 	default:
 		return false;
 	}
-#endif
+	#endif
 
 	out->AddInstruction(X86_SYMINSTR_NAME(rep_movsb)(edi, esi, ecx));
 	return true;
@@ -4138,7 +4327,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemset(SymInstrBlock* out, const ILInstruction& 
 		return false;
 	}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	switch (dest.type)
 	{
 	case OPERANDREF_REG:
@@ -4168,7 +4357,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemset(SymInstrBlock* out, const ILInstruction& 
 	default:
 		return false;
 	}
-#else
+	#else
 	switch (dest.type)
 	{
 	case OPERANDREF_REG:
@@ -4198,7 +4387,7 @@ bool OUTPUT_CLASS_NAME::GenerateMemset(SymInstrBlock* out, const ILInstruction& 
 	default:
 		return false;
 	}
-#endif
+	#endif
 
 	out->AddInstruction(X86_SYMINSTR_NAME(rep_stosb)(edi, eax, ecx));
 	return true;
@@ -4216,7 +4405,7 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(SymInstrBlock* out, const ILInstruction& 
 	if (!PrepareLoad(out, instr.params[1], src))
 		return false;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	switch (src.type)
 	{
 	case OPERANDREF_REG:
@@ -4231,7 +4420,7 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(SymInstrBlock* out, const ILInstruction& 
 	default:
 		return false;
 	}
-#else
+	#else
 	switch (src.type)
 	{
 	case OPERANDREF_REG:
@@ -4246,15 +4435,15 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(SymInstrBlock* out, const ILInstruction& 
 	default:
 		return false;
 	}
-#endif
+	#endif
 
 	EMIT_RR(xor_8, eax, eax);
 	EMIT_RR(xor_32, ecx, ecx);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	EMIT_R(dec_32, ecx);
-#else
+	#else
 	EMIT_R(dec_64, ecx);
-#endif
+	#endif
 
 	out->AddInstruction(X86_SYMINSTR_NAME(repne_scasb)(edi, eax, ecx));
 
@@ -4262,22 +4451,23 @@ bool OUTPUT_CLASS_NAME::GenerateStrlen(SymInstrBlock* out, const ILInstruction& 
 	ecxOperand.type = OPERANDREF_REG;
 	EMIT_R(not_32, ecx);
 	EMIT_R(dec_32, ecx);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	ecxOperand.width = 4;
-#else
+	#else
 	ecxOperand.width = 8;
-#endif
+	#endif
 	ecxOperand.reg = ecx;
 
 	return Move(out, dest, ecxOperand);
 }
 
 
-bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction& instr, bool twoDest)
+bool OUTPUT_CLASS_NAME::GenerateSyscall(
+    SymInstrBlock* out, const ILInstruction& instr, bool twoDest)
 {
 	size_t destCount = twoDest ? 2 : 1;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MAC))
 	{
 		// FreeBSD expects syscall parameters on a normal stack
@@ -4390,8 +4580,10 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		uint32_t resultReg2 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2);
 		uint32_t ecx = m_symFunc->AddRegister(X86REGCLASS_ECX);
 
-		vector<uint32_t> readRegs, spilledRegs; // Parameters are passed in on stack, so no read registers
-		out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
+		vector<uint32_t> readRegs,
+		    spilledRegs;  // Parameters are passed in on stack, so no read registers
+		out->AddInstruction(
+		    X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
 		out->AddInstruction(X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(resultReg1));
 
 		// Adjust stack pointer to pop off parameters
@@ -4418,13 +4610,14 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		result.reg = resultReg1;
 		return Move(out, dest, result);
 	}
-#endif
+	#endif
 
 	if ((m_settings.os != OS_LINUX) && (m_settings.os != OS_FREEBSD) && (m_settings.os != OS_MAC))
 		return false;
 
-	static const X86RegisterClass regs[] = {X86REGCLASS_SYSCALL_PARAM_0, X86REGCLASS_SYSCALL_PARAM_1, X86REGCLASS_SYSCALL_PARAM_2,
-		X86REGCLASS_SYSCALL_PARAM_3, X86REGCLASS_SYSCALL_PARAM_4, X86REGCLASS_SYSCALL_PARAM_5, X86REGCLASS_SYSCALL_PARAM_6};
+	static const X86RegisterClass regs[] = {X86REGCLASS_SYSCALL_PARAM_0, X86REGCLASS_SYSCALL_PARAM_1,
+	    X86REGCLASS_SYSCALL_PARAM_2, X86REGCLASS_SYSCALL_PARAM_3, X86REGCLASS_SYSCALL_PARAM_4,
+	    X86REGCLASS_SYSCALL_PARAM_5, X86REGCLASS_SYSCALL_PARAM_6};
 
 	vector<uint32_t> readRegs;
 	vector<uint32_t> spilledRegs;
@@ -4436,20 +4629,20 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 		if (instr.params[i].cls == ILPARAM_UNDEFINED)
 			continue;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (instr.params[i].GetWidth() == 8)
 		{
 			if ((regIndex + 1) >= 7)
 				return false;
 		}
-#endif
+	#endif
 
 		OperandReference cur;
 		if (!PrepareLoad(out, instr.params[i], cur))
 			return false;
 
 		uint32_t regClass, highRegClass;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (instr.params[i].GetWidth() == 8)
 		{
 			regClass = regs[regIndex++];
@@ -4460,15 +4653,18 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 			regClass = regs[regIndex++];
 			highRegClass = SYMREG_NONE;
 		}
-#else
+	#else
 		regClass = regs[regIndex++];
 		highRegClass = SYMREG_NONE;
-#endif
+	#endif
 
-		if (((regClass != SYMREG_NONE) && (m_symFunc->DoesRegisterClassConflictWithSpecialRegisters(regClass))) ||
-			((highRegClass != SYMREG_NONE) && (m_symFunc->DoesRegisterClassConflictWithSpecialRegisters(highRegClass))))
+		if (((regClass != SYMREG_NONE) &&
+		        (m_symFunc->DoesRegisterClassConflictWithSpecialRegisters(regClass))) ||
+		    ((highRegClass != SYMREG_NONE) &&
+		        (m_symFunc->DoesRegisterClassConflictWithSpecialRegisters(highRegClass))))
 		{
-			// Target register conflicts with stack or frame pointer, must use stack until ready for syscall
+			// Target register conflicts with stack or frame pointer, must use stack until ready for
+			// syscall
 			uint32_t reg, highReg = SYMREG_NONE;
 			reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 			spilledRegs.push_back(regClass);
@@ -4518,14 +4714,17 @@ bool OUTPUT_CLASS_NAME::GenerateSyscall(SymInstrBlock* out, const ILInstruction&
 	uint32_t resultReg2 = m_symFunc->AddRegister(X86REGCLASS_SYSCALL_RESULT_2);
 	uint32_t ecx = m_symFunc->AddRegister(X86REGCLASS_ECX);
 
-#ifdef OUTPUT32
-	out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
-#else
+	#ifdef OUTPUT32
+	out->AddInstruction(
+	    X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
+	#else
 	if (m_settings.os == OS_FREEBSD)
-		out->AddInstruction(X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
+		out->AddInstruction(
+		    X86_SYMINSTR_NAME(SyscallInt80)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
 	else
-		out->AddInstruction(X86_SYMINSTR_NAME(Syscall)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
-#endif
+		out->AddInstruction(
+		    X86_SYMINSTR_NAME(Syscall)(resultReg1, resultReg2, ecx, readRegs, spilledRegs));
+	#endif
 
 	if ((m_settings.os == OS_FREEBSD) || (m_settings.os == OS_MAC))
 		out->AddInstruction(X86_SYMINSTR_NAME(SyscallCorrectErrorCode)(resultReg1));
@@ -4564,14 +4763,14 @@ bool OUTPUT_CLASS_NAME::GenerateRdtsc(SymInstrBlock* out, const ILInstruction& i
 
 	if (dest.type == OPERANDREF_REG)
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		EMIT_RR(mov_32, dest.reg, eax);
 		EMIT_RR(mov_32, dest.highReg, edx);
-#else
+	#else
 		EMIT_RR(mov_64, dest.reg, edx);
 		EMIT_RI(shl_64, dest.reg, 32);
 		EMIT_RR(or_64, dest.reg, eax);
-#endif
+	#endif
 	}
 	else
 	{
@@ -4627,14 +4826,14 @@ bool OUTPUT_CLASS_NAME::GeneratePeb(SymInstrBlock* out, const ILInstruction& ins
 
 	OperandReference src;
 	src.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	src.width = 4;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	src.highReg = NONE;
 	EMIT_RM(mov_fs_32, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x30));
 	if (!Move(out, dest, src))
 		return false;
-#else
+	#else
 	uint32_t ofs = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	EMIT_I(push, 0x60);
 	EMIT_R(pop, ofs);
@@ -4644,7 +4843,7 @@ bool OUTPUT_CLASS_NAME::GeneratePeb(SymInstrBlock* out, const ILInstruction& ins
 	EMIT_RM(mov_gs_64, src.reg, X86_SYM_MEM_INDEX(ofs, SYMREG_NONE, 1, SYMREG_NONE, 0));
 	if (!Move(out, dest, src))
 		return false;
-#endif
+	#endif
 
 	return true;
 }
@@ -4658,14 +4857,14 @@ bool OUTPUT_CLASS_NAME::GenerateTeb(SymInstrBlock* out, const ILInstruction& ins
 
 	OperandReference src;
 	src.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	src.width = 4;
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	src.highReg = NONE;
 	EMIT_RM(mov_fs_32, src.reg, X86_SYM_MEM_INDEX(SYMREG_NONE, SYMREG_NONE, 1, SYMREG_NONE, 0x18));
 	if (!Move(out, dest, src))
 		return false;
-#else
+	#else
 	uint32_t ofs = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	EMIT_I(push, 0x30);
 	EMIT_R(pop, ofs);
@@ -4675,7 +4874,7 @@ bool OUTPUT_CLASS_NAME::GenerateTeb(SymInstrBlock* out, const ILInstruction& ins
 	EMIT_RM(mov_gs_64, src.reg, X86_SYM_MEM_INDEX(ofs, SYMREG_NONE, 1, SYMREG_NONE, 0));
 	if (!Move(out, dest, src))
 		return false;
-#endif
+	#endif
 
 	return true;
 }
@@ -4688,11 +4887,11 @@ bool OUTPUT_CLASS_NAME::GenerateInitialVararg(SymInstrBlock* out, const ILInstru
 		return false;
 
 	src.type = OPERANDREF_REG;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	src.width = 4;
-#else
+	#else
 	src.width = 8;
-#endif
+	#endif
 	src.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 	src.highReg = NONE;
 
@@ -4752,7 +4951,7 @@ bool OUTPUT_CLASS_NAME::GenerateByteSwap(SymInstrBlock* out, const ILInstruction
 	{
 		temp.type = OPERANDREF_REG;
 		temp.width = dest.width;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (temp.width == 8)
 		{
 			temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
@@ -4762,9 +4961,9 @@ bool OUTPUT_CLASS_NAME::GenerateByteSwap(SymInstrBlock* out, const ILInstruction
 		{
 			temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
 		}
-#else
+	#else
 		temp.reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#endif
+	#endif
 	}
 
 	if (!Move(out, temp, src))
@@ -4781,13 +4980,13 @@ bool OUTPUT_CLASS_NAME::GenerateByteSwap(SymInstrBlock* out, const ILInstruction
 		EMIT_R(bswap_32, temp.reg);
 		break;
 	case 8:
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		EMIT_RR(xchg_32, temp.reg, temp.highReg);
 		EMIT_R(bswap_32, temp.reg);
 		EMIT_R(bswap_32, temp.highReg);
-#else
+	#else
 		EMIT_R(bswap_64, temp.reg);
-#endif
+	#endif
 		break;
 	default:
 		return false;
@@ -5096,17 +5295,17 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	// TODO: Stack variable system does not yet support frames without a frame pointer
 	m_framePointerEnabled = true;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	if (m_settings.stackRegName.size() != 0)
 		m_settings.stackPointer = GetRegisterByName(m_settings.stackRegName);
 	if (m_settings.frameRegName.size() != 0)
 		m_settings.framePointer = GetRegisterByName(m_settings.frameRegName);
-#else
+	#else
 	if (m_settings.stackRegName.size() != 0)
 		m_settings.stackPointer = GetRegisterByName(m_settings.stackRegName);
 	if (m_settings.frameRegName.size() != 0)
 		m_settings.framePointer = GetRegisterByName(m_settings.frameRegName);
-#endif
+	#endif
 
 	if (m_settings.stackPointer == SYMREG_NONE)
 	{
@@ -5141,7 +5340,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		m_settings.basePointer = symFunc.AddRegister(X86REGCLASS_INTEGER);
 
 	// Generate stack frame
-	for (vector< Ref<Variable> >::const_iterator i = func->GetVariables().begin(); i != func->GetVariables().end(); i++)
+	for (vector<Ref<Variable>>::const_iterator i = func->GetVariables().begin();
+	     i != func->GetVariables().end(); i++)
 	{
 		if ((*i)->IsParameter())
 			continue;
@@ -5150,10 +5350,11 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		{
 			// If the variable has its address taken, it cannot be stored in a register
 			bool addressTaken = false;
-			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
+			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end();
+			     j++)
 			{
 				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
-					k != (*j)->GetInstructions().end(); k++)
+				     k != (*j)->GetInstructions().end(); k++)
 				{
 					if (k->operation != ILOP_ADDRESS_OF)
 						continue;
@@ -5167,8 +5368,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 			if (addressTaken)
 			{
-				m_stackVar[*i] = m_symFunc->AddStackVar(0, false, (*i)->GetType()->GetWidth(),
-					ILParameter::ReduceType((*i)->GetType()));
+				m_stackVar[*i] = m_symFunc->AddStackVar(
+				    0, false, (*i)->GetType()->GetWidth(), ILParameter::ReduceType((*i)->GetType()));
 				continue;
 			}
 
@@ -5177,7 +5378,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			if ((*i)->GetType()->GetClass() == TYPE_FLOAT)
 				reg = m_symFunc->AddRegister(X86REGCLASS_FLOAT, ILParameter::ReduceType((*i)->GetType()));
 			else if ((*i)->GetType()->GetWidth() == 1)
-				reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT, ILParameter::ReduceType((*i)->GetType()));
+				reg = m_symFunc->AddRegister(
+				    X86REGCLASS_INTEGER_8BIT, ILParameter::ReduceType((*i)->GetType()));
 			else
 				reg = m_symFunc->AddRegister(X86REGCLASS_INTEGER, ILParameter::ReduceType((*i)->GetType()));
 			m_varReg[*i] = reg;
@@ -5199,36 +5401,39 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 	if ((func->GetName() == "_start") && (m_settings.unsafeStack))
 		offset += UNSAFE_STACK_PIVOT;
 
-#ifdef OUTPUT32
-	uint32_t intParamRegs[4] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2, SYMREG_NONE};
+	#ifdef OUTPUT32
+	uint32_t intParamRegs[4] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1,
+	    X86REGCLASS_INTEGER_PARAM_2, SYMREG_NONE};
 	size_t maxRegVar = 3;
-#else
-	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1, X86REGCLASS_INTEGER_PARAM_2,
-		X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4, X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
+	#else
+	uint32_t intParamRegs[7] = {X86REGCLASS_INTEGER_PARAM_0, X86REGCLASS_INTEGER_PARAM_1,
+	    X86REGCLASS_INTEGER_PARAM_2, X86REGCLASS_INTEGER_PARAM_3, X86REGCLASS_INTEGER_PARAM_4,
+	    X86REGCLASS_INTEGER_PARAM_5, SYMREG_NONE};
 	size_t maxRegVar = 6;
-#endif
+	#endif
 	uint32_t curIntParamReg = 0;
 	vector<IncomingParameterCopy> paramCopy;
 
 	if ((m_func->GetCallingConvention() == CALLING_CONVENTION_STDCALL) ||
-		(m_func->GetCallingConvention() == CALLING_CONVENTION_CDECL))
+	    (m_func->GetCallingConvention() == CALLING_CONVENTION_CDECL))
 	{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		maxRegVar = 0;
-#else
+	#else
 		maxRegVar = 4;
 
 		// Windows 64-bit has 32 bytes of reserved space for parameter spilling
 		if (m_settings.os == OS_WINDOWS)
 			offset += 32;
-#endif
+	#endif
 	}
 
 	for (size_t i = 0; i < func->GetParameters().size(); i++)
 	{
 		// Find variable object for this parameter
-		vector< Ref<Variable> >::const_iterator var = func->GetVariables().end();
-		for (vector< Ref<Variable> >::const_iterator j = func->GetVariables().begin(); j != func->GetVariables().end(); j++)
+		vector<Ref<Variable>>::const_iterator var = func->GetVariables().end();
+		for (vector<Ref<Variable>>::const_iterator j = func->GetVariables().begin();
+		     j != func->GetVariables().end(); j++)
 		{
 			if ((*j)->IsParameter() && ((*j)->GetParameterIndex() == i))
 			{
@@ -5242,7 +5447,7 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		uint32_t reg = SYMREG_NONE;
 		if (i < maxRegVar)
 		{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
 			if (paramSize <= 4)
 			{
@@ -5255,7 +5460,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			}
 			else
 			{
-				if ((intParamRegs[curIntParamReg] != SYMREG_NONE) && (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
+				if ((intParamRegs[curIntParamReg] != SYMREG_NONE) &&
+				    (intParamRegs[curIntParamReg + 1] != SYMREG_NONE))
 				{
 					uint32_t regClass = intParamRegs[curIntParamReg++];
 					uint32_t highRegClass = intParamRegs[curIntParamReg++];
@@ -5266,14 +5472,14 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 					}
 				}
 			}
-#else
+	#else
 			if (intParamRegs[curIntParamReg] != SYMREG_NONE)
 			{
 				uint32_t regClass = intParamRegs[curIntParamReg++];
 				if (var != func->GetVariables().end())
 					reg = m_symFunc->AddRegister(regClass, ILParameter::ReduceType((*var)->GetType()));
 			}
-#endif
+	#endif
 		}
 
 		if (var == func->GetVariables().end())
@@ -5286,10 +5492,11 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		{
 			// If the variable has its address taken, it must be stored on the stack
 			bool addressTaken = false;
-			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end(); j++)
+			for (vector<ILBlock*>::const_iterator j = m_func->GetIL().begin(); j != m_func->GetIL().end();
+			     j++)
 			{
 				for (vector<ILInstruction>::const_iterator k = (*j)->GetInstructions().begin();
-					k != (*j)->GetInstructions().end(); k++)
+				     k != (*j)->GetInstructions().end(); k++)
 				{
 					if (k->operation != ILOP_ADDRESS_OF)
 						continue;
@@ -5304,8 +5511,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			if (addressTaken)
 			{
 				// Must spill register to stack
-				m_stackVar[*var] = m_symFunc->AddStackVar(0, false, (*var)->GetType()->GetWidth(),
-					ILParameter::ReduceType((*var)->GetType()));
+				m_stackVar[*var] = m_symFunc->AddStackVar(
+				    0, false, (*var)->GetType()->GetWidth(), ILParameter::ReduceType((*var)->GetType()));
 
 				IncomingParameterCopy copy;
 				copy.var = *var;
@@ -5326,44 +5533,44 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 		}
 
 		// Allocate stack space for this parameter
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		int64_t paramOffset = offset + 4;
-#else
+	#else
 		int64_t paramOffset = offset + 8;
-#endif
+	#endif
 
 		if (m_settings.stackGrowsUp)
 		{
 			paramOffset = -paramOffset;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			size_t paramSize = ((*var)->GetType()->GetWidth() + 3) & (~3);
 			paramOffset += 4 - paramSize;
-#else
+	#else
 			size_t paramSize = ((*var)->GetType()->GetWidth() + 7) & (~7);
 			paramOffset += 8 - paramSize;
-#endif
+	#endif
 		}
 
 		m_stackVar[*var] = m_symFunc->AddStackVar(paramOffset, true, (*var)->GetType()->GetWidth(),
-			ILParameter::ReduceType((*var)->GetType()));
+		    ILParameter::ReduceType((*var)->GetType()));
 
 		// Adjust offset for next parameter
 		offset += (*var)->GetType()->GetWidth();
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 		if (offset & 3)
 			offset += 4 - (offset & 3);
-#else
+	#else
 		if (offset & 7)
 			offset += 8 - (offset & 7);
-#endif
+	#endif
 	}
 
 	// Generate a variable to mark the start of additional paramaters
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 	int64_t paramOffset = offset + 4;
-#else
+	#else
 	int64_t paramOffset = offset + 8;
-#endif
+	#endif
 	if (m_settings.stackGrowsUp)
 		paramOffset = -paramOffset;
 	m_varargStart = m_symFunc->AddStackVar(paramOffset, true, 0, ILTYPE_VOID);
@@ -5377,58 +5584,61 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 
 		if (first)
 		{
-#ifdef OUTPUT64
-			if ((func->GetName() == "_start") && (m_settings.os == OS_WINDOWS) && (!m_settings.allowReturn) && (m_settings.format != FORMAT_PE))
+	#ifdef OUTPUT64
+			if ((func->GetName() == "_start") && (m_settings.os == OS_WINDOWS) &&
+			    (!m_settings.allowReturn) && (m_settings.format != FORMAT_PE))
 			{
-				// Windows 64-bit requires a 16 byte aligned stack, force alignment at the start of the program,
-				// but try to have no effect if we were called by something complying with the ABI -- we want
-				// `rsp % 16 == 8` on entry, and want to be equivalent to a nop if that holds. otherwise, we need
-				// to carve out some space and hope really hard that they don't expect to access arguments or return.
-				EMIT_RI(add_64, SYMREG_SP,   8);
+				// Windows 64-bit requires a 16 byte aligned stack, force alignment at the start of the
+				// program, but try to have no effect if we were called by something complying with the ABI
+				// -- we want `rsp % 16 == 8` on entry, and want to be equivalent to a nop if that holds.
+				// otherwise, we need to carve out some space and hope really hard that they don't expect to
+				// access arguments or return.
+				EMIT_RI(add_64, SYMREG_SP, 8);
 				EMIT_RI(and_64, SYMREG_SP, ~15);
-				EMIT_RI(sub_64, SYMREG_SP,   8);
+				EMIT_RI(sub_64, SYMREG_SP, 8);
 			}
-#endif
+	#endif
 
 			if ((func->GetName() == "_start") && m_settings.unsafeStack)
 			{
 				// This is the start function, and we can't assume we have a safe stack (the code may be
 				// at or near the stack pointer), pivot the stack to make it safe
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				EMIT_RI(sub_32, SYMREG_SP, UNSAFE_STACK_PIVOT);
-#else
+	#else
 				EMIT_RI(sub_64, SYMREG_SP, UNSAFE_STACK_PIVOT);
-#endif
+	#endif
 			}
 
 			// Generate function prologue
 			if ((!m_normalStack) && (func->GetName() == "_start"))
 			{
-				// If using alternate stack pointer, and this is the _start function, initialize stack pointer
+				// If using alternate stack pointer, and this is the _start function, initialize stack
+				// pointer
 				size_t stackAdjust = m_settings.stackGrowsUp ? -0x10000 : 0;
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				if (m_func->DoesReturn())
 					stackAdjust -= 4;
-#else
+	#else
 				if (m_func->DoesReturn())
 					stackAdjust -= 8;
-#endif
+	#endif
 
 				EMIT_II(enter, 0, 0);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_BP, -4 + stackAdjust));
 				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 				if (m_func->DoesReturn())
 					EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 				EMIT_RR(mov_32, SYMREG_BP, SYMREG_SP);
-#else
+	#else
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_BP, -8 + stackAdjust));
 				out->AddInstruction(X86_SYMINSTR_NAME(SaveCalleeSavedRegs)());
 				if (m_func->DoesReturn())
 					EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
 				EMIT_RR(mov_64, SYMREG_BP, SYMREG_SP);
-#endif
+	#endif
 			}
 			else if (m_framePointerEnabled)
 			{
@@ -5439,21 +5649,21 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 						EMIT_R(push, SYMREG_BP);
 					else
 					{
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 						EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? 4 : -4));
 						EMIT_MR(mov_32, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
-#else
+	#else
 						EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM(SYMREG_SP, m_settings.stackGrowsUp ? 8 : -8));
 						EMIT_MR(mov_64, X86_SYM_MEM(SYMREG_SP, 0), SYMREG_BP);
-#endif
+	#endif
 					}
 				}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				EMIT_RR(mov_32, SYMREG_BP, SYMREG_SP);
-#else
+	#else
 				EMIT_RR(mov_64, SYMREG_BP, SYMREG_SP);
-#endif
+	#endif
 			}
 			else if (m_func->DoesReturn())
 			{
@@ -5463,7 +5673,8 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 			if (m_settings.stackGrowsUp)
 				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_FRAME_SIZE, 0));
 			else
-				EMIT_RM(lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_NEG_FRAME_SIZE, 0));
+				EMIT_RM(
+				    lea, SYMREG_SP, X86_SYM_MEM_INDEX(SYMREG_SP, SYMREG_NONE, 1, SYMVAR_NEG_FRAME_SIZE, 0));
 
 			// Generate a pseudo instruction to ensure the incoming parameters are defined
 			vector<uint32_t> incomingRegs;
@@ -5473,10 +5684,10 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 					continue;
 
 				incomingRegs.push_back(j->incomingReg);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 				if (j->var->GetType()->GetWidth() == 8)
 					incomingRegs.push_back(j->incomingReg + 1);
-#endif
+	#endif
 			}
 
 			if (incomingRegs.size() != 0)
@@ -5491,24 +5702,30 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 					switch (j->var->GetType()->GetWidth())
 					{
 					case 1:
-						EMIT_MR(mov_8, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						EMIT_MR(mov_8, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0),
+						    j->incomingReg);
 						break;
 					case 2:
-						EMIT_MR(mov_16, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						EMIT_MR(mov_16, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0),
+						    j->incomingReg);
 						break;
 					case 4:
-						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0),
+						    j->incomingReg);
 						break;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 					case 8:
-						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
-						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 4), j->incomingReg + 1);
+						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0),
+						    j->incomingReg);
+						EMIT_MR(mov_32, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 4),
+						    j->incomingReg + 1);
 						break;
-#else
+	#else
 					case 8:
-						EMIT_MR(mov_64, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0), j->incomingReg);
+						EMIT_MR(mov_64, X86_SYM_MEM_INDEX(SYMREG_BP, SYMREG_NONE, 1, j->stackVar, 0),
+						    j->incomingReg);
 						break;
-#endif
+	#endif
 					default:
 						fprintf(stderr, "error: spilling invalid parameter\n");
 						return false;
@@ -5522,11 +5739,11 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 						newReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER_8BIT);
 					else
 						newReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 					uint32_t newHighReg = SYMREG_NONE;
 					if (j->var->GetType()->GetWidth() == 8)
 						newHighReg = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
-#endif
+	#endif
 
 					switch (j->var->GetType()->GetWidth())
 					{
@@ -5539,16 +5756,16 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 					case 4:
 						EMIT_RR(mov_32, newReg, j->incomingReg);
 						break;
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 					case 8:
 						EMIT_RR(mov_32, newReg, j->incomingReg);
 						EMIT_RR(mov_32, newHighReg, j->incomingReg + 1);
 						break;
-#else
+	#else
 					case 8:
 						EMIT_RR(mov_64, newReg, j->incomingReg);
 						break;
-#endif
+	#endif
 					default:
 						fprintf(stderr, "error: invalid parameter\n");
 						return false;
@@ -5558,13 +5775,14 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 				}
 			}
 
-#ifdef OUTPUT32
+	#ifdef OUTPUT32
 			if (m_settings.positionIndependent)
 			{
 				// Capture base of code at start
-				GetCodeAddressFromInstructionPointer(out, m_settings.basePointer, m_startFunc, m_startFunc->GetIL()[0]);
+				GetCodeAddressFromInstructionPointer(
+				    out, m_settings.basePointer, m_startFunc, m_startFunc->GetIL()[0]);
 			}
-#endif
+	#endif
 
 			first = false;
 		}
@@ -5615,18 +5833,17 @@ bool OUTPUT_CLASS_NAME::GenerateCode(Function* func)
 }
 
 
-TreeNode* OUTPUT_CLASS_NAME::GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv, size_t fixedParams,
-	const vector< Ref<TreeNode> >& params, TreeNodeType resultType)
+TreeNode* OUTPUT_CLASS_NAME::GenerateCall(TreeBlock* block, TreeNode* func, CallingConvention conv,
+    size_t fixedParams, const vector<Ref<TreeNode>>& params, TreeNodeType resultType)
 {
 	return NULL;
 }
 
 
-TreeNode* OUTPUT_CLASS_NAME::GenerateSyscall(TreeBlock* block, TreeNode* num, const vector< Ref<TreeNode> >& params,
-	TreeNodeType resultType)
+TreeNode* OUTPUT_CLASS_NAME::GenerateSyscall(
+    TreeBlock* block, TreeNode* num, const vector<Ref<TreeNode>>& params, TreeNodeType resultType)
 {
 	return NULL;
 }
 
 #endif
-

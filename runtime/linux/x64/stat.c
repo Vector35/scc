@@ -32,4 +32,3 @@ int lstat(const char* path, struct stat* buf)
 {
 	return __syscall(SYS_lstat, path, buf);
 }
-

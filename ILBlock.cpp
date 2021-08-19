@@ -1,18 +1,18 @@
+#include "ILBlock.h"
+#include "Function.h"
+#include "Output.h"
+#include "Struct.h"
+#include "Variable.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "ILBlock.h"
-#include "Variable.h"
-#include "Function.h"
-#include "Struct.h"
-#include "Output.h"
 
 using namespace std;
 
 
 map<size_t, ILBlock*> ILBlock::m_serializationMapping;
-stack< map<size_t, ILBlock*> > ILBlock::m_savedSerializationMappings;
+stack<map<size_t, ILBlock*>> ILBlock::m_savedSerializationMappings;
 
-	
+
 ILParameter::ILParameter()
 {
 	cls = ILPARAM_VOID;
@@ -256,12 +256,12 @@ void ILParameter::CheckForUndefinedReferences(size_t& errors)
 }
 
 
-void ILParameter::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
+void ILParameter::ConvertStringsToVariables(map<string, Ref<Variable>>& stringMap)
 {
 	if (cls != ILPARAM_STRING)
 		return;
 
-	map< string, Ref<Variable> >::iterator i = stringMap.find(stringValue);
+	map<string, Ref<Variable>>::iterator i = stringMap.find(stringValue);
 	if (i != stringMap.end())
 	{
 		cls = ILPARAM_VAR;
@@ -449,22 +449,49 @@ void ILParameter::Print() const
 {
 	switch (cls)
 	{
-	case ILPARAM_VOID:  fprintf(stderr, "void"); break;
+	case ILPARAM_VOID:
+		fprintf(stderr, "void");
+		break;
 #ifdef WIN32
-	case ILPARAM_INT:  fprintf(stderr, "%.I64d {%d}", (long long)integerValue, (int)GetWidth()); break;
+	case ILPARAM_INT:
+		fprintf(stderr, "%.I64d {%d}", (long long)integerValue, (int)GetWidth());
+		break;
 #else
-	case ILPARAM_INT:  fprintf(stderr, "%lld {%d}", (long long)integerValue, (int)GetWidth()); break;
+	case ILPARAM_INT:
+		fprintf(stderr, "%lld {%d}", (long long)integerValue, (int)GetWidth());
+		break;
 #endif
-	case ILPARAM_FLOAT:  fprintf(stderr, "%f", floatValue); break;
-	case ILPARAM_STRING:  fprintf(stderr, "\"%s\"", stringValue.c_str()); break;
-	case ILPARAM_FIELD:  fprintf(stderr, "%s::%s", structure->GetName().c_str(), stringValue.c_str()); break;
-	case ILPARAM_BOOL:  fprintf(stderr, "%s", boolValue ? "true" : "false"); break;
-	case ILPARAM_VAR:  fprintf(stderr, "var<%s>", variable->GetName().c_str()); break;
-	case ILPARAM_FUNC:  fprintf(stderr, "func<%s>", function->GetName().c_str()); break;
-	case ILPARAM_BLOCK:  fprintf(stderr, "block<%d>", (int)block->GetIndex()); break;
-	case ILPARAM_MEMBER:  parent->Print(); fprintf(stderr, ".%s::%s", structure->GetName().c_str(), stringValue.c_str()); break;
-	case ILPARAM_UNDEFINED:  fprintf(stderr, "__undefined"); break;
-	default:  fprintf(stderr, "<invalid>"); break;
+	case ILPARAM_FLOAT:
+		fprintf(stderr, "%f", floatValue);
+		break;
+	case ILPARAM_STRING:
+		fprintf(stderr, "\"%s\"", stringValue.c_str());
+		break;
+	case ILPARAM_FIELD:
+		fprintf(stderr, "%s::%s", structure->GetName().c_str(), stringValue.c_str());
+		break;
+	case ILPARAM_BOOL:
+		fprintf(stderr, "%s", boolValue ? "true" : "false");
+		break;
+	case ILPARAM_VAR:
+		fprintf(stderr, "var<%s>", variable->GetName().c_str());
+		break;
+	case ILPARAM_FUNC:
+		fprintf(stderr, "func<%s>", function->GetName().c_str());
+		break;
+	case ILPARAM_BLOCK:
+		fprintf(stderr, "block<%d>", (int)block->GetIndex());
+		break;
+	case ILPARAM_MEMBER:
+		parent->Print();
+		fprintf(stderr, ".%s::%s", structure->GetName().c_str(), stringValue.c_str());
+		break;
+	case ILPARAM_UNDEFINED:
+		fprintf(stderr, "__undefined");
+		break;
+	default:
+		fprintf(stderr, "<invalid>");
+		break;
 	}
 }
 
@@ -496,7 +523,8 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
-ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c)
+ILInstruction::ILInstruction(
+    ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c)
 {
 	operation = op;
 	params.push_back(a);
@@ -505,7 +533,8 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
-ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c, const ILParameter& d)
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+    const ILParameter& c, const ILParameter& d)
 {
 	operation = op;
 	params.push_back(a);
@@ -515,8 +544,8 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
-ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-	const ILParameter& d, const ILParameter& e)
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+    const ILParameter& c, const ILParameter& d, const ILParameter& e)
 {
 	operation = op;
 	params.push_back(a);
@@ -527,8 +556,8 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
-ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-	const ILParameter& d, const ILParameter& e, const ILParameter& f)
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+    const ILParameter& c, const ILParameter& d, const ILParameter& e, const ILParameter& f)
 {
 	operation = op;
 	params.push_back(a);
@@ -540,8 +569,9 @@ ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParam
 }
 
 
-ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b, const ILParameter& c,
-	const ILParameter& d, const ILParameter& e, const ILParameter& f, const ILParameter& g)
+ILInstruction::ILInstruction(ILOperation op, const ILParameter& a, const ILParameter& b,
+    const ILParameter& c, const ILParameter& d, const ILParameter& e, const ILParameter& f,
+    const ILParameter& g)
 {
 	operation = op;
 	params.push_back(a);
@@ -597,7 +627,7 @@ void ILInstruction::CheckForUndefinedReferences(size_t& errors)
 }
 
 
-void ILInstruction::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
+void ILInstruction::ConvertStringsToVariables(map<string, Ref<Variable>>& stringMap)
 {
 	for (vector<ILParameter>::iterator i = params.begin(); i != params.end(); i++)
 		i->ConvertStringsToVariables(stringMap);
@@ -760,70 +790,401 @@ void ILInstruction::Print() const
 {
 	switch (operation)
 	{
-	case ILOP_ASSIGN:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
-	case ILOP_ADDRESS_OF:  params[0].Print(); fprintf(stderr, " = &"); params[1].Print(); break;
-	case ILOP_ADDRESS_OF_MEMBER:  params[0].Print(); fprintf(stderr, " = &"); params[1].Print(); fprintf(stderr, "->"); params[2].Print(); break;
-	case ILOP_DEREF:  params[0].Print(); fprintf(stderr, " = *"); params[1].Print(); break;
-	case ILOP_DEREF_MEMBER:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "->"); params[2].Print(); break;
-	case ILOP_DEREF_ASSIGN:  fprintf(stderr, "*"); params[0].Print(); fprintf(stderr, " = "); params[1].Print(); break;
-	case ILOP_DEREF_MEMBER_ASSIGN:  params[0].Print(); fprintf(stderr, "->"); params[1].Print(); fprintf(stderr, " = "); params[2].Print(); break;
-	case ILOP_ARRAY_INDEX:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, "["); params[2].Print(); fprintf(stderr, "]{%d}", (int)params[3].integerValue); break;
-	case ILOP_ARRAY_INDEX_ASSIGN:  params[0].Print(); fprintf(stderr, "["); params[1].Print(); fprintf(stderr, "]{%d} = ", (int)params[2].integerValue); params[3].Print(); break;
-	case ILOP_PTR_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr+ "); params[2].Print(); fprintf(stderr, " {%d}", (int)params[3].integerValue); break;
-	case ILOP_PTR_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptr- "); params[2].Print(); fprintf(stderr, " {%d}", (int)params[3].integerValue); break;
-	case ILOP_PTR_DIFF:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ptrdiff "); params[2].Print(); fprintf(stderr, " {%d}", (int)params[3].integerValue); break;
-	case ILOP_ADD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " + "); params[2].Print(); break;
-	case ILOP_SUB:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " - "); params[2].Print(); break;
-	case ILOP_SMULT:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " smult "); params[2].Print(); break;
-	case ILOP_UMULT:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " umult "); params[2].Print(); break;
-	case ILOP_SDIV:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " sdiv "); params[2].Print(); break;
-	case ILOP_UDIV:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " udiv "); params[2].Print(); break;
-	case ILOP_SMOD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " smod "); params[2].Print(); break;
-	case ILOP_UMOD:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " umod "); params[2].Print(); break;
-	case ILOP_AND:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " & "); params[2].Print(); break;
-	case ILOP_OR:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " | "); params[2].Print(); break;
-	case ILOP_XOR:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " ^ "); params[2].Print(); break;
-	case ILOP_SHL:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " shl "); params[2].Print(); break;
-	case ILOP_SHR:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " shr "); params[2].Print(); break;
-	case ILOP_SAR:  params[0].Print(); fprintf(stderr, " = "); params[1].Print(); fprintf(stderr, " sar "); params[2].Print(); break;
-	case ILOP_NEG:  params[0].Print(); fprintf(stderr, " = -"); params[1].Print(); break;
-	case ILOP_NOT:  params[0].Print(); fprintf(stderr, " = ~"); params[1].Print(); break;
-	case ILOP_IF_TRUE:  fprintf(stderr, "if "); params[0].Print(); fprintf(stderr, " then "); params[1].Print(); fprintf(stderr, " else "); params[2].Print(); break;
-	case ILOP_IF_LESS_THAN:  fprintf(stderr, "if signed "); params[0].Print(); fprintf(stderr, " < "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
-	case ILOP_IF_LESS_EQUAL:  fprintf(stderr, "if signed "); params[0].Print(); fprintf(stderr, " <= "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
-	case ILOP_IF_BELOW:  fprintf(stderr, "if unsigned "); params[0].Print(); fprintf(stderr, " < "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
-	case ILOP_IF_BELOW_EQUAL:  fprintf(stderr, "if unsigned "); params[0].Print(); fprintf(stderr, " <= "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
-	case ILOP_IF_EQUAL:  fprintf(stderr, "if "); params[0].Print(); fprintf(stderr, " == "); params[1].Print(); fprintf(stderr, " then "); params[2].Print(); fprintf(stderr, " else "); params[3].Print(); break;
-	case ILOP_GOTO:  fprintf(stderr, "goto "); params[0].Print(); break;
-	case ILOP_NORETURN:  fprintf(stderr, "noreturn"); break;
-	case ILOP_SCONVERT:  params[0].Print(); fprintf(stderr, " = sconvert "); params[1].Print(); break;
-	case ILOP_UCONVERT:  params[0].Print(); fprintf(stderr, " = uconvert "); params[1].Print(); break;
-	case ILOP_RETURN:  fprintf(stderr, "return "); params[0].Print(); break;
-	case ILOP_RETURN_VOID:  fprintf(stderr, "return"); break;
-	case ILOP_ALLOCA:  params[0].Print(); fprintf(stderr, " = alloca "); params[1].Print(); break;
-	case ILOP_MEMCPY:  fprintf(stderr, "memcpy "); params[0].Print(); fprintf(stderr, ", "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
-	case ILOP_MEMSET:  fprintf(stderr, "memset "); params[0].Print(); fprintf(stderr, ", "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
-	case ILOP_STRLEN:  params[0].Print(); fprintf(stderr, " = strlen "); params[1].Print(); break;
-	case ILOP_RDTSC:  params[0].Print(); fprintf(stderr, " = rdtsc"); break;
-	case ILOP_RDTSC_LOW:  params[0].Print(); fprintf(stderr, " = rdtsc_low"); break;
-	case ILOP_RDTSC_HIGH:  params[0].Print(); fprintf(stderr, " = rdtsc_high"); break;
-	case ILOP_PEB:  params[0].Print(); fprintf(stderr, " = peb"); break;
-	case ILOP_TEB:  params[0].Print(); fprintf(stderr, " = teb"); break;
-	case ILOP_INITIAL_VARARG:  params[0].Print(); fprintf(stderr, " = initial_vararg"); break;
-	case ILOP_NEXT_ARG:  params[0].Print(); fprintf(stderr, " = next_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
-	case ILOP_PREV_ARG:  params[0].Print(); fprintf(stderr, " = prev_arg "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
-	case ILOP_BYTESWAP:  params[0].Print(); fprintf(stderr, " = byteswap "); params[1].Print(); break;
-	case ILOP_BREAKPOINT:  fprintf(stderr, "breakpoint"); break;
-	case ILOP_POW:  params[0].Print(); fprintf(stderr, " = pow "); params[1].Print(); fprintf(stderr, ", "); params[2].Print(); break;
-	case ILOP_FLOOR:  params[0].Print(); fprintf(stderr, " = floor "); params[1].Print(); break;
-	case ILOP_CEIL:  params[0].Print(); fprintf(stderr, " = ceil "); params[1].Print(); break;
-	case ILOP_SQRT:  params[0].Print(); fprintf(stderr, " = sqrt "); params[1].Print(); break;
-	case ILOP_SIN:  params[0].Print(); fprintf(stderr, " = sin "); params[1].Print(); break;
-	case ILOP_COS:  params[0].Print(); fprintf(stderr, " = cos "); params[1].Print(); break;
-	case ILOP_TAN:  params[0].Print(); fprintf(stderr, " = tan "); params[1].Print(); break;
-	case ILOP_ASIN:  params[0].Print(); fprintf(stderr, " = asin "); params[1].Print(); break;
-	case ILOP_ACOS:  params[0].Print(); fprintf(stderr, " = acos "); params[1].Print(); break;
-	case ILOP_ATAN:  params[0].Print(); fprintf(stderr, " = atan "); params[1].Print(); break;
+	case ILOP_ASSIGN:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		break;
+	case ILOP_ADDRESS_OF:
+		params[0].Print();
+		fprintf(stderr, " = &");
+		params[1].Print();
+		break;
+	case ILOP_ADDRESS_OF_MEMBER:
+		params[0].Print();
+		fprintf(stderr, " = &");
+		params[1].Print();
+		fprintf(stderr, "->");
+		params[2].Print();
+		break;
+	case ILOP_DEREF:
+		params[0].Print();
+		fprintf(stderr, " = *");
+		params[1].Print();
+		break;
+	case ILOP_DEREF_MEMBER:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, "->");
+		params[2].Print();
+		break;
+	case ILOP_DEREF_ASSIGN:
+		fprintf(stderr, "*");
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		break;
+	case ILOP_DEREF_MEMBER_ASSIGN:
+		params[0].Print();
+		fprintf(stderr, "->");
+		params[1].Print();
+		fprintf(stderr, " = ");
+		params[2].Print();
+		break;
+	case ILOP_ARRAY_INDEX:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, "[");
+		params[2].Print();
+		fprintf(stderr, "]{%d}", (int)params[3].integerValue);
+		break;
+	case ILOP_ARRAY_INDEX_ASSIGN:
+		params[0].Print();
+		fprintf(stderr, "[");
+		params[1].Print();
+		fprintf(stderr, "]{%d} = ", (int)params[2].integerValue);
+		params[3].Print();
+		break;
+	case ILOP_PTR_ADD:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " ptr+ ");
+		params[2].Print();
+		fprintf(stderr, " {%d}", (int)params[3].integerValue);
+		break;
+	case ILOP_PTR_SUB:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " ptr- ");
+		params[2].Print();
+		fprintf(stderr, " {%d}", (int)params[3].integerValue);
+		break;
+	case ILOP_PTR_DIFF:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " ptrdiff ");
+		params[2].Print();
+		fprintf(stderr, " {%d}", (int)params[3].integerValue);
+		break;
+	case ILOP_ADD:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " + ");
+		params[2].Print();
+		break;
+	case ILOP_SUB:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " - ");
+		params[2].Print();
+		break;
+	case ILOP_SMULT:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " smult ");
+		params[2].Print();
+		break;
+	case ILOP_UMULT:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " umult ");
+		params[2].Print();
+		break;
+	case ILOP_SDIV:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " sdiv ");
+		params[2].Print();
+		break;
+	case ILOP_UDIV:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " udiv ");
+		params[2].Print();
+		break;
+	case ILOP_SMOD:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " smod ");
+		params[2].Print();
+		break;
+	case ILOP_UMOD:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " umod ");
+		params[2].Print();
+		break;
+	case ILOP_AND:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " & ");
+		params[2].Print();
+		break;
+	case ILOP_OR:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " | ");
+		params[2].Print();
+		break;
+	case ILOP_XOR:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " ^ ");
+		params[2].Print();
+		break;
+	case ILOP_SHL:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " shl ");
+		params[2].Print();
+		break;
+	case ILOP_SHR:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " shr ");
+		params[2].Print();
+		break;
+	case ILOP_SAR:
+		params[0].Print();
+		fprintf(stderr, " = ");
+		params[1].Print();
+		fprintf(stderr, " sar ");
+		params[2].Print();
+		break;
+	case ILOP_NEG:
+		params[0].Print();
+		fprintf(stderr, " = -");
+		params[1].Print();
+		break;
+	case ILOP_NOT:
+		params[0].Print();
+		fprintf(stderr, " = ~");
+		params[1].Print();
+		break;
+	case ILOP_IF_TRUE:
+		fprintf(stderr, "if ");
+		params[0].Print();
+		fprintf(stderr, " then ");
+		params[1].Print();
+		fprintf(stderr, " else ");
+		params[2].Print();
+		break;
+	case ILOP_IF_LESS_THAN:
+		fprintf(stderr, "if signed ");
+		params[0].Print();
+		fprintf(stderr, " < ");
+		params[1].Print();
+		fprintf(stderr, " then ");
+		params[2].Print();
+		fprintf(stderr, " else ");
+		params[3].Print();
+		break;
+	case ILOP_IF_LESS_EQUAL:
+		fprintf(stderr, "if signed ");
+		params[0].Print();
+		fprintf(stderr, " <= ");
+		params[1].Print();
+		fprintf(stderr, " then ");
+		params[2].Print();
+		fprintf(stderr, " else ");
+		params[3].Print();
+		break;
+	case ILOP_IF_BELOW:
+		fprintf(stderr, "if unsigned ");
+		params[0].Print();
+		fprintf(stderr, " < ");
+		params[1].Print();
+		fprintf(stderr, " then ");
+		params[2].Print();
+		fprintf(stderr, " else ");
+		params[3].Print();
+		break;
+	case ILOP_IF_BELOW_EQUAL:
+		fprintf(stderr, "if unsigned ");
+		params[0].Print();
+		fprintf(stderr, " <= ");
+		params[1].Print();
+		fprintf(stderr, " then ");
+		params[2].Print();
+		fprintf(stderr, " else ");
+		params[3].Print();
+		break;
+	case ILOP_IF_EQUAL:
+		fprintf(stderr, "if ");
+		params[0].Print();
+		fprintf(stderr, " == ");
+		params[1].Print();
+		fprintf(stderr, " then ");
+		params[2].Print();
+		fprintf(stderr, " else ");
+		params[3].Print();
+		break;
+	case ILOP_GOTO:
+		fprintf(stderr, "goto ");
+		params[0].Print();
+		break;
+	case ILOP_NORETURN:
+		fprintf(stderr, "noreturn");
+		break;
+	case ILOP_SCONVERT:
+		params[0].Print();
+		fprintf(stderr, " = sconvert ");
+		params[1].Print();
+		break;
+	case ILOP_UCONVERT:
+		params[0].Print();
+		fprintf(stderr, " = uconvert ");
+		params[1].Print();
+		break;
+	case ILOP_RETURN:
+		fprintf(stderr, "return ");
+		params[0].Print();
+		break;
+	case ILOP_RETURN_VOID:
+		fprintf(stderr, "return");
+		break;
+	case ILOP_ALLOCA:
+		params[0].Print();
+		fprintf(stderr, " = alloca ");
+		params[1].Print();
+		break;
+	case ILOP_MEMCPY:
+		fprintf(stderr, "memcpy ");
+		params[0].Print();
+		fprintf(stderr, ", ");
+		params[1].Print();
+		fprintf(stderr, ", ");
+		params[2].Print();
+		break;
+	case ILOP_MEMSET:
+		fprintf(stderr, "memset ");
+		params[0].Print();
+		fprintf(stderr, ", ");
+		params[1].Print();
+		fprintf(stderr, ", ");
+		params[2].Print();
+		break;
+	case ILOP_STRLEN:
+		params[0].Print();
+		fprintf(stderr, " = strlen ");
+		params[1].Print();
+		break;
+	case ILOP_RDTSC:
+		params[0].Print();
+		fprintf(stderr, " = rdtsc");
+		break;
+	case ILOP_RDTSC_LOW:
+		params[0].Print();
+		fprintf(stderr, " = rdtsc_low");
+		break;
+	case ILOP_RDTSC_HIGH:
+		params[0].Print();
+		fprintf(stderr, " = rdtsc_high");
+		break;
+	case ILOP_PEB:
+		params[0].Print();
+		fprintf(stderr, " = peb");
+		break;
+	case ILOP_TEB:
+		params[0].Print();
+		fprintf(stderr, " = teb");
+		break;
+	case ILOP_INITIAL_VARARG:
+		params[0].Print();
+		fprintf(stderr, " = initial_vararg");
+		break;
+	case ILOP_NEXT_ARG:
+		params[0].Print();
+		fprintf(stderr, " = next_arg ");
+		params[1].Print();
+		fprintf(stderr, ", ");
+		params[2].Print();
+		break;
+	case ILOP_PREV_ARG:
+		params[0].Print();
+		fprintf(stderr, " = prev_arg ");
+		params[1].Print();
+		fprintf(stderr, ", ");
+		params[2].Print();
+		break;
+	case ILOP_BYTESWAP:
+		params[0].Print();
+		fprintf(stderr, " = byteswap ");
+		params[1].Print();
+		break;
+	case ILOP_BREAKPOINT:
+		fprintf(stderr, "breakpoint");
+		break;
+	case ILOP_POW:
+		params[0].Print();
+		fprintf(stderr, " = pow ");
+		params[1].Print();
+		fprintf(stderr, ", ");
+		params[2].Print();
+		break;
+	case ILOP_FLOOR:
+		params[0].Print();
+		fprintf(stderr, " = floor ");
+		params[1].Print();
+		break;
+	case ILOP_CEIL:
+		params[0].Print();
+		fprintf(stderr, " = ceil ");
+		params[1].Print();
+		break;
+	case ILOP_SQRT:
+		params[0].Print();
+		fprintf(stderr, " = sqrt ");
+		params[1].Print();
+		break;
+	case ILOP_SIN:
+		params[0].Print();
+		fprintf(stderr, " = sin ");
+		params[1].Print();
+		break;
+	case ILOP_COS:
+		params[0].Print();
+		fprintf(stderr, " = cos ");
+		params[1].Print();
+		break;
+	case ILOP_TAN:
+		params[0].Print();
+		fprintf(stderr, " = tan ");
+		params[1].Print();
+		break;
+	case ILOP_ASIN:
+		params[0].Print();
+		fprintf(stderr, " = asin ");
+		params[1].Print();
+		break;
+	case ILOP_ACOS:
+		params[0].Print();
+		fprintf(stderr, " = acos ");
+		params[1].Print();
+		break;
+	case ILOP_ATAN:
+		params[0].Print();
+		fprintf(stderr, " = atan ");
+		params[1].Print();
+		break;
 	case ILOP_CALL:
 		params[0].Print();
 		fprintf(stderr, " = ");
@@ -944,8 +1305,8 @@ void ILBlock::AddInstruction(const ILInstruction& instr)
 		else if ((instr.operation == ILOP_SYSCALL) || (instr.operation == ILOP_SYSCALL2))
 			m_instrs.push_back(instr);
 		else if ((instr.operation == ILOP_IF_TRUE) || (instr.operation == ILOP_IF_LESS_THAN) ||
-			(instr.operation == ILOP_IF_LESS_EQUAL) || (instr.operation == ILOP_IF_BELOW) ||
-			(instr.operation == ILOP_IF_BELOW_EQUAL) || (instr.operation == ILOP_IF_EQUAL))
+		         (instr.operation == ILOP_IF_LESS_EQUAL) || (instr.operation == ILOP_IF_BELOW) ||
+		         (instr.operation == ILOP_IF_BELOW_EQUAL) || (instr.operation == ILOP_IF_EQUAL))
 			AddInstruction(ILOP_GOTO, instr.params[2]);
 	}
 	else
@@ -985,7 +1346,8 @@ void ILBlock::RemoveLastInstruction()
 void ILBlock::SplitBlock(size_t firstToMove, ILBlock* target)
 {
 	if (target)
-		target->m_instrs.insert(target->m_instrs.begin(), m_instrs.begin() + firstToMove, m_instrs.end());
+		target->m_instrs.insert(
+		    target->m_instrs.begin(), m_instrs.begin() + firstToMove, m_instrs.end());
 	m_instrs.erase(m_instrs.begin() + firstToMove, m_instrs.end());
 	if (target)
 		target->m_blockEnded = m_blockEnded;
@@ -1014,7 +1376,7 @@ void ILBlock::CheckForUndefinedReferences(size_t& errors)
 }
 
 
-void ILBlock::ConvertStringsToVariables(map< string, Ref<Variable> >& stringMap)
+void ILBlock::ConvertStringsToVariables(map<string, Ref<Variable>>& stringMap)
 {
 	for (vector<ILInstruction>::iterator i = m_instrs.begin(); i != m_instrs.end(); i++)
 		i->ConvertStringsToVariables(stringMap);
@@ -1049,14 +1411,17 @@ static int32_t SignedFieldExtract(uint32_t value, size_t offset, size_t size)
 }
 
 
-static void SignedFieldInsert(OutputBlock* output, size_t dataOffset, size_t offset, size_t size, int32_t value)
+static void SignedFieldInsert(
+    OutputBlock* output, size_t dataOffset, size_t offset, size_t size, int32_t value)
 {
 	uint32_t mask = ((1 << size) - 1) << offset;
-	output->WriteOffsetUInt32(dataOffset, (output->ReadOffsetUInt32(dataOffset) & ~mask) | ((value << offset) & mask));
+	output->WriteOffsetUInt32(
+	    dataOffset, (output->ReadOffsetUInt32(dataOffset) & ~mask) | ((value << offset) & mask));
 }
 
 
-bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBase, std::vector<RelocationReference>& overflows)
+bool ILBlock::CheckRelocations(
+    uint64_t codeSectionBase, uint64_t dataSectionBase, std::vector<RelocationReference>& overflows)
 {
 	if (!m_output)
 	{
@@ -1086,7 +1451,8 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize)
+			        << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
@@ -1136,7 +1502,8 @@ bool ILBlock::CheckRelocations(uint64_t codeSectionBase, uint64_t dataSectionBas
 			break;
 		case DATA_RELOC_RELATIVE_32_FIELD:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize)
+			        << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
@@ -1243,7 +1610,8 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 			if (!i->target)
 				break;
 			diff = i->target->m_addr - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize)
+			        << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
@@ -1279,15 +1647,19 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 			break;
 		case CODE_RELOC_ABSOLUTE_32:
 			if (i->target)
-				m_output->WriteOffsetUInt32(i->offset, m_output->ReadOffsetUInt32(i->offset) + (uint32_t)(i->target->m_addr));
+				m_output->WriteOffsetUInt32(
+				    i->offset, m_output->ReadOffsetUInt32(i->offset) + (uint32_t)(i->target->m_addr));
 			else
-				m_output->WriteOffsetUInt32(i->offset, m_output->ReadOffsetUInt32(i->offset) + (uint32_t)(m_addr + i->offset + 4));
+				m_output->WriteOffsetUInt32(
+				    i->offset, m_output->ReadOffsetUInt32(i->offset) + (uint32_t)(m_addr + i->offset + 4));
 			break;
 		case CODE_RELOC_ABSOLUTE_64:
 			if (i->target)
-				m_output->WriteOffsetUInt64(i->offset, m_output->ReadOffsetUInt64(i->offset) + i->target->m_addr);
+				m_output->WriteOffsetUInt64(
+				    i->offset, m_output->ReadOffsetUInt64(i->offset) + i->target->m_addr);
 			else
-				m_output->WriteOffsetUInt64(i->offset, m_output->ReadOffsetUInt64(i->offset) + m_addr + i->offset + 8);
+				m_output->WriteOffsetUInt64(
+				    i->offset, m_output->ReadOffsetUInt64(i->offset) + m_addr + i->offset + 8);
 			break;
 		case DATA_RELOC_RELATIVE_8:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 1);
@@ -1321,7 +1693,8 @@ bool ILBlock::ResolveRelocations(uint64_t codeSectionBase, uint64_t dataSectionB
 			break;
 		case DATA_RELOC_RELATIVE_32_FIELD:
 			diff = (dataSectionBase + i->dataOffset) - (m_addr + i->offset + 4);
-			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize) << i->bitShift;
+			diff += SignedFieldExtract(m_output->ReadOffsetUInt32(i->offset), i->bitOffset, i->bitSize)
+			        << i->bitShift;
 			diff >>= i->bitShift;
 			if ((diff < -(1 << (i->bitSize - 1))) || (diff >= (1 << (i->bitSize - 1))))
 			{
@@ -1471,4 +1844,3 @@ void ILBlock::Print() const
 		fprintf(stderr, "\n");
 	}
 }
-

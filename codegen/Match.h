@@ -21,31 +21,31 @@
 #ifndef __MATCH_H__
 #define __MATCH_H__
 
-#include "RefCountObject.h"
-#include <vector>
-#include "TreeNode.h"
 #include "CodeBlock.h"
+#include "RefCountObject.h"
+#include "TreeNode.h"
+#include <vector>
 
 
-class Match: public RefCountObject
+class Match : public RefCountObject
 {
 	std::string m_fileName;
 	int m_line;
 	Ref<TreeNode> m_match;
 	Ref<TreeNode> m_result;
-	std::vector< Ref<TreeNode> > m_temps;
+	std::vector<Ref<TreeNode>> m_temps;
 	Ref<CodeBlock> m_code;
 	size_t m_index;
 
-public:
+ public:
 	Match(const std::string& file, int line, TreeNode* match, TreeNode* result,
-		const std::vector< Ref<TreeNode> >& temp, CodeBlock* code);
+	    const std::vector<Ref<TreeNode>>& temp, CodeBlock* code);
 
 	const std::string& GetFileName() const { return m_fileName; }
 	int GetLineNumber() const { return m_line; }
 	TreeNode* GetMatch() const { return m_match; }
 	TreeNode* GetResult() const { return m_result; }
-	const std::vector< Ref<TreeNode> >& GetTemps() const { return m_temps; }
+	const std::vector<Ref<TreeNode>>& GetTemps() const { return m_temps; }
 	CodeBlock* GetCode() const { return m_code; }
 
 	size_t GetIndex() const { return m_index; }
@@ -54,4 +54,3 @@ public:
 
 
 #endif
-

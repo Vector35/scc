@@ -21,9 +21,9 @@
 #ifndef __OUTPUTGENERATOR_H__
 #define __OUTPUTGENERATOR_H__
 
-#include "ParserState.h"
 #include "CodeBlock.h"
 #include "Match.h"
+#include "ParserState.h"
 #include <string>
 
 
@@ -70,21 +70,24 @@ class OutputGenerator
 	void WriteUnindented(const char* fmt, ...);
 	void EndBlock();
 	void EndBlockSemicolon();
-	void WriteEncodingParams(Encoding* encoding, const CodeToken& token, std::map<std::string, MatchVariableType>& vars);
-	void WriteCodeBlock(CodeBlock* code, std::map<std::string, MatchVariableType> vars =
-		std::map<std::string, MatchVariableType>(), CodeBlockType codeType = CODEBLOCK_MATCH);
+	void WriteEncodingParams(
+	    Encoding* encoding, const CodeToken& token, std::map<std::string, MatchVariableType>& vars);
+	void WriteCodeBlock(CodeBlock* code,
+	    std::map<std::string, MatchVariableType> vars = std::map<std::string, MatchVariableType>(),
+	    CodeBlockType codeType = CODEBLOCK_MATCH);
 
 	std::string GenerateTypeMatchCode(const std::string& prefix, TreeNode* node);
 	std::string GenerateMatchForNode(Match* match, const std::string& prefix, TreeNode* node);
 	void GenerateMatchCode(Match* match);
 	void GenerateOutputCode(Match* match);
 
-	void WriteInstructionTokenVariables(Instruction* instr, std::map<std::string, MatchVariableType>& vars);
+	void WriteInstructionTokenVariables(
+	    Instruction* instr, std::map<std::string, MatchVariableType>& vars);
 	void GenerateEncodingMacro(const std::string& name, Encoding* encoding);
 	void GenerateInstructionClass(size_t i, Instruction* instr);
 	void GenerateInstructionFunction(size_t i, Instruction* instr, bool proto);
 
-public:
+ public:
 	OutputGenerator(ParserState* parser);
 
 	bool Generate(std::string& output);
@@ -92,4 +95,3 @@ public:
 
 
 #endif
-

@@ -1,13 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
 #include "Expr.h"
-#include "Struct.h"
-#include "ParserState.h"
-#include "Variable.h"
 #include "Function.h"
 #include "Output.h"
+#include "ParserState.h"
+#include "Struct.h"
+#include "Variable.h"
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 using namespace std;
 
@@ -41,7 +41,7 @@ Expr* Expr::Duplicate(DuplicateContext& dup)
 	expr->m_function = (m_function != NULL) ? m_function->Duplicate(dup) : NULL;
 	expr->m_type = (m_type != NULL) ? m_type->Duplicate(dup) : NULL;
 
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		expr->m_children.push_back((*i)->Duplicate(dup));
 
 	return expr;
@@ -69,8 +69,8 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 		if (m_children.size() != 1)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected constant integer expression\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected constant integer expression\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			return 0;
 		}
 		return m_children[0]->ComputeIntegerValue(state);
@@ -87,7 +87,8 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 		if (value == 0)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: division by zero\n", m_location.fileName.c_str(), m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: division by zero\n", m_location.fileName.c_str(),
+			    m_location.lineNumber);
 			return 0;
 		}
 		return m_children[0]->ComputeIntegerValue(state) / value;
@@ -96,7 +97,8 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 		if (value == 0)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: division by zero\n", m_location.fileName.c_str(), m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: division by zero\n", m_location.fileName.c_str(),
+			    m_location.lineNumber);
 			return 0;
 		}
 		return m_children[0]->ComputeIntegerValue(state) % value;
@@ -137,8 +139,8 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 		return (value < 0) ? (-value) : value;
 	default:
 		state->Error();
-		fprintf(stderr, "%s:%d: error: expected constant integer expression\n", m_location.fileName.c_str(),
-			m_location.lineNumber);
+		fprintf(stderr, "%s:%d: error: expected constant integer expression\n",
+		    m_location.fileName.c_str(), m_location.lineNumber);
 		return 0;
 	}
 }
@@ -146,7 +148,7 @@ int64_t Expr::ComputeIntegerValue(ParserState* state)
 
 Type* Expr::ComputeType(ParserState* state, Function* func)
 {
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		(*i)->ComputeType(state, func);
 
 	switch (m_class)
@@ -171,7 +173,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			m_type = Type::FloatType(0);
 		break;
 	case EXPR_STRING:
-		m_type = Type::ArrayType(Type::IntType(1, true), m_stringValue.size() + 1); // const char[]
+		m_type = Type::ArrayType(Type::IntType(1, true), m_stringValue.size() + 1);  // const char[]
 		m_type->SetConst(true);
 		break;
 	case EXPR_TRUE:
@@ -188,17 +190,17 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if (m_children[0]->GetType()->GetClass() != TYPE_STRUCT)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: not a structure or union for operator '.'\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: not a structure or union for operator '.'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 			break;
 		}
 		if (!m_children[0]->GetType()->GetStruct()->HasMember(m_stringValue))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: type '%s' has no member named '%s'\n", m_location.fileName.c_str(),
-				m_location.lineNumber, m_children[0]->GetType()->GetStruct()->GetName().c_str(),
-				m_stringValue.c_str());
+			fprintf(stderr, "%s:%d: error: type '%s' has no member named '%s'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber,
+			    m_children[0]->GetType()->GetStruct()->GetName().c_str(), m_stringValue.c_str());
 			m_type = Type::VoidType();
 			break;
 		}
@@ -206,34 +208,37 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		break;
 	case EXPR_ARROW:
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) ||
-			(m_children[0]->GetType()->GetChildType()->GetClass() != TYPE_STRUCT))
+		    (m_children[0]->GetType()->GetChildType()->GetClass() != TYPE_STRUCT))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: not a pointer to a structure or union for operator '->'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 			break;
 		}
 		if (!m_children[0]->GetType()->GetChildType()->GetStruct()->HasMember(m_stringValue))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: type '%s' has no member named '%s'\n", m_location.fileName.c_str(),
-				m_location.lineNumber, m_children[0]->GetType()->GetChildType()->GetStruct()->GetName().c_str(),
-				m_stringValue.c_str());
+			fprintf(stderr, "%s:%d: error: type '%s' has no member named '%s'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber,
+			    m_children[0]->GetType()->GetChildType()->GetStruct()->GetName().c_str(),
+			    m_stringValue.c_str());
 			m_type = Type::VoidType();
 			break;
 		}
-		m_type = m_children[0]->GetType()->GetChildType()->GetStruct()->GetMember(state, m_stringValue).type;
+		m_type =
+		    m_children[0]->GetType()->GetChildType()->GetStruct()->GetMember(state, m_stringValue).type;
 		break;
 	case EXPR_ADDRESS_OF:
 		m_type = Type::PointerType(m_children[0]->GetType(), 1);
 		break;
 	case EXPR_DEREF:
-		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) && (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
+		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+		    (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: not a pointer for dereferencing\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: not a pointer for dereferencing\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 			break;
 		}
@@ -248,26 +253,27 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		break;
 	case EXPR_ARRAY_INDEX:
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
+		    (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: not an array or pointer for operator '[]'\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: not an array or pointer for operator '[]'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 			break;
 		}
 		if (m_children[1]->GetType()->GetClass() != TYPE_INT)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected integer for array index\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected integer for array index\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[1] =
+		    m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		m_type = m_children[0]->GetType()->GetChildType();
 		break;
 	case EXPR_PLUS:
@@ -287,14 +293,15 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			else if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
 			{
 				m_type = m_children[1]->GetType();
-				m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				m_children[0] =
+				    m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 				break;
 			}
 			else
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -313,7 +320,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -322,14 +329,15 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
 			{
 				m_type = m_children[0]->GetType();
-				m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				m_children[1] =
+				    m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 				break;
 			}
 			else
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -337,7 +345,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
@@ -361,7 +369,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -380,7 +388,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -389,11 +397,12 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			if (m_children[1]->GetType()->GetClass() == TYPE_INT)
 			{
 				m_type = m_children[0]->GetType();
-				m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				m_children[1] =
+				    m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 				break;
 			}
 			else if ((m_children[1]->GetType()->GetClass() == TYPE_POINTER) &&
-				((*m_children[0]->GetType()) == (*m_children[1]->GetType())))
+			         ((*m_children[0]->GetType()) == (*m_children[1]->GetType())))
 			{
 				m_type = Type::IntType(GetTargetPointerSize(), true);
 				break;
@@ -402,7 +411,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -410,7 +419,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
@@ -436,7 +445,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -455,7 +464,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -463,7 +472,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
@@ -472,7 +481,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_AND:
 	case EXPR_OR:
 	case EXPR_XOR:
-		if ((m_children[0]->GetType()->GetClass() == TYPE_INT) && (m_children[1]->GetType()->GetClass() == TYPE_INT))
+		if ((m_children[0]->GetType()->GetClass() == TYPE_INT) &&
+		    (m_children[1]->GetType()->GetClass() == TYPE_INT))
 		{
 			if (m_children[0]->GetType()->GetWidth() > m_children[1]->GetType()->GetWidth())
 				m_type = m_children[0]->GetType();
@@ -482,8 +492,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		else
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in bitwise operation\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: type mismatch in bitwise operation\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
@@ -491,20 +501,21 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		break;
 	case EXPR_SHIFT_LEFT:
 	case EXPR_SHIFT_RIGHT:
-		if ((m_children[0]->GetType()->GetClass() == TYPE_INT) && (m_children[1]->GetType()->GetClass() == TYPE_INT))
+		if ((m_children[0]->GetType()->GetClass() == TYPE_INT) &&
+		    (m_children[1]->GetType()->GetClass() == TYPE_INT))
 			m_type = m_children[0]->GetType();
 		else
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in shift operation\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: type mismatch in shift operation\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		if (m_children[0]->GetType()->GetWidth() == 0)
 		{
 			// No width for shift, use natural width by default
-			m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(),
-				m_children[0]->GetType()->IsSigned()));
+			m_children[0] = m_children[0]->ConvertToType(
+			    state, Type::IntType(GetTargetPointerSize(), m_children[0]->GetType()->IsSigned()));
 			m_type = m_children[0]->GetType();
 		}
 		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(1, false));
@@ -514,8 +525,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if ((m_type->GetClass() != TYPE_INT) && (m_type->GetClass() != TYPE_FLOAT))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected integer or float for operator '-'\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected integer or float for operator '-'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_NOT:
@@ -523,18 +534,19 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if (m_type->GetClass() != TYPE_INT)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected integer for operator '~'\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected integer for operator '~'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_LOGICAL_AND:
 	case EXPR_LOGICAL_OR:
 		m_type = Type::BoolType();
-		if ((m_children[0]->GetType()->GetClass() != TYPE_BOOL) || (m_children[1]->GetType()->GetClass() != TYPE_BOOL))
+		if ((m_children[0]->GetType()->GetClass() != TYPE_BOOL) ||
+		    (m_children[1]->GetType()->GetClass() != TYPE_BOOL))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected boolean expression\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		break;
 	case EXPR_LOGICAL_NOT:
@@ -542,8 +554,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if (m_children[0]->GetType()->GetClass() != TYPE_BOOL)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected boolean expression for operator '!'\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected boolean expression for operator '!'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_LESS_THAN:
@@ -575,14 +587,14 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in comparison\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in comparison\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -591,14 +603,14 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		m_type = Type::BoolType();
 		if (m_children[0]->GetType()->GetClass() == TYPE_INT)
 		{
-			if ((m_children[1]->GetType()->GetClass() == TYPE_POINTER) || (m_children[1]->GetType()->GetClass() == TYPE_FUNCTION))
+			if ((m_children[1]->GetType()->GetClass() == TYPE_POINTER) ||
+			    (m_children[1]->GetType()->GetClass() == TYPE_FUNCTION))
 			{
-				if ((m_children[0]->GetClass() != EXPR_INT) ||
-					(m_children[0]->GetIntValue() != 0))
+				if ((m_children[0]->GetClass() != EXPR_INT) || (m_children[0]->GetIntValue() != 0))
 				{
 					state->Error();
-					fprintf(stderr, "%s:%d: error: type mismatch in comparison\n", m_location.fileName.c_str(),
-						m_location.lineNumber);
+					fprintf(stderr, "%s:%d: error: type mismatch in comparison\n",
+					    m_location.fileName.c_str(), m_location.lineNumber);
 				}
 			}
 			else
@@ -620,16 +632,16 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 				m_children[1] = m_children[1]->ConvertToType(state, type);
 			}
 		}
-		else if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) || (m_children[0]->GetType()->GetClass() == TYPE_FUNCTION))
+		else if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
+		         (m_children[0]->GetType()->GetClass() == TYPE_FUNCTION))
 		{
 			if ((*m_children[0]->GetType()) != (*m_children[1]->GetType()))
 			{
-				if ((m_children[1]->GetClass() != EXPR_INT) ||
-					(m_children[1]->GetIntValue() != 0))
+				if ((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0))
 				{
 					state->Error();
-					fprintf(stderr, "%s:%d: error: type mismatch in comparison\n", m_location.fileName.c_str(),
-						m_location.lineNumber);
+					fprintf(stderr, "%s:%d: error: type mismatch in comparison\n",
+					    m_location.fileName.c_str(), m_location.lineNumber);
 				}
 			}
 		}
@@ -639,14 +651,14 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in comparison\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in comparison\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		break;
 	case EXPR_ASSIGN:
@@ -656,49 +668,50 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
 			{
 				fprintf(stderr, "%s:%d: warning: implicit conversion to integer may lose precision\n",
-					m_location.fileName.c_str(), m_location.lineNumber);
+				    m_location.fileName.c_str(), m_location.lineNumber);
 			}
 			else if (m_children[1]->GetType()->GetClass() == TYPE_INT)
 			{
 				if (m_children[1]->GetType()->GetWidth() > m_children[0]->GetType()->GetWidth())
 				{
 					fprintf(stderr, "%s:%d: warning: implicit conversion may truncate bits\n",
-						m_location.fileName.c_str(), m_location.lineNumber);
+					    m_location.fileName.c_str(), m_location.lineNumber);
 				}
 			}
 			else
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
 		{
 			if ((m_children[1]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[1]->GetType()->GetClass() != TYPE_FLOAT))
+			    (m_children[1]->GetType()->GetClass() != TYPE_FLOAT))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
-		else if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) || (m_children[0]->GetType()->GetClass() == TYPE_FUNCTION))
+		else if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
+		         (m_children[0]->GetType()->GetClass() == TYPE_FUNCTION))
 		{
 			// Special case NULL, which is simply integer constant zero
 			if ((!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType())) &&
-				((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0)))
+			    ((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0)))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		m_children[1] = m_children[1]->ConvertToType(state, m_type);
 		break;
@@ -709,55 +722,55 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			if (m_children[1]->GetType()->GetClass() == TYPE_FLOAT)
 			{
 				fprintf(stderr, "%s:%d: warning: implicit conversion to integer may lose precision\n",
-					m_location.fileName.c_str(), m_location.lineNumber);
+				    m_location.fileName.c_str(), m_location.lineNumber);
 			}
 			else if (m_children[1]->GetType()->GetClass() == TYPE_INT)
 			{
 				if (m_children[1]->GetType()->GetWidth() > m_children[0]->GetType()->GetWidth())
 				{
 					fprintf(stderr, "%s:%d: warning: implicit conversion may truncate bits\n",
-						m_location.fileName.c_str(), m_location.lineNumber);
+					    m_location.fileName.c_str(), m_location.lineNumber);
 				}
 			}
 			else
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
 		{
 			if ((m_children[1]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[1]->GetType()->GetClass() != TYPE_FLOAT))
+			    (m_children[1]->GetType()->GetClass() != TYPE_FLOAT))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (m_children[1]->GetClass() == EXPR_INITIALIZER)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: structure/array initializers not yet implemented\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		else if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			// Special case NULL, which is simply integer constant zero
 			if ((!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType())) &&
-				((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0)))
+			    ((m_children[1]->GetClass() != EXPR_INT) || (m_children[1]->GetIntValue() != 0)))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (!m_children[1]->GetType()->CanAssignTo(*m_children[0]->GetType()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in assignment\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		m_children[1] = m_children[1]->ConvertToType(state, m_type);
 		break;
@@ -770,7 +783,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected boolean condition\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		break;
 	case EXPR_FOR:
@@ -779,7 +792,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected boolean condition\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		break;
 	case EXPR_IF_ELSE_VALUE:
@@ -787,7 +800,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected boolean condition\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		m_type = PromotedType(state, m_children[1], m_children[2]);
 		if (m_type->GetClass() != TYPE_VOID)
@@ -800,7 +813,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if (m_children[0]->GetType()->GetClass() != TYPE_FUNCTION)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: not a function in call\n", m_location.fileName.c_str(), m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: not a function in call\n", m_location.fileName.c_str(),
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 			break;
 		}
@@ -808,7 +822,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: too few parameters in call\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 			break;
 		}
@@ -816,43 +830,46 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		for (size_t i = 0; i < m_children[0]->GetType()->GetParams().size(); i++)
 		{
 			if ((!m_children[i + 1]->GetType()->CanAssignTo(*m_children[0]->GetType()->GetParams()[i])) &&
-				(((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) &&
-				(m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FUNCTION)) ||
-				(m_children[i + 1]->GetClass() != EXPR_INT) || (m_children[i + 1]->GetIntValue() != 0)) &&
-				((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FLOAT) ||
-				(m_children[i + 1]->GetClass() != EXPR_INT)))
+			    (((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_POINTER) &&
+			         (m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FUNCTION)) ||
+			        (m_children[i + 1]->GetClass() != EXPR_INT) ||
+			        (m_children[i + 1]->GetIntValue() != 0)) &&
+			    ((m_children[0]->GetType()->GetParams()[i]->GetClass() != TYPE_FLOAT) ||
+			        (m_children[i + 1]->GetClass() != EXPR_INT)))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: type mismatch in parameter %d\n", m_location.fileName.c_str(),
-					m_location.lineNumber, (int)i + 1);
+				fprintf(stderr, "%s:%d: error: type mismatch in parameter %d\n",
+				    m_location.fileName.c_str(), m_location.lineNumber, (int)i + 1);
 			}
-			m_children[i + 1] = m_children[i + 1]->ConvertToType(state, m_children[0]->GetType()->GetParams()[i]);
+			m_children[i + 1] =
+			    m_children[i + 1]->ConvertToType(state, m_children[0]->GetType()->GetParams()[i]);
 		}
 		if (m_children[0]->GetType()->HasVariableArguments())
 		{
-			// Promote variable argument integer parameters to their native size, and promote floating point
-			// parameters to double
-			for (size_t i = m_children[0]->GetType()->GetParams().size(); i < (m_children.size() - 1); i++)
+			// Promote variable argument integer parameters to their native size, and promote floating
+			// point parameters to double
+			for (size_t i = m_children[0]->GetType()->GetParams().size(); i < (m_children.size() - 1);
+			     i++)
 			{
 				if ((m_children[i + 1]->GetType()->GetClass() == TYPE_INT) &&
-					(m_children[i + 1]->GetType()->GetWidth() < GetTargetPointerSize()))
+				    (m_children[i + 1]->GetType()->GetWidth() < GetTargetPointerSize()))
 				{
-					m_children[i + 1] = m_children[i + 1]->ConvertToType(state,
-						Type::IntType(GetTargetPointerSize(), true));
+					m_children[i + 1] =
+					    m_children[i + 1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), true));
 				}
 				else if ((m_children[i + 1]->GetType()->GetClass() == TYPE_FLOAT) &&
-					(m_children[i + 1]->GetType()->GetWidth() < 8))
+				         (m_children[i + 1]->GetType()->GetWidth() < 8))
 				{
 					m_children[i + 1] = m_children[i + 1]->ConvertToType(state, Type::FloatType(8));
 				}
 			}
 		}
 		if (((m_children.size() - 1) > m_children[0]->GetType()->GetParams().size()) &&
-			(!m_children[0]->GetType()->HasVariableArguments()))
+		    (!m_children[0]->GetType()->HasVariableArguments()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: too many parameters in call\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		break;
 	case EXPR_MIN:
@@ -861,8 +878,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if ((m_type->GetClass() != TYPE_INT) || (m_type->GetClass() != TYPE_FLOAT))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: type mismatch in function 'min' or 'max'\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: type mismatch in function 'min' or 'max'\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		else
 		{
@@ -883,7 +900,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 					{
 						state->Error();
 						fprintf(stderr, "%s:%d: error: type mismatch in function 'min' or 'max'\n",
-							m_location.fileName.c_str(), m_location.lineNumber);
+						    m_location.fileName.c_str(), m_location.lineNumber);
 					}
 				}
 				else if (m_type->GetClass() == TYPE_FLOAT)
@@ -897,7 +914,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 					{
 						state->Error();
 						fprintf(stderr, "%s:%d: error: type mismatch in function 'min' or 'max'\n",
-							m_location.fileName.c_str(), m_location.lineNumber);
+						    m_location.fileName.c_str(), m_location.lineNumber);
 					}
 				}
 			}
@@ -912,7 +929,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'abs'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_POW:
@@ -926,7 +943,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -945,7 +962,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				m_type = Type::VoidType();
 			}
 		}
@@ -953,7 +970,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
@@ -968,7 +985,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'floor'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -981,7 +998,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'ceil'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -994,7 +1011,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'sqrt'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1007,7 +1024,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'sin'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1020,7 +1037,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'cos'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1033,7 +1050,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'tan'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1046,7 +1063,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'asin'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1059,7 +1076,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'acos'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1072,7 +1089,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in function 'atan'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1082,104 +1099,111 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer in function 'alloca'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[0] =
+		    m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_MEMCPY:
 		m_type = Type::PointerType(Type::VoidType(), 1);
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
+		    (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer for destination in 'memcpy'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		if ((m_children[1]->GetType()->GetClass() != TYPE_POINTER) &&
-			(m_children[1]->GetType()->GetClass() != TYPE_ARRAY))
+		    (m_children[1]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer for source in 'memcpy'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		if (m_children[2]->GetType()->GetClass() != TYPE_INT)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer for length in 'memcpy'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
-		m_children[2] = m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[2] =
+		    m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_MEMSET:
 		m_type = Type::PointerType(Type::VoidType(), 1);
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
+		    (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer for destination in 'memset'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		if (m_children[1]->GetType()->GetClass() != TYPE_INT)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer for value in 'memset'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		if (m_children[2]->GetType()->GetClass() != TYPE_INT)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer for length in 'memset'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(1, false));
-		m_children[2] = m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[2] =
+		    m_children[2]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_STRLEN:
 		m_type = Type::IntType(GetTargetPointerSize(), false);
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-			(m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
+		    (m_children[0]->GetType()->GetClass() != TYPE_ARRAY))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected pointer to string in 'strlen'\n",
-				m_location.fileName.c_str(), m_location.lineNumber);
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_CAST:
 		if (m_type->GetClass() == TYPE_INT)
 		{
 			if ((m_children[0]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_FLOAT) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
+			    (m_children[0]->GetType()->GetClass() != TYPE_FLOAT) &&
+			    (m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+			    (m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 		}
 		else if (m_type->GetClass() == TYPE_FLOAT)
 		{
 			if ((m_children[0]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_FLOAT))
+			    (m_children[0]->GetType()->GetClass() != TYPE_FLOAT))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 		}
 		else if ((m_type->GetClass() == TYPE_POINTER) || (m_type->GetClass() == TYPE_FUNCTION))
 		{
 			if ((m_children[0]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_ARRAY) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
+			    (m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
+			    (m_children[0]->GetType()->GetClass() != TYPE_ARRAY) &&
+			    (m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 		}
 		else
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(), m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: invalid cast\n", m_location.fileName.c_str(),
+			    m_location.lineNumber);
 		}
 		m_children[0] = m_children[0]->ConvertToType(state, m_type);
 		break;
@@ -1189,49 +1213,49 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 			if (m_children[0]->GetType()->GetClass() == TYPE_FLOAT)
 			{
 				fprintf(stderr, "%s:%d: warning: implicit conversion to integer may lose precision\n",
-					m_location.fileName.c_str(), m_location.lineNumber);
+				    m_location.fileName.c_str(), m_location.lineNumber);
 			}
 			else if (m_children[0]->GetType()->GetClass() == TYPE_INT)
 			{
 				if (m_children[0]->GetType()->GetWidth() > m_children[0]->GetType()->GetWidth())
 				{
 					fprintf(stderr, "%s:%d: warning: implicit conversion may truncate bits\n",
-						m_location.fileName.c_str(), m_location.lineNumber);
+					    m_location.fileName.c_str(), m_location.lineNumber);
 				}
 			}
 			else
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in return\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (func->GetReturnValue()->GetClass() == TYPE_FLOAT)
 		{
 			if ((m_children[0]->GetType()->GetClass() != TYPE_INT) &&
-				(m_children[0]->GetType()->GetClass() != TYPE_FLOAT))
+			    (m_children[0]->GetType()->GetClass() != TYPE_FLOAT))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in return\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (func->GetReturnValue()->GetClass() == TYPE_POINTER)
 		{
 			// Special case NULL, which is simply integer constant zero
 			if ((!m_children[0]->GetType()->CanAssignTo(*func->GetReturnValue())) &&
-				((m_children[0]->GetClass() != EXPR_INT) || (m_children[0]->GetIntValue() != 0)))
+			    ((m_children[0]->GetClass() != EXPR_INT) || (m_children[0]->GetIntValue() != 0)))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: type mismatch in return\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 			}
 		}
 		else if (!m_children[0]->GetType()->CanAssignTo(*func->GetReturnValue()))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in return\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 
 		m_type = Type::VoidType();
@@ -1246,11 +1270,11 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_COMPUTED_GOTO:
 		m_type = Type::VoidType();
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) &&
-			(m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
+		    (m_children[0]->GetType()->GetClass() != TYPE_FUNCTION))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected pointer in computed goto\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected pointer in computed goto\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_BREAK:
@@ -1262,8 +1286,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		if (m_children[0]->GetType()->GetClass() != TYPE_INT)
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected integer in switch statement\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected integer in switch statement\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		break;
 	case EXPR_CASE:
@@ -1278,22 +1302,24 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected syscall number\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		for (size_t i = 1; i < m_children.size(); i++)
 		{
 			if ((m_children[i]->GetType()->GetClass() == TYPE_VOID) ||
-				(m_children[i]->GetType()->GetClass() == TYPE_FLOAT) ||
-				(m_children[i]->GetType()->GetClass() == TYPE_STRUCT))
+			    (m_children[i]->GetType()->GetClass() == TYPE_FLOAT) ||
+			    (m_children[i]->GetType()->GetClass() == TYPE_STRUCT))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: syscall parameter %d invalid\n", m_location.fileName.c_str(),
-					m_location.lineNumber, (int)i);
+				    m_location.lineNumber, (int)i);
 			}
 			if (m_children[i]->GetType()->GetWidth() == 0)
-				m_children[i] = m_children[i]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				m_children[i] =
+				    m_children[i]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		}
-		m_children[0] = m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[0] =
+		    m_children[0]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		m_type = Type::IntType(GetTargetPointerSize(), false);
 		break;
 	case EXPR_SYSCALL2:
@@ -1301,22 +1327,24 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected syscall number\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		for (size_t i = 2; i < m_children.size(); i++)
 		{
 			if ((m_children[i]->GetType()->GetClass() == TYPE_VOID) ||
-				(m_children[i]->GetType()->GetClass() == TYPE_FLOAT) ||
-				(m_children[i]->GetType()->GetClass() == TYPE_STRUCT))
+			    (m_children[i]->GetType()->GetClass() == TYPE_FLOAT) ||
+			    (m_children[i]->GetType()->GetClass() == TYPE_STRUCT))
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: syscall parameter %d invalid\n", m_location.fileName.c_str(),
-					m_location.lineNumber, (int)i - 1);
+				    m_location.lineNumber, (int)i - 1);
 			}
 			if (m_children[i]->GetType()->GetWidth() == 0)
-				m_children[i] = m_children[i]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+				m_children[i] =
+				    m_children[i]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		}
-		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[1] =
+		    m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		m_type = Type::IntType(GetTargetPointerSize(), false);
 		break;
 	case EXPR_RDTSC:
@@ -1339,14 +1367,15 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 	case EXPR_PREV_ARG:
 		m_type = m_children[0]->GetType();
 		if ((m_children[0]->GetType()->GetClass() != TYPE_POINTER) ||
-			(m_children[1]->GetType()->GetClass() != TYPE_INT))
+		    (m_children[1]->GetType()->GetClass() != TYPE_INT))
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch in arithmetic\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
-		m_children[1] = m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
+		m_children[1] =
+		    m_children[1]->ConvertToType(state, Type::IntType(GetTargetPointerSize(), false));
 		break;
 	case EXPR_BYTESWAP:
 		m_type = m_children[0]->GetType();
@@ -1354,14 +1383,14 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: expected integer in __byteswap\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		else if (m_type->GetWidth() == 0)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: unknown size in __byteswap\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			m_type = Type::VoidType();
 		}
 		break;
@@ -1370,8 +1399,8 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 		break;
 	default:
 		state->Error();
-		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n", m_location.fileName.c_str(),
-			m_location.lineNumber);
+		fprintf(stderr, "%s:%d: error: invalid expression in type computation\n",
+		    m_location.fileName.c_str(), m_location.lineNumber);
 		m_type = Type::VoidType();
 		break;
 	}
@@ -1382,7 +1411,7 @@ Type* Expr::ComputeType(ParserState* state, Function* func)
 
 Expr* Expr::Simplify(ParserState* state)
 {
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		*i = (*i)->Simplify(state);
 
 	switch (m_class)
@@ -1395,7 +1424,8 @@ Expr* Expr::Simplify(ParserState* state)
 			{
 				Ref<Expr> child = m_children[i];
 				m_children.erase(m_children.begin() + i);
-				m_children.insert(m_children.begin() + i, child->GetChildren().begin(), child->GetChildren().end());
+				m_children.insert(
+				    m_children.begin() + i, child->GetChildren().begin(), child->GetChildren().end());
 				i += child->GetChildren().size() - 1;
 			}
 		}
@@ -1409,7 +1439,7 @@ Expr* Expr::Simplify(ParserState* state)
 		return this;
 	case EXPR_ARRAY_INDEX:
 		if ((m_children[1]->GetClass() == EXPR_INT) && (m_children[1]->GetIntValue() == 0) &&
-			m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_POINTER))
+		    m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_POINTER))
 			return Expr::UnaryExpr(m_location, EXPR_DEREF, m_children[0]);
 		return this;
 	case EXPR_PLUS:
@@ -1417,18 +1447,21 @@ Expr* Expr::Simplify(ParserState* state)
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() + m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() + m_children[1]->GetFloatValue(),
-				m_children[1]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    (double)m_children[0]->GetIntValue() + m_children[1]->GetFloatValue(),
+			    m_children[1]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() + (double)m_children[1]->GetIntValue(),
-				m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() + (double)m_children[1]->GetIntValue(),
+			    m_children[0]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() + m_children[1]->GetFloatValue(),
-				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() + m_children[1]->GetFloatValue(),
+			    max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
 		}
 		return this;
 	case EXPR_MINUS:
@@ -1436,18 +1469,21 @@ Expr* Expr::Simplify(ParserState* state)
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() - m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() - m_children[1]->GetFloatValue(),
-				m_children[1]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    (double)m_children[0]->GetIntValue() - m_children[1]->GetFloatValue(),
+			    m_children[1]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() - (double)m_children[1]->GetIntValue(),
-				m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() - (double)m_children[1]->GetIntValue(),
+			    m_children[0]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() - m_children[1]->GetFloatValue(),
-				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() - m_children[1]->GetFloatValue(),
+			    max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
 		}
 		return this;
 	case EXPR_MULT:
@@ -1455,18 +1491,21 @@ Expr* Expr::Simplify(ParserState* state)
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() * m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() * m_children[1]->GetFloatValue(),
-				m_children[1]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    (double)m_children[0]->GetIntValue() * m_children[1]->GetFloatValue(),
+			    m_children[1]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() * (double)m_children[1]->GetIntValue(),
-				m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() * (double)m_children[1]->GetIntValue(),
+			    m_children[0]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() * m_children[1]->GetFloatValue(),
-				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() * m_children[1]->GetFloatValue(),
+			    max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
 		}
 		return this;
 	case EXPR_DIV:
@@ -1476,25 +1515,28 @@ Expr* Expr::Simplify(ParserState* state)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: division by zero\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				return Expr::IntExpr(m_location, 0);
 			}
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() / m_children[1]->GetIntValue());
 		}
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, (double)m_children[0]->GetIntValue() / m_children[1]->GetFloatValue(),
-				m_children[1]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    (double)m_children[0]->GetIntValue() / m_children[1]->GetFloatValue(),
+			    m_children[1]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() / (double)m_children[1]->GetIntValue(),
-				m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() / (double)m_children[1]->GetIntValue(),
+			    m_children[0]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, m_children[0]->GetFloatValue() / m_children[1]->GetFloatValue(),
-				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+			return Expr::FloatExpr(m_location,
+			    m_children[0]->GetFloatValue() / m_children[1]->GetFloatValue(),
+			    max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
 		}
 		return this;
 	case EXPR_MOD:
@@ -1504,25 +1546,28 @@ Expr* Expr::Simplify(ParserState* state)
 			{
 				state->Error();
 				fprintf(stderr, "%s:%d: error: division by zero\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				    m_location.lineNumber);
 				return Expr::IntExpr(m_location, 0);
 			}
 			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() % m_children[1]->GetIntValue());
 		}
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetIntValue(), m_children[1]->GetFloatValue()),
-				m_children[1]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    fmod(m_children[0]->GetIntValue(), m_children[1]->GetFloatValue()),
+			    m_children[1]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
 		{
-			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetFloatValue(), m_children[1]->GetIntValue()),
-				m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(m_location,
+			    fmod(m_children[0]->GetFloatValue(), m_children[1]->GetIntValue()),
+			    m_children[0]->GetType()->GetWidth());
 		}
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
 		{
-			return Expr::FloatExpr(m_location, fmod(m_children[0]->GetFloatValue(), m_children[1]->GetFloatValue()),
-				max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
+			return Expr::FloatExpr(m_location,
+			    fmod(m_children[0]->GetFloatValue(), m_children[1]->GetFloatValue()),
+			    max(m_children[0]->GetType()->GetWidth(), m_children[1]->GetType()->GetWidth()));
 		}
 		return this;
 	case EXPR_AND:
@@ -1539,17 +1584,20 @@ Expr* Expr::Simplify(ParserState* state)
 		return this;
 	case EXPR_SHIFT_LEFT:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() << m_children[1]->GetIntValue());
+			return Expr::IntExpr(
+			    m_location, m_children[0]->GetIntValue() << m_children[1]->GetIntValue());
 		return this;
 	case EXPR_SHIFT_RIGHT:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::IntExpr(m_location, m_children[0]->GetIntValue() >> m_children[1]->GetIntValue());
+			return Expr::IntExpr(
+			    m_location, m_children[0]->GetIntValue() >> m_children[1]->GetIntValue());
 		return this;
 	case EXPR_NEG:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::IntExpr(m_location, -m_children[0]->GetIntValue());
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, -m_children[0]->GetFloatValue(), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, -m_children[0]->GetFloatValue(), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_NOT:
 		if (m_children[0]->GetClass() == EXPR_INT)
@@ -1575,79 +1623,111 @@ Expr* Expr::Simplify(ParserState* state)
 		return this;
 	case EXPR_LESS_THAN:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetIntValue() < m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetIntValue() < m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, (double)m_children[0]->GetIntValue() < m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, (double)m_children[0]->GetIntValue() < m_children[1]->GetFloatValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() < (double)m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() < (double)m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() < m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() < m_children[1]->GetFloatValue());
 		return this;
 	case EXPR_LESS_EQUAL:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetIntValue() <= m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetIntValue() <= m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, (double)m_children[0]->GetIntValue() <= m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, (double)m_children[0]->GetIntValue() <= m_children[1]->GetFloatValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() <= (double)m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() <= (double)m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() <= m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() <= m_children[1]->GetFloatValue());
 		return this;
 	case EXPR_EQUAL:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetIntValue() == m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetIntValue() == m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, (double)m_children[0]->GetIntValue() == m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, (double)m_children[0]->GetIntValue() == m_children[1]->GetFloatValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() == (double)m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() == (double)m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() == m_children[1]->GetFloatValue());
-		if ((m_children[0]->GetClass() == EXPR_TRUE) && m_children[1]->GetType() && (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() == m_children[1]->GetFloatValue());
+		if ((m_children[0]->GetClass() == EXPR_TRUE) && m_children[1]->GetType() &&
+		    (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
 			return m_children[1];
-		if ((m_children[0]->GetClass() == EXPR_FALSE) && m_children[1]->GetType() && (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
+		if ((m_children[0]->GetClass() == EXPR_FALSE) && m_children[1]->GetType() &&
+		    (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
 			return Expr::UnaryExpr(m_location, EXPR_LOGICAL_NOT, m_children[1]);
-		if ((m_children[1]->GetClass() == EXPR_TRUE) && m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
+		if ((m_children[1]->GetClass() == EXPR_TRUE) && m_children[0]->GetType() &&
+		    (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
 			return m_children[0];
-		if ((m_children[1]->GetClass() == EXPR_FALSE) && m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
+		if ((m_children[1]->GetClass() == EXPR_FALSE) && m_children[0]->GetType() &&
+		    (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
 			return Expr::UnaryExpr(m_location, EXPR_LOGICAL_NOT, m_children[0]);
 		return this;
 	case EXPR_NOT_EQUAL:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetIntValue() != m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetIntValue() != m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, (double)m_children[0]->GetIntValue() != m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, (double)m_children[0]->GetIntValue() != m_children[1]->GetFloatValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() != (double)m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() != (double)m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() != m_children[1]->GetFloatValue());
-		if ((m_children[0]->GetClass() == EXPR_TRUE) && m_children[1]->GetType() && (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() != m_children[1]->GetFloatValue());
+		if ((m_children[0]->GetClass() == EXPR_TRUE) && m_children[1]->GetType() &&
+		    (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
 			return Expr::UnaryExpr(m_location, EXPR_LOGICAL_NOT, m_children[1]);
-		if ((m_children[0]->GetClass() == EXPR_FALSE) && m_children[1]->GetType() && (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
+		if ((m_children[0]->GetClass() == EXPR_FALSE) && m_children[1]->GetType() &&
+		    (m_children[1]->GetType()->GetClass() == TYPE_BOOL))
 			return m_children[1];
-		if ((m_children[1]->GetClass() == EXPR_TRUE) && m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
+		if ((m_children[1]->GetClass() == EXPR_TRUE) && m_children[0]->GetType() &&
+		    (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
 			return Expr::UnaryExpr(m_location, EXPR_LOGICAL_NOT, m_children[0]);
-		if ((m_children[1]->GetClass() == EXPR_FALSE) && m_children[0]->GetType() && (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
+		if ((m_children[1]->GetClass() == EXPR_FALSE) && m_children[0]->GetType() &&
+		    (m_children[0]->GetType()->GetClass() == TYPE_BOOL))
 			return m_children[0];
 		return this;
 	case EXPR_GREATER_EQUAL:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetIntValue() >= m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetIntValue() >= m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, (double)m_children[0]->GetIntValue() >= m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, (double)m_children[0]->GetIntValue() >= m_children[1]->GetFloatValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() >= (double)m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() >= (double)m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() >= m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() >= m_children[1]->GetFloatValue());
 		return this;
 	case EXPR_GREATER_THAN:
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetIntValue() > m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetIntValue() > m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_INT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, (double)m_children[0]->GetIntValue() > m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, (double)m_children[0]->GetIntValue() > m_children[1]->GetFloatValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_INT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() > (double)m_children[1]->GetIntValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() > (double)m_children[1]->GetIntValue());
 		if ((m_children[0]->GetClass() == EXPR_FLOAT) && (m_children[1]->GetClass() == EXPR_FLOAT))
-			return Expr::BoolExpr(m_location, m_children[0]->GetFloatValue() > m_children[1]->GetFloatValue());
+			return Expr::BoolExpr(
+			    m_location, m_children[0]->GetFloatValue() > m_children[1]->GetFloatValue());
 		return this;
 	case EXPR_IF:
 		if (m_children[0]->GetClass() == EXPR_TRUE)
@@ -1664,8 +1744,9 @@ Expr* Expr::Simplify(ParserState* state)
 			return m_children[2];
 		if ((m_children[1]->GetClass() == EXPR_SEQUENCE) && (m_children[1]->GetChildren().size() == 0))
 		{
-			return Expr::IfExpr(m_location, Expr::UnaryExpr(m_location, EXPR_LOGICAL_NOT, m_children[0]),
-				m_children[2])->Simplify(state);
+			return Expr::IfExpr(
+			    m_location, Expr::UnaryExpr(m_location, EXPR_LOGICAL_NOT, m_children[0]), m_children[2])
+			    ->Simplify(state);
 		}
 		if ((m_children[2]->GetClass() == EXPR_SEQUENCE) && (m_children[2]->GetChildren().size() == 0))
 			return Expr::IfExpr(m_location, m_children[0], m_children[1])->Simplify(state);
@@ -1701,55 +1782,64 @@ Expr* Expr::Simplify(ParserState* state)
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, m_children[0]->GetIntValue(), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, floor(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, floor(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_CEIL:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, m_children[0]->GetIntValue(), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, ceil(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, ceil(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_SQRT:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, sqrt(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, sqrt(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, sqrt(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_SIN:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, sin(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, sin(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, sin(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_COS:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, cos(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, cos(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, cos(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_TAN:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, tan(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, tan(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, tan(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_ASIN:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, asin(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, asin(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, asin(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_ACOS:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, acos(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, acos(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, acos(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_ATAN:
 		if (m_children[0]->GetClass() == EXPR_INT)
 			return Expr::FloatExpr(m_location, atan(m_children[0]->GetIntValue()), 8);
 		if (m_children[0]->GetClass() == EXPR_FLOAT)
-			return Expr::FloatExpr(m_location, atan(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
+			return Expr::FloatExpr(
+			    m_location, atan(m_children[0]->GetFloatValue()), m_children[0]->GetType()->GetWidth());
 		return this;
 	case EXPR_CAST:
 		if (m_children[0]->GetClass() == EXPR_INT)
@@ -1762,7 +1852,8 @@ Expr* Expr::Simplify(ParserState* state)
 			}
 			else if (m_type->GetClass() == TYPE_FLOAT)
 			{
-				Expr* result = Expr::FloatExpr(m_location, (double)m_children[0]->m_intValue, m_type->GetWidth());
+				Expr* result =
+				    Expr::FloatExpr(m_location, (double)m_children[0]->m_intValue, m_type->GetWidth());
 				result->SetType(m_type);
 				return result;
 			}
@@ -1816,9 +1907,10 @@ Expr* Expr::Simplify(ParserState* state)
 		else if ((m_children[0]->GetClass() == EXPR_INT) && m_type && (m_type->GetWidth() == 8))
 		{
 			uint64_t value = (uint64_t)m_children[0]->GetIntValue();
-			value = (value << 56) | ((value << 40) & 0xff000000000000LL) | ((value << 24) & 0xff0000000000LL) |
-				((value << 8) & 0xff00000000LL) | ((value >> 8) & 0xff000000LL) | ((value >> 24) & 0xff0000LL) |
-				((value >> 40) & 0xff00LL) | (value >> 56);
+			value = (value << 56) | ((value << 40) & 0xff000000000000LL) |
+			        ((value << 24) & 0xff0000000000LL) | ((value << 8) & 0xff00000000LL) |
+			        ((value >> 8) & 0xff000000LL) | ((value >> 24) & 0xff0000LL) |
+			        ((value >> 40) & 0xff00LL) | (value >> 56);
 			Expr* result = Expr::IntExpr(m_location, value);
 			result->SetType(m_type);
 			return result;
@@ -1863,7 +1955,7 @@ Type* Expr::PromotedType(ParserState* state, Expr* a, Expr* b)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			return Type::VoidType();
 		}
 	}
@@ -1887,7 +1979,7 @@ Type* Expr::PromotedType(ParserState* state, Expr* a, Expr* b)
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: type mismatch\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 			return Type::VoidType();
 		}
 	}
@@ -1895,8 +1987,8 @@ Type* Expr::PromotedType(ParserState* state, Expr* a, Expr* b)
 		return a->GetType();
 
 	state->Error();
-	fprintf(stderr, "%s:%d: error: type mismatch\n", m_location.fileName.c_str(),
-		m_location.lineNumber);
+	fprintf(
+	    stderr, "%s:%d: error: type mismatch\n", m_location.fileName.c_str(), m_location.lineNumber);
 	return Type::VoidType();
 }
 
@@ -1944,7 +2036,7 @@ Expr* Expr::ConvertToType(ParserState* state, Type* typePtr)
 
 void Expr::ReplaceFunction(Function* from, Function* to)
 {
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		(*i)->ReplaceFunction(from, to);
 
 	if (m_function == from)
@@ -1954,7 +2046,7 @@ void Expr::ReplaceFunction(Function* from, Function* to)
 
 void Expr::ReplaceVariable(Variable* from, Variable* to)
 {
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		(*i)->ReplaceVariable(from, to);
 
 	if (m_variable == from)
@@ -1964,7 +2056,7 @@ void Expr::ReplaceVariable(Variable* from, Variable* to)
 
 void Expr::CheckForUndefinedReferences(size_t& errors)
 {
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		(*i)->CheckForUndefinedReferences(errors);
 
 	// Imported functions are not undefined
@@ -1975,21 +2067,22 @@ void Expr::CheckForUndefinedReferences(size_t& errors)
 	if (m_function && (!m_function->IsFullyDefined()))
 	{
 		errors++;
-		fprintf(stderr, "%s:%d: error: undefined reference to '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-			m_function->GetName().c_str());
+		fprintf(stderr, "%s:%d: error: undefined reference to '%s'\n", m_location.fileName.c_str(),
+		    m_location.lineNumber, m_function->GetName().c_str());
 	}
 
 	// All variables marked 'extern' should have been resolved by the linker
 	if (m_variable && m_variable->IsExternal())
 	{
 		errors++;
-		fprintf(stderr, "%s:%d: error: undefined reference to '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-			m_variable->GetName().c_str());
+		fprintf(stderr, "%s:%d: error: undefined reference to '%s'\n", m_location.fileName.c_str(),
+		    m_location.lineNumber, m_variable->GetName().c_str());
 	}
 }
 
 
-void Expr::GenerateConditionalIL(ParserState* state, Function* func, ILBlock* block, ILBlock* trueBlock, ILBlock* falseBlock)
+void Expr::GenerateConditionalIL(
+    ParserState* state, Function* func, ILBlock* block, ILBlock* trueBlock, ILBlock* falseBlock)
 {
 	ILParameter a, b;
 	ILBlock* tempBlock;
@@ -2118,13 +2211,14 @@ ILParameter Expr::GenerateArrayAccessIL(ParserState* state, Function* func, ILBl
 		result = ILParameter(m_variable);
 		break;
 	case EXPR_DOT:
-		result = ILParameter(m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
+		result = ILParameter(
+		    m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
 		result.type = ILParameter::ReduceType(m_type);
 		break;
 	default:
 		state->Error();
 		fprintf(stderr, "%s:%d: error: invalid array access\n", m_location.fileName.c_str(),
-			m_location.lineNumber);
+		    m_location.lineNumber);
 		break;
 	}
 
@@ -2145,7 +2239,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 	switch (m_class)
 	{
 	case EXPR_SEQUENCE:
-		for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+		for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 			result = (*i)->GenerateIL(state, func, block);
 		break;
 	case EXPR_INT:
@@ -2182,7 +2276,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(m_function);
 		break;
 	case EXPR_DOT:
-		a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
+		a = ILParameter(
+		    m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
 		a.type = ILParameter::ReduceType(m_type);
 		if (m_type->GetClass() == TYPE_ARRAY)
 		{
@@ -2198,14 +2293,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_type->GetClass() == TYPE_ARRAY)
 		{
 			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
-			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
-				ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
+			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result,
+			    m_children[0]->GenerateIL(state, func, block),
+			    ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
 		}
 		else
 		{
 			result = func->CreateTempVariable(m_type);
-			block->AddInstruction(ILOP_DEREF_MEMBER, result, m_children[0]->GenerateIL(state, func, block),
-				ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
+			block->AddInstruction(ILOP_DEREF_MEMBER, result,
+			    m_children[0]->GenerateIL(state, func, block),
+			    ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
 		}
 		break;
 	case EXPR_ADDRESS_OF:
@@ -2214,14 +2311,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 			b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
+			block->AddInstruction(ILOP_PTR_ADD, result, a, b,
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else if (m_children[0]->GetClass() == EXPR_ARROW)
 		{
-			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->m_children[0]->GenerateIL(state, func, block),
-				ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue));
+			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result,
+			    m_children[0]->m_children[0]->GenerateIL(state, func, block),
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue));
 		}
 		else
 		{
@@ -2237,9 +2336,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_ADD, result, result,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
-				ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -2248,9 +2347,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetClass() == EXPR_ARROW)
 		{
 			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), result);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a,
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue),
+			    result);
 		}
 		break;
 	case EXPR_PRE_DECREMENT:
@@ -2258,9 +2358,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_SUB, result, result,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
-				ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -2269,9 +2369,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetClass() == EXPR_ARROW)
 		{
 			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), result);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a,
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue),
+			    result);
 		}
 		break;
 	case EXPR_POST_INCREMENT:
@@ -2281,9 +2382,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_ADD, a, a,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
-				ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -2292,9 +2393,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetClass() == EXPR_ARROW)
 		{
 			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), a);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b,
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue),
+			    a);
 		}
 		break;
 	case EXPR_POST_DECREMENT:
@@ -2304,9 +2406,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_SUB, a, a,
-				ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
-				ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false), (int64_t)1),
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -2315,32 +2417,36 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetClass() == EXPR_ARROW)
 		{
 			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), a);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b,
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue),
+			    a);
 		}
 		break;
 	case EXPR_ARRAY_INDEX:
 		result = func->CreateTempVariable(m_type);
 		if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
-			(m_children[0]->GetClass() == EXPR_ARROW))
+		    (m_children[0]->GetClass() == EXPR_ARROW))
 		{
 			a = m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
 			if (m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
-				c = func->CreateTempVariable(Type::PointerType(m_children[0]->GetType()->GetChildType(), 1));
+				c = func->CreateTempVariable(
+				    Type::PointerType(m_children[0]->GetType()->GetChildType(), 1));
 			else
 				c = func->CreateTempVariable(m_children[0]->GetType());
-			block->AddInstruction(ILOP_PTR_ADD, c, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			block->AddInstruction(ILOP_PTR_ADD, c, a, b,
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 			block->AddInstruction(ILOP_DEREF, result, c);
 		}
 		else
 		{
 			a = m_children[0]->GenerateArrayAccessIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_ARRAY_INDEX, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			block->AddInstruction(ILOP_ARRAY_INDEX, result, a, b,
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		break;
 	case EXPR_PLUS:
@@ -2349,13 +2455,15 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		b = m_children[1]->GenerateIL(state, func, block);
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
-			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+			block->AddInstruction(ILOP_PTR_ADD, result, a, b,
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 		}
 		else if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
 		{
-			block->AddInstruction(ILOP_PTR_ADD, result, b, a, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[1]->GetType()->GetChildType()->GetWidth()));
+			block->AddInstruction(ILOP_PTR_ADD, result, b, a,
+			    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			        (int64_t)m_children[1]->GetType()->GetChildType()->GetWidth()));
 		}
 		else
 		{
@@ -2371,14 +2479,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			if (m_children[1]->GetType()->GetClass() == TYPE_POINTER)
 			{
 				block->AddInstruction(ILOP_PTR_DIFF, result, a, b,
-					ILParameter(Type::IntType(GetTargetPointerSize(), false),
-					(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+				    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 			}
 			else
 			{
 				block->AddInstruction(ILOP_PTR_SUB, result, a, b,
-					ILParameter(Type::IntType(GetTargetPointerSize(), false),
-					(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+				    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				        (int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
 			}
 		}
 		else
@@ -2407,16 +2515,19 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				sprintf(name, "__sdiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
 			else
 				sprintf(name, "__udiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
-		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) &&
+		         (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2424,15 +2535,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				name = "__sdiv64";
 			else
 				name = "__udiv64";
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-					name.c_str());
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2454,16 +2566,19 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				sprintf(name, "__smod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
 			else
 				sprintf(name, "__umod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
-		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) && (m_children[0]->GetType()->GetWidth() == 8))
+		else if ((!m_type->IsFloat()) && (!state->HasIntrinsicDivide64()) &&
+		         (m_children[0]->GetType()->GetWidth() == 8))
 		{
 			// 64-bit division on 32-bit output, emit call to divide routine
 			string name;
@@ -2471,15 +2586,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				name = "__smod64";
 			else
 				name = "__umod64";
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-					name.c_str());
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2515,15 +2631,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			// 64-bit shift on 32-bit output, emit call to shift routine
 			string name = "__shl64";
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-					name.c_str());
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2542,15 +2659,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				name = "__sar64";
 			else
 				name = "__shr64";
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-					name.c_str());
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -2621,14 +2739,17 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (a.IsConstant())
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
-				block->AddInstruction(ILOP_IF_BELOW_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
+				block->AddInstruction(
+				    ILOP_IF_BELOW_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_THAN, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_THAN, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 		}
@@ -2648,16 +2769,19 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (a.IsConstant())
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_THAN, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_THAN, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
-				block->AddInstruction(ILOP_IF_BELOW_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_BELOW_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 		}
 		trueBlock->AddInstruction(ILOP_ASSIGN, result, ILParameter(true));
 		trueBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
@@ -2709,14 +2833,17 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (a.IsConstant())
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
-				block->AddInstruction(ILOP_IF_BELOW_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
+				block->AddInstruction(
+				    ILOP_IF_BELOW_EQUAL, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_THAN, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_THAN, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 		}
@@ -2736,16 +2863,19 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (a.IsConstant())
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_THAN, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_THAN, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 			else
 				block->AddInstruction(ILOP_IF_BELOW, b, a, ILParameter(falseBlock), ILParameter(trueBlock));
 		}
 		else
 		{
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
-				block->AddInstruction(ILOP_IF_BELOW_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_BELOW_EQUAL, a, b, ILParameter(trueBlock), ILParameter(falseBlock));
 		}
 		trueBlock->AddInstruction(ILOP_ASSIGN, result, ILParameter(false));
 		trueBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
@@ -2757,17 +2887,18 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
 		{
 			if ((m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
-				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
+			    (m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
 			{
 				if (m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
-					result = func->CreateTempVariable(Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
+					result = func->CreateTempVariable(
+					    Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
 				else
 					result = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
 				a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_PTR_ADD, result, a, b,
-					ILParameter(Type::IntType(GetTargetPointerSize(), false),
-					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
+				    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				        (int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
 				c = m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_DEREF_ASSIGN, result, c);
 				result = c;
@@ -2778,8 +2909,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
 				c = m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, a, b,
-					ILParameter(Type::IntType(GetTargetPointerSize(), false),
-					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()), c);
+				    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				        (int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()),
+				    c);
 				result = c;
 			}
 		}
@@ -2794,9 +2926,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), b);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a,
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue),
+			    b);
 			result = b;
 		}
 		else
@@ -2806,12 +2939,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 			if ((a.cls == ILPARAM_VAR) && (a.variable->IsTempVariable()))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 			block->AddInstruction(ILOP_ASSIGN, a, b);
 			result = b;
@@ -2823,7 +2958,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if ((a.cls != ILPARAM_VAR) && (a.cls != ILPARAM_MEMBER))
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(),
+			    m_location.lineNumber);
 		}
 		block->AddInstruction(ILOP_ASSIGN, a, b);
 		result = b;
@@ -2912,8 +3048,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			result = func->CreateTempVariable(m_type);
 		params.push_back(result);
 		params.push_back(m_children[0]->GenerateIL(state, func, block));
-		params.push_back(ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetCallingConvention()));
-		params.push_back(ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetParams().size()));
+		params.push_back(
+		    ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetCallingConvention()));
+		params.push_back(
+		    ILParameter(ILTYPE_VOID, (int64_t)m_children[0]->GetType()->GetParams().size()));
 		for (size_t i = 1; i < m_children.size(); i++)
 			params.push_back(m_children[i]->GenerateIL(state, func, block));
 		block->AddInstruction(ILOP_CALL, params);
@@ -2928,9 +3066,11 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			trueBlock = func->CreateILBlock();
 			falseBlock = func->CreateILBlock();
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_THAN, a, result, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_THAN, a, result, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
-				block->AddInstruction(ILOP_IF_BELOW, a, result, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_BELOW, a, result, ILParameter(trueBlock), ILParameter(falseBlock));
 			trueBlock->AddInstruction(ILOP_ASSIGN, result, a);
 			trueBlock->AddInstruction(ILOP_GOTO, ILParameter(falseBlock));
 			block = falseBlock;
@@ -2946,9 +3086,11 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			trueBlock = func->CreateILBlock();
 			falseBlock = func->CreateILBlock();
 			if (m_children[0]->GetType()->IsSigned())
-				block->AddInstruction(ILOP_IF_LESS_THAN, result, a, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_LESS_THAN, result, a, ILParameter(trueBlock), ILParameter(falseBlock));
 			else
-				block->AddInstruction(ILOP_IF_BELOW, result, a, ILParameter(trueBlock), ILParameter(falseBlock));
+				block->AddInstruction(
+				    ILOP_IF_BELOW, result, a, ILParameter(trueBlock), ILParameter(falseBlock));
 			trueBlock->AddInstruction(ILOP_ASSIGN, result, a);
 			trueBlock->AddInstruction(ILOP_GOTO, ILParameter(falseBlock));
 			block = falseBlock;
@@ -2967,12 +3109,12 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			if (m_type->GetClass() == TYPE_FLOAT)
 			{
 				block->AddInstruction(ILOP_IF_LESS_THAN, result, ILParameter(m_type, 0.0),
-					ILParameter(trueBlock), ILParameter(falseBlock));
+				    ILParameter(trueBlock), ILParameter(falseBlock));
 			}
 			else
 			{
 				block->AddInstruction(ILOP_IF_LESS_THAN, result, ILParameter(m_type, (int64_t)0),
-					ILParameter(trueBlock), ILParameter(falseBlock));
+				    ILParameter(trueBlock), ILParameter(falseBlock));
 			}
 			trueBlock->AddInstruction(ILOP_NEG, result, a);
 			trueBlock->AddInstruction(ILOP_GOTO, ILParameter(falseBlock));
@@ -2990,15 +3132,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				name = "__powf";
 			else
 				name = "__powd";
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber,
-					name.c_str());
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name.c_str());
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)2), a, b);
 		}
 		else
 		{
@@ -3066,15 +3209,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		}
 		else
 		{
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find("__memcpy");
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find("__memcpy");
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '__memcpy'\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: undefined function '__memcpy'\n",
+				    m_location.fileName.c_str(), m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
 		}
 		result = a;
 		break;
@@ -3088,15 +3232,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		}
 		else
 		{
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find("__memset");
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find("__memset");
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '__memset'\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: undefined function '__memset'\n",
+				    m_location.fileName.c_str(), m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)3), a, b, c);
 		}
 		result = a;
 		break;
@@ -3109,15 +3254,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		}
 		else
 		{
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find("__strlen");
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find("__strlen");
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '__strlen'\n", m_location.fileName.c_str(),
-					m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: undefined function '__strlen'\n",
+				    m_location.fileName.c_str(), m_location.lineNumber);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)1), a);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)1), a);
 		}
 		break;
 	case EXPR_CAST:
@@ -3173,7 +3319,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: invalid break statement\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		else
 		{
@@ -3186,7 +3332,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			state->Error();
 			fprintf(stderr, "%s:%d: error: invalid continue statement\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			    m_location.lineNumber);
 		}
 		else
 		{
@@ -3202,10 +3348,11 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		m_children[1]->GenerateIL(state, func, testBlock);
 		testBlock->AddInstruction(ILOP_GOTO, ILParameter(endBlock));
 		for (map<int64_t, ILBlock*>::const_iterator i = func->GetSwitchLabels().begin();
-			i != func->GetSwitchLabels().end(); i++)
+		     i != func->GetSwitchLabels().end(); i++)
 		{
 			falseBlock = func->CreateILBlock();
-			block->AddInstruction(ILOP_IF_EQUAL, a, ILParameter(a.type, i->first), i->second, ILParameter(falseBlock));
+			block->AddInstruction(
+			    ILOP_IF_EQUAL, a, ILParameter(a.type, i->first), i->second, ILParameter(falseBlock));
 			block = falseBlock;
 		}
 		falseBlock = func->GetDefaultBlock();
@@ -3220,8 +3367,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (func->GetSwitchLabels().find(m_intValue) != func->GetSwitchLabels().end())
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: duplicate case label in switch statement\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: duplicate case label in switch statement\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		func->AddSwitchLabel(m_intValue, endBlock);
 		block = endBlock;
@@ -3232,8 +3379,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (func->GetDefaultBlock())
 		{
 			state->Error();
-			fprintf(stderr, "%s:%d: error: duplicate default label in switch statement\n", m_location.fileName.c_str(),
-				m_location.lineNumber);
+			fprintf(stderr, "%s:%d: error: duplicate default label in switch statement\n",
+			    m_location.fileName.c_str(), m_location.lineNumber);
 		}
 		func->SetDefaultBlock(endBlock);
 		block = endBlock;
@@ -3265,17 +3412,18 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
 		{
 			if ((m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
-				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
+			    (m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
 			{
 				if (m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
-					a = func->CreateTempVariable(Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
+					a = func->CreateTempVariable(
+					    Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
 				else
 					a = func->CreateTempVariable(m_children[0]->m_children[0]->GetType());
 				c = m_children[0]->m_children[0]->GenerateIL(state, func, block);
 				d = m_children[0]->m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_PTR_ADD, a, c, d,
-					ILParameter(Type::IntType(GetTargetPointerSize(), false),
-					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
+				    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				        (int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
 				block->AddInstruction(ILOP_DEREF_ASSIGN, a, b);
 			}
 			else
@@ -3283,8 +3431,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 				c = m_children[0]->m_children[0]->GenerateArrayAccessIL(state, func, block);
 				d = m_children[0]->m_children[1]->GenerateIL(state, func, block);
 				block->AddInstruction(ILOP_ARRAY_INDEX_ASSIGN, c, d,
-					ILParameter(Type::IntType(GetTargetPointerSize(), false),
-					(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()), b);
+				    ILParameter(Type::IntType(GetTargetPointerSize(), false),
+				        (int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()),
+				    b);
 			}
 		}
 		else if (m_children[0]->GetClass() == EXPR_DEREF)
@@ -3295,9 +3444,10 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		else if (m_children[0]->GetClass() == EXPR_ARROW)
 		{
 			c = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, c, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), b);
+			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, c,
+			    ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
+			        m_children[0]->m_stringValue),
+			    b);
 		}
 		else
 		{
@@ -3305,12 +3455,14 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			if ((c.cls != ILPARAM_VAR) && (c.cls != ILPARAM_MEMBER))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 			if ((c.cls == ILPARAM_VAR) && (c.variable->IsTempVariable()))
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+				fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(),
+				    m_location.lineNumber);
 			}
 			block->AddInstruction(ILOP_ASSIGN, c, b);
 		}
@@ -3359,14 +3511,16 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			// No instrinsic byte swap instruction, emit call to routine
 			char name[32];
 			sprintf(name, "__byteswap%d", (int)(m_children[0]->GetType()->GetWidth() * 8));
-			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
+			map<string, Ref<Function>>::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
-				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(), m_location.lineNumber, name);
+				fprintf(stderr, "%s:%d: error: undefined function '%s'\n", m_location.fileName.c_str(),
+				    m_location.lineNumber, name);
 				break;
 			}
-			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second), ILParameter(ILTYPE_VOID,
-				(int64_t)CALLING_CONVENTION_DEFAULT), ILParameter(ILTYPE_VOID, (int64_t)1), a);
+			block->AddInstruction(ILOP_CALL, result, ILParameter(i->second),
+			    ILParameter(ILTYPE_VOID, (int64_t)CALLING_CONVENTION_DEFAULT),
+			    ILParameter(ILTYPE_VOID, (int64_t)1), a);
 		}
 		else
 		{
@@ -3378,8 +3532,8 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		break;
 	default:
 		state->Error();
-		fprintf(stderr, "%s:%d: error: invalid expression in IL generation\n", m_location.fileName.c_str(),
-			m_location.lineNumber);
+		fprintf(stderr, "%s:%d: error: invalid expression in IL generation\n",
+		    m_location.fileName.c_str(), m_location.lineNumber);
 		break;
 	}
 
@@ -3536,7 +3690,7 @@ Expr* Expr::DoWhileExpr(const Location& loc, Expr* cond, Expr* body)
 }
 
 
-Expr* Expr::CallExpr(const Location& loc, Expr* func, const vector< Ref<Expr> >& params)
+Expr* Expr::CallExpr(const Location& loc, Expr* func, const vector<Ref<Expr>>& params)
 {
 	Expr* expr = new Expr(loc, EXPR_CALL);
 	expr->m_children.push_back(func);
@@ -3545,7 +3699,7 @@ Expr* Expr::CallExpr(const Location& loc, Expr* func, const vector< Ref<Expr> >&
 }
 
 
-Expr* Expr::BuiltinCallExpr(const Location& loc, ExprClass cls, const vector< Ref<Expr> >& params)
+Expr* Expr::BuiltinCallExpr(const Location& loc, ExprClass cls, const vector<Ref<Expr>>& params)
 {
 	Expr* expr = new Expr(loc, cls);
 	expr->m_children = params;
@@ -3586,7 +3740,7 @@ void Expr::Serialize(OutputBlock* output)
 		m_type->Serialize(output);
 
 	output->WriteInteger(m_children.size());
-	for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+	for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		(*i)->Serialize(output);
 
 	switch (m_class)
@@ -3718,7 +3872,7 @@ void Expr::Print(size_t indent)
 		fprintf(stderr, "{\n");
 		PrintIndent(indent + 1);
 
-		for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+		for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		{
 			(*i)->Print(indent + 1);
 			fprintf(stderr, "\n");
@@ -3732,7 +3886,7 @@ void Expr::Print(size_t indent)
 		break;
 	case EXPR_INITIALIZER:
 		fprintf(stderr, "{");
-		for (vector< Ref<Expr> >::iterator i = m_children.begin(); i != m_children.end(); i++)
+		for (vector<Ref<Expr>>::iterator i = m_children.begin(); i != m_children.end(); i++)
 		{
 			if (i != m_children.begin())
 				fprintf(stderr, ", ");
@@ -3740,22 +3894,65 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, "}");
 		break;
-	case EXPR_INT:  fprintf(stderr, "%lld {%d}", (long long)m_intValue, (int)m_type->GetWidth()); break;
-	case EXPR_FLOAT:  fprintf(stderr, "%f", m_floatValue); break;
-	case EXPR_STRING:  fprintf(stderr, "\"%s\"", m_stringValue.c_str()); break;
-	case EXPR_TRUE:  fprintf(stderr, "true"); break;
-	case EXPR_FALSE:  fprintf(stderr, "false"); break;
-	case EXPR_VARIABLE:  fprintf(stderr, "var<%s>", m_variable->GetName().c_str()); break;
-	case EXPR_FUNCTION:  fprintf(stderr, "func<%s>", m_function->GetName().c_str()); break;
-	case EXPR_DOT:  m_children[0]->Print(indent); fprintf(stderr, ".%s", m_stringValue.c_str()); break;
-	case EXPR_ARROW:  m_children[0]->Print(indent); fprintf(stderr, "->%s", m_stringValue.c_str()); break;
-	case EXPR_ADDRESS_OF:  fprintf(stderr, "&"); m_children[0]->Print(indent); break;
-	case EXPR_DEREF:  fprintf(stderr, "*"); m_children[0]->Print(indent); break;
-	case EXPR_PRE_INCREMENT:  fprintf(stderr, "++"); m_children[0]->Print(indent); break;
-	case EXPR_PRE_DECREMENT:  fprintf(stderr, "--"); m_children[0]->Print(indent); break;
-	case EXPR_POST_INCREMENT:  m_children[0]->Print(indent); fprintf(stderr, "++"); break;
-	case EXPR_POST_DECREMENT:  m_children[0]->Print(indent); fprintf(stderr, "--"); break;
-	case EXPR_ARRAY_INDEX:  m_children[0]->Print(indent); fprintf(stderr, "["); m_children[1]->Print(indent); fprintf(stderr, "]"); break;
+	case EXPR_INT:
+		fprintf(stderr, "%lld {%d}", (long long)m_intValue, (int)m_type->GetWidth());
+		break;
+	case EXPR_FLOAT:
+		fprintf(stderr, "%f", m_floatValue);
+		break;
+	case EXPR_STRING:
+		fprintf(stderr, "\"%s\"", m_stringValue.c_str());
+		break;
+	case EXPR_TRUE:
+		fprintf(stderr, "true");
+		break;
+	case EXPR_FALSE:
+		fprintf(stderr, "false");
+		break;
+	case EXPR_VARIABLE:
+		fprintf(stderr, "var<%s>", m_variable->GetName().c_str());
+		break;
+	case EXPR_FUNCTION:
+		fprintf(stderr, "func<%s>", m_function->GetName().c_str());
+		break;
+	case EXPR_DOT:
+		m_children[0]->Print(indent);
+		fprintf(stderr, ".%s", m_stringValue.c_str());
+		break;
+	case EXPR_ARROW:
+		m_children[0]->Print(indent);
+		fprintf(stderr, "->%s", m_stringValue.c_str());
+		break;
+	case EXPR_ADDRESS_OF:
+		fprintf(stderr, "&");
+		m_children[0]->Print(indent);
+		break;
+	case EXPR_DEREF:
+		fprintf(stderr, "*");
+		m_children[0]->Print(indent);
+		break;
+	case EXPR_PRE_INCREMENT:
+		fprintf(stderr, "++");
+		m_children[0]->Print(indent);
+		break;
+	case EXPR_PRE_DECREMENT:
+		fprintf(stderr, "--");
+		m_children[0]->Print(indent);
+		break;
+	case EXPR_POST_INCREMENT:
+		m_children[0]->Print(indent);
+		fprintf(stderr, "++");
+		break;
+	case EXPR_POST_DECREMENT:
+		m_children[0]->Print(indent);
+		fprintf(stderr, "--");
+		break;
+	case EXPR_ARRAY_INDEX:
+		m_children[0]->Print(indent);
+		fprintf(stderr, "[");
+		m_children[1]->Print(indent);
+		fprintf(stderr, "]");
+		break;
 	case EXPR_PLUS:
 		fprintf(stderr, "(");
 		m_children[0]->Print(indent);
@@ -3826,8 +4023,16 @@ void Expr::Print(size_t indent)
 		m_children[1]->Print(indent);
 		fprintf(stderr, ")");
 		break;
-	case EXPR_NEG:  fprintf(stderr, "-("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_NOT:  fprintf(stderr, "~("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_NEG:
+		fprintf(stderr, "-(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_NOT:
+		fprintf(stderr, "~(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
 	case EXPR_LOGICAL_AND:
 		fprintf(stderr, "(");
 		m_children[0]->Print(indent);
@@ -3842,7 +4047,11 @@ void Expr::Print(size_t indent)
 		m_children[1]->Print(indent);
 		fprintf(stderr, ")");
 		break;
-	case EXPR_LOGICAL_NOT:  fprintf(stderr, "!("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_LOGICAL_NOT:
+		fprintf(stderr, "!(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
 	case EXPR_LESS_THAN:
 		fprintf(stderr, "(");
 		m_children[0]->Print(indent);
@@ -3885,8 +4094,16 @@ void Expr::Print(size_t indent)
 		m_children[1]->Print(indent);
 		fprintf(stderr, ")");
 		break;
-	case EXPR_ASSIGN:  m_children[0]->Print(indent); fprintf(stderr, " = "); m_children[1]->Print(indent); break;
-	case EXPR_INIT_ASSIGN:  m_children[0]->Print(indent); fprintf(stderr, " = [init] "); m_children[1]->Print(indent); break;
+	case EXPR_ASSIGN:
+		m_children[0]->Print(indent);
+		fprintf(stderr, " = ");
+		m_children[1]->Print(indent);
+		break;
+	case EXPR_INIT_ASSIGN:
+		m_children[0]->Print(indent);
+		fprintf(stderr, " = [init] ");
+		m_children[1]->Print(indent);
+		break;
 	case EXPR_IF:
 		fprintf(stderr, "if (");
 		m_children[0]->Print(indent);
@@ -3974,17 +4191,61 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, ")");
 		break;
-	case EXPR_ABS:  fprintf(stderr, "abs("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_FLOOR:  fprintf(stderr, "floor("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_CEIL:  fprintf(stderr, "ceil("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_SQRT:  fprintf(stderr, "sqrt("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_SIN:  fprintf(stderr, "sin("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_COS:  fprintf(stderr, "cos("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_TAN:  fprintf(stderr, "tan("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_ASIN:  fprintf(stderr, "asin("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_ACOS:  fprintf(stderr, "acos("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_ATAN:  fprintf(stderr, "atan("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_ALLOCA:  fprintf(stderr, "alloca("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_ABS:
+		fprintf(stderr, "abs(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_FLOOR:
+		fprintf(stderr, "floor(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_CEIL:
+		fprintf(stderr, "ceil(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_SQRT:
+		fprintf(stderr, "sqrt(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_SIN:
+		fprintf(stderr, "sin(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_COS:
+		fprintf(stderr, "cos(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_TAN:
+		fprintf(stderr, "tan(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_ASIN:
+		fprintf(stderr, "asin(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_ACOS:
+		fprintf(stderr, "acos(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_ATAN:
+		fprintf(stderr, "atan(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_ALLOCA:
+		fprintf(stderr, "alloca(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
 	case EXPR_MEMCPY:
 		fprintf(stderr, "memcpy(");
 		for (size_t i = 0; i < m_children.size(); i++)
@@ -4005,15 +4266,41 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, ")");
 		break;
-	case EXPR_STRLEN:  fprintf(stderr, "strlen("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_CAST:  fprintf(stderr, "cast<"); m_type->Print(); fprintf(stderr, ">("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
-	case EXPR_RETURN:  fprintf(stderr, "return "); m_children[0]->Print(indent); break;
-	case EXPR_RETURN_VOID:  fprintf(stderr, "return void"); break;
-	case EXPR_LABEL:  fprintf(stderr, "%s:", m_stringValue.c_str()); break;
-	case EXPR_GOTO_LABEL:  fprintf(stderr, "goto %s", m_stringValue.c_str()); break;
-	case EXPR_COMPUTED_GOTO:  fprintf(stderr, "goto *"); m_children[0]->Print(indent); break;
-	case EXPR_BREAK:  fprintf(stderr, "break"); break;
-	case EXPR_CONTINUE:  fprintf(stderr, "continue"); break;
+	case EXPR_STRLEN:
+		fprintf(stderr, "strlen(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_CAST:
+		fprintf(stderr, "cast<");
+		m_type->Print();
+		fprintf(stderr, ">(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
+	case EXPR_RETURN:
+		fprintf(stderr, "return ");
+		m_children[0]->Print(indent);
+		break;
+	case EXPR_RETURN_VOID:
+		fprintf(stderr, "return void");
+		break;
+	case EXPR_LABEL:
+		fprintf(stderr, "%s:", m_stringValue.c_str());
+		break;
+	case EXPR_GOTO_LABEL:
+		fprintf(stderr, "goto %s", m_stringValue.c_str());
+		break;
+	case EXPR_COMPUTED_GOTO:
+		fprintf(stderr, "goto *");
+		m_children[0]->Print(indent);
+		break;
+	case EXPR_BREAK:
+		fprintf(stderr, "break");
+		break;
+	case EXPR_CONTINUE:
+		fprintf(stderr, "continue");
+		break;
 	case EXPR_SWITCH:
 		fprintf(stderr, "switch (");
 		m_children[0]->Print(indent);
@@ -4021,9 +4308,15 @@ void Expr::Print(size_t indent)
 		PrintIndent(indent + 1);
 		m_children[1]->Print(indent + 1);
 		break;
-	case EXPR_CASE:  fprintf(stderr, "case %lld:", (long long)m_intValue); break;
-	case EXPR_DEFAULT:  fprintf(stderr, "default:"); break;
-	case EXPR_UNDEFINED:  fprintf(stderr, "__undefined"); break;
+	case EXPR_CASE:
+		fprintf(stderr, "case %lld:", (long long)m_intValue);
+		break;
+	case EXPR_DEFAULT:
+		fprintf(stderr, "default:");
+		break;
+	case EXPR_UNDEFINED:
+		fprintf(stderr, "__undefined");
+		break;
 	case EXPR_SYSCALL:
 		fprintf(stderr, "__syscall(");
 		for (size_t i = 0; i < m_children.size(); i++)
@@ -4044,12 +4337,24 @@ void Expr::Print(size_t indent)
 		}
 		fprintf(stderr, ")");
 		break;
-	case EXPR_RDTSC:  fprintf(stderr, "__rdtsc()"); break;
-	case EXPR_RDTSC_LOW:  fprintf(stderr, "__rdtsc_low()"); break;
-	case EXPR_RDTSC_HIGH:  fprintf(stderr, "__rdtsc_high()"); break;
-	case EXPR_PEB:  fprintf(stderr, "__peb"); break;
-	case EXPR_TEB:  fprintf(stderr, "__teb"); break;
-	case EXPR_INITIAL_VARARG:  fprintf(stderr, "__initial_vararg()"); break;
+	case EXPR_RDTSC:
+		fprintf(stderr, "__rdtsc()");
+		break;
+	case EXPR_RDTSC_LOW:
+		fprintf(stderr, "__rdtsc_low()");
+		break;
+	case EXPR_RDTSC_HIGH:
+		fprintf(stderr, "__rdtsc_high()");
+		break;
+	case EXPR_PEB:
+		fprintf(stderr, "__peb");
+		break;
+	case EXPR_TEB:
+		fprintf(stderr, "__teb");
+		break;
+	case EXPR_INITIAL_VARARG:
+		fprintf(stderr, "__initial_vararg()");
+		break;
 	case EXPR_NEXT_ARG:
 		fprintf(stderr, "__next_arg(");
 		m_children[0]->Print(indent);
@@ -4064,11 +4369,14 @@ void Expr::Print(size_t indent)
 		m_children[1]->Print(indent);
 		fprintf(stderr, ")");
 		break;
-	case EXPR_BYTESWAP:  fprintf(stderr, "__byteswap("); m_children[0]->Print(indent); fprintf(stderr, ")"); break;
+	case EXPR_BYTESWAP:
+		fprintf(stderr, "__byteswap(");
+		m_children[0]->Print(indent);
+		fprintf(stderr, ")");
+		break;
 	default:
 		fprintf(stderr, "<invalid_expr>");
 		break;
 	}
 }
 #endif
-

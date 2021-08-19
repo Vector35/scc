@@ -1,13 +1,13 @@
-#include <stdio.h>
 #include "Struct.h"
-#include "ParserState.h"
 #include "Output.h"
+#include "ParserState.h"
+#include <stdio.h>
 
 using namespace std;
 
 
 size_t Struct::m_nextSerializationIndex = 0;
-map< size_t, Ref<Struct> > Struct::m_serializationMap;
+map<size_t, Ref<Struct>> Struct::m_serializationMap;
 
 
 Struct::Struct()
@@ -101,7 +101,7 @@ StructMember Struct::GetMember(ParserState* state, const std::string& name) cons
 	{
 		state->Error();
 		fprintf(stderr, "%s:%d: error: member '%s' is not defined\n", state->GetFileName().c_str(),
-			state->GetLineNumber(), name.c_str());
+		    state->GetLineNumber(), name.c_str());
 
 		StructMember member;
 		member.type = Type::VoidType();
@@ -133,7 +133,7 @@ void Struct::AddMember(ParserState* state, Type* type, const string& name)
 	{
 		state->Error();
 		fprintf(stderr, "%s:%d: error: member '%s' is already defined\n", state->GetFileName().c_str(),
-			state->GetLineNumber(), name.c_str());
+		    state->GetLineNumber(), name.c_str());
 	}
 
 	if (m_union)
@@ -179,8 +179,8 @@ void Struct::CopyMembers(ParserState* state, Struct* s)
 			if (m_membersByName.find(i->name) != m_membersByName.end())
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: member '%s' is already defined\n", state->GetFileName().c_str(),
-					state->GetLineNumber(), i->name.c_str());
+				fprintf(stderr, "%s:%d: error: member '%s' is already defined\n",
+				    state->GetFileName().c_str(), state->GetLineNumber(), i->name.c_str());
 			}
 
 			m_members.push_back(*i);
@@ -200,8 +200,8 @@ void Struct::CopyMembers(ParserState* state, Struct* s)
 			if (m_membersByName.find(i->name) != m_membersByName.end())
 			{
 				state->Error();
-				fprintf(stderr, "%s:%d: error: member '%s' is already defined\n", state->GetFileName().c_str(),
-					state->GetLineNumber(), i->name.c_str());
+				fprintf(stderr, "%s:%d: error: member '%s' is already defined\n",
+				    state->GetFileName().c_str(), state->GetLineNumber(), i->name.c_str());
 			}
 
 			// Add members to end of structure
@@ -305,4 +305,3 @@ Struct* Struct::Deserialize(InputBlock* input)
 
 	return result;
 }
-

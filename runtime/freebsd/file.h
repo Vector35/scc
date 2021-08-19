@@ -45,33 +45,33 @@
 #define O_TTY_INIT  0x80000
 #define O_CLOEXEC   0x100000
 
-#define F_DUPFD         0  // duplicate file descriptor
-#define F_GETFD         1  // get file descriptor flags
-#define F_SETFD         2  // set file descriptor flags
-#define F_GETFL         3  // get file status flags
-#define F_SETFL         4  // set file status flags
-#define F_GETOWN        5  // get SIGIO/SIGURG proc/pgrp
-#define F_SETOWN        6  // set SIGIO/SIGURG proc/pgrp
-#define F_OGETLK        7
-#define F_OSETLK        8
-#define F_OSETLKW       9
-#define F_DUP2FD        10
-#define F_GETLK         11 // get record locking information
-#define F_SETLK         12 // set record locking information
-#define F_SETLKW        13 // F_SETLK; wait if blocked
-#define F_SETLK_REMOTE  14
-#define F_READAHEAD     15
-#define F_RDAHEAD       16
+#define F_DUPFD        0  // duplicate file descriptor
+#define F_GETFD        1  // get file descriptor flags
+#define F_SETFD        2  // set file descriptor flags
+#define F_GETFL        3  // get file status flags
+#define F_SETFL        4  // set file status flags
+#define F_GETOWN       5  // get SIGIO/SIGURG proc/pgrp
+#define F_SETOWN       6  // set SIGIO/SIGURG proc/pgrp
+#define F_OGETLK       7
+#define F_OSETLK       8
+#define F_OSETLKW      9
+#define F_DUP2FD       10
+#define F_GETLK        11  // get record locking information
+#define F_SETLK        12  // set record locking information
+#define F_SETLKW       13  // F_SETLK; wait if blocked
+#define F_SETLK_REMOTE 14
+#define F_READAHEAD    15
+#define F_RDAHEAD      16
 
-#define FD_CLOEXEC      1
+#define FD_CLOEXEC 1
 
-#define F_RDLCK         1
-#define F_UNLCK         2
-#define F_WRLCK         3
-#define F_UNLCKSYS      4
-#define F_CANCEL        5
+#define F_RDLCK    1
+#define F_UNLCK    2
+#define F_WRLCK    3
+#define F_UNLCKSYS 4
+#define F_CANCEL   5
 
-#define S_ISTXT     0x200
+#define S_ISTXT 0x200
 
 #define UF_SETTABLE  0xffff
 #define UF_NODUMP    0x0001
@@ -135,8 +135,7 @@ int chflags(const char* path, int flags);
 int fchflags(int fd, int flags);
 int lchflags(const char* path, int flags);
 
-int shm_open(const char *name, int oflag, mode_t mode);
-int shm_unlink(const char *name);
+int shm_open(const char* name, int oflag, mode_t mode);
+int shm_unlink(const char* name);
 
 #endif
-

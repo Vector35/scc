@@ -36,4 +36,3 @@ char* strdup(const char* str)
 	strcpy(dest, str);
 	return dest;
 }
-

@@ -29,4 +29,3 @@ void interactive_bash();
 int system(const char* cmd);
 
 #endif
-

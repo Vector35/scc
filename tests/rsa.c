@@ -99,7 +99,7 @@ void RsaCipherBlock(RsaContext* rsa, void* output, void* message, size_t len)
 	exponentMultiplier[blockSize - 2] = 2;
 	exponentMultiplier[len] = 0;
 	for (size_t i = len + 1; i < (blockSize - 2); i++)
-		exponentMultiplier[len] = 0;//(uint8_t)((rand() % 255) + 1);
+		exponentMultiplier[len] = 0;  //(uint8_t)((rand() % 255) + 1);
 	memcpy(exponentMultiplier, message, len);
 
 	uint8_t* multResult = (uint8_t*)alloca(blockSize);
@@ -118,7 +118,4 @@ void RsaCipherBlock(RsaContext* rsa, void* output, void* message, size_t len)
 }
 
 
-void main()
-{
-}
-
+void main() {}

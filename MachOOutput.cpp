@@ -1,7 +1,7 @@
-#include <stdlib.h>
-#include <string.h>
 #include "ElfOutput.h"
 #include "Struct.h"
+#include <stdlib.h>
+#include <string.h>
 
 
 struct MachIdent
@@ -72,7 +72,8 @@ struct MachThreadX64
 };
 
 
-bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection, OutputBlock* dataSection)
+bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection,
+    OutputBlock* dataSection)
 {
 	// Output file identification header
 	MachIdent ident;
@@ -82,15 +83,15 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 		ident.signature = 0xfeedface;
 
 	if (settings.sharedLibrary)
-		ident.fileType = 6; // DYLIB
+		ident.fileType = 6;  // DYLIB
 	else
-		ident.fileType = 2; // EXECUTE
+		ident.fileType = 2;  // EXECUTE
 
 	size_t threadSize = 0;
 	switch (settings.architecture)
 	{
 	case ARCH_X86:
-		ident.cpuType = 7; // x86
+		ident.cpuType = 7;  // x86
 		ident.cpuSubType = 3;
 		if (settings.preferredBits == 32)
 			threadSize = sizeof(MachThreadX86);
@@ -104,13 +105,13 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 		return false;
 	}
 
-	ident.flags = 1; // No undefined references
+	ident.flags = 1;  // No undefined references
 	if (settings.execStack)
-		ident.flags |= 0x20000; // ALLOW_STACK_EXECUTION
+		ident.flags |= 0x20000;  // ALLOW_STACK_EXECUTION
 	if (settings.positionIndependent)
-		ident.flags |= 0x200000; // PIE
+		ident.flags |= 0x200000;  // PIE
 
-	ident.cmds = 4; // Three segments, one thread
+	ident.cmds = 4;  // Three segments, one thread
 	if (settings.preferredBits == 64)
 		ident.cmdSize = (sizeof(MachSegment64) * 3) + threadSize;
 	else
@@ -131,7 +132,7 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 	{
 		MachSegment64 pageZero;
 		memset(&pageZero, 0, sizeof(pageZero));
-		pageZero.header.cmd = 0x19; // SEGMENT64
+		pageZero.header.cmd = 0x19;  // SEGMENT64
 		pageZero.header.size = sizeof(pageZero);
 		strcpy(pageZero.name, "__PAGE_ZERO");
 		pageZero.memorySize = 0x100000;
@@ -139,15 +140,15 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 
 		MachSegment64 code;
 		memset(&code, 0, sizeof(code));
-		code.header.cmd = 0x19; // SEGMENT64
+		code.header.cmd = 0x19;  // SEGMENT64
 		code.header.size = sizeof(code);
 		strcpy(code.name, "__TEXT");
 		code.virtualAddress = settings.base & (~0xfff);
 		code.memorySize = (settings.base & 0xfff) + codeSection->len;
 		code.fileOffset = 0;
 		code.fileSize = code.memorySize;
-		code.maxProtect = 5; // Read execute
-		code.initProtect = 5; // Read execute
+		code.maxProtect = 5;   // Read execute
+		code.initProtect = 5;  // Read execute
 		output->Write(&code, sizeof(code));
 
 		uint64_t dataStart = code.virtualAddress + code.fileSize;
@@ -159,22 +160,22 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 
 		MachSegment64 data;
 		memset(&data, 0, sizeof(data));
-		data.header.cmd = 0x19; // SEGMENT64
+		data.header.cmd = 0x19;  // SEGMENT64
 		data.header.size = sizeof(data);
 		strcpy(data.name, "__DATA");
 		data.virtualAddress = dataStart;
 		data.memorySize = dataSection->len;
 		data.fileOffset = data.virtualAddress - code.virtualAddress;
 		data.fileSize = data.memorySize;
-		data.maxProtect = 3; // Read write
-		data.initProtect = 3; // Read write
+		data.maxProtect = 3;   // Read write
+		data.initProtect = 3;  // Read write
 		output->Write(&data, sizeof(data));
 
 		MachThreadX64 thread;
 		memset(&thread, 0, sizeof(thread));
-		thread.header.cmd = 5; // UNIXTHREAD
+		thread.header.cmd = 5;  // UNIXTHREAD
 		thread.header.size = sizeof(thread);
-		thread.flavor = 4; // x86_THREAD_STATE64
+		thread.flavor = 4;  // x86_THREAD_STATE64
 		thread.count = 42;
 		thread.rip = settings.base;
 		output->Write(&thread, sizeof(thread));
@@ -183,7 +184,7 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 	{
 		MachSegment32 pageZero;
 		memset(&pageZero, 0, sizeof(pageZero));
-		pageZero.header.cmd = 1; // SEGMENT
+		pageZero.header.cmd = 1;  // SEGMENT
 		pageZero.header.size = sizeof(pageZero);
 		strcpy(pageZero.name, "__PAGE_ZERO");
 		pageZero.memorySize = 0x1000;
@@ -191,15 +192,15 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 
 		MachSegment32 code;
 		memset(&code, 0, sizeof(code));
-		code.header.cmd = 1; // SEGMENT
+		code.header.cmd = 1;  // SEGMENT
 		code.header.size = sizeof(code);
 		strcpy(code.name, "__TEXT");
 		code.virtualAddress = (uint32_t)settings.base & (~0xfff);
 		code.memorySize = (settings.base & 0xfff) + codeSection->len;
 		code.fileOffset = 0;
 		code.fileSize = code.memorySize;
-		code.maxProtect = 5; // Read execute
-		code.initProtect = 5; // Read execute
+		code.maxProtect = 5;   // Read execute
+		code.initProtect = 5;  // Read execute
 		output->Write(&code, sizeof(code));
 
 		uint32_t dataStart = code.virtualAddress + code.fileSize;
@@ -211,22 +212,22 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 
 		MachSegment32 data;
 		memset(&data, 0, sizeof(data));
-		data.header.cmd = 1; // SEGMENT
+		data.header.cmd = 1;  // SEGMENT
 		data.header.size = sizeof(data);
 		strcpy(data.name, "__DATA");
 		data.virtualAddress = dataStart;
 		data.memorySize = dataSection->len;
 		data.fileOffset = data.virtualAddress - code.virtualAddress;
 		data.fileSize = data.memorySize;
-		data.maxProtect = 3; // Read write
-		data.initProtect = 3; // Read write
+		data.maxProtect = 3;   // Read write
+		data.initProtect = 3;  // Read write
 		output->Write(&data, sizeof(data));
 
 		MachThreadX86 thread;
 		memset(&thread, 0, sizeof(thread));
-		thread.header.cmd = 5; // UNIXTHREAD
+		thread.header.cmd = 5;  // UNIXTHREAD
 		thread.header.size = sizeof(thread);
-		thread.flavor = 1; // x86_THREAD_STATE32
+		thread.flavor = 1;  // x86_THREAD_STATE32
 		thread.count = 16;
 		thread.eip = (uint32_t)settings.base;
 		output->Write(&thread, sizeof(thread));
@@ -271,4 +272,3 @@ uint64_t AdjustDataSectionBaseForMachOFile(uint64_t base)
 		base += 0x1000 - (base & 0xfff);
 	return base;
 }
-

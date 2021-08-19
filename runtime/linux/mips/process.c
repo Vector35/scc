@@ -37,4 +37,3 @@ int sigaction(int sig, const struct sigaction* act, struct sigaction* old)
 {
 	return __syscall(SYS_sigaction, sig, act, old);
 }
-

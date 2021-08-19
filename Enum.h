@@ -1,11 +1,11 @@
 #ifndef __ENUM_H__
 #define __ENUM_H__
 
-#include <string>
-#include <vector>
+#include "RefCountObject.h"
 #include <map>
 #include <stdint.h>
-#include "RefCountObject.h"
+#include <string>
+#include <vector>
 
 
 struct EnumMember
@@ -21,7 +21,7 @@ struct InputBlock;
 class Struct;
 struct DuplicateContext;
 
-class Enum: public RefCountObject
+class Enum : public RefCountObject
 {
 	std::string m_name;
 	std::vector<EnumMember> m_members;
@@ -31,9 +31,9 @@ class Enum: public RefCountObject
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
-	static std::map< size_t, Ref<Enum> > m_serializationMap;
+	static std::map<size_t, Ref<Enum>> m_serializationMap;
 
-public:
+ public:
 	Enum();
 
 	Enum* Duplicate(DuplicateContext& dup);
@@ -57,4 +57,3 @@ public:
 
 
 #endif
-

@@ -26,4 +26,3 @@ void quark_exec(void* buf, ...) __noreturn;
 #endif
 
 #endif
-

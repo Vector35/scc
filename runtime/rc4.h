@@ -33,4 +33,3 @@ uint8_t rc4_output(rc4_state_t* state);
 void rc4_crypt(rc4_state_t* state, void* data, size_t len);
 
 #endif
-

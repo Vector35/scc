@@ -1,11 +1,11 @@
 #ifndef __STRUCT_H__
 #define __STRUCT_H__
 
-#include <string>
-#include <vector>
-#include <map>
 #include "RefCountObject.h"
 #include "Type.h"
+#include <map>
+#include <string>
+#include <vector>
 
 
 struct StructMember
@@ -18,7 +18,7 @@ struct StructMember
 
 class ParserState;
 
-class Struct: public RefCountObject
+class Struct : public RefCountObject
 {
 	std::string m_name;
 	std::vector<StructMember> m_members;
@@ -31,9 +31,9 @@ class Struct: public RefCountObject
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
-	static std::map< size_t, Ref<Struct> > m_serializationMap;
+	static std::map<size_t, Ref<Struct>> m_serializationMap;
 
-public:
+ public:
 	Struct();
 	Struct(bool isUnion, bool packed = false);
 
@@ -48,7 +48,10 @@ public:
 	const std::string& GetName() const { return m_name; }
 
 	const std::vector<StructMember>& GetMembers() const { return m_members; }
-	bool HasMember(const std::string& name) const { return m_membersByName.find(name) != m_membersByName.end(); }
+	bool HasMember(const std::string& name) const
+	{
+		return m_membersByName.find(name) != m_membersByName.end();
+	}
 	StructMember GetMember(ParserState* state, const std::string& name) const;
 	const StructMember* GetMember(const std::string& name) const;
 
@@ -68,4 +71,3 @@ public:
 
 
 #endif
-

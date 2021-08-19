@@ -23,17 +23,10 @@
 using namespace std;
 
 
-Token::Token(TokenClass type): m_type(type)
-{
-}
+Token::Token(TokenClass type) : m_type(type) {}
 
 
-Token::Token(TokenClass type, const string& str): m_type(type), m_string(str)
-{
-}
+Token::Token(TokenClass type, const string& str) : m_type(type), m_string(str) {}
 
 
-Token::~Token()
-{
-}
-
+Token::~Token() {}

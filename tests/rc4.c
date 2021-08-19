@@ -9,4 +9,3 @@ int main()
 	write(1, str, len);
 	return 0;
 }
-

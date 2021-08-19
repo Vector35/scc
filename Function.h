@@ -1,12 +1,12 @@
 #ifndef __FUNCTION_H__
 #define __FUNCTION_H__
 
-#include <stack>
-#include <map>
-#include "Type.h"
-#include "Expr.h"
-#include "Variable.h"
 #include "BitVector.h"
+#include "Expr.h"
+#include "Type.h"
+#include "Variable.h"
+#include <map>
+#include <stack>
 
 
 enum SubarchitectureType
@@ -21,7 +21,7 @@ struct FunctionInfo
 	Ref<Type> returnValue;
 	CallingConvention callingConvention;
 	std::string name, module;
-	std::vector< std::pair< Ref<Type>, std::string > > params;
+	std::vector<std::pair<Ref<Type>, std::string>> params;
 	SubarchitectureType subarch;
 	bool noReturn, imported;
 	Location location;
@@ -68,7 +68,7 @@ struct VariableAssignments
 class TreeBlock;
 class Output;
 
-class Function: public RefCountObject
+class Function : public RefCountObject
 {
 	Ref<Type> m_returnValue;
 	CallingConvention m_callingConvention;
@@ -79,15 +79,15 @@ class Function: public RefCountObject
 	std::vector<FunctionParameter> m_params;
 	bool m_variableArguments;
 	Location m_location;
-	std::vector< Ref<Variable> > m_vars;
+	std::vector<Ref<Variable>> m_vars;
 	Ref<Expr> m_body;
 	std::vector<ILBlock*> m_ilBlocks;
-	std::vector< Ref<TreeBlock> > m_treeBlocks;
+	std::vector<Ref<TreeBlock>> m_treeBlocks;
 	std::map<std::string, ILBlock*> m_labels;
 	std::stack<ILBlock*> m_breakStack, m_continueStack, m_defaultStack;
 	std::map<int64_t, ILBlock*> m_switchLabels;
-	std::stack< std::map<int64_t, ILBlock*> > m_switchLabelsStack;
-	std::map< std::string, std::vector<LabelFixup> > m_labelFixups;
+	std::stack<std::map<int64_t, ILBlock*>> m_switchLabelsStack;
+	std::map<std::string, std::vector<LabelFixup>> m_labelFixups;
 	ILBlock* m_defaultBlock;
 	uint32_t m_nextTempId;
 	bool m_localScope;
@@ -97,8 +97,8 @@ class Function: public RefCountObject
 
 	std::set<ILBlock*> m_exitBlocks;
 	BitVector m_exitReachingDefs;
-	std::map< Ref<Variable>, std::vector<size_t> > m_varDefs;
-	std::vector< std::pair<ILBlock*, size_t> > m_defLocs;
+	std::map<Ref<Variable>, std::vector<size_t>> m_varDefs;
+	std::vector<std::pair<ILBlock*, size_t>> m_defLocs;
 
 	size_t m_tagCount;
 
@@ -108,19 +108,20 @@ class Function: public RefCountObject
 	size_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
-	static std::map< size_t, Ref<Function> > m_serializationMap;
+	static std::map<size_t, Ref<Function>> m_serializationMap;
 
 	bool DeserializeInternal(InputBlock* input);
 
-public:
+ public:
 	Function();
 	Function(const FunctionInfo& info, bool isLocalScope);
-	Function(const FunctionInfo& info, const std::vector< Ref<Variable> >& vars, Expr* body, bool isLocalScope);
+	Function(const FunctionInfo& info, const std::vector<Ref<Variable>>& vars, Expr* body,
+	    bool isLocalScope);
 	virtual ~Function();
 
 	Function* Duplicate(DuplicateContext& dup);
 
-	void SetVariables(const std::vector< Ref<Variable> >& vars) { m_vars = vars; }
+	void SetVariables(const std::vector<Ref<Variable>>& vars) { m_vars = vars; }
 	void SetBody(Expr* body) { m_body = body; }
 	void SetLocation(const Location& loc) { m_location = loc; }
 
@@ -130,27 +131,29 @@ public:
 	Type* GetReturnValue() const { return m_returnValue; }
 	CallingConvention GetCallingConvention() const { return m_callingConvention; }
 	SubarchitectureType GetSubarchitecture() const { return m_subarch; }
-	void SetParameterLocations(const std::vector<ParameterLocation>& locs) { m_paramLocations = locs; }
+	void SetParameterLocations(const std::vector<ParameterLocation>& locs)
+	{
+		m_paramLocations = locs;
+	}
 	ParameterLocation GetParameterLocation(size_t i) const;
 	bool DoesReturn() const { return m_returns; }
 	const std::string& GetName() const { return m_name; }
 	const std::vector<FunctionParameter>& GetParameters() const { return m_params; }
 	bool HasVariableArguments() const { return m_variableArguments; }
 	Location GetLocation() const { return m_location; }
-	const std::vector< Ref<Variable> >& GetVariables() { return m_vars; }
+	const std::vector<Ref<Variable>>& GetVariables() { return m_vars; }
 	Expr* GetBody() const { return m_body; }
 
 	bool IsFullyDefined() const { return (m_body != NULL) || m_isFixedAddress; }
 	bool IsLocalScope() const { return m_localScope; }
 	bool IsCompatible(const FunctionInfo& info);
 	bool IsCompatible(Type* returnValue, CallingConvention callingConvention,
-		const std::vector< std::pair< Ref<Type>, std::string > >& params,
-		bool variableArguments);
+	    const std::vector<std::pair<Ref<Type>, std::string>>& params, bool variableArguments);
 
 	Type* GetType() const;
 
 	const std::vector<ILBlock*>& GetIL() const { return m_ilBlocks; }
-	const std::vector< Ref<TreeBlock> >& GetTreeIL() const { return m_treeBlocks; }
+	const std::vector<Ref<TreeBlock>>& GetTreeIL() const { return m_treeBlocks; }
 	void GenerateIL(ParserState* state);
 	bool GenerateTreeIL(const Settings& settings, const VariableAssignments& vars, Output* output);
 	ILBlock* CreateILBlock();
@@ -194,10 +197,16 @@ public:
 	const std::set<ILBlock*>& GetExitBlocks() { return m_exitBlocks; }
 
 	BitVector& GetExitReachingDefinitions() { return m_exitReachingDefs; }
-	const std::map< Ref<Variable>, std::vector<size_t> >& GetLocalVariableDefinitions() const { return m_varDefs; }
-	const std::vector< std::pair<ILBlock*, size_t> >& GetDefinitionLocations() const { return m_defLocs; }
-	void SetDefinitions(const std::map< Ref<Variable>, std::vector<size_t> >& varDefs,
-		const std::vector< std::pair<ILBlock*, size_t> >& defLocs);
+	const std::map<Ref<Variable>, std::vector<size_t>>& GetLocalVariableDefinitions() const
+	{
+		return m_varDefs;
+	}
+	const std::vector<std::pair<ILBlock*, size_t>>& GetDefinitionLocations() const
+	{
+		return m_defLocs;
+	}
+	void SetDefinitions(const std::map<Ref<Variable>, std::vector<size_t>>& varDefs,
+	    const std::vector<std::pair<ILBlock*, size_t>>& defLocs);
 
 	void ResetTagCount() { m_tagCount = 0; }
 	size_t GetTagCount() const { return m_tagCount; }
@@ -223,4 +232,3 @@ public:
 
 
 #endif
-

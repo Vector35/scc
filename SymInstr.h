@@ -1,31 +1,31 @@
 #ifndef __SYMINSTR_H__
 #define __SYMINSTR_H__
 
-#include "ILBlock.h"
-#include "Function.h"
 #include "BitVector.h"
+#include "Function.h"
+#include "ILBlock.h"
 
 #define SYMREG_MIN_SPECIAL_REG 0xffffff00
-#define SYMREG_SP   0xfffffff0
-#define SYMREG_BP   0xfffffff1
-#define SYMREG_LR   0xfffffff2
-#define SYMREG_IP   0xfffffff3
-#define SYMREG_NONE 0xffffffff
+#define SYMREG_SP              0xfffffff0
+#define SYMREG_BP              0xfffffff1
+#define SYMREG_LR              0xfffffff2
+#define SYMREG_IP              0xfffffff3
+#define SYMREG_NONE            0xffffffff
 
 #define SYMREG_NATIVE_REG(r) ((r) | 0x80000000)
 
-#define SYMREG_IS_SPECIAL_REG(r) (((r) & 0x80000000) != 0)
+#define SYMREG_IS_SPECIAL_REG(r) (((r)&0x80000000) != 0)
 
-#define SYMFLAG_WRITES_FLAGS    1
-#define SYMFLAG_USES_FLAGS      2
-#define SYMFLAG_MEMORY_BARRIER  4
-#define SYMFLAG_CONTROL_FLOW    8
-#define SYMFLAG_CALL            0x10
-#define SYMFLAG_COPY            0x20
-#define SYMFLAG_STACK           0x40
+#define SYMFLAG_WRITES_FLAGS   1
+#define SYMFLAG_USES_FLAGS     2
+#define SYMFLAG_MEMORY_BARRIER 4
+#define SYMFLAG_CONTROL_FLOW   8
+#define SYMFLAG_CALL           0x10
+#define SYMFLAG_COPY           0x20
+#define SYMFLAG_STACK          0x40
 
-#define SYMVAR_FRAME_SIZE       0xfffffff0
-#define SYMVAR_NEG_FRAME_SIZE   0xfffffff1
+#define SYMVAR_FRAME_SIZE     0xfffffff0
+#define SYMVAR_NEG_FRAME_SIZE 0xfffffff1
 
 
 enum SymInstrOperandType
@@ -67,12 +67,12 @@ struct SymInstrOperand
 
 class SymInstr
 {
-protected:
+ protected:
 	uint32_t m_operation;
 	uint32_t m_flags;
 	std::vector<SymInstrOperand> m_operands;
 
-public:
+ public:
 	SymInstr();
 	virtual ~SymInstr();
 
@@ -96,7 +96,8 @@ public:
 	void AddGlobalVarOperand(int64_t dataOffset);
 	void AddBlockOperand(Function* func, ILBlock* block);
 
-	virtual bool UpdateInstruction(SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
+	virtual bool UpdateInstruction(
+	    SymInstrFunction* func, const Settings& settings, std::vector<SymInstr*>& replacement);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out) = 0;
 	virtual void Print(SymInstrFunction* func) = 0;
 };
@@ -104,7 +105,7 @@ public:
 
 class SymInstrBlock
 {
-protected:
+ protected:
 	size_t m_index;
 	std::vector<SymInstr*> m_instrs;
 	std::set<SymInstrBlock*> m_entryBlocks;
@@ -113,7 +114,7 @@ protected:
 	BitVector m_defPreserve, m_defGenerate, m_defReachIn, m_defReachOut;
 	BitVector m_liveDef, m_liveUse, m_liveIn, m_liveOut;
 
-public:
+ public:
 	SymInstrBlock(size_t i);
 	virtual ~SymInstrBlock();
 
@@ -148,7 +149,7 @@ public:
 
 class SymInstrFunction
 {
-protected:
+ protected:
 	Settings m_settings;
 	Function* m_function;
 
@@ -167,12 +168,12 @@ protected:
 
 	std::set<SymInstrBlock*> m_exitBlocks;
 	BitVector m_exitReachingDefs;
-	std::map< uint32_t, std::vector<size_t> > m_regDefs;
-	std::vector< std::pair<SymInstrBlock*, size_t> > m_defLocs;
-	std::vector< std::vector< std::pair<SymInstrBlock*, size_t> > > m_defUseChains;
-	std::vector< std::set<uint32_t> > m_regInterference;
-	std::vector< std::set<uint32_t> > m_preferSameReg;
-	std::vector< std::map<uint32_t, size_t> > m_preferSameRegCount;
+	std::map<uint32_t, std::vector<size_t>> m_regDefs;
+	std::vector<std::pair<SymInstrBlock*, size_t>> m_defLocs;
+	std::vector<std::vector<std::pair<SymInstrBlock*, size_t>>> m_defUseChains;
+	std::vector<std::set<uint32_t>> m_regInterference;
+	std::vector<std::set<uint32_t>> m_preferSameReg;
+	std::vector<std::map<uint32_t, size_t>> m_preferSameRegCount;
 	std::set<uint32_t> m_alreadySpilled;
 
 	std::vector<uint32_t> m_clobberedCalleeSavedRegs;
@@ -184,14 +185,15 @@ protected:
 	void SplitRegisters();
 	bool SpillRegister(uint32_t reg);
 
-public:
+ public:
 	SymInstrFunction(const Settings& settings, Function* func);
 	virtual ~SymInstrFunction();
 
 	void InitializeBlocks(Function* func);
 	SymInstrBlock* GetBlock(ILBlock* block) const;
 
-	uint32_t AddRegister(uint32_t cls, ILParameterType type = ILTYPE_VOID, int64_t offset = 0, uint32_t var = SYMREG_NONE);
+	uint32_t AddRegister(uint32_t cls, ILParameterType type = ILTYPE_VOID, int64_t offset = 0,
+	    uint32_t var = SYMREG_NONE);
 	void AssignRegister(uint32_t reg, uint32_t native);
 	const std::vector<uint32_t>& GetRegisters() const { return m_symRegClass; }
 	uint32_t GetRegisterClass(uint32_t i) const { return m_symRegClass[i]; }
@@ -203,7 +205,10 @@ public:
 	const std::vector<size_t>& GetStackVarWidths() const { return m_stackVarWidths; }
 	const std::vector<ILParameterType>& GetStackVarTypes() const { return m_stackVarTypes; }
 
-	const std::vector<uint32_t>& GetClobberedCalleeSavedRegisters() const { return m_clobberedCalleeSavedRegs; }
+	const std::vector<uint32_t>& GetClobberedCalleeSavedRegisters() const
+	{
+		return m_clobberedCalleeSavedRegs;
+	}
 	const Settings& GetSettings() const { return m_settings; }
 	Function* GetFunction() const { return m_function; }
 
@@ -220,10 +225,10 @@ public:
 
 	virtual void LayoutStackFrame() = 0;
 
-	virtual bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset,
-		ILParameterType type, std::vector<SymInstr*>& code) = 0;
-	virtual bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset,
-		ILParameterType type, std::vector<SymInstr*>& code) = 0;
+	virtual bool GenerateSpillLoad(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type,
+	    std::vector<SymInstr*>& code) = 0;
+	virtual bool GenerateSpillStore(uint32_t reg, uint32_t var, int64_t offset, ILParameterType type,
+	    std::vector<SymInstr*>& code) = 0;
 
 	virtual void PrintRegisterClass(uint32_t cls) = 0;
 	virtual void PrintRegister(uint32_t reg);
@@ -232,4 +237,3 @@ public:
 
 
 #endif
-

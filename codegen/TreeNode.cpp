@@ -23,9 +23,7 @@
 using namespace std;
 
 
-TreeNode::TreeNode(TreeNodeClass cls): m_class(cls), m_sizeFlags(REG_MATCH_ALL)
-{
-}
+TreeNode::TreeNode(TreeNodeClass cls) : m_class(cls), m_sizeFlags(REG_MATCH_ALL) {}
 
 
 TreeNode::TreeNode(const TreeNode& copy)
@@ -34,12 +32,14 @@ TreeNode::TreeNode(const TreeNode& copy)
 	m_name = copy.m_name;
 	m_typeName = copy.m_typeName;
 	m_sizeFlags = copy.m_sizeFlags;
-	for (vector< Ref<TreeNode> >::const_iterator i = copy.m_children.begin(); i != copy.m_children.end(); ++i)
+	for (vector<Ref<TreeNode>>::const_iterator i = copy.m_children.begin();
+	     i != copy.m_children.end(); ++i)
 		m_children.push_back(new TreeNode(**i));
 }
 
 
-TreeNode* TreeNode::CreateRegNode(const std::string& name, const std::string& typeName, uint32_t sizeFlags)
+TreeNode* TreeNode::CreateRegNode(
+    const std::string& name, const std::string& typeName, uint32_t sizeFlags)
 {
 	TreeNode* result = new TreeNode(NODE_REG);
 	result->SetName(name);
@@ -102,7 +102,8 @@ TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, Tree
 }
 
 
-TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d)
+TreeNode* TreeNode::CreateNode(
+    TreeNodeClass cls, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d)
 {
 	TreeNode* result = new TreeNode(cls);
 	result->AddChildNode(a);
@@ -111,4 +112,3 @@ TreeNode* TreeNode::CreateNode(TreeNodeClass cls, TreeNode* a, TreeNode* b, Tree
 	result->AddChildNode(d);
 	return result;
 }
-

@@ -50,4 +50,3 @@ int stat(const char* path, struct stat* buf);
 int lstat(const char* path, struct stat* buf);
 
 #endif
-

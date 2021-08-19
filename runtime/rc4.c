@@ -60,4 +60,3 @@ void rc4_crypt(rc4_state_t* state, void* data, size_t len)
 	for (size_t i = 0; i < len; i++)
 		((uint8_t*)data)[i] ^= rc4_output(state);
 }
-

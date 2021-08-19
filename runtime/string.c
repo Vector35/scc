@@ -51,7 +51,7 @@ size_t __strlen(const char* str)
 
 int strcmp(const char* a, const char* b)
 {
-	for (size_t i = 0; ; i++)
+	for (size_t i = 0;; i++)
 	{
 		int diff = a[i] - b[i];
 		if (diff != 0)
@@ -63,7 +63,7 @@ int strcmp(const char* a, const char* b)
 
 int strncmp(const char* a, const char* b, size_t len)
 {
-	for (size_t i = 0; ; i++)
+	for (size_t i = 0;; i++)
 	{
 		if (len-- == 0)
 			return 0;
@@ -79,7 +79,7 @@ char* strstr(const char* s1, const char* s2)
 {
 	char* t1 = s1;
 	size_t len = strlen(s2);
-	while(*t1)
+	while (*t1)
 	{
 		if (strncmp(t1++, s2, len) == 0)
 			return t1;
@@ -206,7 +206,8 @@ static void output_str(void (*output)(void* ctxt, char ch), void* ctxt, const ch
 		output(ctxt, ch);
 }
 
-static void output_pad_str(void (*output)(void* ctxt, char ch), void* ctxt, const char* str, bool left, size_t width)
+static void output_pad_str(
+    void (*output)(void* ctxt, char ch), void* ctxt, const char* str, bool left, size_t width)
 {
 	size_t len = strlen(str);
 	char ch;
@@ -231,7 +232,8 @@ static void output_pad_str(void (*output)(void* ctxt, char ch), void* ctxt, cons
 	}
 }
 
-static void output_uint(void (*output)(void* ctxt, char ch), void* ctxt, uint32_t val, char prefix, bool left, size_t width, size_t prec)
+static void output_uint(void (*output)(void* ctxt, char ch), void* ctxt, uint32_t val, char prefix,
+    bool left, size_t width, size_t prec)
 {
 	char str[24];
 	char* pos = &str[24];
@@ -265,7 +267,8 @@ static void output_uint(void (*output)(void* ctxt, char ch), void* ctxt, uint32_
 	output_pad_str(output, ctxt, pos, left, width);
 }
 
-static void output_int(void (*output)(void* ctxt, char ch), void* ctxt, int32_t val, bool left, size_t width, size_t prec)
+static void output_int(void (*output)(void* ctxt, char ch), void* ctxt, int32_t val, bool left,
+    size_t width, size_t prec)
 {
 	if (val < 0)
 		output_uint(output, ctxt, -val, '-', left, width, prec);
@@ -273,7 +276,8 @@ static void output_int(void (*output)(void* ctxt, char ch), void* ctxt, int32_t 
 		output_uint(output, ctxt, val, 0, left, width, prec);
 }
 
-static void output_hex(void (*output)(void* ctxt, char ch), void* ctxt, size_t val, bool left, size_t width, size_t prec, bool caps)
+static void output_hex(void (*output)(void* ctxt, char ch), void* ctxt, size_t val, bool left,
+    size_t width, size_t prec, bool caps)
 {
 	char str[24];
 	char* pos = &str[24];
@@ -409,4 +413,3 @@ int atoi(const char* str)
 		result = -result;
 	return result;
 }
-

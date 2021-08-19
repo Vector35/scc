@@ -53,18 +53,20 @@
 #define FILE_MAP_ALL_ACCESS 0xf001f
 
 #define HeapAlloc RtlAllocateHeap
-#define HeapFree RtlFreeHeap
+#define HeapFree  RtlFreeHeap
 
 void* __stdcall GetProcessHeap() __import("kernel32");
 void* __stdcall RtlAllocateHeap(void* heap, uint32_t flags, size_t bytes) __import("ntdll");
 void __stdcall RtlFreeHeap(void* heap, uint32_t flags, void* ptr) __import("ntdll");
-void* __stdcall VirtualAlloc(void* addr, size_t size, uint32_t alloc, uint32_t protect) __import("kernel32");
+void* __stdcall VirtualAlloc(void* addr, size_t size, uint32_t alloc, uint32_t protect)
+    __import("kernel32");
 bool __stdcall VirtualFree(void* addr, size_t size, uint32_t type) __import("kernel32");
-bool __stdcall VirtualProtect(void* addr, size_t size, uint32_t prot, uint32_t* oldProt) __import("kernel32");
+bool __stdcall VirtualProtect(void* addr, size_t size, uint32_t prot, uint32_t* oldProt)
+    __import("kernel32");
 HANDLE __stdcall CreateFileMappingA(HANDLE file, void* security, uint32_t prot,
-	uint32_t maxSizeHigh, uint32_t maxSizeLow, const char* name) __import("kernel32");
+    uint32_t maxSizeHigh, uint32_t maxSizeLow, const char* name) __import("kernel32");
 void* __stdcall MapViewOfFile(HANDLE mapping, uint32_t access, uint32_t offsetHigh,
-	uint32_t offsetLow, size_t size) __import("kernel32");
+    uint32_t offsetLow, size_t size) __import("kernel32");
 bool __stdcall UnmapViewOfFile(void* addr) __import("kernel32");
 
 void* malloc(size_t len);
@@ -73,4 +75,3 @@ void free(void* ptr);
 char* strdup(const char* str);
 
 #endif
-

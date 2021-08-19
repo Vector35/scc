@@ -1,12 +1,12 @@
-#include <stdio.h>
 #include "ParserState.h"
 #include "Output.h"
+#include <stdio.h>
 
 using namespace std;
 
 
-ParserState::ParserState(const Settings& settings, const string& name, void* scanner):
-	m_fileName(name), m_scanner(scanner), m_settings(settings)
+ParserState::ParserState(const Settings& settings, const string& name, void* scanner) :
+    m_fileName(name), m_scanner(scanner), m_settings(settings)
 {
 	m_initExpression = BasicExpr(EXPR_SEQUENCE);
 	m_globalScope = new Scope(NULL, true);
@@ -16,19 +16,24 @@ ParserState::ParserState(const Settings& settings, const string& name, void* sca
 }
 
 
-ParserState::ParserState(ParserState* parent, const std::string& name, void* scanner):
-	m_fileName(name), m_scanner(scanner), m_settings(parent->m_settings)
+ParserState::ParserState(ParserState* parent, const std::string& name, void* scanner) :
+    m_fileName(name), m_scanner(scanner), m_settings(parent->m_settings)
 {
 	DuplicateContext dup;
-	for (map< string, Ref<Type> >::iterator i = parent->m_types.begin(); i != parent->m_types.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = parent->m_types.begin(); i != parent->m_types.end();
+	     i++)
 		m_types[i->first] = i->second->Duplicate(dup);
-	for (map< string, Ref<Type> >::iterator i = parent->m_structTypes.begin(); i != parent->m_structTypes.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = parent->m_structTypes.begin();
+	     i != parent->m_structTypes.end(); i++)
 		m_structTypes[i->first] = i->second->Duplicate(dup);
-	for (map< string, Ref<Type> >::iterator i = parent->m_unionTypes.begin(); i != parent->m_unionTypes.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = parent->m_unionTypes.begin();
+	     i != parent->m_unionTypes.end(); i++)
 		m_unionTypes[i->first] = i->second->Duplicate(dup);
-	for (map< string, Ref<Type> >::iterator i = parent->m_enumTypes.begin(); i != parent->m_enumTypes.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = parent->m_enumTypes.begin();
+	     i != parent->m_enumTypes.end(); i++)
 		m_enumTypes[i->first] = i->second->Duplicate(dup);
-	for (map< string, Ref<Function> >::iterator i = parent->m_functions.begin(); i != parent->m_functions.end(); i++)
+	for (map<string, Ref<Function>>::iterator i = parent->m_functions.begin();
+	     i != parent->m_functions.end(); i++)
 		m_functions[i->first] = i->second->Duplicate(dup);
 	m_initExpression = parent->m_initExpression->Duplicate(dup);
 	m_globalScope = parent->m_globalScope->Duplicate(dup);
@@ -39,9 +44,7 @@ ParserState::ParserState(ParserState* parent, const std::string& name, void* sca
 }
 
 
-ParserState::~ParserState()
-{
-}
+ParserState::~ParserState() {}
 
 
 Location ParserState::GetLocation()
@@ -118,8 +121,8 @@ string ParserState::ProcessEscapedString(const string& str)
 			continue;
 		}
 
-		if (((i + 2) < str.length()) && (str[i] >= '0') && (str[i] <= '7') && (str[i + 1] >= '0') && (str[i + 1] <= '7') &&
-			(str[i + 2] >= '0') && (str[i + 2] <= '7'))
+		if (((i + 2) < str.length()) && (str[i] >= '0') && (str[i] <= '7') && (str[i + 1] >= '0') &&
+		    (str[i + 1] <= '7') && (str[i + 2] >= '0') && (str[i + 2] <= '7'))
 		{
 			char ch = (char)(str[i] - '0') << 6;
 			ch |= (char)(str[i + 1] - '0') << 3;
@@ -171,7 +174,7 @@ void ParserState::DefineType(const string& name, Type* type)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: type '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 	}
 
 	if (type->GetClass() == TYPE_STRUCT)
@@ -185,12 +188,12 @@ void ParserState::DefineType(const string& name, Type* type)
 
 Type* ParserState::GetType(const string& name)
 {
-	map< string, Ref<Type> >::const_iterator i = m_types.find(name);
+	map<string, Ref<Type>>::const_iterator i = m_types.find(name);
 	if (i == m_types.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: type '%s' is not defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return Type::VoidType();
 	}
 	return i->second;
@@ -215,7 +218,7 @@ void ParserState::DefineStructType(const string& name, Type* type)
 			// Redefining a completed structure
 			Error();
 			fprintf(stderr, "%s:%d: error: structure '%s' already defined\n", GetFileName().c_str(),
-				GetLineNumber(), name.c_str());
+			    GetLineNumber(), name.c_str());
 		}
 
 		// Update structure contents, ensuring that any references to the old object
@@ -247,7 +250,7 @@ void ParserState::DefineUnionType(const string& name, Type* type)
 			// Redefining a completed union
 			Error();
 			fprintf(stderr, "%s:%d: error: union '%s' already defined\n", GetFileName().c_str(),
-				GetLineNumber(), name.c_str());
+			    GetLineNumber(), name.c_str());
 		}
 
 		// Update union contents, ensuring that any references to the old object
@@ -279,7 +282,7 @@ void ParserState::DefineEnumType(const string& name, Type* type)
 			// Redefining a completed enumeration
 			Error();
 			fprintf(stderr, "%s:%d: error: enumeration '%s' already defined\n", GetFileName().c_str(),
-				GetLineNumber(), name.c_str());
+			    GetLineNumber(), name.c_str());
 		}
 
 		// Update enumeration contents, ensuring that any references to the old object
@@ -295,12 +298,12 @@ void ParserState::DefineEnumType(const string& name, Type* type)
 
 Type* ParserState::GetStructType(const string& name)
 {
-	map< string, Ref<Type> >::const_iterator i = m_structTypes.find(name);
+	map<string, Ref<Type>>::const_iterator i = m_structTypes.find(name);
 	if (i == m_structTypes.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: structure '%s' is not defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return Type::VoidType();
 	}
 	return i->second;
@@ -309,12 +312,12 @@ Type* ParserState::GetStructType(const string& name)
 
 Type* ParserState::GetUnionType(const string& name)
 {
-	map< string, Ref<Type> >::const_iterator i = m_unionTypes.find(name);
+	map<string, Ref<Type>>::const_iterator i = m_unionTypes.find(name);
 	if (i == m_unionTypes.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: union '%s' is not defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return Type::VoidType();
 	}
 	return i->second;
@@ -323,12 +326,12 @@ Type* ParserState::GetUnionType(const string& name)
 
 Type* ParserState::GetEnumType(const string& name)
 {
-	map< string, Ref<Type> >::const_iterator i = m_enumTypes.find(name);
+	map<string, Ref<Type>>::const_iterator i = m_enumTypes.find(name);
 	if (i == m_enumTypes.end())
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: enumeration '%s' is not defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return Type::VoidType();
 	}
 	return i->second;
@@ -341,7 +344,7 @@ void ParserState::AddEnumMember(const string& name, uint32_t value)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: identifier '%s' already defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 	}
 
 	m_enumMembers[name] = value;
@@ -355,7 +358,7 @@ uint32_t ParserState::GetEnumMemberValue(const string& name)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: identifier '%s' not defined\n", GetFileName().c_str(),
-			GetLineNumber(), name.c_str());
+		    GetLineNumber(), name.c_str());
 		return 0;
 	}
 	return i->second;
@@ -390,7 +393,8 @@ void ParserState::PopScope()
 }
 
 
-Expr* ParserState::DeclareVariable(Type* type, const VarInitInfo& info, bool isStatic, bool isExtern)
+Expr* ParserState::DeclareVariable(
+    Type* type, const VarInitInfo& info, bool isStatic, bool isExtern)
 {
 	if (info.array)
 		type = Type::ArrayType(type, info.elements);
@@ -401,7 +405,7 @@ Expr* ParserState::DeclareVariable(Type* type, const VarInitInfo& info, bool isS
 		{
 			Error();
 			fprintf(stderr, "%s:%d: error: variable '%s' already defined\n",
-				info.location.fileName.c_str(), info.location.lineNumber, info.name.c_str());
+			    info.location.fileName.c_str(), info.location.lineNumber, info.name.c_str());
 		}
 	}
 
@@ -409,7 +413,7 @@ Expr* ParserState::DeclareVariable(Type* type, const VarInitInfo& info, bool isS
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: identifier '%s' already defined\n",
-			info.location.fileName.c_str(), info.location.lineNumber, info.name.c_str());
+		    info.location.fileName.c_str(), info.location.lineNumber, info.name.c_str());
 	}
 
 	Variable* var;
@@ -427,7 +431,8 @@ Expr* ParserState::DeclareVariable(Type* type, const VarInitInfo& info, bool isS
 
 	if (!info.initialized)
 		return new Expr(info.location, EXPR_SEQUENCE);
-	return Expr::BinaryExpr(info.location, EXPR_INIT_ASSIGN, Expr::VariableExpr(info.location, var), info.value);
+	return Expr::BinaryExpr(
+	    info.location, EXPR_INIT_ASSIGN, Expr::VariableExpr(info.location, var), info.value);
 }
 
 
@@ -437,18 +442,19 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: imported function '%s' cannot have implementation\n",
-			func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+		    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 		return;
 	}
 
-	map< string, Ref<Function> >::iterator i = m_functions.find(func.name);
+	map<string, Ref<Function>>::iterator i = m_functions.find(func.name);
 	if (i != m_functions.end())
 	{
 		if (!i->second->IsCompatible(func))
 		{
 			Error();
-			fprintf(stderr, "%s:%d: error: function definition for '%s' not compatible with existing declaration\n",
-				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			fprintf(stderr,
+			    "%s:%d: error: function definition for '%s' not compatible with existing declaration\n",
+			    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 			return;
 		}
 
@@ -456,14 +462,15 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 		{
 			Error();
 			fprintf(stderr, "%s:%d: error: function '%s' already defined\n",
-				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 		}
 
 		if (isLocalScope != i->second->IsLocalScope())
 		{
 			Error();
-			fprintf(stderr, "%s:%d: error: function definition for '%s' not compatible with existing declaration\n",
-				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			fprintf(stderr,
+			    "%s:%d: error: function definition for '%s' not compatible with existing declaration\n",
+			    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 			return;
 		}
 
@@ -471,7 +478,7 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 		{
 			Error();
 			fprintf(stderr, "%s:%d: error: imported function '%s' cannot have implementation\n",
-				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 			return;
 		}
 
@@ -485,10 +492,11 @@ void ParserState::DefineFunction(FunctionInfo& func, Expr* body, bool isLocalSco
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: identifier '%s' already defined\n",
-			func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+		    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 	}
 
-	m_functions[func.name] = new Function(func, m_currentScope->GetRoot()->GetVariables(), body, isLocalScope);
+	m_functions[func.name] =
+	    new Function(func, m_currentScope->GetRoot()->GetVariables(), body, isLocalScope);
 }
 
 
@@ -498,25 +506,25 @@ void ParserState::DefineFunctionPrototype(FunctionInfo& func, bool isLocalScope)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: imported function '%s' must have global scope\n",
-			func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+		    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 		return;
 	}
 
-	map< string, Ref<Function> >::iterator i = m_functions.find(func.name);
+	map<string, Ref<Function>>::iterator i = m_functions.find(func.name);
 	if (i != m_functions.end())
 	{
 		if (!i->second->IsCompatible(func))
 		{
 			Error();
 			fprintf(stderr, "%s:%d: error: prototype for '%s' not compatible with existing declaration\n",
-				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 		}
 
 		if (isLocalScope != i->second->IsLocalScope())
 		{
 			Error();
 			fprintf(stderr, "%s:%d: error: prototype for '%s' not compatible with existing declaration\n",
-				func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+			    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 			return;
 		}
 		return;
@@ -526,7 +534,7 @@ void ParserState::DefineFunctionPrototype(FunctionInfo& func, bool isLocalScope)
 	{
 		Error();
 		fprintf(stderr, "%s:%d: error: identifier '%s' already defined\n",
-			func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
+		    func.location.fileName.c_str(), func.location.lineNumber, func.name.c_str());
 	}
 
 	m_functions[func.name] = new Function(func, isLocalScope);
@@ -550,12 +558,13 @@ Expr* ParserState::ResolveIdentifierExpr(const string& name)
 	if (m_currentScope->IsVariableDefined(name))
 		return VariableExpr(m_currentScope->GetVariable(name));
 
-	map< string, Ref<Function> >::iterator i = m_functions.find(name);
+	map<string, Ref<Function>>::iterator i = m_functions.find(name);
 	if (i != m_functions.end())
 		return FunctionExpr(i->second);
 
 	Error();
-	fprintf(stderr, "%s:%d: error: identifier '%s' not defined\n", GetFileName().c_str(), GetLineNumber(), name.c_str());
+	fprintf(stderr, "%s:%d: error: identifier '%s' not defined\n", GetFileName().c_str(),
+	    GetLineNumber(), name.c_str());
 	return IntExpr(0);
 }
 
@@ -672,28 +681,28 @@ Variable* ParserState::GetFloatImmediateVariable(Type* type, double value)
 void ParserState::Serialize(OutputBlock* output)
 {
 	output->WriteInteger(m_types.size());
-	for (map< string, Ref<Type> >::iterator i = m_types.begin(); i != m_types.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = m_types.begin(); i != m_types.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
 	}
 
 	output->WriteInteger(m_structTypes.size());
-	for (map< string, Ref<Type> >::iterator i = m_structTypes.begin(); i != m_structTypes.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = m_structTypes.begin(); i != m_structTypes.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
 	}
 
 	output->WriteInteger(m_unionTypes.size());
-	for (map< string, Ref<Type> >::iterator i = m_unionTypes.begin(); i != m_unionTypes.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = m_unionTypes.begin(); i != m_unionTypes.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
 	}
 
 	output->WriteInteger(m_enumTypes.size());
-	for (map< string, Ref<Type> >::iterator i = m_enumTypes.begin(); i != m_enumTypes.end(); i++)
+	for (map<string, Ref<Type>>::iterator i = m_enumTypes.begin(); i != m_enumTypes.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
@@ -707,7 +716,7 @@ void ParserState::Serialize(OutputBlock* output)
 	}
 
 	output->WriteInteger(m_functions.size());
-	for (map< string, Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (map<string, Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 	{
 		output->WriteString(i->first);
 		i->second->Serialize(output);
@@ -828,8 +837,8 @@ bool ParserState::Deserialize(InputBlock* input)
 void ParserState::Print()
 {
 	fprintf(stderr, "Global variables:\n");
-	for (vector< Ref<Variable> >::const_iterator i = m_globalScope->GetVariables().begin();
-		i != m_globalScope->GetVariables().end(); i++)
+	for (vector<Ref<Variable>>::const_iterator i = m_globalScope->GetVariables().begin();
+	     i != m_globalScope->GetVariables().end(); i++)
 	{
 		(*i)->GetType()->Print();
 		fprintf(stderr, " %s\n", (*i)->GetName().c_str());
@@ -839,8 +848,7 @@ void ParserState::Print()
 	m_initExpression->Print(0);
 
 	fprintf(stderr, "\n\nFunctions:\n");
-	for (map< string, Ref<Function> >::iterator i = m_functions.begin(); i != m_functions.end(); i++)
+	for (map<string, Ref<Function>>::iterator i = m_functions.begin(); i != m_functions.end(); i++)
 		i->second->Print();
 }
 #endif
-

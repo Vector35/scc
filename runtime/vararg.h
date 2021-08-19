@@ -23,14 +23,18 @@
 
 typedef void* va_list;
 
-#define __va_arg_size(arg) ((sizeof(arg) + (sizeof(size_t) - 1)) & (~(sizeof(size_t) - 1)))
+#define __va_arg_size(arg)  ((sizeof(arg) + (sizeof(size_t) - 1)) & (~(sizeof(size_t) - 1)))
 #define va_start(list, arg) list = (void*)__initial_vararg()
 #ifdef BIG_ENDIAN
-#define va_arg(list, type) (list = __next_arg(list, __va_arg_size(type)), (__va_arg_size(type) == sizeof(size_t)) ? ((type)*((size_t*)__prev_arg(list, sizeof(size_t)))) : (*((type*)__prev_arg(list, __va_arg_size(type)))))
+	#define va_arg(list, type) \
+		(list = __next_arg(list, __va_arg_size(type)), \
+		    (__va_arg_size(type) == sizeof(size_t)) ? \
+            ((type) * ((size_t*)__prev_arg(list, sizeof(size_t)))) : \
+            (*((type*)__prev_arg(list, __va_arg_size(type)))))
 #else
-#define va_arg(list, type) (list = __next_arg(list, __va_arg_size(type)), *((type*)__prev_arg(list, __va_arg_size(type))))
+	#define va_arg(list, type) \
+		(list = __next_arg(list, __va_arg_size(type)), *((type*)__prev_arg(list, __va_arg_size(type))))
 #endif
 #define va_end(list)
 
 #endif
-

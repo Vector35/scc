@@ -31,4 +31,3 @@ int pipe(int* fds)
 	fds[1] = b;
 	return a;
 }
-

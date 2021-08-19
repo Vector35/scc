@@ -10,4 +10,3 @@ int pipe(int* fds)
 {
 	return __syscall(SYS_pipe2, fds, 0);
 }
-

@@ -7,4 +7,3 @@ void main()
 
 	quark_exec(buf);
 }
-

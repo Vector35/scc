@@ -1,17 +1,17 @@
-#include <string>
-#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <vector>
 #ifndef WIN32
-#include <sys/mman.h>
+	#include <sys/mman.h>
 #endif
-#include <time.h>
-#include "asmx86.h"
-#include "Linker.h"
 #include "ElfOutput.h"
+#include "Linker.h"
 #include "MachOOutput.h"
 #include "PeOutput.h"
+#include "asmx86.h"
+#include <time.h>
 
 using namespace std;
 
@@ -30,72 +30,123 @@ void Usage()
 	fprintf(stderr, "Shellcode Compiler version %s\n", g_versionString);
 	fprintf(stderr, "Copyright (C) 2015-2021 Vector 35 Inc\n");
 	fprintf(stderr, "BETA RELEASE - NOT ALL OPTIONS ARE IMPLEMENTED\n\n");
-	fprintf(stderr, "This compiler accepts a subset of C99 syntax, with extensions for creating a standalone\n");
-	fprintf(stderr, "environment for writing shellcode.  Many standard system calls and C library functions\n");
+	fprintf(stderr,
+	    "This compiler accepts a subset of C99 syntax, with extensions for creating a standalone\n");
+	fprintf(stderr,
+	    "environment for writing shellcode.  Many standard system calls and C library functions\n");
 	fprintf(stderr, "are automatically available without the need for include files.\n\n");
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    --arch <value>                    Specify processor architecture\n");
-	fprintf(stderr, "                                      Can be: x86 (default), x64, arm, armeb, aarch64,\n");
+	fprintf(stderr,
+	    "                                      Can be: x86 (default), x64, arm, armeb, aarch64,\n");
 	fprintf(stderr, "                                              mips, mipsel, ppc, ppcel\n");
-	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
-	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
+	fprintf(stderr,
+	    "    --align <boundary>                Ensure output is aligned on the given boundary\n");
+	fprintf(stderr,
+	    "    --allow-return                    Allow return from shellcode (default is to exit)\n");
 	fprintf(stderr, "    --anti-disasm                     Generate anti-disassembly blocks\n");
-	fprintf(stderr, "    --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> instructions\n");
-	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
+	fprintf(stderr,
+	    "    --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> "
+	    "instructions\n");
+	fprintf(stderr,
+	    "    --base <expr>                     Set base address of output (can be a runtime "
+	    "computed\n");
 	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
-	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
+	fprintf(stderr,
+	    "    --base-reg <reg>                  Global register that will hold base of code\n");
 	fprintf(stderr, "    --blacklist <byte>                Blacklist the given byte value\n");
-	fprintf(stderr, "    --concat                          Jump to end of output on return for concatenating code\n");
+	fprintf(stderr,
+	    "    --concat                          Jump to end of output on return for concatenating "
+	    "code\n");
 	fprintf(stderr, "    -D <define>[=<value>]             Define a preprocessor macro\n");
-	fprintf(stderr, "    --decoder <source>                Use decoder to decode shellcode before executing\n");
-	fprintf(stderr, "    --encode-pointers                 All code pointers are encoded with a random canary\n");
+	fprintf(stderr,
+	    "    --decoder <source>                Use decoder to decode shellcode before executing\n");
+	fprintf(stderr,
+	    "    --encode-pointers                 All code pointers are encoded with a random canary\n");
 	fprintf(stderr, "    --encoder <source>                Use encoder to encode shellcode\n");
-	fprintf(stderr, "    --exec                            Execute shellcode after generation (does not write\n");
+	fprintf(stderr,
+	    "    --exec                            Execute shellcode after generation (does not write\n");
 	fprintf(stderr, "                                      output to a file)\n");
-	fprintf(stderr, "    --exec-stack                      When outputting an executable, make stack executable\n");
+	fprintf(stderr,
+	    "    --exec-stack                      When outputting an executable, make stack "
+	    "executable\n");
 	fprintf(stderr, "    --format <value>, -f <value>      Specify output format\n");
-	fprintf(stderr, "                                      Can be: bin (default), lib, elf, pe, macho\n");
-	fprintf(stderr, "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
-	fprintf(stderr, "    --func <name> <address>           Assume function is at a specific address\n");
-	fprintf(stderr, "    --funcptr <name> <address>        Assume function is pointed to by a specific address\n");
+	fprintf(
+	    stderr, "                                      Can be: bin (default), lib, elf, pe, macho\n");
+	fprintf(stderr,
+	    "    --frame-reg <reg>                 Use alternate register as the frame pointer\n");
+	fprintf(
+	    stderr, "    --func <name> <address>           Assume function is at a specific address\n");
+	fprintf(stderr,
+	    "    --funcptr <name> <address>        Assume function is pointed to by a specific "
+	    "address\n");
 	fprintf(stderr, "    --gui                             For PE output, use GUI subsystem\n");
 	fprintf(stderr, "    --header <file>                   Include a precompiled header\n");
-	fprintf(stderr, "    -I <path>                         Add additional directory for include files\n");
+	fprintf(
+	    stderr, "    -I <path>                         Add additional directory for include files\n");
 	fprintf(stderr, "    -L <lib>                          Include pre-built library\n");
 	fprintf(stderr, "    -m32, -m64                        Specify target address size\n");
 	fprintf(stderr, "    --map <file>                      Generate map file\n");
-	fprintf(stderr, "    --markov-chain                    Generate random instruction sequences for padding\n");
-	fprintf(stderr, "    --markov-chain-file <file>        Use file for generating random instruction sequences\n");
-	fprintf(stderr, "    --max-length <value>              Do not let output size exceed given number of bytes\n");
-	fprintf(stderr, "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
-	fprintf(stderr, "    -o <filename>                     Set output filename (default is hex dump to stdout)\n");
+	fprintf(stderr,
+	    "    --markov-chain                    Generate random instruction sequences for padding\n");
+	fprintf(stderr,
+	    "    --markov-chain-file <file>        Use file for generating random instruction "
+	    "sequences\n");
+	fprintf(stderr,
+	    "    --max-length <value>              Do not let output size exceed given number of "
+	    "bytes\n");
+	fprintf(stderr,
+	    "    --mixed-mode                      Randomly choose subarchitecture for each function\n");
+	fprintf(stderr,
+	    "    -o <filename>                     Set output filename (default is hex dump to "
+	    "stdout)\n");
 	fprintf(stderr, "    -O0                               Do not run the optimizer\n");
-	fprintf(stderr, "    -Os                               Try to generate the smallest code possible\n");
-	fprintf(stderr, "    --pad                             Pad output to be exactly the maximum length\n");
-	fprintf(stderr, "    --pie                             Always generate position independent code\n");
+	fprintf(
+	    stderr, "    -Os                               Try to generate the smallest code possible\n");
+	fprintf(stderr,
+	    "    --pad                             Pad output to be exactly the maximum length\n");
+	fprintf(
+	    stderr, "    --pie                             Always generate position independent code\n");
 	fprintf(stderr, "    --platform <value>                Specify operating system\n");
-	fprintf(stderr, "                                      Can be: linux (default), freebsd, mac, windows, none\n");
+	fprintf(stderr,
+	    "                                      Can be: linux (default), freebsd, mac, windows, "
+	    "none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
-	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
-	fprintf(stderr, "    --unloaded-modules                Uses modules that have not been loaded yet\n");
+	fprintf(
+	    stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
+	fprintf(
+	    stderr, "    --unloaded-modules                Uses modules that have not been loaded yet\n");
 	fprintf(stderr, "    --unsafe-stack                    Stack pointer may be near the code\n");
-	fprintf(stderr, "    --return-reg <reg>                Use alternate register as the return value\n");
-	fprintf(stderr, "    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return\n");
+	fprintf(
+	    stderr, "    --return-reg <reg>                Use alternate register as the return value\n");
+	fprintf(stderr,
+	    "    --return-high-reg <reg>           Use alternate register as the upper 32 bits of "
+	    "return\n");
 	fprintf(stderr, "                                      value (32-bit output only)\n");
-	fprintf(stderr, "    --seed <value>                    Specify random seed (to reproduce --polymorph runs)\n");
-	fprintf(stderr, "    --shared                          Generate shared library instead of executable\n");
+	fprintf(stderr,
+	    "    --seed <value>                    Specify random seed (to reproduce --polymorph "
+	    "runs)\n");
+	fprintf(stderr,
+	    "    --shared                          Generate shared library instead of executable\n");
 	fprintf(stderr, "    --stack-grows-up                  Stack grows toward larger addresses\n");
-	fprintf(stderr, "    --stack-reg <reg>                 Use alternate register as the stack pointer\n");
+	fprintf(stderr,
+	    "    --stack-reg <reg>                 Use alternate register as the stack pointer\n");
 	fprintf(stderr, "    --stdin                           Read source code from stdin\n");
-	fprintf(stderr, "    --stdout                          Send generated code to stdout for pipelines\n\n");
+	fprintf(stderr,
+	    "    --stdout                          Send generated code to stdout for pipelines\n\n");
 	fprintf(stderr, "Useful extensions:\n");
-	fprintf(stderr, "    __noreturn                        Specifies that a function cannot return\n");
-	fprintf(stderr, "                                      Example: void exit(int value) __noreturn;\n");
-	fprintf(stderr, "    __syscall(num, ...)               Executes a system call on the target platform\n");
-	fprintf(stderr, "    __undefined                       Gives undefined results, usually omitting code\n");
+	fprintf(
+	    stderr, "    __noreturn                        Specifies that a function cannot return\n");
+	fprintf(
+	    stderr, "                                      Example: void exit(int value) __noreturn;\n");
+	fprintf(stderr,
+	    "    __syscall(num, ...)               Executes a system call on the target platform\n");
+	fprintf(stderr,
+	    "    __undefined                       Gives undefined results, usually omitting code\n");
 	fprintf(stderr, "                                      Example: exit(__undefined);\n");
 	fprintf(stderr, "    __initial_<reg>                   Value of register at start of program\n");
-	fprintf(stderr, "                                      Example: int socketDescriptor = __initial_ebx;\n\n");
+	fprintf(stderr,
+	    "                                      Example: int socketDescriptor = __initial_ebx;\n\n");
 }
 
 
@@ -163,7 +214,8 @@ int main(int argc, char* argv[])
 				settings.preferredBits = 32;
 				settings.bigEndian = false;
 			}
-			else if ((!strcmp(argv[i], "x64")) || (!strcmp(argv[i], "x86_64")) || (!strcmp(argv[i], "amd64")))
+			else if ((!strcmp(argv[i], "x64")) || (!strcmp(argv[i], "x86_64")) ||
+			         (!strcmp(argv[i], "amd64")))
 			{
 				settings.architecture = ARCH_X86;
 				settings.preferredBits = 64;
@@ -547,7 +599,7 @@ int main(int argc, char* argv[])
 			settings.pad = true;
 			continue;
 		}
-		else if (!strcmp(argv[i] ,"-o"))
+		else if (!strcmp(argv[i], "-o"))
 		{
 			if ((i + 1) >= argc)
 			{
@@ -590,7 +642,7 @@ int main(int argc, char* argv[])
 			else if (!strcmp(argv[i], "freebsd"))
 				settings.os = OS_FREEBSD;
 			else if ((!strcmp(argv[i], "mac")) || (!strcmp(argv[i], "macos")) ||
-				(!strcmp(argv[i], "macosx")) || (!strcmp(argv[i], "darwin")))
+			         (!strcmp(argv[i], "macosx")) || (!strcmp(argv[i], "darwin")))
 				settings.os = OS_MAC;
 			else if ((!strcmp(argv[i], "win32")) || (!strcmp(argv[i], "windows")))
 				settings.os = OS_WINDOWS;
@@ -944,7 +996,8 @@ int main(int argc, char* argv[])
 	if (precompiledHeaders.size() != 0)
 	{
 		// Process the precompiled headers
-		for (vector<string>::iterator i = precompiledHeaders.begin(); i != precompiledHeaders.end(); i++)
+		for (vector<string>::iterator i = precompiledHeaders.begin(); i != precompiledHeaders.end();
+		     i++)
 		{
 			if (!linker.PrecompileHeader(*i))
 				return 1;
@@ -1090,7 +1143,8 @@ int main(int argc, char* argv[])
 		for (size_t i = 0; i < 256; i++)
 		{
 			bool ok = true;
-			for (vector<uint8_t>::iterator j = settings.blacklist.begin(); j != settings.blacklist.end(); j++)
+			for (vector<uint8_t>::iterator j = settings.blacklist.begin(); j != settings.blacklist.end();
+			     j++)
 			{
 				if (i == *j)
 				{
@@ -1119,8 +1173,8 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "error: --exec not yet supported on Windows\n");
 #else
 		// User wants to execute the code
-		void* buffer = mmap(NULL, (finalBinary.len + 4095) & (~4095), PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_PRIVATE | MAP_ANON, -1, 0);
+		void* buffer = mmap(NULL, (finalBinary.len + 4095) & (~4095),
+		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON, -1, 0);
 		memcpy(buffer, finalBinary.code, finalBinary.len);
 		((void (*)())buffer)();
 #endif

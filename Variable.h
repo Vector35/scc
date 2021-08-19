@@ -1,10 +1,10 @@
 #ifndef __VARIABLE_H__
 #define __VARIABLE_H__
 
-#include <map>
-#include "Type.h"
 #include "Expr.h"
 #include "Output.h"
+#include "Type.h"
+#include <map>
 
 
 enum VariableClass
@@ -17,7 +17,7 @@ enum VariableClass
 	VAR_EXTERN
 };
 
-class Variable: public RefCountObject
+class Variable : public RefCountObject
 {
 	VariableClass m_class;
 	size_t m_paramIndex;
@@ -35,11 +35,11 @@ class Variable: public RefCountObject
 	int64_t m_serializationIndex;
 	bool m_serializationIndexValid;
 	static size_t m_nextSerializationIndex;
-	static std::map< size_t, Ref<Variable> > m_serializationMap;
+	static std::map<size_t, Ref<Variable>> m_serializationMap;
 
 	bool DeserializeInternal(InputBlock* input);
 
-public:
+ public:
 	Variable();
 	Variable(VariableClass cls, Type* type, const std::string& name);
 	Variable(size_t paramIndex, Type* type, const std::string& name);
@@ -50,7 +50,10 @@ public:
 	bool IsParameter() const { return m_class == VAR_PARAM; }
 	bool IsTempVariable() const { return m_class == VAR_TEMP; }
 	bool IsLocalScope() const { return m_class == VAR_FILE_SCOPE; }
-	bool IsGlobal() const { return (m_class == VAR_GLOBAL) || (m_class == VAR_FILE_SCOPE) || (m_class == VAR_EXTERN); }
+	bool IsGlobal() const
+	{
+		return (m_class == VAR_GLOBAL) || (m_class == VAR_FILE_SCOPE) || (m_class == VAR_EXTERN);
+	}
 	bool IsExternal() const { return m_class == VAR_EXTERN; }
 	size_t GetParameterIndex() const { return m_paramIndex; }
 	Type* GetType() const { return m_type; }
@@ -76,4 +79,3 @@ public:
 
 
 #endif
-

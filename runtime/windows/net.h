@@ -45,40 +45,40 @@
 #define SOCK_RDM       4
 #define SOCK_SEQPACKET 5
 
-#define IPPROTO_ICMP       1
-#define IPPROTO_IGMP       2
-#define BTHPROTO_RFCOMM    3
-#define IPPROTO_TCP        6
-#define IPPROTO_UDP        17
-#define IPPROTO_ICMPV6     58
-#define IPPROTO_RM         113
+#define IPPROTO_ICMP    1
+#define IPPROTO_IGMP    2
+#define BTHPROTO_RFCOMM 3
+#define IPPROTO_TCP     6
+#define IPPROTO_UDP     17
+#define IPPROTO_ICMPV6  58
+#define IPPROTO_RM      113
 
-#define SOL_SOCKET         0xffff
-#define SO_DEBUG           1
-#define SO_ACCEPTCONN      2
-#define SO_REUSEADDR       4
-#define SO_KEEPALIVE       8
-#define SO_DONTROUTE       0x10
-#define SO_BROADCAST       0x20
-#define SO_USELOOPBACK     0x40
-#define SO_LINGER          0x80
-#define SO_OOBINLINE       0x100
-#define SO_SNDBUF          0x1001
-#define SO_RCVBUF          0x1002
-#define SO_SNDLOWAT        0x1003
-#define SO_RCVLOWAT        0x1004
-#define SO_SNDTIMEO        0x1005
-#define SO_RCVTIMEO        0x1006
-#define SO_ERROR           0x1007
-#define SO_TYPE            0x1008
-#define SO_GROUP_ID        0x2001
-#define SO_GROUP_PRIORITY  0x2002
-#define SO_MAX_MSG_SIZE    0x2003
-#define SO_PROTOCOL_INFOA  0x2004
-#define SO_PROTOCOL_INFOW  0x2005
-#define PVD_CONFIG         0x3001
+#define SOL_SOCKET        0xffff
+#define SO_DEBUG          1
+#define SO_ACCEPTCONN     2
+#define SO_REUSEADDR      4
+#define SO_KEEPALIVE      8
+#define SO_DONTROUTE      0x10
+#define SO_BROADCAST      0x20
+#define SO_USELOOPBACK    0x40
+#define SO_LINGER         0x80
+#define SO_OOBINLINE      0x100
+#define SO_SNDBUF         0x1001
+#define SO_RCVBUF         0x1002
+#define SO_SNDLOWAT       0x1003
+#define SO_RCVLOWAT       0x1004
+#define SO_SNDTIMEO       0x1005
+#define SO_RCVTIMEO       0x1006
+#define SO_ERROR          0x1007
+#define SO_TYPE           0x1008
+#define SO_GROUP_ID       0x2001
+#define SO_GROUP_PRIORITY 0x2002
+#define SO_MAX_MSG_SIZE   0x2003
+#define SO_PROTOCOL_INFOA 0x2004
+#define SO_PROTOCOL_INFOW 0x2005
+#define PVD_CONFIG        0x3001
 
-#define TCP_NODELAY        1
+#define TCP_NODELAY 1
 
 #define WSADESCRIPTION_LEN 256
 #define WSASYS_STATUS_LEN  128
@@ -87,8 +87,8 @@ typedef struct
 {
 	uint16_t wVersion;
 	uint16_t wHighVersion;
-	char szDescription[WSADESCRIPTION_LEN+1];
-	char szSystemStatus[WSASYS_STATUS_LEN+1];
+	char szDescription[WSADESCRIPTION_LEN + 1];
+	char szSystemStatus[WSASYS_STATUS_LEN + 1];
 	uint16_t iMaxSockets;
 	uint16_t iMaxUdpDg;
 	char* lpVendorInfo;
@@ -141,7 +141,8 @@ int __stdcall socket(int af, int type, int protocol) __import("ws2_32");
 int __stdcall bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) __import("ws2_32");
 int __stdcall accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) __import("ws2_32");
 int __stdcall listen(int sockfd, int backlog) __import("ws2_32");
-int __stdcall connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen) __import("ws2_32");
+int __stdcall connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen)
+    __import("ws2_32");
 int __stdcall getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) __import("ws2_32");
 int __stdcall getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen) __import("ws2_32");
 int __stdcall shutdown(int sockfd, int how) __import("ws2_32");
@@ -149,11 +150,15 @@ int __stdcall closesocket(int sockfd) __import("ws2_32");
 
 int __stdcall send(int fd, const void* buf, int n, int flags) __import("ws2_32");
 int __stdcall recv(int fd, void* buf, int n, int flags) __import("ws2_32");
-int __stdcall sendto(int fd, const void* buf, int n, int flags, const struct sockaddr* addr, socklen_t addrlen) __import("ws2_32");
-int __stdcall recvfrom(int fd, void* buf, int n, int flags, struct sockaddr* addr, socklen_t* addrlen) __import("ws2_32");
+int __stdcall sendto(int fd, const void* buf, int n, int flags, const struct sockaddr* addr,
+    socklen_t addrlen) __import("ws2_32");
+int __stdcall recvfrom(int fd, void* buf, int n, int flags, struct sockaddr* addr,
+    socklen_t* addrlen) __import("ws2_32");
 
-int __stdcall getsockopt(int fd, int level, int optname, void* optval, socklen_t* optlen) __import("ws2_32");
-int __stdcall setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen) __import("ws2_32");
+int __stdcall getsockopt(int fd, int level, int optname, void* optval, socklen_t* optlen)
+    __import("ws2_32");
+int __stdcall setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen)
+    __import("ws2_32");
 
 bool init_sockets();
 int create_tcp4_connection(uint32_t ip, uint16_t port);
@@ -165,4 +170,3 @@ ssize_t recv_all(int fd, void* buf, size_t n, int flags);
 ssize_t send_string(int fd, const char* str);
 
 #endif
-

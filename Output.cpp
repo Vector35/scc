@@ -1,9 +1,9 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 #include "Output.h"
 #include "Struct.h"
 #include "Variable.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 using namespace std;
 
@@ -78,7 +78,8 @@ void OutputBlock::WriteString(const string& str)
 }
 
 
-void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset)
+void OutputBlock::ReplaceInstruction(
+    size_t offset, size_t origLen, const void* newInstr, size_t newLen, size_t newRelocOffset)
 {
 	// Ensure there is enough space in the buffer
 	if (newLen > origLen)
@@ -86,7 +87,7 @@ void OutputBlock::ReplaceInstruction(size_t offset, size_t origLen, const void* 
 
 	// Move code after the instruction into place
 	memmove((void*)((size_t)code + offset + newLen), (void*)((size_t)code + offset + origLen),
-		(len - (offset + origLen)));
+	    (len - (offset + origLen)));
 
 	// Copy in the new instruction
 	memcpy((void*)((size_t)code + offset), newInstr, newLen);
@@ -516,14 +517,12 @@ bool InputBlock::ReadBool(bool& value)
 }
 
 
-Output::Output(const Settings& settings, Function* startFunc): m_settings(settings), m_startFunc(startFunc)
-{
-}
+Output::Output(const Settings& settings, Function* startFunc) :
+    m_settings(settings), m_startFunc(startFunc)
+{}
 
 
-Output::~Output()
-{
-}
+Output::~Output() {}
 
 
 uint16_t BE16(uint16_t value)
@@ -534,14 +533,14 @@ uint16_t BE16(uint16_t value)
 
 uint32_t BE32(uint32_t value)
 {
-	return ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) | (value << 24);
+	return ((value >> 24) & 0xff) | ((value >> 8) & 0xff00) | ((value << 8) & 0xff0000) |
+	       (value << 24);
 }
 
 
 uint64_t BE64(uint64_t value)
 {
 	return ((value >> 56) & 0xff) | ((value >> 40) & 0xff00) | ((value >> 24) & 0xff0000) |
-		((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) | ((value << 24) & 0xff0000000000LL) |
-		((value << 40) & 0xff000000000000LL) | (value << 56);
+	       ((value >> 8) & 0xff000000) | ((value << 8) & 0xff00000000LL) |
+	       ((value << 24) & 0xff0000000000LL) | ((value << 40) & 0xff000000000000LL) | (value << 56);
 }
-

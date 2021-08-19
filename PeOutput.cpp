@@ -1,7 +1,7 @@
-#include <stdlib.h>
-#include <string.h>
 #include "PeOutput.h"
 #include "Struct.h"
+#include <stdlib.h>
+#include <string.h>
 
 using namespace std;
 
@@ -141,8 +141,8 @@ struct PeExportDirectoryEntry
 };
 
 
-bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection, OutputBlock* dataSection,
-	map<string, ImportTable>& imports)
+bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* codeSection,
+    OutputBlock* dataSection, map<string, ImportTable>& imports)
 {
 	uint8_t padding[0x200];
 	memset(padding, 0, sizeof(padding));
@@ -157,7 +157,8 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		string name = i->first + ".dll";
 		dataSection->Write(name.c_str(), strlen(name.c_str()) + 1);
 
-		for (vector< Ref<Function> >::iterator j = i->second.functions.begin(); j != i->second.functions.end(); ++j)
+		for (vector<Ref<Function>>::iterator j = i->second.functions.begin();
+		     j != i->second.functions.end(); ++j)
 		{
 			if (dataSection->len & 1)
 				dataSection->Write(padding, 1);
@@ -184,12 +185,14 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 			if (settings.preferredBits == 64)
 			{
 				dataSection->WriteUInt64((uint64_t)nameOffset);
-				dataSection->WriteOffsetUInt64(i->second.table->GetDataSectionOffset() + (j * 8), (uint64_t)nameOffset);
+				dataSection->WriteOffsetUInt64(
+				    i->second.table->GetDataSectionOffset() + (j * 8), (uint64_t)nameOffset);
 			}
 			else
 			{
 				dataSection->WriteUInt32((uint32_t)nameOffset);
-				dataSection->WriteOffsetUInt32(i->second.table->GetDataSectionOffset() + (j * 4), (uint32_t)nameOffset);
+				dataSection->WriteOffsetUInt32(
+				    i->second.table->GetDataSectionOffset() + (j * 4), (uint32_t)nameOffset);
 			}
 		}
 
@@ -233,7 +236,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 	switch (settings.architecture)
 	{
 	case ARCH_X86:
-		pe.machine = 0x14c; // x86
+		pe.machine = 0x14c;  // x86
 		if (settings.preferredBits == 64)
 			pe.machine = 0x8664;
 		break;
@@ -254,14 +257,14 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 	}
 
 	pe.numberOfSections = 2;
-	pe.characteristics = 0x32e; // Executable, large address aware, stripped
+	pe.characteristics = 0x32e;  // Executable, large address aware, stripped
 
 	if (settings.preferredBits == 64)
 		pe.sizeOfOptionalHeader = sizeof(Pe64OptionalHeader) + (sizeof(PeDataDirectoryEntry) * 16);
 	else
 	{
 		pe.sizeOfOptionalHeader = sizeof(Pe32OptionalHeader) + (sizeof(PeDataDirectoryEntry) * 16);
-		pe.characteristics |= 0x100; // 32-bit machine
+		pe.characteristics |= 0x100;  // 32-bit machine
 	}
 
 	output->Write(&pe, sizeof(pe));
@@ -313,7 +316,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		code.virtualAddress = 0x1000;
 		code.sizeOfRawData = (codeSection->len + 0x1ff) & (~0x1ff);
 		code.pointerToRawData = 0x200;
-		code.characteristics = 0x60000020; // Code, execute read
+		code.characteristics = 0x60000020;  // Code, execute read
 		output->Write(&code, sizeof(code));
 
 		PeSection data;
@@ -323,7 +326,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		data.virtualAddress = sizeOfCode + 0x1000;
 		data.sizeOfRawData = (dataSection->len + 0x1ff) & (~0x1ff);
 		data.pointerToRawData = code.sizeOfRawData + 0x200;
-		data.characteristics = 0xc0000040; // Initialized data, read/write
+		data.characteristics = 0xc0000040;  // Initialized data, read/write
 		output->Write(&data, sizeof(data));
 	}
 	else
@@ -373,7 +376,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		code.virtualAddress = 0x1000;
 		code.sizeOfRawData = (codeSection->len + 0x1ff) & (~0x1ff);
 		code.pointerToRawData = 0x200;
-		code.characteristics = 0x60000020; // Code, execute read
+		code.characteristics = 0x60000020;  // Code, execute read
 		output->Write(&code, sizeof(code));
 
 		PeSection data;
@@ -383,7 +386,7 @@ bool GeneratePeFile(OutputBlock* output, const Settings& settings, OutputBlock* 
 		data.virtualAddress = sizeOfCode + 0x1000;
 		data.sizeOfRawData = (dataSection->len + 0x1ff) & (~0x1ff);
 		data.pointerToRawData = code.sizeOfRawData + 0x200;
-		data.characteristics = 0xc0000040; // Initialized data, read/write
+		data.characteristics = 0xc0000040;  // Initialized data, read/write
 		output->Write(&data, sizeof(data));
 	}
 
@@ -411,4 +414,3 @@ uint64_t AdjustDataSectionBaseForPeFile(uint64_t base)
 		base += 0x1000 - (base & 0xfff);
 	return base;
 }
-

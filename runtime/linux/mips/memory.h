@@ -21,9 +21,8 @@
 #ifndef __LIBC__LINUX_MIPS_MEMORY_H__
 #define __LIBC__LINUX_MIPS_MEMORY_H__
 
-#define PROT_SEM          0x10
-#define MAP_ANON          0x800
-#define MAP_ANONYMOUS     0x800
+#define PROT_SEM      0x10
+#define MAP_ANON      0x800
+#define MAP_ANONYMOUS 0x800
 
 #endif
-

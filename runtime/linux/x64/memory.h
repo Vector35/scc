@@ -21,9 +21,8 @@
 #ifndef __LIBC__LINUX_X64_MEMORY_H__
 #define __LIBC__LINUX_X64_MEMORY_H__
 
-#define PROT_SEM          8
-#define MAP_ANON          0x20
-#define MAP_ANONYMOUS     0x20
+#define PROT_SEM      8
+#define MAP_ANON      0x20
+#define MAP_ANONYMOUS 0x20
 
 #endif
-

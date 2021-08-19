@@ -26,4 +26,3 @@ int main()
 	write(1, buffer, bytes);
 	return 0;
 }
-

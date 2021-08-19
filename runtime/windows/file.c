@@ -199,4 +199,3 @@ int pipe(int* fds)
 	fds[1] = (int)write;
 	return 0;
 }
-

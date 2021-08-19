@@ -42,4 +42,3 @@ uint32_t crc32(const void* data, size_t len)
 		crc = (crc >> 8) ^ tab[(crc ^ ((uint8_t*)data)[i]) & 0xff];
 	return ~crc;
 }
-

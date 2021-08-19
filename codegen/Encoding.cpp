@@ -34,7 +34,8 @@ EncodingField* EncodingField::CreateNormalField(const std::string& name, size_t 
 }
 
 
-EncodingField* EncodingField::CreateDefaultValueField(const std::string& name, size_t width, int64_t value)
+EncodingField* EncodingField::CreateDefaultValueField(
+    const std::string& name, size_t width, int64_t value)
 {
 	EncodingField* field = new EncodingField;
 	field->type = FIELD_DEFAULT_VALUE;
@@ -57,9 +58,7 @@ EncodingField* EncodingField::CreateFixedValueField(size_t width, int64_t value)
 }
 
 
-Encoding::Encoding(): m_width(0)
-{
-}
+Encoding::Encoding() : m_width(0) {}
 
 
 bool Encoding::IsFieldDefined(const string& name) const
@@ -91,4 +90,3 @@ void Encoding::AddField(const EncodingField& field)
 
 	m_width += field.width;
 }
-

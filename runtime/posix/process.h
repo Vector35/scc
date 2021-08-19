@@ -23,9 +23,9 @@
 
 #include "runtime/posix/time.h"
 
-#define ITIMER_REAL     0
-#define ITIMER_VIRTUAL  1
-#define ITIMER_PROF     2
+#define ITIMER_REAL    0
+#define ITIMER_VIRTUAL 1
+#define ITIMER_PROF    2
 
 typedef int pid_t;
 typedef int uid_t;
@@ -73,4 +73,3 @@ pid_t getpgrp(void);
 int kill(pid_t pid, int sig);
 
 #endif
-

@@ -77,4 +77,3 @@ HANDLE shell_pipe(int read, int write)
 	CloseHandle(info.hThread);
 	return info.hProcess;
 }
-

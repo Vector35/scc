@@ -21,20 +21,20 @@
 #ifndef __LIBC__LINUX_FILE_H__
 #define __LIBC__LINUX_FILE_H__
 
-#define O_RDONLY    0
-#define O_WRONLY    1
-#define O_RDWR      2
-#define O_ACCMODE   3
-#define O_CREAT     0x40
-#define O_EXCL      0x80
-#define O_NOCTTY    0x100
-#define O_TRUNC     0x200
-#define O_APPEND    0x400
-#define O_NONBLOCK  0x800
-#define O_DSYNC     0x1000
-#define FASYNC      0x2000
-#define O_NOATIME   0x40000
-#define O_CLOEXEC   0x80000
+#define O_RDONLY   0
+#define O_WRONLY   1
+#define O_RDWR     2
+#define O_ACCMODE  3
+#define O_CREAT    0x40
+#define O_EXCL     0x80
+#define O_NOCTTY   0x100
+#define O_TRUNC    0x200
+#define O_APPEND   0x400
+#define O_NONBLOCK 0x800
+#define O_DSYNC    0x1000
+#define FASYNC     0x2000
+#define O_NOATIME  0x40000
+#define O_CLOEXEC  0x80000
 
 #define F_DUPFD         0  // duplicate file descriptor
 #define F_GETFD         1  // get file descriptor flags
@@ -57,13 +57,13 @@
 #define F_SETPIPE_SZ    1031
 #define F_GETPIPE_SZ    1032
 
-#define FD_CLOEXEC      1
+#define FD_CLOEXEC 1
 
-#define F_RDLCK         0
-#define F_WRLCK         1
-#define F_UNLCK         2
-#define F_EXLCK         4
-#define F_SHLCK         8
+#define F_RDLCK 0
+#define F_WRLCK 1
+#define F_UNLCK 2
+#define F_EXLCK 4
+#define F_SHLCK 8
 
 struct dirent
 {
@@ -81,4 +81,3 @@ ssize_t sendfile(int outFd, int inFd, size_t* offset, size_t count);
 int getdents(int fd, struct dirent* dirp, size_t count);
 
 #endif
-

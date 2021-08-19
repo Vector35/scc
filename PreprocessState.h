@@ -1,16 +1,16 @@
 #ifndef __PREPROCESSSTATE_H__
 #define __PREPROCESSSTATE_H__
 
-#include <string>
-#include <map>
-#include <vector>
-#include <stack>
-#include <inttypes.h>
 #include "Expr.h"
+#include "Settings.h"
 #include "Struct.h"
 #include "Token.h"
 #include "Variable.h"
-#include "Settings.h"
+#include <inttypes.h>
+#include <map>
+#include <stack>
+#include <string>
+#include <vector>
 
 
 struct Macro
@@ -18,7 +18,7 @@ struct Macro
 	std::string name;
 	bool hasParams;
 	std::vector<std::string> params;
-	std::vector< Ref<Token> > tokens;
+	std::vector<Ref<Token>> tokens;
 	Location location;
 };
 
@@ -26,8 +26,8 @@ struct MacroExpansion
 {
 	Macro macro;
 	size_t parens;
-	std::vector< std::vector< Ref<Token> > > params;
-	std::vector< Ref<Token> > curParam;
+	std::vector<std::vector<Ref<Token>>> params;
+	std::vector<Ref<Token>> curParam;
 };
 
 class PreprocessState
@@ -54,7 +54,7 @@ class PreprocessState
 
 	Settings m_settings;
 
-public:
+ public:
 	PreprocessState(const std::string& name, void* scanner, const Settings& settings);
 	PreprocessState(PreprocessState& parent, const std::string& name, void* scanner);
 	~PreprocessState();
@@ -80,7 +80,7 @@ public:
 	void IncludeFile(const std::string& name);
 
 	void Define(const std::string& name, const std::vector<std::string>& params,
-		const std::vector< Ref<Token> >& tokens, bool hasParams);
+	    const std::vector<Ref<Token>>& tokens, bool hasParams);
 	void Undefine(const std::string& name);
 	bool IsDefined(const std::string& name);
 
@@ -95,10 +95,9 @@ public:
 	void Serialize(OutputBlock* output);
 	bool Deserialize(InputBlock* input);
 
-	static bool PreprocessSource(const Settings& settings, const std::string& source, const std::string& fileName,
-		std::string& output, PreprocessState* parent = NULL);
+	static bool PreprocessSource(const Settings& settings, const std::string& source,
+	    const std::string& fileName, std::string& output, PreprocessState* parent = NULL);
 };
 
 
 #endif
-

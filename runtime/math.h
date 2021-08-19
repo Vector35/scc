@@ -22,10 +22,10 @@
 #define __LIBC__MATH_H__
 
 #define DIV_MOD_DECL(size) \
-uint##size##_t __udiv##size(uint##size##_t a, uint##size##_t b); \
-uint##size##_t __umod##size(uint##size##_t a, uint##size##_t b); \
-int##size##_t __sdiv##size(int##size##_t a, int##size##_t b); \
-int##size##_t __smod##size(int##size##_t a, int##size##_t b);
+	uint##size##_t __udiv##size(uint##size##_t a, uint##size##_t b); \
+	uint##size##_t __umod##size(uint##size##_t a, uint##size##_t b); \
+	int##size##_t __sdiv##size(int##size##_t a, int##size##_t b); \
+	int##size##_t __smod##size(int##size##_t a, int##size##_t b);
 
 DIV_MOD_DECL(8)
 DIV_MOD_DECL(16)
@@ -40,4 +40,3 @@ uint32_t __byteswap32(uint32_t a);
 uint64_t __byteswap64(uint64_t a);
 
 #endif
-

@@ -2,9 +2,9 @@
 #define __TREENODE_H__
 
 #include "RefCountObject.h"
+#include <inttypes.h>
 #include <string>
 #include <vector>
-#include <inttypes.h>
 
 
 enum TreeNodeClass
@@ -100,7 +100,7 @@ enum TreeNodeType
 class TreeBlock;
 class Function;
 
-class TreeNode: public RefCountObject
+class TreeNode : public RefCountObject
 {
 	TreeNodeClass m_class;
 	TreeNodeType m_type;
@@ -109,11 +109,11 @@ class TreeNode: public RefCountObject
 	uint32_t m_reg, m_highReg, m_var;
 	uint32_t m_regClass, m_highRegClass;
 	int64_t m_immediate;
-	std::vector< Ref<TreeNode> > m_children;
+	std::vector<Ref<TreeNode>> m_children;
 
 	void PrintType() const;
 
-public:
+ public:
 	TreeNode(TreeNodeClass cls);
 	TreeNode(const TreeNode& copy);
 	TreeNode(const TreeNode* copy, TreeNode* replaceFrom, TreeNode* replaceTo);
@@ -139,27 +139,33 @@ public:
 	Function* GetFunction() const;
 
 	void AddChildNode(TreeNode* node) { m_children.push_back(node); }
-	void AddChildNodes(const std::vector< Ref<TreeNode> >& nodes) { m_children.insert(m_children.end(), nodes.begin(), nodes.end()); }
+	void AddChildNodes(const std::vector<Ref<TreeNode>>& nodes)
+	{
+		m_children.insert(m_children.end(), nodes.begin(), nodes.end());
+	}
 	void ReplaceChildNode(size_t i, TreeNode* node) { m_children[i] = node; }
-	const std::vector< Ref<TreeNode> >& GetChildNodes() const { return m_children; }
+	const std::vector<Ref<TreeNode>>& GetChildNodes() const { return m_children; }
 	const Ref<TreeNode>& operator[](size_t i) const { return m_children[i]; }
 
-	static TreeNode* CreateStackVarNode(uint32_t base, int32_t var, int64_t offset, TreeNodeType type);
+	static TreeNode* CreateStackVarNode(
+	    uint32_t base, int32_t var, int64_t offset, TreeNodeType type);
 	static TreeNode* CreateGlobalVarNode(int64_t offset, TreeNodeType type);
 	static TreeNode* CreateBlockNode(TreeBlock* block);
 	static TreeNode* CreateFunctionNode(Function* func, TreeNodeType type);
 	static TreeNode* CreateRegNode(uint32_t reg, uint32_t regClass, TreeNodeType type);
-	static TreeNode* CreateLargeRegNode(uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type);
+	static TreeNode* CreateLargeRegNode(
+	    uint32_t low, uint32_t high, uint32_t lowClass, uint32_t highClass, TreeNodeType type);
 	static TreeNode* CreateImmediateNode(int64_t immed, TreeNodeType type);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a);
 	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b);
-	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c);
-	static TreeNode* CreateNode(TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d);
+	static TreeNode* CreateNode(
+	    TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c);
+	static TreeNode* CreateNode(
+	    TreeNodeClass cls, TreeNodeType type, TreeNode* a, TreeNode* b, TreeNode* c, TreeNode* d);
 
 	void Print() const;
 };
 
 
 #endif
-

@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include "Type.h"
-#include "Struct.h"
 #include "Enum.h"
 #include "Output.h"
 #include "ParserState.h"
+#include "Struct.h"
+#include <stdio.h>
 
 using namespace std;
 
@@ -11,7 +11,7 @@ using namespace std;
 size_t g_targetPointerSize = 4;
 
 size_t Type::m_nextSerializationIndex = 0;
-map< size_t, Ref<Type> > Type::m_serializationMap;
+map<size_t, Ref<Type>> Type::m_serializationMap;
 
 
 Type::Type()
@@ -60,7 +60,7 @@ Type* Type::Duplicate(DuplicateContext& dup)
 	if (type->m_childType)
 		type->m_childType = type->m_childType->Duplicate(dup);
 
-	for (vector< Ref<Type> >::iterator i = type->m_params.begin(); i != type->m_params.end(); i++)
+	for (vector<Ref<Type>>::iterator i = type->m_params.begin(); i != type->m_params.end(); i++)
 		*i = (*i)->Duplicate(dup);
 
 	return type;
@@ -132,7 +132,7 @@ bool Type::operator==(const Type& type) const
 bool Type::CanAssignTo(const Type& type) const
 {
 	if ((m_class != type.m_class) && (!((m_class == TYPE_ARRAY) && (type.m_class == TYPE_POINTER))) &&
-		(!((m_class == TYPE_ENUM) && (type.m_class == TYPE_INT))))
+	    (!((m_class == TYPE_ENUM) && (type.m_class == TYPE_INT))))
 		return false;
 
 	switch (m_class)
@@ -266,7 +266,8 @@ Type* Type::ArrayType(Type* childType, size_t elem)
 }
 
 
-Type* Type::FunctionType(Type* returnValue, CallingConvention cc, const vector< pair< Ref<Type>, string > >& params)
+Type* Type::FunctionType(
+    Type* returnValue, CallingConvention cc, const vector<pair<Ref<Type>, string>>& params)
 {
 	Type* type = new Type();
 	type->m_class = TYPE_FUNCTION;
@@ -276,7 +277,7 @@ Type* Type::FunctionType(Type* returnValue, CallingConvention cc, const vector< 
 	type->m_alignment = GetTargetPointerSize();
 	type->m_variableArguments = false;
 
-	for (vector< pair< Ref<Type>, string > >::const_iterator i = params.begin(); i != params.end(); i++)
+	for (vector<pair<Ref<Type>, string>>::const_iterator i = params.begin(); i != params.end(); i++)
 	{
 		if (i->second == "...")
 			type->m_variableArguments = true;
@@ -337,7 +338,7 @@ void Type::Serialize(OutputBlock* output)
 		m_childType->Serialize(output);
 		output->WriteInteger(m_callingConvention);
 		output->WriteInteger(m_params.size());
-		for (vector< Ref<Type> >::iterator i = m_params.begin(); i != m_params.end(); i++)
+		for (vector<Ref<Type>>::iterator i = m_params.begin(); i != m_params.end(); i++)
 			(*i)->Serialize(output);
 		output->WriteInteger(m_variableArguments ? 1 : 0);
 		break;
@@ -526,4 +527,3 @@ void SetTargetPointerSize(size_t size)
 {
 	g_targetPointerSize = size;
 }
-

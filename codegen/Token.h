@@ -21,8 +21,8 @@
 #ifndef __TOKEN_H__
 #define __TOKEN_H__
 
-#include <string>
 #include "RefCountObject.h"
+#include <string>
 
 
 enum TokenClass
@@ -35,12 +35,12 @@ enum TokenClass
 	TOKEN_PASTE
 };
 
-class Token: public RefCountObject
+class Token : public RefCountObject
 {
 	TokenClass m_type;
 	std::string m_string;
 
-public:
+ public:
 	Token(TokenClass type);
 	Token(TokenClass type, const std::string& str);
 	virtual ~Token();
@@ -51,4 +51,3 @@ public:
 
 
 #endif
-

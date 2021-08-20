@@ -18,17 +18,19 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+// clang-format off
 #ifdef WIN32
-	#define YY_NO_UNISTD_H
+#define YY_NO_UNISTD_H
 #endif
-#include "CodegenLexer.h"
-#include "CodegenParser.h"
-#include "OutputGenerator.h"
-#include "ParserState.h"
-#include "PreprocessState.h"
+#include <string>
 #include <stdio.h>
 #include <string.h>
-#include <string>
+#include "PreprocessState.h"
+#include "ParserState.h"
+#include "CodegenParser.h"
+#include "CodegenLexer.h"
+#include "OutputGenerator.h"
+// clang-format on
 
 using namespace std;
 

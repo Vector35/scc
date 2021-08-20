@@ -1,18 +1,20 @@
+// clang-format off
 #ifdef WIN32
-	#define YY_NO_UNISTD_H
+#define YY_NO_UNISTD_H
 #endif
-#include "Linker.h"
-#include "CodeLexer.h"
-#include "CodeParser.h"
-#include "ElfOutput.h"
-#include "MachOOutput.h"
-#include "Optimize.h"
-#include "OutputX64.h"
-#include "OutputX86.h"
-#include "PeOutput.h"
-#include "asmx86.h"
 #include <stdio.h>
 #include <string.h>
+#include "asmx86.h"
+#include "Linker.h"
+#include "CodeParser.h"
+#include "CodeLexer.h"
+#include "Optimize.h"
+#include "OutputX86.h"
+#include "OutputX64.h"
+#include "ElfOutput.h"
+#include "MachOOutput.h"
+#include "PeOutput.h"
+// clang-format on
 
 using namespace std;
 using namespace asmx86;

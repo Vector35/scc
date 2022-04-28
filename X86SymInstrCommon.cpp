@@ -2514,8 +2514,8 @@ void X86_SYMINSTR_CLASS(CallIndirectMem)::Print(SymInstrFunction* func)
 }
 
 
-X86_SYMINSTR_CLASS(Syscall)::X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const vector<uint32_t> readRegs,
-	const vector<uint32_t> spilledRegs): m_spilledRegs(spilledRegs)
+X86_SYMINSTR_CLASS(Syscall)::X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const vector<uint32_t>& readRegs,
+	const vector<uint32_t>& spilledRegs): m_spilledRegs(spilledRegs)
 {
 	AddWriteRegisterOperand(eax);
 	AddWriteRegisterOperand(edx);
@@ -2565,7 +2565,7 @@ void X86_SYMINSTR_CLASS(Syscall)::Print(SymInstrFunction* func)
 
 
 X86_SYMINSTR_CLASS(SyscallInt80)::X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx,
-	const vector<uint32_t> readRegs, const vector<uint32_t> spilledRegs): m_spilledRegs(spilledRegs)
+	const vector<uint32_t>& readRegs, const vector<uint32_t>& spilledRegs): m_spilledRegs(spilledRegs)
 {
 	AddWriteRegisterOperand(eax);
 	AddWriteRegisterOperand(edx);

@@ -855,8 +855,8 @@ class X86_SYMINSTR_CLASS(Syscall): public X86_SYMINSTR_NAME(Instr)
 	std::vector<uint32_t> m_spilledRegs;
 
 public:
-	X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs,
-		const std::vector<uint32_t> spilledRegs);
+	X86_SYMINSTR_CLASS(Syscall)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t>& readRegs,
+		const std::vector<uint32_t>& spilledRegs);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };
@@ -867,8 +867,8 @@ class X86_SYMINSTR_CLASS(SyscallInt80): public X86_SYMINSTR_NAME(Instr)
 	std::vector<uint32_t> m_spilledRegs;
 
 public:
-	X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t> readRegs,
-		const std::vector<uint32_t> spilledRegs);
+	X86_SYMINSTR_CLASS(SyscallInt80)(uint32_t eax, uint32_t edx, uint32_t ecx, const std::vector<uint32_t>& readRegs,
+		const std::vector<uint32_t>& spilledRegs);
 	virtual bool EmitInstruction(SymInstrFunction* func, OutputBlock* out);
 	virtual void Print(SymInstrFunction* func);
 };

@@ -374,7 +374,7 @@ void OutputGenerator::WriteCodeBlock(CodeBlock* code, map<string, MatchVariableT
 				break;
 			}
 
-			sprintf(offsetStr, "%+d", i->offset);
+			snprintf(offsetStr, sizeof(offsetStr), "%+d", i->offset);
 
 			switch (var->second)
 			{
@@ -822,7 +822,7 @@ void OutputGenerator::GenerateMatchCode(Match* match)
 		{
 			MatchNodeInfo child;
 			char indexStr[32];
-			sprintf(indexStr, "%d", (int)i);
+			snprintf(indexStr, sizeof(indexStr), "%d", (int)i);
 			child.prefix = string("(*") + info.prefix + ")[" + indexStr + "]";
 			child.node = info.node->GetChildNodes()[i];
 			nodes.push(child);
@@ -1010,7 +1010,7 @@ void OutputGenerator::GenerateOutputCode(Match* match)
 		{
 			MatchNodeInfo child;
 			char indexStr[32];
-			sprintf(indexStr, "%d", (int)i);
+			snprintf(indexStr, sizeof(indexStr), "%d", (int)i);
 			child.prefix = string("(*") + info.prefix + ")[" + indexStr + "]";
 			child.node = info.node->GetChildNodes()[i];
 			nodes.push(child);
@@ -1119,10 +1119,10 @@ void OutputGenerator::GenerateEncodingMacro(const string& name, Encoding* encodi
 
 		char maskStr[32], shiftStr[32];
 		if (encoding->GetWidth() == 64)
-			sprintf(maskStr, "0x%" PRIx64 "LL", ((uint64_t)1 << j->width) - 1);
+			snprintf(maskStr, sizeof(maskStr), "0x%" PRIx64 "LL", ((uint64_t)1 << j->width) - 1);
 		else
-			sprintf(maskStr, "0x%" PRIx32, ((uint32_t)1 << j->width) - 1);
-		sprintf(shiftStr, "%d", (int)j->start);
+			snprintf(maskStr, sizeof(maskStr), "0x%" PRIx32, ((uint32_t)1 << j->width) - 1);
+		snprintf(shiftStr, sizeof(shiftStr), "%d", (int)j->start);
 
 		if (j->type == FIELD_FIXED_VALUE)
 		{
@@ -1130,9 +1130,9 @@ void OutputGenerator::GenerateEncodingMacro(const string& name, Encoding* encodi
 			uint64_t fixedVal = j->value;
 			fixedVal &= (1LL << j->width) - 1;
 			if (encoding->GetWidth() == 64)
-				sprintf(valueStr, "0x%" PRIx64 "LL", fixedVal);
+				snprintf(valueStr, sizeof(valueStr), "0x%" PRIx64 "LL", fixedVal);
 			else
-				sprintf(valueStr, "0x%" PRIx32, (uint32_t)fixedVal);
+				snprintf(valueStr, sizeof(valueStr), "0x%" PRIx32, (uint32_t)fixedVal);
 			if (j->start == 0)
 				value += string("((") + size + ")(" + valueStr + "))";
 			else
@@ -2127,7 +2127,7 @@ bool OutputGenerator::Generate(string& output)
 			for (int i = 0; ; i++)
 			{
 				char className[32];
-				sprintf(className, "INTEGER_PARAM_%d", i);
+				snprintf(className, sizeof(className), "INTEGER_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
 				{
 					if (i != 0)
@@ -2147,7 +2147,7 @@ bool OutputGenerator::Generate(string& output)
 			for (int i = 0; ; i++)
 			{
 				char className[32];
-				sprintf(className, "FLOAT_PARAM_%d", i);
+				snprintf(className, sizeof(className), "FLOAT_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
 				{
 					if (i != 0)
@@ -2314,7 +2314,7 @@ bool OutputGenerator::Generate(string& output)
 			for (int i = 0; ; i++)
 			{
 				char className[32];
-				sprintf(className, "SYSCALL_PARAM_%d", i);
+				snprintf(className, sizeof(className), "SYSCALL_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
 				{
 					if (i != 0)
@@ -2546,7 +2546,7 @@ bool OutputGenerator::Generate(string& output)
 			for (int i = 0; ; i++)
 			{
 				char className[32];
-				sprintf(className, "INTEGER_PARAM_%d", i);
+				snprintf(className, sizeof(className), "INTEGER_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
 				{
 					if (i != 0)
@@ -2566,7 +2566,7 @@ bool OutputGenerator::Generate(string& output)
 			for (int i = 0; ; i++)
 			{
 				char className[32];
-				sprintf(className, "FLOAT_PARAM_%d", i);
+				snprintf(className, sizeof(className), "FLOAT_PARAM_%d", i);
 				if (!m_parser->IsRegisterClass(className))
 				{
 					if (i != 0)

@@ -285,7 +285,7 @@ void Function::RemoveILBlock(ILBlock* block)
 ILParameter Function::CreateTempVariable(Type* type)
 {
 	char tempStr[32];
-	sprintf(tempStr, "@t%u", m_nextTempId++);
+	snprintf(tempStr, sizeof(tempStr), "@t%u", m_nextTempId++);
 	Variable* var = new Variable(VAR_TEMP, type, tempStr);
 	m_vars.push_back(var);
 	return ILParameter(var);

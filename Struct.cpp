@@ -13,7 +13,7 @@ map< size_t, Ref<Struct> > Struct::m_serializationMap;
 Struct::Struct()
 {
 	char tempName[64];
-	sprintf(tempName, "<anonymous 0x%p>", this);
+	snprintf(tempName, sizeof(tempName), "<anonymous 0x%p>", this);
 	m_name = tempName;
 
 	m_width = 0;
@@ -28,7 +28,7 @@ Struct::Struct()
 Struct::Struct(bool isUnion, bool packed)
 {
 	char tempName[64];
-	sprintf(tempName, "<anonymous 0x%p>", this);
+	snprintf(tempName, sizeof(tempName), "<anonymous 0x%p>", this);
 	m_name = tempName;
 
 	m_width = 0;

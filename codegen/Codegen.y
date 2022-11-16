@@ -275,13 +275,13 @@ token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 	 | INT_VAL
 	 	{
 			char str[32];
-			sprintf(str, "%" PRId64, $1);
+			snprintf(str, sizeof(str), "%" PRId64, $1);
 			$$ = CodeToken::CreateTextToken(YYLOC, str);
 		}
 	 | INT64_VAL
 	 	{
 			char str[32];
-			sprintf(str, "%" PRId64 "LL", $1);
+			snprintf(str, sizeof(str), "%" PRId64 "LL", $1);
 			$$ = CodeToken::CreateTextToken(YYLOC, str);
 		}
 	 | STRING_VAL
@@ -1099,13 +1099,13 @@ operand_token: ID  { $$ = CodeToken::CreateTextToken(YYLOC, $1); free($1); }
 			 | INT_VAL
 			 	{
 					char str[32];
-					sprintf(str, "%" PRId64, $1);
+					snprintf(str, sizeof(str), "%" PRId64, $1);
 					$$ = CodeToken::CreateTextToken(YYLOC, str);
 				}
 			 | INT64_VAL
 			 	{
 					char str[32];
-					sprintf(str, "%" PRId64 "LL", $1);
+					snprintf(str, sizeof(str), "%" PRId64 "LL", $1);
 					$$ = CodeToken::CreateTextToken(YYLOC, str);
 				}
 			 | STRING_VAL

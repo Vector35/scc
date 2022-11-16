@@ -1090,7 +1090,7 @@ bool Linker::FinalizeLink()
 		if (name.c_str() == 0)
 		{
 			char str[32];
-			sprintf(str, "$%d", (int)paramVars.size());
+			snprintf(str, sizeof(str), "$%d", (int)paramVars.size());
 			name = str;
 		}
 

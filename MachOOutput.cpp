@@ -116,13 +116,11 @@ bool GenerateMachOFile(OutputBlock* output, const Settings& settings, OutputBloc
 	else
 		ident.cmdSize = (sizeof(MachSegment32) * 3) + threadSize;
 
-	size_t identSize = sizeof(ident);
 	output->Write(&ident, sizeof(ident));
 	if (settings.preferredBits == 64)
 	{
 		uint32_t reserved = 0;
 		output->Write(&reserved, sizeof(reserved));
-		identSize += sizeof(reserved);
 	}
 
 	// Write out commands

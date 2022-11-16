@@ -2404,9 +2404,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			// No intrinsic divide instructions, emit call to divide routine
 			char name[32];
 			if (m_children[0]->GetType()->IsSigned())
-				sprintf(name, "__sdiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+				snprintf(name, sizeof(name), "__sdiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
 			else
-				sprintf(name, "__udiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+				snprintf(name, sizeof(name), "__udiv%d", (int)m_children[0]->GetType()->GetWidth() * 8);
 			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
@@ -2451,9 +2451,9 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 			// No intrinsic divide instructions, emit call to divide routine
 			char name[32];
 			if (m_children[0]->GetType()->IsSigned())
-				sprintf(name, "__smod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+				snprintf(name, sizeof(name), "__smod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
 			else
-				sprintf(name, "__umod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
+				snprintf(name, sizeof(name), "__umod%d", (int)m_children[0]->GetType()->GetWidth() * 8);
 			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{
@@ -3358,7 +3358,7 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			// No instrinsic byte swap instruction, emit call to routine
 			char name[32];
-			sprintf(name, "__byteswap%d", (int)(m_children[0]->GetType()->GetWidth() * 8));
+			snprintf(name, sizeof(name), "__byteswap%d", (int)(m_children[0]->GetType()->GetWidth() * 8));
 			map< string, Ref<Function> >::const_iterator i = state->GetFunctions().find(name);
 			if (i == state->GetFunctions().end())
 			{

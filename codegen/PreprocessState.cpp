@@ -189,7 +189,7 @@ void PreprocessState::AppendLocation()
 	string result = "#line ";
 
 	char lineStr[32];
-	sprintf(lineStr, "%d", GetLineNumber());
+	snprintf(lineStr, sizeof(lineStr), "%d", GetLineNumber());
 	result += lineStr;
 
 	result += " \"";

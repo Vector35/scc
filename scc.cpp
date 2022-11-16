@@ -108,7 +108,9 @@ int main(int argc, char* argv[])
 	string outputFile = "";
 	string mapFile = "";
 	bool hexOutput = true;
+#ifdef __x86_64
 	bool architectureIsExplicit = false;
+#endif
 	bool osIsExplicit = false;
 	string decoder, encoder;
 	bool execute = false;
@@ -222,19 +224,25 @@ int main(int argc, char* argv[])
 				fprintf(stderr, "error: unsupported architecture '%s'\n", argv[i]);
 			}
 
+#ifdef __x86_64
 			architectureIsExplicit = true;
+#endif
 			continue;
 		}
 		else if (!strcmp(argv[i], "-m32"))
 		{
 			settings.preferredBits = 32;
+#ifdef __x86_64
 			architectureIsExplicit = true;
+#endif
 			continue;
 		}
 		else if (!strcmp(argv[i], "-m64"))
 		{
 			settings.preferredBits = 64;
+#ifdef __x86_64
 			architectureIsExplicit = true;
+#endif
 			continue;
 		}
 		else if (!strcmp(argv[i], "--align"))

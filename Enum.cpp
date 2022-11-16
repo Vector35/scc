@@ -14,7 +14,7 @@ map< size_t, Ref<Enum> > Enum::m_serializationMap;
 Enum::Enum()
 {
 	char tempName[64];
-	sprintf(tempName, "<anonymous 0x%p>", this);
+	snprintf(tempName, sizeof(tempName), "<anonymous 0x%p>", this);
 	m_name = tempName;
 
 	m_nextValue = 0;

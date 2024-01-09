@@ -28,7 +28,7 @@ void Usage()
 {
 	fprintf(stderr, "scc [options] <input files> [...]\n\n");
 	fprintf(stderr, "Shellcode Compiler version %s\n", g_versionString);
-	fprintf(stderr, "Copyright (C) 2015-2023 Vector 35 Inc\n");
+	fprintf(stderr, "Copyright (C) 2015-2024 Vector 35 Inc\n");
 	fprintf(stderr, "BETA RELEASE - NOT ALL OPTIONS ARE IMPLEMENTED\n\n");
 	fprintf(stderr, "This compiler accepts a subset of C99 syntax, with extensions for creating a standalone\n");
 	fprintf(stderr, "environment for writing shellcode.  Many standard system calls and C library functions\n");

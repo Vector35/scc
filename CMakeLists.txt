@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.9...3.15 FATAL_ERROR)
 
 project(scc)
 
+find_package(Python3 3.10 COMPONENTS Interpreter REQUIRED)
+
 set(INTERMEDIATE ${PROJECT_BINARY_DIR}/Obj)
 file(MAKE_DIRECTORY ${INTERMEDIATE})
 file(MAKE_DIRECTORY ${INTERMEDIATE}/asmx86)
@@ -69,21 +71,12 @@ set_target_properties(scc_codegen PROPERTIES
 execute_process(COMMAND git describe --tags HEAD WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	OUTPUT_VARIABLE REV OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-if(WIN32)
-	execute_process(COMMAND py -3 -c "print('${REV}'[1:].replace('-','.').split('.')[0])" OUTPUT_VARIABLE MAJOR
-		OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND py -3 -c "print('${REV}'[1:].replace('-','.').split('.')[1])" OUTPUT_VARIABLE MINOR
-		OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND py -3 -c "print('${REV}'[1:].replace('-','.').split('.')[2])" OUTPUT_VARIABLE BUILD
-		OUTPUT_STRIP_TRAILING_WHITESPACE)
-else()
-	execute_process(COMMAND python3 -c "print('${REV}'[1:].replace('-','.').split('.')[0])" OUTPUT_VARIABLE MAJOR
-		OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND python3 -c "print('${REV}'[1:].replace('-','.').split('.')[1])" OUTPUT_VARIABLE MINOR
-		OUTPUT_STRIP_TRAILING_WHITESPACE)
-	execute_process(COMMAND python3 -c "print('${REV}'[1:].replace('-','.').split('.')[2])" OUTPUT_VARIABLE BUILD
-		OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "print('${REV}'[1:].replace('-','.').split('.')[0])" OUTPUT_VARIABLE MAJOR
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "print('${REV}'[1:].replace('-','.').split('.')[1])" OUTPUT_VARIABLE MINOR
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "print('${REV}'[1:].replace('-','.').split('.')[2])" OUTPUT_VARIABLE BUILD
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 add_custom_command(OUTPUT ${INTERMEDIATE}/Version.cpp
 	COMMAND ${CMAKE_COMMAND} -E echo \"const char* g_versionString = \\\"${MAJOR}.${MINOR}.${BUILD}\\\"\;\" > ${INTERMEDIATE}/Version.cpp)
@@ -245,15 +238,9 @@ macro(generate_library LIB_NAME ARCH PLATFORM RUNTIME)
 		WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 		COMMENT "Generating runtime library ${LIB_NAME}")
 
-	if(WIN32)
-		add_custom_command(OUTPUT ${INTERMEDIATE}/${LIB_NAME}.cpp
-			DEPENDS ${INTERMEDIATE}/${LIB_NAME}.lib
-			COMMAND py -3 ${PROJECT_SOURCE_DIR}/genlibrary.py ${INTERMEDIATE}/${LIB_NAME}.lib ${INTERMEDIATE}/${LIB_NAME}.cpp Obj/${LIB_NAME}.lib)
-	else()
-		add_custom_command(OUTPUT ${INTERMEDIATE}/${LIB_NAME}.cpp
-			DEPENDS ${INTERMEDIATE}/${LIB_NAME}.lib
-			COMMAND python3 ${PROJECT_SOURCE_DIR}/genlibrary.py ${INTERMEDIATE}/${LIB_NAME}.lib ${INTERMEDIATE}/${LIB_NAME}.cpp Obj/${LIB_NAME}.lib)
-	endif()
+	add_custom_command(OUTPUT ${INTERMEDIATE}/${LIB_NAME}.cpp
+		DEPENDS ${INTERMEDIATE}/${LIB_NAME}.lib
+		COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/genlibrary.py ${INTERMEDIATE}/${LIB_NAME}.lib ${INTERMEDIATE}/${LIB_NAME}.cpp Obj/${LIB_NAME}.lib)
 
 	list(APPEND LIBRARIES ${INTERMEDIATE}/${LIB_NAME}.cpp)
 endmacro()

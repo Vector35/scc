@@ -23,7 +23,7 @@ if(UNIX)
 		${INTERMEDIATE}/codegen/PreprocessParser.cpp
 		${INTERMEDIATE}/codegen/CodegenLexer.cpp
 		${INTERMEDIATE}/codegen/CodegenParser.cpp
-		PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-deprecated-register -Wno-unused-but-set-variable")
+		PROPERTIES COMPILE_OPTIONS "-Wno-unused-function;-Wno-deprecated-register;-Wno-unused-but-set-variable")
 endif()
 
 add_executable(scc_codegen ${CODEGEN_SOURCES}
@@ -107,7 +107,7 @@ if(UNIX)
 	set_source_files_properties(
 		${INTERMEDIATE}/PreprocessLexer.cpp
 		${INTERMEDIATE}/CodeLexer.cpp
-		PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-deprecated-register")
+		PROPERTIES COMPILE_OPTIONS "-Wno-unused-function;-Wno-deprecated-register")
 endif()
 
 add_library(scc_common ${COMPILER_SOURCES}
@@ -133,7 +133,7 @@ if (UNIX)
 		${INTERMEDIATE}/PreprocessParser.cpp
 		${INTERMEDIATE}/CodeLexer.cpp
 		${INTERMEDIATE}/CodeParser.cpp
-		PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-deprecated-register -Wno-unused-but-set-variable")
+		PROPERTIES COMPILE_OPTIONS "-Wno-unused-function;-Wno-deprecated-register;-Wno-unused-but-set-variable")
 endif ()
 
 add_custom_command(OUTPUT ${INTERMEDIATE}/PreprocessLexer.cpp ${INTERMEDIATE}/PreprocessLexer.h

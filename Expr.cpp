@@ -2105,6 +2105,65 @@ void Expr::GenerateConditionalIL(ParserState* state, Function* func, ILBlock* bl
 }
 
 
+bool Expr::IsDirectVariableMemberAccess() const
+{
+	if (m_class == EXPR_VARIABLE)
+		return true;
+	if (m_class == EXPR_DOT)
+		return m_children[0]->IsDirectVariableMemberAccess();
+	return false;
+}
+
+
+ILParameter Expr::GenerateAddressIL(ParserState* state, Function* func, ILBlock*& block)
+{
+	// Preserve aggregate lvalues as addresses so nested member access does not require
+	// copying a structure or union into an IL temporary.
+	ILParameter result, a, b;
+
+	switch (m_class)
+	{
+	case EXPR_VARIABLE:
+		result = func->CreateTempVariable(Type::PointerType(m_type, 1));
+		block->AddInstruction(ILOP_ADDRESS_OF, result, ILParameter(m_variable));
+		break;
+	case EXPR_DOT:
+		result = func->CreateTempVariable(Type::PointerType(m_type, 1));
+		a = m_children[0]->GenerateAddressIL(state, func, block);
+		block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, a,
+			ILParameter(m_children[0]->GetType()->GetStruct(), m_stringValue));
+		break;
+	case EXPR_ARROW:
+		result = func->CreateTempVariable(Type::PointerType(m_type, 1));
+		a = m_children[0]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, a,
+			ILParameter(m_children[0]->GetType()->GetChildType()->GetStruct(), m_stringValue));
+		break;
+	case EXPR_DEREF:
+		result = m_children[0]->GenerateIL(state, func, block);
+		break;
+	case EXPR_ARRAY_INDEX:
+		result = func->CreateTempVariable(Type::PointerType(m_type, 1));
+		a = m_children[0]->GenerateIL(state, func, block);
+		b = m_children[1]->GenerateIL(state, func, block);
+		block->AddInstruction(ILOP_PTR_ADD, result, a, b,
+			ILParameter(Type::IntType(GetTargetPointerSize(), false),
+			(int64_t)m_children[0]->GetType()->GetChildType()->GetWidth()));
+		break;
+	case EXPR_STRING:
+	case EXPR_FUNCTION:
+		result = GenerateIL(state, func, block);
+		break;
+	default:
+		state->Error();
+		fprintf(stderr, "%s:%d: error: expected lvalue\n", m_location.fileName.c_str(), m_location.lineNumber);
+		break;
+	}
+
+	return result;
+}
+
+
 ILParameter Expr::GenerateArrayAccessIL(ParserState* state, Function* func, ILBlock*& block)
 {
 	ILParameter result;
@@ -2182,16 +2241,32 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		result = ILParameter(m_function);
 		break;
 	case EXPR_DOT:
-		a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
-		a.type = ILParameter::ReduceType(m_type);
-		if (m_type->GetClass() == TYPE_ARRAY)
+		if (!IsDirectVariableMemberAccess())
 		{
-			result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
-			block->AddInstruction(ILOP_ADDRESS_OF, result, a);
+			a = GenerateAddressIL(state, func, block);
+			if (m_type->GetClass() == TYPE_ARRAY)
+			{
+				result = a;
+			}
+			else
+			{
+				result = func->CreateTempVariable(m_type);
+				block->AddInstruction(ILOP_DEREF, result, a);
+			}
 		}
 		else
 		{
-			result = a;
+			a = ILParameter(m_children[0]->GenerateIL(state, func, block), m_children[0]->GetType(), m_stringValue);
+			a.type = ILParameter::ReduceType(m_type);
+			if (m_type->GetClass() == TYPE_ARRAY)
+			{
+				result = func->CreateTempVariable(Type::PointerType(m_type->GetChildType(), 1));
+				block->AddInstruction(ILOP_ADDRESS_OF, result, a);
+			}
+			else
+			{
+				result = a;
+			}
 		}
 		break;
 	case EXPR_ARROW:
@@ -2209,31 +2284,30 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		}
 		break;
 	case EXPR_ADDRESS_OF:
-		result = func->CreateTempVariable(m_type);
-		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
+		result = m_children[0]->GenerateAddressIL(state, func, block);
+		break;
+	case EXPR_DEREF:
+		if (m_type->GetClass() == TYPE_ARRAY)
 		{
-			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			b = m_children[0]->m_children[1]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_PTR_ADD, result, a, b, ILParameter(Type::IntType(GetTargetPointerSize(), false),
-				(int64_t)m_children[0]->m_children[0]->GetType()->GetChildType()->GetWidth()));
-		}
-		else if (m_children[0]->GetClass() == EXPR_ARROW)
-		{
-			block->AddInstruction(ILOP_ADDRESS_OF_MEMBER, result, m_children[0]->m_children[0]->GenerateIL(state, func, block),
-				ILParameter(m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue));
+			result = m_children[0]->GenerateIL(state, func, block);
 		}
 		else
 		{
-			block->AddInstruction(ILOP_ADDRESS_OF, result, m_children[0]->GenerateIL(state, func, block));
+			result = func->CreateTempVariable(m_type);
+			block->AddInstruction(ILOP_DEREF, result, m_children[0]->GenerateIL(state, func, block));
 		}
 		break;
-	case EXPR_DEREF:
-		result = func->CreateTempVariable(m_type);
-		block->AddInstruction(ILOP_DEREF, result, m_children[0]->GenerateIL(state, func, block));
-		break;
 	case EXPR_PRE_INCREMENT:
-		result = m_children[0]->GenerateIL(state, func, block);
+		if (m_children[0]->IsDirectVariableMemberAccess())
+		{
+			result = m_children[0]->GenerateIL(state, func, block);
+		}
+		else
+		{
+			a = m_children[0]->GenerateAddressIL(state, func, block);
+			result = func->CreateTempVariable(m_type);
+			block->AddInstruction(ILOP_DEREF, result, a);
+		}
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_ADD, result, result,
@@ -2245,16 +2319,20 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_ADD, result, result, ILParameter(result.type, (int64_t)1));
 		}
-		if (m_children[0]->GetClass() == EXPR_ARROW)
-		{
-			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), result);
-		}
+		if (!m_children[0]->IsDirectVariableMemberAccess())
+			block->AddInstruction(ILOP_DEREF_ASSIGN, a, result);
 		break;
 	case EXPR_PRE_DECREMENT:
-		result = m_children[0]->GenerateIL(state, func, block);
+		if (m_children[0]->IsDirectVariableMemberAccess())
+		{
+			result = m_children[0]->GenerateIL(state, func, block);
+		}
+		else
+		{
+			a = m_children[0]->GenerateAddressIL(state, func, block);
+			result = func->CreateTempVariable(m_type);
+			block->AddInstruction(ILOP_DEREF, result, a);
+		}
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
 			block->AddInstruction(ILOP_PTR_SUB, result, result,
@@ -2266,17 +2344,21 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_SUB, result, result, ILParameter(result.type, (int64_t)1));
 		}
-		if (m_children[0]->GetClass() == EXPR_ARROW)
-		{
-			a = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, a, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), result);
-		}
+		if (!m_children[0]->IsDirectVariableMemberAccess())
+			block->AddInstruction(ILOP_DEREF_ASSIGN, a, result);
 		break;
 	case EXPR_POST_INCREMENT:
 		result = func->CreateTempVariable(m_type);
-		a = m_children[0]->GenerateIL(state, func, block);
+		if (m_children[0]->IsDirectVariableMemberAccess())
+		{
+			a = m_children[0]->GenerateIL(state, func, block);
+		}
+		else
+		{
+			b = m_children[0]->GenerateAddressIL(state, func, block);
+			a = func->CreateTempVariable(m_type);
+			block->AddInstruction(ILOP_DEREF, a, b);
+		}
 		block->AddInstruction(ILOP_ASSIGN, result, a);
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
@@ -2289,17 +2371,21 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_ADD, a, a, ILParameter(result.type, (int64_t)1));
 		}
-		if (m_children[0]->GetClass() == EXPR_ARROW)
-		{
-			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), a);
-		}
+		if (!m_children[0]->IsDirectVariableMemberAccess())
+			block->AddInstruction(ILOP_DEREF_ASSIGN, b, a);
 		break;
 	case EXPR_POST_DECREMENT:
 		result = func->CreateTempVariable(m_type);
-		a = m_children[0]->GenerateIL(state, func, block);
+		if (m_children[0]->IsDirectVariableMemberAccess())
+		{
+			a = m_children[0]->GenerateIL(state, func, block);
+		}
+		else
+		{
+			b = m_children[0]->GenerateAddressIL(state, func, block);
+			a = func->CreateTempVariable(m_type);
+			block->AddInstruction(ILOP_DEREF, a, b);
+		}
 		block->AddInstruction(ILOP_ASSIGN, result, a);
 		if (m_children[0]->GetType()->GetClass() == TYPE_POINTER)
 		{
@@ -2312,18 +2398,22 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		{
 			block->AddInstruction(ILOP_SUB, a, a, ILParameter(result.type, (int64_t)1));
 		}
-		if (m_children[0]->GetClass() == EXPR_ARROW)
-		{
-			b = m_children[0]->m_children[0]->GenerateIL(state, func, block);
-			block->AddInstruction(ILOP_DEREF_MEMBER_ASSIGN, b, ILParameter(
-				m_children[0]->m_children[0]->GetType()->GetChildType()->GetStruct(),
-				m_children[0]->m_stringValue), a);
-		}
+		if (!m_children[0]->IsDirectVariableMemberAccess())
+			block->AddInstruction(ILOP_DEREF_ASSIGN, b, a);
 		break;
 	case EXPR_ARRAY_INDEX:
+		if (m_type->GetClass() == TYPE_ARRAY)
+		{
+			result = GenerateAddressIL(state, func, block);
+			break;
+		}
 		result = func->CreateTempVariable(m_type);
 		if ((m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
-			(m_children[0]->GetClass() == EXPR_ARROW))
+			(m_children[0]->GetClass() == EXPR_ARROW) ||
+			(m_children[0]->GetClass() == EXPR_DEREF) ||
+			(m_children[0]->GetClass() == EXPR_ARRAY_INDEX) ||
+			((m_children[0]->GetClass() == EXPR_DOT) &&
+			(!m_children[0]->IsDirectVariableMemberAccess())))
 		{
 			a = m_children[0]->GenerateIL(state, func, block);
 			b = m_children[1]->GenerateIL(state, func, block);
@@ -2754,10 +2844,22 @@ ILParameter Expr::GenerateIL(ParserState* state, Function* func, ILBlock*& block
 		block = endBlock;
 		break;
 	case EXPR_ASSIGN:
-		if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
+		if ((m_children[0]->GetClass() == EXPR_DOT) &&
+			(!m_children[0]->IsDirectVariableMemberAccess()))
+		{
+			a = m_children[0]->GenerateAddressIL(state, func, block);
+			b = m_children[1]->GenerateIL(state, func, block);
+			block->AddInstruction(ILOP_DEREF_ASSIGN, a, b);
+			result = b;
+		}
+		else if (m_children[0]->GetClass() == EXPR_ARRAY_INDEX)
 		{
 			if ((m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_POINTER) ||
-				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW))
+				(m_children[0]->m_children[0]->GetClass() == EXPR_ARROW) ||
+				(m_children[0]->m_children[0]->GetClass() == EXPR_DEREF) ||
+				(m_children[0]->m_children[0]->GetClass() == EXPR_ARRAY_INDEX) ||
+				((m_children[0]->m_children[0]->GetClass() == EXPR_DOT) &&
+				(!m_children[0]->m_children[0]->IsDirectVariableMemberAccess())))
 			{
 				if (m_children[0]->m_children[0]->GetType()->GetClass() == TYPE_ARRAY)
 					result = func->CreateTempVariable(Type::PointerType(m_children[0]->m_children[0]->GetType()->GetChildType(), 1));
@@ -4071,4 +4173,3 @@ void Expr::Print(size_t indent)
 	}
 }
 #endif
-

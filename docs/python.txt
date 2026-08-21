@@ -8,7 +8,7 @@ is the definition of this function:
 
 ---------------------------------------
 def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_return=False, unsafe_stack=False,
-	base=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
+	base=None, base_reg=None, concat=False, encode_pointers=False, frame_reg=None, max_length=None,
 	optimization=NormalOptimization, pad=False, polymorph=False, preserve_regs=None, return_reg=None,
 	return_high_reg=None, seed=None, stack_grows_up=False, stack_reg=None, include_dirs=None, align=None,
 	anti_disasm=False, anti_disasm_freq=None, markov_chain=None, defines=None, additional_options=None)
@@ -29,7 +29,8 @@ the file system, and can be dynamically constructed.
 
 The `platform` parameter contains the OS to compile for.  This can be one of `linux`, `freebsd`, `mac`, `windows`, or `none`.
 
-The `arch` parameter contains the architecture to compile for.  This can be one of `x86` or `x64`.
+The `arch` parameter contains the architecture to compile for.  This can be one of `x86`, `x64`, `arm`, `armeb`,
+`aarch64`, `mips`, `mipsel`, `ppc`, `ppcel`, or `quark`.
 
 The `blacklist` parameter specifies the byte values that must not occur in the output.  This should be a list of integers.
 
@@ -40,8 +41,8 @@ If the `unsafe_stack` parameter is `True`, the compiler will not assume that the
 of the stack may corrupt the code that is executing).  When this is enabled, the compiler will adjust the stack pointer
 to ensure that it is in a safe location.
 
-The `base` parameter specifies the base address of the start of the output.  This can be a computed expression in terms
-of register contents at the start of the program.
+The `base`, `base_reg`, `preserve_regs`, `return_reg`, and `return_high_reg` parameters are retained for compatibility
+with older callers, but are not implemented.  Do not specify them.
 
 If the `concat` parameter is `True`, the compiler will jump to the end of the output on completion instead of exiting the
 process.  This allows multiple pieces of code to be appended together to form a larger program.
@@ -62,15 +63,6 @@ The padding is randomly chosen and will never include bytes in the `blacklist` l
 
 If the `polymorph` parameter is `True`, the output will be randomly shuffled to produce different code on each run.  The
 `seed` parameter can be specified to force a specific result from the randomization.
-
-The `preserve_regs` parameter contains registers that should be preserved across execution of the code.  This should be
-a list of register names.
-
-If the `return_reg` parameter is specified, the register that is used to hold the return value is forced to the specified
-register.
-
-If the `return_high_reg` parameter is specified, the register that is used to hold the high half of a large return value
-is forced to the specified register.
 
 If the `seed` parameter is specified, the compiler will use the provided random seed for generating padding and
 polymorphic code.
@@ -95,4 +87,3 @@ The `defines` parameter, if specified, gives a map of preprocessor macro names t
 if the macro should not have a value.
 
 The `additional_options` parameter can hold a list of additional link:scc.html[command line arguments].
-

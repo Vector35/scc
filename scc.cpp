@@ -35,21 +35,17 @@ void Usage()
 	fprintf(stderr, "are automatically available without the need for include files.\n\n");
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    --arch <value>                    Specify processor architecture\n");
-	fprintf(stderr, "                                      Can be: x86 (default), x64, arm, armeb, aarch64,\n");
-	fprintf(stderr, "                                              mips, mipsel, ppc, ppcel\n");
+	fprintf(stderr, "                                      Can be: x86, x64, arm, armeb, aarch64,\n");
+	fprintf(stderr, "                                              mips, mipsel, ppc, ppcel, quark\n");
+	fprintf(stderr, "                                      Default: x86 (--exec auto-selects on x86/x64 hosts)\n");
 	fprintf(stderr, "    --align <boundary>                Ensure output is aligned on the given boundary\n");
 	fprintf(stderr, "    --allow-return                    Allow return from shellcode (default is to exit)\n");
 	fprintf(stderr, "    --anti-disasm                     Generate anti-disassembly blocks\n");
 	fprintf(stderr, "    --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> instructions\n");
-	fprintf(stderr, "    --base <expr>                     Set base address of output (can be a runtime computed\n");
-	fprintf(stderr, "                                      expression, such as \"[eax+8]-12\")\n");
-	fprintf(stderr, "    --base-reg <reg>                  Global register that will hold base of code\n");
 	fprintf(stderr, "    --blacklist <byte>                Blacklist the given byte value\n");
 	fprintf(stderr, "    --concat                          Jump to end of output on return for concatenating code\n");
 	fprintf(stderr, "    -D <define>[=<value>]             Define a preprocessor macro\n");
-	fprintf(stderr, "    --decoder <source>                Use decoder to decode shellcode before executing\n");
 	fprintf(stderr, "    --encode-pointers                 All code pointers are encoded with a random canary\n");
-	fprintf(stderr, "    --encoder <source>                Use encoder to encode shellcode\n");
 	fprintf(stderr, "    --exec                            Execute shellcode after generation (does not write\n");
 	fprintf(stderr, "                                      output to a file)\n");
 	fprintf(stderr, "    --exec-stack                      When outputting an executable, make stack executable\n");
@@ -76,12 +72,8 @@ void Usage()
 	fprintf(stderr, "    --platform <value>                Specify operating system\n");
 	fprintf(stderr, "                                      Can be: linux (default), freebsd, mac, windows, none\n");
 	fprintf(stderr, "    --polymorph                       Generate different code on each run\n");
-	fprintf(stderr, "    --preserve <reg>                  Preserve the value of the given register\n");
 	fprintf(stderr, "    --unloaded-modules                Uses modules that have not been loaded yet\n");
 	fprintf(stderr, "    --unsafe-stack                    Stack pointer may be near the code\n");
-	fprintf(stderr, "    --return-reg <reg>                Use alternate register as the return value\n");
-	fprintf(stderr, "    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return\n");
-	fprintf(stderr, "                                      value (32-bit output only)\n");
 	fprintf(stderr, "    --seed <value>                    Specify random seed (to reproduce --polymorph runs)\n");
 	fprintf(stderr, "    --shared                          Generate shared library instead of executable\n");
 	fprintf(stderr, "    --stack-grows-up                  Stack grows toward larger addresses\n");
@@ -93,9 +85,7 @@ void Usage()
 	fprintf(stderr, "                                      Example: void exit(int value) __noreturn;\n");
 	fprintf(stderr, "    __syscall(num, ...)               Executes a system call on the target platform\n");
 	fprintf(stderr, "    __undefined                       Gives undefined results, usually omitting code\n");
-	fprintf(stderr, "                                      Example: exit(__undefined);\n");
-	fprintf(stderr, "    __initial_<reg>                   Value of register at start of program\n");
-	fprintf(stderr, "                                      Example: int socketDescriptor = __initial_ebx;\n\n");
+	fprintf(stderr, "                                      Example: exit(__undefined);\n\n");
 }
 
 

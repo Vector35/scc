@@ -24,6 +24,25 @@ const char* g_versionString = "git";
 #endif
 
 
+static bool SelectNativeArchitecture(Settings& settings)
+{
+#if defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(_M_X64) || defined(_M_AMD64)
+	settings.architecture = ARCH_X86;
+	settings.preferredBits = 64;
+	settings.bigEndian = false;
+	return true;
+#elif defined(__i386__) || defined(_M_IX86)
+	settings.architecture = ARCH_X86;
+	settings.preferredBits = 32;
+	settings.bigEndian = false;
+	return true;
+#else
+	(void)settings;
+	return false;
+#endif
+}
+
+
 void Usage()
 {
 	fprintf(stderr, "scc [options] <input files> [...]\n\n");
@@ -98,9 +117,7 @@ int main(int argc, char* argv[])
 	string outputFile = "";
 	string mapFile = "";
 	bool hexOutput = true;
-#ifdef __x86_64
 	bool architectureIsExplicit = false;
-#endif
 	bool osIsExplicit = false;
 	string decoder, encoder;
 	bool execute = false;
@@ -212,27 +229,22 @@ int main(int argc, char* argv[])
 			else
 			{
 				fprintf(stderr, "error: unsupported architecture '%s'\n", argv[i]);
+				return 1;
 			}
 
-#ifdef __x86_64
 			architectureIsExplicit = true;
-#endif
 			continue;
 		}
 		else if (!strcmp(argv[i], "-m32"))
 		{
 			settings.preferredBits = 32;
-#ifdef __x86_64
 			architectureIsExplicit = true;
-#endif
 			continue;
 		}
 		else if (!strcmp(argv[i], "-m64"))
 		{
 			settings.preferredBits = 64;
-#ifdef __x86_64
 			architectureIsExplicit = true;
-#endif
 			continue;
 		}
 		else if (!strcmp(argv[i], "--align"))
@@ -340,11 +352,6 @@ int main(int argc, char* argv[])
 		}
 		else if (!strcmp(argv[i], "--exec"))
 		{
-#ifdef __x86_64
-			if (!architectureIsExplicit)
-				settings.preferredBits = 64;
-#endif
-
 			if (!osIsExplicit)
 			{
 				// Use current OS
@@ -722,6 +729,23 @@ int main(int argc, char* argv[])
 	{
 		fprintf(stderr, "no input files\n");
 		return 1;
+	}
+
+	if ((!architectureIsExplicit) && execute)
+	{
+		if (!SelectNativeArchitecture(settings))
+		{
+			fprintf(stderr, "error: unable to select a native x86/x64 target for --exec; "
+				"use --arch to specify a target\n");
+			return 1;
+		}
+		fprintf(stderr, "warning: no target architecture specified; using native %s for --exec\n",
+			(settings.preferredBits == 64) ? "x64" : "x86");
+	}
+	else if (!architectureIsExplicit)
+	{
+		fprintf(stderr, "warning: no target architecture specified; defaulting to 32-bit x86 "
+			"(use --arch, -m32, or -m64 to specify a target)\n");
 	}
 
 	// Initialize random seed if one is needed

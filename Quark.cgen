@@ -945,7 +945,7 @@ uconvert src:IREG64 => dest:IREG(16) { @Zxh %dest, %src:low; }
 sconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 uconvert src:IREG64 => dest:IREG(32) { @Mov %dest, %src:low; }
 
-function bool GenerateReturnVoid(SymInstrBlock* out)
+function bool GenerateReturnVoid(SymInstrBlock* out, uint32_t target = SYMREG_NONE)
 {
 	// Restore frame pointer (if present) and adjust stack
 	if (m_framePointerEnabled)
@@ -959,6 +959,12 @@ function bool GenerateReturnVoid(SymInstrBlock* out)
 	}
 
 	@RestoreCalleeSavedRegs;
+
+	if (m_settings.concat && (m_func == m_startFunc))
+	{
+		@Mov SYMREG_IP, target;
+		return true;
+	}
 
 	// Return to caller
 	if (m_settings.encodePointers)
@@ -974,7 +980,7 @@ function bool GenerateReturnVoid(SymInstrBlock* out)
 	return true;
 }
 
-return src:IREG, retval:INTEGER_RETURN_VALUE { @Mov %retval, %src; GenerateReturnVoid(out); @SymReturn %retval, SYMREG_NONE; }
+return src:IREG, retval:INTEGER_RETURN_VALUE { @Mov %retval, %src; GenerateReturnVoid(out, %retval); @SymReturn %retval, SYMREG_NONE; }
 return src:FREG, retval:FLOAT_RETURN_VALUE { @Fmov %retval, %src; GenerateReturnVoid(out); @SymReturn %retval, SYMREG_NONE; }
 return src:IREG64, retval:INTEGER_RETURN_VALUE_64
 {

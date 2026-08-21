@@ -837,6 +837,26 @@ int main(int argc, char* argv[])
 	if ((settings.architecture == ARCH_PPC) && (!alignmentExplicit))
 		settings.alignment = 4;
 
+	if (settings.concat && ((settings.architecture == ARCH_ARM) ||
+		(settings.architecture == ARCH_AARCH64) || (settings.architecture == ARCH_MIPS) ||
+		(settings.architecture == ARCH_PPC)))
+	{
+		// The next component starts at __end in the same instruction set. Even
+		// explicit byte alignment cannot make an unaligned entry point valid.
+		if ((settings.alignment == 1) || (settings.alignment == 2))
+			settings.alignment = 4;
+		if ((settings.alignment % 4) != 0)
+		{
+			fprintf(stderr, "error: --concat alignment must be a multiple of 4 bytes for this architecture\n");
+			return 1;
+		}
+		if (settings.pad && ((settings.maxLength % 4) != 0))
+		{
+			fprintf(stderr, "error: padded --concat output length must be a multiple of 4 bytes for this architecture\n");
+			return 1;
+		}
+	}
+
 	if (settings.architecture == ARCH_AARCH64)
 		settings.stackAlignment = 16;
 

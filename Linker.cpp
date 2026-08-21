@@ -1041,14 +1041,18 @@ bool Linker::FinalizeLink()
 		return false;
 	}
 
-	// Find exit function
-	map< string, Ref<Function> >::iterator exitFuncRef = m_functionsByName.find("exit");
-	if (exitFuncRef == m_functionsByName.end())
+	// Find the exit function when the generated entry point will use it.
+	Ref<Function> exitFunc;
+	if ((!m_settings.allowReturn) && (!m_settings.concat))
 	{
-		fprintf(stderr, "error: function 'exit' is undefined\n");
-		return false;
+		map< string, Ref<Function> >::iterator exitFuncRef = m_functionsByName.find("exit");
+		if (exitFuncRef == m_functionsByName.end())
+		{
+			fprintf(stderr, "error: function 'exit' is undefined\n");
+			return false;
+		}
+		exitFunc = exitFuncRef->second;
 	}
-	Ref<Function> exitFunc = exitFuncRef->second;
 
 	// Create a function to resolve imports.  This will be filled in later.
 	FunctionInfo importFuncInfo;
@@ -1077,7 +1081,7 @@ bool Linker::FinalizeLink()
 	startInfo.callingConvention = mainFunc->GetCallingConvention();
 	startInfo.name = "_start";
 	startInfo.subarch = SUBARCH_DEFAULT;
-	startInfo.noReturn = !m_settings.allowReturn;
+	startInfo.noReturn = m_settings.concat || !m_settings.allowReturn;
 	startInfo.imported = false;
 	startInfo.location = mainFunc->GetLocation();
 
@@ -1128,7 +1132,6 @@ bool Linker::FinalizeLink()
 	startBody->AddChild(m_initExpression);
 
 	Ref<Expr> mainExpr = Expr::FunctionExpr(mainFunc->GetLocation(), mainFunc);
-	Ref<Expr> exitExpr = Expr::FunctionExpr(mainFunc->GetLocation(), exitFunc);
 
 	// Generate call to main
 	vector< Ref<Expr> > params;
@@ -1137,7 +1140,24 @@ bool Linker::FinalizeLink()
 	Ref<Expr> callExpr = Expr::CallExpr(mainFunc->GetLocation(), mainExpr, params);
 
 	// Handle result of main
-	if (m_settings.allowReturn)
+	if (m_settings.concat)
+	{
+		// Ignore main's result so this path is independent of its return type, then
+		// transfer control to the byte immediately beyond the linked output.
+		startBody->AddChild(callExpr);
+
+		map< string, Ref<Variable> >::iterator endVar = m_variablesByName.find("__end");
+		if (endVar == m_variablesByName.end())
+		{
+			fprintf(stderr, "internal error: '__end' is undefined\n");
+			return false;
+		}
+
+		startBody->AddChild(Expr::UnaryExpr(mainFunc->GetLocation(), EXPR_COMPUTED_GOTO,
+			Expr::UnaryExpr(mainFunc->GetLocation(), EXPR_ADDRESS_OF,
+				Expr::VariableExpr(mainFunc->GetLocation(), endVar->second))));
+	}
+	else if (m_settings.allowReturn)
 	{
 		if (mainFunc->GetReturnValue()->GetClass() == TYPE_VOID)
 			startBody->AddChild(callExpr);
@@ -1150,13 +1170,15 @@ bool Linker::FinalizeLink()
 
 		vector< Ref<Expr> > exitParams;
 		exitParams.push_back(new Expr(mainFunc->GetLocation(), EXPR_UNDEFINED));
-		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), exitExpr, exitParams));
+		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(),
+			Expr::FunctionExpr(mainFunc->GetLocation(), exitFunc), exitParams));
 	}
 	else
 	{
 		vector< Ref<Expr> > exitParams;
 		exitParams.push_back(callExpr);
-		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(), exitExpr, exitParams));
+		startBody->AddChild(Expr::CallExpr(mainFunc->GetLocation(),
+			Expr::FunctionExpr(mainFunc->GetLocation(), exitFunc), exitParams));
 	}
 
 	// Generate code for _start
@@ -1641,6 +1663,42 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		}
 	}
 
+	if (m_settings.concat && m_settings.pad && (m_settings.maxLength > addr) && (m_settings.alignment > 1))
+	{
+		// Code ends on the requested architecture alignment, while the final
+		// padded output need not. Put the unaligned tail after all user data so
+		// __end can still describe any exact maximum length.
+		size_t tailSize = (size_t)((m_settings.maxLength - addr) % m_settings.alignment);
+		if (tailSize != 0)
+		{
+			vector<uint8_t> available;
+			for (size_t i = 0; i < 256; i++)
+			{
+				bool ok = true;
+				for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+					j != m_settings.blacklist.end(); j++)
+				{
+					if (i == *j)
+					{
+						ok = false;
+						break;
+					}
+				}
+
+				if (ok)
+					available.push_back((uint8_t)i);
+			}
+
+			for (size_t i = 0; i < tailSize; i++)
+			{
+				uint8_t choice = available[rand() % available.size()];
+				*(uint8_t*)dataSection.PrepareWrite(1) = choice;
+				dataSection.FinishWrite(1);
+			}
+			addr += tailSize;
+		}
+	}
+
 	if (m_variablesByName.find("__end") != m_variablesByName.end())
 		m_variablesByName["__end"]->SetDataSectionOffset(addr);
 
@@ -1734,32 +1792,77 @@ bool Linker::OutputCode(OutputBlock* finalBinary)
 		// Padding is enabled, insert random code in between blocks to get the code closer to the target size
 		while (true)
 		{
-			size_t totalSize = dataSection.len;
-			for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
-				totalSize += (*i)->GetOutputBlock()->len;
+			size_t totalSize = (size_t)(m_settings.dataSectionBase - m_settings.base) + dataSection.len;
 
 			ssize_t remaining = m_settings.maxLength - totalSize;
 			if (remaining < 0)
 			{
-				// Oops, added too many bytes in a previous loop, need to remove some of the random bytes
+				// Oops, layout expanded after padding was added. Remove only the
+				// excess random bytes, then lay everything out again so relocation
+				// sizes and __end converge on the requested output size.
+				bool removedPadding = false;
 				for (vector<ILBlock*>::iterator i = codeBlocks.begin(); i != codeBlocks.end(); i++)
 				{
-					if ((*i)->GetOutputBlock()->randomLen > 0)
-					{
-						remaining += (*i)->GetOutputBlock()->randomLen;
-						(*i)->GetOutputBlock()->len -= (*i)->GetOutputBlock()->randomLen;
-						(*i)->GetOutputBlock()->randomLen = 0;
-					}
+					OutputBlock* block = (*i)->GetOutputBlock();
+					size_t excess = (size_t)-remaining;
+					size_t removeSize = (block->randomLen < excess) ? block->randomLen : excess;
+					if (removeSize == 0)
+						continue;
 
-					if (remaining >= 0)
+					block->len -= removeSize;
+					block->randomLen -= removeSize;
+					remaining += removeSize;
+					removedPadding = true;
+					if (remaining == 0)
 						break;
 				}
-				break;
+
+				if (!removedPadding)
+					break;
+				if (!LayoutCode(codeBlocks))
+					return false;
+				continue;
 			}
 
-			// Don't try to add more bytes if there isn't much room left
+			// Usually leave the small remainder for the final output padding pass. A
+			// concatenation jump must include that remainder in code layout, however,
+			// so that __end resolves to the actual padded output boundary.
 			if (remaining < 32)
-				break;
+			{
+				if ((!m_settings.concat) || (remaining == 0))
+					break;
+
+				vector<uint8_t> available;
+				for (size_t i = 0; i < 256; i++)
+				{
+					bool ok = true;
+					for (vector<uint8_t>::iterator j = m_settings.blacklist.begin();
+						j != m_settings.blacklist.end(); j++)
+					{
+						if (i == *j)
+						{
+							ok = false;
+							break;
+						}
+					}
+
+					if (ok)
+						available.push_back((uint8_t)i);
+				}
+
+				OutputBlock* block = codeBlocks[rand() % codeBlocks.size()]->GetOutputBlock();
+				for (ssize_t i = 0; i < remaining; i++)
+				{
+					uint8_t choice = available[rand() % available.size()];
+					*(uint8_t*)block->PrepareWrite(1) = choice;
+					block->FinishWrite(1);
+				}
+				block->randomLen += remaining;
+
+				if (!LayoutCode(codeBlocks))
+					return false;
+				continue;
+			}
 
 			remaining /= 2;
 			while (remaining > 0)

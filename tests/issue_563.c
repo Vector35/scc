@@ -313,5 +313,25 @@ int main()
 	if (matrix[0][2] != 29)
 		return 40;
 
+	count = 0;
+	if ((count++, direct_root.outer.inner.value = 47, direct_root).outer.inner.value != 47)
+		return 41;
+	if (count != 1)
+		return 42;
+	if ((count++, (direct_root.outer.inner.value = 53, direct_root.outer)).inner.value != 53)
+		return 43;
+	if (count != 2)
+		return 44;
+
+	// The comma operands and the final aggregate access must each run once,
+	// in order, including when the aggregate is reached through a pointer.
+	count = 0;
+	roots[1].outer.inner.value = 59;
+	if ((count = count * 10 + 1, count = count * 10 + 2,
+		*count_root_access(&roots[1], &count)).outer.inner.value != 59)
+		return 45;
+	if (count != 13)
+		return 46;
+
 	return 0;
 }

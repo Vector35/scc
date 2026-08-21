@@ -311,3 +311,17 @@ if(BN_INTERNAL_BUILD)
 			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:scc> ${BN_CORE_PLUGIN_DIR}/scc)
 	endif()
 endif()
+
+enable_testing()
+if(WIN32)
+	set(SCC_TEST_PYTHON py -3)
+else()
+	set(SCC_TEST_PYTHON python3)
+endif()
+
+add_test(NAME scc_cli
+	COMMAND ${SCC_TEST_PYTHON} ${PROJECT_SOURCE_DIR}/tests/test_cli.py $<TARGET_FILE:scc>)
+add_test(NAME scc_x64_regressions
+	COMMAND ${SCC_TEST_PYTHON} ${PROJECT_SOURCE_DIR}/tests/test_x64_regressions.py $<TARGET_FILE:scc>)
+add_test(NAME scc_ppc_socketcall
+	COMMAND ${SCC_TEST_PYTHON} ${PROJECT_SOURCE_DIR}/tests/test_ppc_socketcall.py $<TARGET_FILE:scc>)

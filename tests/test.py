@@ -31,6 +31,7 @@ crc32_testcase = {"source": "tests/crc32.c", "inputfile": None, "outputfile": "t
 div64_testcase = {"source": "tests/div64.c", "inputfile": None, "outputfile": "tests/div64_output"}
 mul64_testcase = {"source": "tests/mul64.c", "inputfile": None, "outputfile": "tests/mul64_output"}
 fortress_testcase = {"source": "tests/fortress.c", "inputfile": "tests/fortress_input", "outputfile": "tests/fortress_output"}
+issue_563_testcase = {"source": "tests/issue_563.c", "inputfile": None, "outputfile": None}
 shellcode_mmap_testcase = {"source": "tests/shellcode.c", "inputfile": None, "outputfile": "tests/shellcode_output", "target": "tests/sploit_mmap.c"}
 shellcode_stack_testcase = {"source": "tests/shellcode.c", "inputfile": None, "outputfile": "tests/shellcode_output", "target": "tests/sploit_stack.c", "targetoptions": ["-O0", "--exec-stack"]}
 
@@ -47,6 +48,7 @@ tests = [
 	["crc32.c, polymorphic", crc32_testcase, ["--polymorph", "--seed", "<SEED>"]],
 	["div64.c, normal", div64_testcase, []],
 	["mul64.c, normal", mul64_testcase, []],
+	["issue #563, recursive aggregate lvalues", issue_563_testcase, []],
 	["shellcode, mmap buffer", shellcode_mmap_testcase, []],
 	["shellcode, stack buffer", shellcode_stack_testcase, ["--unsafe-stack"]],
 	["fortress.c, normal", fortress_testcase, []],
@@ -255,4 +257,3 @@ if failed != 0:
 
 sys.stdout.write("\033[01;32mAll tests passed\033[00m\n")
 sys.exit(0)
-

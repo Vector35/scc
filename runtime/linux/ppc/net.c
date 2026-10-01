@@ -20,81 +20,156 @@
 
 int socket(int domain, int type, int protocol)
 {
-	return __syscall(SYS_socket, domain, type, protocol);
+	size_t args[3];
+	args[0] = domain;
+	args[1] = type;
+	args[2] = protocol;
+	return __syscall(SYS_socketcall, SYS_SOCKET, args);
 }
 
 int socketpair(int domain, int type, int protocol, int* fds)
 {
-	return __syscall(SYS_socketpair, domain, type, protocol, fds);
+	size_t args[4];
+	args[0] = domain;
+	args[1] = type;
+	args[2] = protocol;
+	args[3] = (size_t)fds;
+	return __syscall(SYS_socketcall, SYS_SOCKETPAIR, args);
 }
 
 int bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen)
 {
-	return __syscall(SYS_bind, sockfd, addr, addrlen);
+	size_t args[3];
+	args[0] = sockfd;
+	args[1] = (size_t)addr;
+	args[2] = addrlen;
+	return __syscall(SYS_socketcall, SYS_BIND, args);
 }
 
 int accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen)
 {
-	return __syscall(SYS_accept, sockfd, addr, addrlen);
+	size_t args[3];
+	args[0] = sockfd;
+	args[1] = (size_t)addr;
+	args[2] = (size_t)addrlen;
+	return __syscall(SYS_socketcall, SYS_ACCEPT, args);
 }
 
 int accept4(int sockfd, struct sockaddr* addr, socklen_t* addrlen, int flags)
 {
-	return __syscall(SYS_accept4, sockfd, addr, addrlen, flags);
+	size_t args[4];
+	args[0] = sockfd;
+	args[1] = (size_t)addr;
+	args[2] = (size_t)addrlen;
+	args[3] = flags;
+	return __syscall(SYS_socketcall, SYS_ACCEPT4, args);
 }
 
 int listen(int sockfd, int backlog)
 {
-	return __syscall(SYS_listen, sockfd, backlog);
+	size_t args[2];
+	args[0] = sockfd;
+	args[1] = backlog;
+	return __syscall(SYS_socketcall, SYS_LISTEN, args);
 }
 
 int connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen)
 {
-	return __syscall(SYS_connect, sockfd, addr, addrlen);
+	size_t args[3];
+	args[0] = sockfd;
+	args[1] = (size_t)addr;
+	args[2] = addrlen;
+	return __syscall(SYS_socketcall, SYS_CONNECT, args);
 }
 
 int getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen)
 {
-	return __syscall(SYS_getsockname, sockfd, addr, addrlen);
+	size_t args[3];
+	args[0] = sockfd;
+	args[1] = (size_t)addr;
+	args[2] = (size_t)addrlen;
+	return __syscall(SYS_socketcall, SYS_GETSOCKNAME, args);
 }
 
 int getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen)
 {
-	return __syscall(SYS_getpeername, sockfd, addr, addrlen);
+	size_t args[3];
+	args[0] = sockfd;
+	args[1] = (size_t)addr;
+	args[2] = (size_t)addrlen;
+	return __syscall(SYS_socketcall, SYS_GETPEERNAME, args);
 }
 
 int shutdown(int sockfd, int how)
 {
-	return __syscall(SYS_shutdown, sockfd, how);
+	size_t args[2];
+	args[0] = sockfd;
+	args[1] = how;
+	return __syscall(SYS_socketcall, SYS_SHUTDOWN, args);
 }
 
 ssize_t send(int fd, const void* buf, size_t n, int flags)
 {
-	return __syscall(SYS_sendto, fd, buf, n, flags, NULL, 0);
+	size_t args[4];
+	args[0] = fd;
+	args[1] = (size_t)buf;
+	args[2] = n;
+	args[3] = flags;
+	return __syscall(SYS_socketcall, SYS_SEND, args);
 }
 
 ssize_t recv(int fd, void* buf, size_t n, int flags)
 {
-	return __syscall(SYS_recvfrom, fd, buf, n, flags, NULL, NULL);
+	size_t args[4];
+	args[0] = fd;
+	args[1] = (size_t)buf;
+	args[2] = n;
+	args[3] = flags;
+	return __syscall(SYS_socketcall, SYS_RECV, args);
 }
 
 ssize_t sendto(int fd, const void* buf, size_t n, int flags, const struct sockaddr* addr, socklen_t addrlen)
 {
-	return __syscall(SYS_sendto, fd, buf, n, flags, addr, addrlen);
+	size_t args[6];
+	args[0] = fd;
+	args[1] = (size_t)buf;
+	args[2] = n;
+	args[3] = flags;
+	args[4] = (size_t)addr;
+	args[5] = addrlen;
+	return __syscall(SYS_socketcall, SYS_SENDTO, args);
 }
 
 ssize_t recvfrom(int fd, void* buf, size_t n, int flags, struct sockaddr* addr, socklen_t* addrlen)
 {
-	return __syscall(SYS_recvfrom, fd, buf, n, flags, addr, addrlen);
+	size_t args[6];
+	args[0] = fd;
+	args[1] = (size_t)buf;
+	args[2] = n;
+	args[3] = flags;
+	args[4] = (size_t)addr;
+	args[5] = (size_t)addrlen;
+	return __syscall(SYS_socketcall, SYS_RECVFROM, args);
 }
 
 int getsockopt(int fd, int level, int optname, void* optval, socklen_t* optlen)
 {
-	return __syscall(SYS_getsockopt, fd, level, optname, optval, optlen);
+	size_t args[5];
+	args[0] = fd;
+	args[1] = level;
+	args[2] = optname;
+	args[3] = (size_t)optval;
+	args[4] = (size_t)optlen;
+	return __syscall(SYS_socketcall, SYS_GETSOCKOPT, args);
 }
 
 int setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen)
 {
-	return __syscall(SYS_setsockopt, fd, level, optname, optval, optlen);
+	size_t args[5];
+	args[0] = fd;
+	args[1] = level;
+	args[2] = optname;
+	args[3] = (size_t)optval;
+	args[4] = optlen;
+	return __syscall(SYS_socketcall, SYS_SETSOCKOPT, args);
 }
-

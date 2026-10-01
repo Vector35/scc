@@ -71,7 +71,7 @@ def compile_source(source, platform="linux", arch="x86", blacklist=None, allow_r
 	if anti_disasm_freq:
 		cmd += ["--anti-disasm-freq", str(anti_disasm_freq)]
 	if markov_chain:
-		cmd += ["--markov-chain", markov_chain]
+		cmd += ["--markov-chain-file", markov_chain]
 	if additional_options:
 		cmd += additional_options
 	if defines:

@@ -689,7 +689,7 @@ instr restoreregs  restoreregs {} update
 {
 	vector<uint32_t> clobbered = func->GetClobberedCalleeSavedRegisters();
 	clobbered.push_back(REG_FP);
-	clobbered.push_back(REG_PC);
+	clobbered.push_back((settings.concat && (func->GetFunction()->GetName() == "_start")) ? REG_LR : REG_PC);
 	uint32_t mask = 0;
 	for (vector<uint32_t>::iterator i = clobbered.begin(); i != clobbered.end(); i++)
 		mask |= 1 << *i;
@@ -1041,7 +1041,7 @@ callvoid func:IREG reads:INPUT stackAdjust:IMM16
 	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 
-function bool GenerateReturnVoid(SymInstrBlock* out)
+function bool GenerateReturnVoid(SymInstrBlock* out, uint32_t target = SYMREG_NONE)
 {
 	// Restore frame pointer (if present) and adjust stack
 	if (m_framePointerEnabled)
@@ -1054,12 +1054,15 @@ function bool GenerateReturnVoid(SymInstrBlock* out)
 		return false;
 	}
 
-	// The restore register function also pops PC off the stack
+	// Concatenation restores LR so the following entry retains the caller's
+	// return address. Ordinary returns restore PC directly.
 	@restoreregs;
+	if (m_settings.concat && (m_func == m_startFunc))
+		@bx target;
 	return true;
 }
 
-return src:IREG, retval:INTEGER_RETURN_VALUE { @mov %retval, %src; GenerateReturnVoid(out); @symreturn %retval, SYMREG_NONE; }
+return src:IREG, retval:INTEGER_RETURN_VALUE { @mov %retval, %src; GenerateReturnVoid(out, %retval); @symreturn %retval, SYMREG_NONE; }
 return src:IREG64, retval:INTEGER_RETURN_VALUE_64
 {
 	@mov %retval:low, %src:low;

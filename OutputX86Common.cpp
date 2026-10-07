@@ -3822,7 +3822,7 @@ bool OUTPUT_CLASS_NAME::GenerateReturn(SymInstrBlock* out, const ILInstruction& 
 		return false;
 	if (!Move(out, dest, src))
 		return false;
-	if (!GenerateReturnVoid(out, instr))
+	if (!GenerateReturnVoid(out, instr, dest.reg))
 		return false;
 
 	out->AddInstruction(X86_SYMINSTR_NAME(SymReturn)(dest.reg, dest.highReg));
@@ -3830,11 +3830,12 @@ bool OUTPUT_CLASS_NAME::GenerateReturn(SymInstrBlock* out, const ILInstruction& 
 }
 
 
-bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr)
+bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr, uint32_t target)
 {
 	uint32_t temp = m_symFunc->AddRegister(X86REGCLASS_INTEGER);
+	bool concatReturn = m_settings.concat && (m_func == m_startFunc);
 
-	if (m_settings.encodePointers)
+	if (m_settings.encodePointers && !concatReturn)
 	{
 		// Using encoded pointers, load decode key
 		ILParameter keyParam(m_settings.encodePointerKey);
@@ -3887,6 +3888,14 @@ bool OUTPUT_CLASS_NAME::GenerateReturnVoid(SymInstrBlock* out, const ILInstructi
 	}
 
 	out->AddInstruction(X86_SYMINSTR_NAME(RestoreCalleeSavedRegs)());
+
+	if (concatReturn)
+	{
+		// Leave the caller's return address and stack arguments in place for the
+		// following entry point, including when main uses __stdcall.
+		EMIT_R(jmpn, target);
+		return true;
+	}
 
 	if (m_normalStack)
 	{

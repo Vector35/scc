@@ -13,31 +13,33 @@ are automatically available without the need for include files.
 
 Options:
     --arch <value>                    Specify processor architecture
-                                      Can be: x86 (default), x64
+                                      Can be: x86, x64, arm, armeb, aarch64,
+                                              mips, mipsel, ppc, ppcel, quark
+                                      Default: x86 (--exec auto-selects on x86/x64 hosts)
     --align <boundary>                Ensure output is aligned on the given boundary
     --allow-return                    Allow return from shellcode (default is to exit)
     --anti-disasm                     Generate anti-disassembly blocks
     --anti-disasm-freq <n>            Emit anti-disassembly blocks every <n> instructions
-    --base <expr>                     Set base address of output (can be a runtime computed
-                                      expression, such as "[eax+8]-12")
     --blacklist <byte>                Blacklist the given byte value
     --concat                          Jump to end of output on return for concatenating code
     -D <define>[=<value>]             Define a preprocessor macro
-    --decoder <source>                Use decoder to decode shellcode before executing
     --encode-pointers                 All code pointers are encoded with a random canary
-    --encoder <source>                Use encoder to encode shellcode
     --exec                            Execute shellcode after generation (does not write
                                       output to a file)
     --exec-stack                      When outputting an executable, make stack executable
     --format <value>, -f <value>      Specify output format
                                       Can be: bin (default), lib, elf, pe, macho
     --frame-reg <reg>                 Use alternate register as the frame pointer
+    --func <name> <address>           Assume function is at a specific address
+    --funcptr <name> <address>        Assume function is pointed to by a specific address
+    --gui                             For PE output, use GUI subsystem
     --header <file>                   Include a precompiled header
     -I <path>                         Add additional directory for include files
     -L <lib>                          Include pre-built library
     -m32, -m64                        Specify target address size
     --map <file>                      Generate map file
-    --markov-chain <file>             Use file for generating random instruction sequences
+    --markov-chain                    Generate random instruction sequences for padding
+    --markov-chain-file <file>        Use file for generating random instruction sequences
     --max-length <value>              Do not let output size exceed given number of bytes
     --mixed-mode                      Randomly choose subarchitecture for each function
     -o <filename>                     Set output filename (default is hex dump to stdout)
@@ -48,11 +50,8 @@ Options:
     --platform <value>                Specify operating system
                                       Can be: linux (default), freebsd, mac, windows, none
     --polymorph                       Generate different code on each run
-    --preserve <reg>                  Preserve the value of the given register
+    --unloaded-modules                Uses modules that have not been loaded yet
     --unsafe-stack                    Stack pointer may be near the code
-    --return-reg <reg>                Use alternate register as the return value
-    --return-high-reg <reg>           Use alternate register as the upper 32 bits of return
-                                      value (32-bit output only)
     --seed <value>                    Specify random seed (to reproduce --polymorph runs)
     --shared                          Generate shared library instead of executable
     --stack-grows-up                  Stack grows toward larger addresses
@@ -66,7 +65,5 @@ Useful extensions:
     __syscall(num, ...)               Executes a system call on the target platform
     __undefined                       Gives undefined results, usually omitting code
                                       Example: exit(__undefined);
-    __initial_<reg>                   Value of register at start of program
-                                      Example: int socketDescriptor = __initial_ebx;
 ---------------------------------------
 

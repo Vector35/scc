@@ -123,6 +123,8 @@ class Expr: public RefCountObject
 	Ref<Type> m_type;
 
 	bool DeserializeInternal(InputBlock* input);
+	bool IsDirectVariableMemberAccess() const;
+	ILParameter GenerateAddressIL(ParserState* state, Function* func, ILBlock*& block);
 
 public:
 	Expr(ExprClass cls);

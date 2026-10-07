@@ -167,7 +167,7 @@ class OUTPUT_CLASS_NAME: public Output
 	bool GenerateSignedConvert(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateUnsignedConvert(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateReturn(SymInstrBlock* out, const ILInstruction& instr);
-	bool GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr);
+	bool GenerateReturnVoid(SymInstrBlock* out, const ILInstruction& instr, uint32_t target = SYMREG_NONE);
 	bool GenerateAlloca(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateMemcpy(SymInstrBlock* out, const ILInstruction& instr);
 	bool GenerateMemset(SymInstrBlock* out, const ILInstruction& instr);

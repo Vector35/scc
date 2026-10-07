@@ -864,7 +864,7 @@ callvoid func:IREG reads:INPUT stackAdjust:IMM16
 	AdjustStackAfterCall(out, (uint32_t)%stackAdjust);
 }
 
-function bool GenerateReturnVoid(SymInstrBlock* out)
+function bool GenerateReturnVoid(SymInstrBlock* out, uint32_t target = SYMREG_NONE)
 {
 	// Restore frame pointer (if present) and adjust stack
 	if (m_framePointerEnabled)
@@ -877,13 +877,15 @@ function bool GenerateReturnVoid(SymInstrBlock* out)
 		return false;
 	}
 
-	// The restore register function also pops PC off the stack
 	@restoreregs;
-	@ret SYMREG_LR;
+	if (m_settings.concat && (m_func == m_startFunc))
+		@br target;
+	else
+		@ret SYMREG_LR;
 	return true;
 }
 
-return src:IREG, retval:INTEGER_RETURN_VALUE { @mov %retval, %src; GenerateReturnVoid(out); @symreturn %retval; }
+return src:IREG, retval:INTEGER_RETURN_VALUE { @mov %retval, %src; GenerateReturnVoid(out, %retval); @symreturn %retval; }
 returnvoid { GenerateReturnVoid(out); }
 
 alloca size:IREG => result:IREG, temp:IREG

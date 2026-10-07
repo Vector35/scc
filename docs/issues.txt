@@ -17,13 +17,11 @@ Compiler bugs
 Missing features
 ----------------
 * Structure packing is not supported.
-* Blacklisted code generation is not implemented.  Use an external encoder if the shellcode must not
-have byte values that are present in the output of the compiler.
 * Polymorphic code generation is very limited.  Register allocation is randomized and basic block
 ordering is present, but instruction sequences are constant between runs.
 * Built-in encoders and decoders (using the `--encoder` and `--decoder` command line options)
 are not implemented.
-* The `--return-reg` and `--return-reg-high` options are not implemented.
+* The `--return-reg` and `--return-high-reg` options are not implemented.
 * The `__initial_<reg>` variables are not implemented.  Passing arguments to shellcode on the
 stack using parameters to `main` is supported.
 * The `--base` option is not implemented.  By default, shellcode is automatically output using

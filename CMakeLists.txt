@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28 FATAL_ERROR)
 
 project(scc)
 
-find_package(Python3 3.10 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
 
 set(INTERMEDIATE ${PROJECT_BINARY_DIR}/Obj)
 file(MAKE_DIRECTORY ${INTERMEDIATE})
